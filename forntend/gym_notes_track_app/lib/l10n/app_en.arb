@@ -1,0 +1,54 @@
+{
+  "appTitle": "Gym Notes",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+  "folders": "Folders",
+  "@folders": {
+    "description": "Label for folders section"
+  },
+  "notes": "Notes",
+  "@notes": {
+    "description": "Label for notes section"
+  },
+  "createFolder": "Create Folder",
+  "@createFolder": {
+    "description": "Button text to create a new folder"
+  },
+  "createNote": "Create Note",
+  "@createNote": {
+    "description": "Button text to create a new note"
+  },
+  "folderName": "Folder Name",
+  "@folderName": {
+    "description": "Label for folder name input"
+  },
+  "noteName": "Note Name",
+  "@noteName": {
+    "description": "Label for note name input"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button text"
+  },
+  "create": "Create",
+  "@create": {
+    "description": "Create button text"
+  },
+  "edit": "Edit",
+  "@edit": {
+    "description": "Edit button text"
+  },
+  "delete": "Delete",
+  "@delete": {
+    "description": "Delete button text"
+  },
+  "save": "Save",
+  "@save": {
+    "description": "Save button text"
+  },
+  "search": "Search",
+  "@search": {
+    "description": "Search placeholder text"
+  }
+}
