@@ -3,11 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/folder.dart';
+import '../../config/app_constants.dart';
 import 'folder_event.dart';
 import 'folder_state.dart';
 
 class FolderBloc extends Bloc<FolderEvent, FolderState> {
-  static const String _storageKey = 'folders';
   final List<Folder> _folders = [];
   final Uuid _uuid = const Uuid();
 
@@ -21,12 +21,15 @@ class FolderBloc extends Bloc<FolderEvent, FolderState> {
   Future<void> _saveFolders() async {
     final prefs = await SharedPreferences.getInstance();
     final foldersJson = _folders.map((f) => f.toJson()).toList();
-    await prefs.setString(_storageKey, jsonEncode(foldersJson));
+    await prefs.setString(
+      AppConstants.foldersStorageKey,
+      jsonEncode(foldersJson),
+    );
   }
 
   Future<void> _loadFolders() async {
     final prefs = await SharedPreferences.getInstance();
-    final foldersString = prefs.getString(_storageKey);
+    final foldersString = prefs.getString(AppConstants.foldersStorageKey);
     if (foldersString != null) {
       final List<dynamic> foldersJson = jsonDecode(foldersString);
       _folders.clear();

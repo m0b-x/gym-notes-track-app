@@ -13,6 +13,7 @@ import '../utils/text_history_observer.dart';
 import '../widgets/markdown_toolbar.dart';
 import '../widgets/interactive_markdown.dart';
 import '../config/default_markdown_shortcuts.dart';
+import '../config/app_constants.dart';
 import '../factories/shortcut_handler_factory.dart';
 import 'markdown_settings_page.dart';
 
@@ -221,14 +222,14 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
               message: _isPreviewMode
                   ? AppLocalizations.of(context)!.switchToEditMode
                   : AppLocalizations.of(context)!.previewMarkdown,
-              waitDuration: const Duration(milliseconds: 500),
+              waitDuration: AppConstants.debounceDelay,
               child: IconButton(
                 icon: Icon(_isPreviewMode ? Icons.edit : Icons.visibility),
                 onPressed: () {
                   setState(() {
                     _isPreviewMode = !_isPreviewMode;
                     if (!_isPreviewMode) {
-                      Future.delayed(const Duration(milliseconds: 100), () {
+                      Future.delayed(AppConstants.shortDelay, () {
                         _contentFocusNode.requestFocus();
                       });
                     }
@@ -411,7 +412,9 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
 
   Future<void> _loadCustomShortcuts() async {
     final prefs = await SharedPreferences.getInstance();
-    final shortcutsJson = prefs.getString('custom_markdown_shortcuts');
+    final shortcutsJson = prefs.getString(
+      AppConstants.markdownShortcutsStorageKey,
+    );
 
     final defaults = DefaultMarkdownShortcuts.shortcuts;
 
@@ -466,7 +469,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         .map((shortcut) => shortcut.toJson())
         .toList();
     await prefs.setString(
-      'custom_markdown_shortcuts',
+      AppConstants.markdownShortcutsStorageKey,
       jsonEncode(shortcutsJson),
     );
   }
@@ -489,7 +492,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
           .map((shortcut) => shortcut.toJson())
           .toList();
       await prefs.setString(
-        'custom_markdown_shortcuts',
+        AppConstants.markdownShortcutsStorageKey,
         jsonEncode(shortcutsJson),
       );
     }
@@ -501,7 +504,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
 
   void _startAutoSaveTimer() {
     _autoSaveTimer?.cancel();
-    _autoSaveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _autoSaveTimer = Timer.periodic(AppConstants.autoSaveInterval, (_) {
       if (_hasChanges) {
         _saveNoteQuietly();
       }
@@ -510,7 +513,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
 
   void _resetAutoSaveTimer() {
     _autoSaveTimer?.cancel();
-    _autoSaveTimer = Timer(const Duration(seconds: 5), () {
+    _autoSaveTimer = Timer(AppConstants.autoSaveDelay, () {
       if (_hasChanges) {
         _saveNoteQuietly();
       }

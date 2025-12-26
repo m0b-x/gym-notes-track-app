@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import '../models/custom_markdown_shortcut.dart';
 import '../l10n/app_localizations.dart';
+import '../config/app_constants.dart';
 
 class MarkdownToolbar extends StatefulWidget {
   final List<CustomMarkdownShortcut> shortcuts;
@@ -18,6 +19,9 @@ class MarkdownToolbar extends StatefulWidget {
   final Function(CustomMarkdownShortcut) onShortcutPressed;
   final Future<void> Function(int draggedIndex, int targetIndex)
   onReorderComplete;
+  final bool showSettings;
+  final bool enableReordering;
+  final bool showBackground;
 
   const MarkdownToolbar({
     super.key,
@@ -33,6 +37,9 @@ class MarkdownToolbar extends StatefulWidget {
     required this.onSettings,
     required this.onShortcutPressed,
     required this.onReorderComplete,
+    this.showSettings = true,
+    this.enableReordering = true,
+    this.showBackground = true,
   });
 
   @override
@@ -76,35 +83,50 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
       final isDragging = _draggingIndex == index;
       final isHovering = _hoveringIndex == index;
 
-      if (isHovering && _draggingIndex != null && !isDragging) {
+      if (isHovering &&
+          _draggingIndex != null &&
+          !isDragging &&
+          widget.enableReordering) {
         shortcutWidgets.add(_DropIndicator(key: ValueKey('drop_$index')));
       }
 
-      shortcutWidgets.add(
-        _DraggableButton(
-          key: _buttonKeys[index],
-          shortcut: shortcut,
-          index: index,
-          isDragging: isDragging,
-          onTap: () => widget.onShortcutPressed(shortcut),
-          onDragStarted: () => _onDragStarted(index),
-          onDragUpdate: _onDragUpdate,
-          onDragEnd: _onDragEnd,
-        ),
-      );
+      if (widget.enableReordering) {
+        shortcutWidgets.add(
+          _DraggableButton(
+            key: _buttonKeys[index],
+            shortcut: shortcut,
+            index: index,
+            isDragging: isDragging,
+            onTap: () => widget.onShortcutPressed(shortcut),
+            onDragStarted: () => _onDragStarted(index),
+            onDragUpdate: _onDragUpdate,
+            onDragEnd: _onDragEnd,
+          ),
+        );
+      } else {
+        shortcutWidgets.add(
+          _SimpleButton(
+            key: ValueKey('simple_$index'),
+            shortcut: shortcut,
+            onTap: () => widget.onShortcutPressed(shortcut),
+          ),
+        );
+      }
     }
 
     return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
+      decoration: widget.showBackground
+          ? BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            )
+          : null,
       child: SingleChildScrollView(
         controller: _scrollController,
         scrollDirection: Axis.horizontal,
@@ -140,11 +162,12 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
               ),
             ],
             const SizedBox(width: 16),
-            _ToolbarButton(
-              icon: Icons.settings,
-              tooltip: AppLocalizations.of(context)!.settings,
-              onPressed: widget.onSettings,
-            ),
+            if (widget.showSettings)
+              _ToolbarButton(
+                icon: Icons.settings,
+                tooltip: AppLocalizations.of(context)!.settings,
+                onPressed: widget.onSettings,
+              ),
             const SizedBox(width: 8),
           ],
         ),
@@ -161,7 +184,6 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
-    
     final globalPosition = details.globalPosition;
     _updateHoverIndex(globalPosition);
     _handleAutoScroll(globalPosition);
@@ -227,13 +249,12 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
 
     final localPosition = renderBox.globalToLocal(globalPosition);
     final screenWidth = MediaQuery.of(context).size.width;
-    const edgeThreshold = 80.0;
-    const scrollSpeed = 10.0;
 
-    if (localPosition.dx < edgeThreshold) {
-      _startAutoScroll(-scrollSpeed);
-    } else if (localPosition.dx > screenWidth - edgeThreshold) {
-      _startAutoScroll(scrollSpeed);
+    if (localPosition.dx < AppConstants.edgeScrollThreshold) {
+      _startAutoScroll(-AppConstants.autoScrollSpeed);
+    } else if (localPosition.dx >
+        screenWidth - AppConstants.edgeScrollThreshold) {
+      _startAutoScroll(AppConstants.autoScrollSpeed);
     } else {
       _stopAutoScroll();
     }
@@ -242,7 +263,7 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
   void _startAutoScroll(double scrollDelta) {
     if (_autoScrollTimer != null) return;
 
-    _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
+    _autoScrollTimer = Timer.periodic(AppConstants.autoScrollTickDuration, (_) {
       if (!_scrollController.hasClients) return;
 
       final currentOffset = _scrollController.offset;
@@ -306,6 +327,8 @@ class _DraggableButton extends StatelessWidget {
     final buttonContent = _buildButtonContent(context);
     final placeholderContent = _buildPlaceholder(context);
     final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final dragFeedback = _buildDragFeedback(theme);
 
     return Semantics(
       button: true,
@@ -313,10 +336,10 @@ class _DraggableButton extends StatelessWidget {
       hint: l10n.longPressToReorder,
       child: Tooltip(
         message: shortcut.label,
-        waitDuration: const Duration(milliseconds: 300),
+        waitDuration: AppConstants.longPressDelay,
         child: LongPressDraggable<int>(
           data: index,
-          feedback: _buildDragFeedback(context),
+          feedback: dragFeedback,
           childWhenDragging: placeholderContent,
           onDragStarted: onDragStarted,
           onDragUpdate: onDragUpdate,
@@ -374,14 +397,14 @@ class _DraggableButton extends StatelessWidget {
     );
   }
 
-  Widget _buildDragFeedback(BuildContext context) {
+  Widget _buildDragFeedback(ThemeData theme) {
     final feedbackContent = shortcut.id == 'default_header'
         ? Text(
             'H',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onPrimary,
+              color: theme.colorScheme.onPrimary,
             ),
           )
         : Icon(
@@ -390,7 +413,7 @@ class _DraggableButton extends StatelessWidget {
               fontFamily: shortcut.iconFontFamily,
             ),
             size: 24,
-            color: Theme.of(context).colorScheme.onPrimary,
+            color: theme.colorScheme.onPrimary,
           );
 
     String tooltipText = shortcut.label;
@@ -411,8 +434,7 @@ class _DraggableButton extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.9),
+              color: theme.colorScheme.primary.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
@@ -431,8 +453,10 @@ class _DraggableButton extends StatelessWidget {
             child: Center(
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.8),
                   borderRadius: BorderRadius.circular(6),
@@ -491,6 +515,55 @@ class _ToolbarButton extends StatelessWidget {
                     : Theme.of(context).colorScheme.onSurface,
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Simple non-draggable button for use in dialogs
+class _SimpleButton extends StatelessWidget {
+  final CustomMarkdownShortcut shortcut;
+  final VoidCallback onTap;
+
+  const _SimpleButton({super.key, required this.shortcut, required this.onTap});
+
+  Widget _buildButtonContent(BuildContext context) {
+    if (shortcut.id == 'default_header') {
+      return Container(
+        width: 24,
+        height: 24,
+        alignment: Alignment.center,
+        child: Text(
+          'H',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+      );
+    }
+    return Icon(
+      IconData(shortcut.iconCodePoint, fontFamily: shortcut.iconFontFamily),
+      size: 24,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: shortcut.label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            child: _buildButtonContent(context),
           ),
         ),
       ),

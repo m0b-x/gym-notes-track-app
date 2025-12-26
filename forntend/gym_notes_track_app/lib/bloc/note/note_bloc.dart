@@ -3,11 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/note.dart';
+import '../../config/app_constants.dart';
 import 'note_event.dart';
 import 'note_state.dart';
 
 class NoteBloc extends Bloc<NoteEvent, NoteState> {
-  static const String _storageKey = 'notes';
   final List<Note> _notes = [];
   final Uuid _uuid = const Uuid();
 
@@ -21,12 +21,12 @@ class NoteBloc extends Bloc<NoteEvent, NoteState> {
   Future<void> _saveNotes() async {
     final prefs = await SharedPreferences.getInstance();
     final notesJson = _notes.map((n) => n.toJson()).toList();
-    await prefs.setString(_storageKey, jsonEncode(notesJson));
+    await prefs.setString(AppConstants.notesStorageKey, jsonEncode(notesJson));
   }
 
   Future<void> _loadNotes() async {
     final prefs = await SharedPreferences.getInstance();
-    final notesString = prefs.getString(_storageKey);
+    final notesString = prefs.getString(AppConstants.notesStorageKey);
     if (notesString != null) {
       final List<dynamic> notesJson = jsonDecode(notesString);
       _notes.clear();

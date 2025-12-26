@@ -3,11 +3,11 @@ import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../l10n/app_localizations.dart';
 import '../models/custom_markdown_shortcut.dart';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/custom_snackbar.dart';
-
-// Removed _SettingsConstants class - using AppLocalizations instead
+import '../config/available_icons.dart';
+import '../widgets/markdown_toolbar.dart';
+import '../factories/shortcut_handler_factory.dart';
+import '../utils/markdown_settings_utils.dart';
 
 class MarkdownSettingsPage extends StatefulWidget {
   final List<CustomMarkdownShortcut> allShortcuts;
@@ -27,24 +27,9 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     _shortcuts = List.from(widget.allShortcuts);
   }
 
-  // ========================================
-  // Data Persistence
-  // ========================================
-
   Future<void> _saveShortcuts() async {
-    final prefs = await SharedPreferences.getInstance();
-    final shortcutsJson = _shortcuts
-        .map((shortcut) => shortcut.toJson())
-        .toList();
-    await prefs.setString(
-      'custom_markdown_shortcuts',
-      jsonEncode(shortcutsJson),
-    );
+    await MarkdownSettingsUtils.saveShortcuts(_shortcuts);
   }
-
-  // ========================================
-  // CRUD Operations
-  // ========================================
 
   void _addShortcut() {
     showDialog(
@@ -122,10 +107,6 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     );
   }
 
-  // ========================================
-  // Bulk Operations
-  // ========================================
-
   void _showResetDialog() {
     showDialog(
       context: context,
@@ -177,187 +158,16 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
 
   void _resetToDefault() {
     setState(() {
-      // Get fresh default shortcuts from the source
-      final defaults = _getDefaultShortcuts();
-      // Keep custom shortcuts
-      final customShortcuts = _shortcuts.where((s) => !s.isDefault).toList();
-      // Combine: defaults first, then custom
-      _shortcuts = [...defaults, ...customShortcuts];
+      _shortcuts = MarkdownSettingsUtils.resetToDefault(_shortcuts);
     });
     _saveShortcuts();
-  }
-
-  // Helper method to get default shortcuts
-  static List<CustomMarkdownShortcut> _getDefaultShortcuts() {
-    return [
-      const CustomMarkdownShortcut(
-        id: 'default_bold',
-        label: 'Bold',
-        iconCodePoint: 0xe238, // format_bold
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '**',
-        afterText: '**',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_italic',
-        label: 'Italic',
-        iconCodePoint: 0xe23f, // format_italic
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '_',
-        afterText: '_',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_header',
-        label: 'Headers',
-        iconCodePoint: 0xe86f,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '# ',
-        afterText: '',
-        isDefault: true,
-        insertType: 'header',
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_point_list',
-        label: 'Point List',
-        iconCodePoint: 0xe065, // fiber_manual_record (bullet point)
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '• ',
-        afterText: '',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_strikethrough',
-        label: 'Strikethrough',
-        iconCodePoint: 0xe257, // format_strikethrough
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '~~',
-        afterText: '~~',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_bullet_list',
-        label: 'Bullet List',
-        iconCodePoint: 0xe241, // format_list_bulleted
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '- ',
-        afterText: '',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_numbered_list',
-        label: 'Numbered List',
-        iconCodePoint: 0xe242, // format_list_numbered
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '1. ',
-        afterText: '',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_checkbox',
-        label: 'Checkbox',
-        iconCodePoint: 0xe834, // check_box_outline_blank
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '- [ ] ',
-        afterText: '',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_quote',
-        label: 'Quote',
-        iconCodePoint: 0xe244, // format_quote
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '> ',
-        afterText: '',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_inline_code',
-        label: 'Inline Code',
-        iconCodePoint: 0xe86f, // code
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '`',
-        afterText: '`',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_code_block',
-        label: 'Code Block',
-        iconCodePoint: 0xe86f, // code
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '```\n',
-        afterText: '\n```',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_link',
-        label: 'Link',
-        iconCodePoint: 0xe157, // link
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '[',
-        afterText: '](url)',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_date',
-        label: 'Current Date',
-        iconCodePoint: 0xe916, // calendar_today
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '',
-        afterText: '',
-        isDefault: true,
-        insertType: 'date',
-      ),
-    ];
   }
 
   void _removeAllCustom() {
     setState(() {
-      _shortcuts = _shortcuts.where((s) => s.isDefault).toList();
+      _shortcuts = MarkdownSettingsUtils.removeAllCustom(_shortcuts);
     });
     _saveShortcuts();
-  }
-
-  // ========================================
-  // Helper Methods
-  // ========================================
-
-  Widget _buildShortcutIcon(CustomMarkdownShortcut shortcut) {
-    // Special rendering for header shortcut
-    if (shortcut.id == 'default_header') {
-      return Container(
-        width: 24,
-        height: 24,
-        alignment: Alignment.center,
-        child: Text(
-          'H',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-      );
-    }
-
-    // Standard icon rendering
-    return Icon(
-      IconData(shortcut.iconCodePoint, fontFamily: shortcut.iconFontFamily),
-    );
-  }
-
-  String _getShortcutSubtitle(CustomMarkdownShortcut shortcut) {
-    switch (shortcut.insertType) {
-      case 'date':
-        return AppLocalizations.of(context)!.insertsCurrentDate;
-      case 'header':
-        return AppLocalizations.of(context)!.opensHeaderMenu;
-      default:
-        return AppLocalizations.of(
-          context,
-        )!.beforeAfterText(shortcut.beforeText, shortcut.afterText);
-    }
   }
 
   @override
@@ -479,7 +289,10 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                               ).colorScheme.onSurface.withValues(alpha: 0.4),
                             ),
                             const SizedBox(width: 8),
-                            _buildShortcutIcon(shortcut),
+                            MarkdownSettingsUtils.buildShortcutIcon(
+                              context,
+                              shortcut,
+                            ),
                           ],
                         ),
                         title: Row(
@@ -513,7 +326,10 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                           ],
                         ),
                         subtitle: Text(
-                          _getShortcutSubtitle(shortcut),
+                          MarkdownSettingsUtils.getShortcutSubtitle(
+                            context,
+                            shortcut,
+                          ),
                           style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(
@@ -575,31 +391,13 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
   late TextEditingController _labelController;
   late TextEditingController _beforeController;
   late TextEditingController _afterController;
+  late FocusNode _beforeFocusNode;
+  late FocusNode _afterFocusNode;
   late IconData _selectedIcon;
   late String _insertType;
-
-  final List<IconData> _availableIcons = [
-    Icons.tag,
-    Icons.star,
-    Icons.favorite,
-    Icons.lightbulb,
-    Icons.warning,
-    Icons.info,
-    Icons.check_circle,
-    Icons.highlight,
-    Icons.palette,
-    Icons.bookmark,
-    Icons.label,
-    Icons.flag,
-    Icons.push_pin,
-    Icons.note,
-    Icons.description,
-    Icons.article,
-    Icons.menu_book,
-    Icons.attachment,
-    Icons.local_offer,
-    Icons.style,
-  ];
+  List<CustomMarkdownShortcut> _shortcuts = [];
+  TextEditingController? _activeController;
+  FocusNode? _activeFocusNode;
 
   @override
   void initState() {
@@ -613,6 +411,27 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
     _afterController = TextEditingController(
       text: widget.shortcut?.afterText ?? '',
     );
+    _beforeFocusNode = FocusNode();
+    _afterFocusNode = FocusNode();
+
+    // Set up focus listeners to track active field
+    _beforeFocusNode.addListener(() {
+      setState(() {
+        if (_beforeFocusNode.hasFocus) {
+          _activeController = _beforeController;
+          _activeFocusNode = _beforeFocusNode;
+        }
+      });
+    });
+    _afterFocusNode.addListener(() {
+      setState(() {
+        if (_afterFocusNode.hasFocus) {
+          _activeController = _afterController;
+          _activeFocusNode = _afterFocusNode;
+        }
+      });
+    });
+
     _selectedIcon = widget.shortcut != null
         ? IconData(
             widget.shortcut!.iconCodePoint,
@@ -620,6 +439,7 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
           )
         : Icons.tag;
     _insertType = widget.shortcut?.insertType ?? 'wrap';
+    _loadShortcuts();
   }
 
   @override
@@ -627,6 +447,8 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
     _labelController.dispose();
     _beforeController.dispose();
     _afterController.dispose();
+    _beforeFocusNode.dispose();
+    _afterFocusNode.dispose();
     super.dispose();
   }
 
@@ -644,9 +466,9 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
             ),
-            itemCount: _availableIcons.length,
+            itemCount: AvailableIcons.all.length,
             itemBuilder: (context, index) {
-              final icon = _availableIcons[index];
+              final icon = AvailableIcons.all[index];
               return InkWell(
                 onTap: () {
                   setState(() {
@@ -676,6 +498,26 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
     );
   }
 
+  Future<void> _loadShortcuts() async {
+    final loaded = await MarkdownSettingsUtils.loadShortcuts();
+    setState(() {
+      _shortcuts = loaded;
+    });
+  }
+
+  void _handleShortcut(CustomMarkdownShortcut shortcut) {
+    if (_activeController == null || _activeFocusNode == null) return;
+
+    final handler = ShortcutHandlerFactory.getHandler(shortcut.insertType);
+    handler.execute(
+      context: context,
+      shortcut: shortcut,
+      controller: _activeController!,
+      focusNode: _activeFocusNode!,
+      onTextChanged: () {},
+    );
+  }
+
   void _save() {
     if (_labelController.text.isEmpty) {
       CustomSnackbar.show(
@@ -701,156 +543,235 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final bool showToolbar =
+        _beforeFocusNode.hasFocus || _afterFocusNode.hasFocus;
+
     return AlertDialog(
       title: Text(
         widget.shortcut == null
             ? AppLocalizations.of(context)!.newShortcut
             : AppLocalizations.of(context)!.editShortcut,
       ),
-      content: SingleChildScrollView(
+      contentPadding: EdgeInsets.zero,
+      content: SizedBox(
+        width: double.maxFinite,
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(AppLocalizations.of(context)!.icon),
-            const SizedBox(height: 8),
-            InkWell(
-              onTap: _showIconPicker,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.3),
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(_selectedIcon, size: 32),
-                    const SizedBox(width: 16),
-                    Text(AppLocalizations.of(context)!.tapToChangeIcon),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _labelController,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.of(context)!.label,
-                hintText: AppLocalizations.of(context)!.labelHint,
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(AppLocalizations.of(context)!.insertType),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _insertType,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-              ),
-              items: [
-                DropdownMenuItem(
-                  value: 'wrap',
-                  child: Text(AppLocalizations.of(context)!.wrapSelectedText),
-                ),
-                DropdownMenuItem(
-                  value: 'date',
-                  child: Text(AppLocalizations.of(context)!.insertCurrentDate),
-                ),
-              ],
-              onChanged: (value) {
-                setState(() {
-                  _insertType = value ?? 'wrap';
-                  // Clear before/after text when switching to date
-                  if (_insertType == 'date') {
-                    _beforeController.text = '';
-                    _afterController.text = '';
-                  }
-                });
-              },
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primaryContainer.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 20,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      AppLocalizations.of(context)!.markdownSpaceWarning,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.8),
+            Flexible(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  // Unfocus text fields when tapping outside
+                  _beforeFocusNode.unfocus();
+                  _afterFocusNode.unfocus();
+                },
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(AppLocalizations.of(context)!.icon),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: _showIconPicker,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.3),
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(_selectedIcon, size: 32),
+                              const SizedBox(width: 16),
+                              Text(
+                                AppLocalizations.of(context)!.tapToChangeIcon,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _labelController,
+                        decoration: InputDecoration(
+                          labelText: AppLocalizations.of(context)!.label,
+                          hintText: AppLocalizations.of(context)!.labelHint,
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(AppLocalizations.of(context)!.insertType),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        initialValue: _insertType,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        items: [
+                          DropdownMenuItem(
+                            value: 'wrap',
+                            child: Text(
+                              AppLocalizations.of(context)!.wrapSelectedText,
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'date',
+                            child: Text(
+                              AppLocalizations.of(context)!.insertCurrentDate,
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _insertType = value ?? 'wrap';
+                            // Clear before/after text when switching to date
+                            if (_insertType == 'date') {
+                              _beforeController.text = '';
+                              _afterController.text = '';
+                            }
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 20,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                AppLocalizations.of(
+                                  context,
+                                )!.markdownSpaceWarning,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _beforeController,
+                        focusNode: _beforeFocusNode,
+                        maxLines: null,
+                        minLines: 3,
+                        keyboardType: TextInputType.multiline,
+                        textInputAction: TextInputAction.newline,
+                        decoration: InputDecoration(
+                          labelText: _insertType == 'date'
+                              ? AppLocalizations.of(context)!.beforeDate
+                              : AppLocalizations.of(context)!.markdownStart,
+                          hintText: _insertType == 'date'
+                              ? AppLocalizations.of(
+                                  context,
+                                )!.optionalTextBeforeDate
+                              : AppLocalizations.of(context)!.markdownStartHint,
+                          border: const OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _afterController,
+                        focusNode: _afterFocusNode,
+                        maxLines: null,
+                        minLines: 3,
+                        keyboardType: TextInputType.multiline,
+                        textInputAction: TextInputAction.newline,
+                        decoration: InputDecoration(
+                          labelText: _insertType == 'date'
+                              ? AppLocalizations.of(context)!.afterDate
+                              : AppLocalizations.of(context)!.markdownEnd,
+                          hintText: _insertType == 'date'
+                              ? AppLocalizations.of(
+                                  context,
+                                )!.optionalTextAfterDate
+                              : AppLocalizations.of(context)!.markdownStartHint,
+                          border: const OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _insertType == 'date'
+                            ? 'Preview: ${_beforeController.text}${DateFormat('MMMM d, yyyy').format(DateTime.now())}${_afterController.text}'
+                            : 'Preview: ${_beforeController.text}text${_afterController.text}',
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (showToolbar && _shortcuts.isNotEmpty)
+              Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                      width: 1,
+                    ),
+                    bottom: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                      width: 1,
                     ),
                   ),
-                ],
+                ),
+                child: MarkdownToolbar(
+                  shortcuts: _shortcuts.where((s) => s.isVisible).toList(),
+                  isPreviewMode: false,
+                  canUndo: false,
+                  canRedo: false,
+                  previewFontSize: 16,
+                  onUndo: () {},
+                  onRedo: () {},
+                  onDecreaseFontSize: () {},
+                  onIncreaseFontSize: () {},
+                  onSettings: () {},
+                  onShortcutPressed: _handleShortcut,
+                  onReorderComplete: (draggedIndex, targetIndex) async {},
+                  showSettings: false,
+                  enableReordering: false,
+                  showBackground: false,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _beforeController,
-              decoration: InputDecoration(
-                labelText: _insertType == 'date'
-                    ? AppLocalizations.of(context)!.beforeDate
-                    : AppLocalizations.of(context)!.markdownStart,
-                hintText: _insertType == 'date'
-                    ? AppLocalizations.of(context)!.optionalTextBeforeDate
-                    : AppLocalizations.of(context)!.markdownStartHint,
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _afterController,
-              decoration: InputDecoration(
-                labelText: _insertType == 'date'
-                    ? AppLocalizations.of(context)!.afterDate
-                    : AppLocalizations.of(context)!.markdownEnd,
-                hintText: _insertType == 'date'
-                    ? AppLocalizations.of(context)!.optionalTextAfterDate
-                    : AppLocalizations.of(context)!.markdownStartHint,
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _insertType == 'date'
-                  ? 'Preview: ${_beforeController.text}${DateFormat('MMMM d, yyyy').format(DateTime.now())}${_afterController.text}'
-                  : 'Preview: ${_beforeController.text}text${_afterController.text}',
-              style: TextStyle(
-                fontFamily: 'monospace',
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
           ],
         ),
       ),
