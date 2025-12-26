@@ -11,7 +11,6 @@ import '../bloc/note/note_event.dart';
 import '../models/note.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../utils/text_history_observer.dart';
-import '../utils/custom_snackbar.dart';
 import '../widgets/markdown_toolbar.dart';
 import 'markdown_settings_page.dart';
 
@@ -36,7 +35,6 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   List<CustomMarkdownShortcut> _allShortcuts = [];
   String _previousText = '';
   bool _isProcessingTextChange = false;
-  bool _autoSaveEnabled = false;
   Timer? _autoSaveTimer;
 
   static List<CustomMarkdownShortcut> _getDefaultShortcuts() {
@@ -189,10 +187,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     setState(() {
       _hasChanges = true;
     });
-
-    if (_autoSaveEnabled) {
-      _resetAutoSaveTimer();
-    }
+    _resetAutoSaveTimer();
   }
 
   @override
@@ -321,153 +316,139 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: GestureDetector(
-          onTap: _editTitle,
-          child: Text(
-            _titleController.text.isEmpty
-                ? AppLocalizations.of(context)!.newNote
-                : _titleController.text,
-            style: const TextStyle(fontWeight: FontWeight.bold),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          await _saveBeforeExit();
+          if (context.mounted) {
+            Navigator.of(context).pop();
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: GestureDetector(
+            onTap: _editTitle,
+            child: Text(
+              _titleController.text.isEmpty
+                  ? AppLocalizations.of(context)!.newNote
+                  : _titleController.text,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
+          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+          actions: [
+            Tooltip(
+              message: _isPreviewMode
+                  ? AppLocalizations.of(context)!.switchToEditMode
+                  : AppLocalizations.of(context)!.previewMarkdown,
+              waitDuration: const Duration(milliseconds: 500),
+              child: IconButton(
+                icon: Icon(_isPreviewMode ? Icons.edit : Icons.visibility),
+                onPressed: () {
+                  setState(() {
+                    _isPreviewMode = !_isPreviewMode;
+                    if (!_isPreviewMode) {
+                      Future.delayed(const Duration(milliseconds: 100), () {
+                        _contentFocusNode.requestFocus();
+                      });
+                    }
+                  });
+                },
+                tooltip: _isPreviewMode
+                    ? AppLocalizations.of(context)!.edit
+                    : AppLocalizations.of(context)!.preview,
+              ),
+            ),
+          ],
         ),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          Tooltip(
-            message: _isPreviewMode
-                ? AppLocalizations.of(context)!.switchToEditMode
-                : AppLocalizations.of(context)!.previewMarkdown,
-            waitDuration: const Duration(milliseconds: 500),
-            child: IconButton(
-              icon: Icon(_isPreviewMode ? Icons.edit : Icons.visibility),
-              onPressed: () {
+        body: Column(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: _isPreviewMode
+                    ? Markdown(
+                        data: _contentController.text.isEmpty
+                            ? AppLocalizations.of(context)!.noContentYet
+                            : _contentController.text
+                                  .split('\n')
+                                  .map((line) => line.isEmpty ? '&nbsp;' : line)
+                                  .join('  \n'),
+                        selectable: true,
+                        padding: const EdgeInsets.all(16),
+                        styleSheet: MarkdownStyleSheet(
+                          p: TextStyle(fontSize: _previewFontSize),
+                          listBullet: TextStyle(fontSize: _previewFontSize),
+                          h1: TextStyle(
+                            fontSize: _previewFontSize * 2,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          h2: TextStyle(
+                            fontSize: _previewFontSize * 1.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          h3: TextStyle(
+                            fontSize: _previewFontSize * 1.25,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          h4: TextStyle(
+                            fontSize: _previewFontSize * 1.1,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          h5: TextStyle(
+                            fontSize: _previewFontSize,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          h6: TextStyle(
+                            fontSize: _previewFontSize * 0.9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          code: TextStyle(fontSize: _previewFontSize * 0.9),
+                        ),
+                      )
+                    : TextField(
+                        controller: _contentController,
+                        focusNode: _contentFocusNode,
+                        decoration: InputDecoration(
+                          hintText: AppLocalizations.of(context)!.startWriting,
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.all(0),
+                        ),
+                        maxLines: null,
+                        expands: true,
+                        textAlignVertical: TextAlignVertical.top,
+                        style: const TextStyle(fontSize: 16, height: 1.5),
+                        onSubmitted: (_) => _handleEnterKey(),
+                        onChanged: (_) => _handleTextChange(),
+                      ),
+              ),
+            ),
+            MarkdownToolbar(
+              shortcuts: _allShortcuts,
+              isPreviewMode: _isPreviewMode,
+              canUndo: _textHistory?.canUndo ?? false,
+              canRedo: _textHistory?.canRedo ?? false,
+              previewFontSize: _previewFontSize,
+              onUndo: () => _textHistory?.undo(),
+              onRedo: () => _textHistory?.redo(),
+              onDecreaseFontSize: () {
                 setState(() {
-                  _isPreviewMode = !_isPreviewMode;
-                  if (!_isPreviewMode) {
-                    Future.delayed(const Duration(milliseconds: 100), () {
-                      _contentFocusNode.requestFocus();
-                    });
-                  }
+                  _previewFontSize = (_previewFontSize - 2).clamp(10.0, 30.0);
                 });
               },
-              tooltip: _isPreviewMode
-                  ? AppLocalizations.of(context)!.edit
-                  : AppLocalizations.of(context)!.preview,
+              onIncreaseFontSize: () {
+                setState(() {
+                  _previewFontSize = (_previewFontSize + 2).clamp(10.0, 30.0);
+                });
+              },
+              onSettings: _openMarkdownSettings,
+              onShortcutPressed: _handleShortcut,
+              onReorderComplete: _handleReorderComplete,
             ),
-          ),
-          Tooltip(
-            message: _autoSaveEnabled
-                ? AppLocalizations.of(context)!.autoSaveOn
-                : AppLocalizations.of(context)!.enableAutoSave,
-            waitDuration: const Duration(milliseconds: 500),
-            child: IconButton(
-              icon: Icon(
-                _autoSaveEnabled ? Icons.sync : Icons.sync_disabled,
-                color: _autoSaveEnabled ? Colors.green : null,
-              ),
-              onPressed: _toggleAutoSave,
-              tooltip: _autoSaveEnabled
-                  ? AppLocalizations.of(context)!.autoSaveOn
-                  : AppLocalizations.of(context)!.autoSaveOff,
-            ),
-          ),
-          Tooltip(
-            message: AppLocalizations.of(context)!.saveNote,
-            waitDuration: const Duration(milliseconds: 500),
-            child: IconButton(
-              icon: const Icon(Icons.save),
-              onPressed: _hasChanges || _autoSaveEnabled ? _saveNote : null,
-              tooltip: AppLocalizations.of(context)!.save,
-            ),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: _isPreviewMode
-                  ? Markdown(
-                      data: _contentController.text.isEmpty
-                          ? AppLocalizations.of(context)!.noContentYet
-                          : _contentController.text
-                                .split('\n')
-                                .map((line) => line.isEmpty ? '&nbsp;' : line)
-                                .join('  \n'),
-                      selectable: true,
-                      padding: const EdgeInsets.all(16),
-                      styleSheet: MarkdownStyleSheet(
-                        p: TextStyle(fontSize: _previewFontSize),
-                        listBullet: TextStyle(fontSize: _previewFontSize),
-                        h1: TextStyle(
-                          fontSize: _previewFontSize * 2,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        h2: TextStyle(
-                          fontSize: _previewFontSize * 1.5,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        h3: TextStyle(
-                          fontSize: _previewFontSize * 1.25,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        h4: TextStyle(
-                          fontSize: _previewFontSize * 1.1,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        h5: TextStyle(
-                          fontSize: _previewFontSize,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        h6: TextStyle(
-                          fontSize: _previewFontSize * 0.9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        code: TextStyle(fontSize: _previewFontSize * 0.9),
-                      ),
-                    )
-                  : TextField(
-                      controller: _contentController,
-                      focusNode: _contentFocusNode,
-                      decoration: InputDecoration(
-                        hintText: AppLocalizations.of(context)!.startWriting,
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.all(0),
-                      ),
-                      maxLines: null,
-                      expands: true,
-                      textAlignVertical: TextAlignVertical.top,
-                      style: const TextStyle(fontSize: 16, height: 1.5),
-                      onSubmitted: (_) => _handleEnterKey(),
-                      onChanged: (_) => _handleTextChange(),
-                    ),
-            ),
-          ),
-          MarkdownToolbar(
-            shortcuts: _allShortcuts,
-            isPreviewMode: _isPreviewMode,
-            canUndo: _textHistory?.canUndo ?? false,
-            canRedo: _textHistory?.canRedo ?? false,
-            previewFontSize: _previewFontSize,
-            onUndo: () => _textHistory?.undo(),
-            onRedo: () => _textHistory?.redo(),
-            onDecreaseFontSize: () {
-              setState(() {
-                _previewFontSize = (_previewFontSize - 2).clamp(10.0, 30.0);
-              });
-            },
-            onIncreaseFontSize: () {
-              setState(() {
-                _previewFontSize = (_previewFontSize + 2).clamp(10.0, 30.0);
-              });
-            },
-            onSettings: _openMarkdownSettings,
-            onShortcutPressed: _handleShortcut,
-            onReorderComplete: _handleReorderComplete,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -480,15 +461,13 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     await _saveShortcutsOrder();
   }
 
-  void _saveNote() {
+  Future<void> _saveBeforeExit() async {
+    _autoSaveTimer?.cancel();
+
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
 
     if (title.isEmpty && content.isEmpty) {
-      CustomSnackbar.show(
-        context,
-        AppLocalizations.of(context)!.noteCannotBeEmpty,
-      );
       return;
     }
 
@@ -501,14 +480,6 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         UpdateNote(noteId: widget.note!.id, title: title, content: content),
       );
     }
-
-    setState(() {
-      _hasChanges = false;
-    });
-
-    CustomSnackbar.show(context, AppLocalizations.of(context)!.noteSaved);
-
-    Navigator.pop(context);
   }
 
   void _editTitle() {
@@ -777,40 +748,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   }
 
   Future<void> _loadAutoSavePreference() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _autoSaveEnabled = prefs.getBool('auto_save_enabled') ?? false;
-    });
-
-    if (_autoSaveEnabled) {
-      _startAutoSaveTimer();
-    }
-  }
-
-  Future<void> _toggleAutoSave() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _autoSaveEnabled = !_autoSaveEnabled;
-    });
-
-    await prefs.setBool('auto_save_enabled', _autoSaveEnabled);
-
-    if (!mounted) return;
-
-    if (_autoSaveEnabled) {
-      _startAutoSaveTimer();
-      CustomSnackbar.show(
-        context,
-        AppLocalizations.of(context)!.autoSaveEnabled,
-      );
-    } else {
-      _autoSaveTimer?.cancel();
-      _autoSaveTimer = null;
-      CustomSnackbar.show(
-        context,
-        AppLocalizations.of(context)!.autoSaveDisabled,
-      );
-    }
+    _startAutoSaveTimer();
   }
 
   void _startAutoSaveTimer() {
@@ -823,14 +761,12 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   }
 
   void _resetAutoSaveTimer() {
-    if (_autoSaveEnabled) {
-      _autoSaveTimer?.cancel();
-      _autoSaveTimer = Timer(const Duration(seconds: 5), () {
-        if (_hasChanges) {
-          _saveNoteQuietly();
-        }
-      });
-    }
+    _autoSaveTimer?.cancel();
+    _autoSaveTimer = Timer(const Duration(seconds: 5), () {
+      if (_hasChanges) {
+        _saveNoteQuietly();
+      }
+    });
   }
 
   void _saveNoteQuietly() {

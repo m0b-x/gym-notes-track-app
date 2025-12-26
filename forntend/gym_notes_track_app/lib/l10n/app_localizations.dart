@@ -733,6 +733,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{label} button'**
   String shortcutButton(String label);
+
+  /// Warning message to remind users to add space after markdown syntax
+  ///
+  /// In en, this message translates to:
+  /// **'Tip: Add a space after markdown syntax (e.g., \'# \' or \'- \') for proper formatting.'**
+  String get markdownSpaceWarning;
 }
 
 class _AppLocalizationsDelegate

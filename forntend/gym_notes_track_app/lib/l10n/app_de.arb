@@ -460,5 +460,9 @@
         "type": "String"
       }
     }
+  },
+  "markdownSpaceWarning": "Tipp: Fügen Sie ein Leerzeichen nach der Markdown-Syntax hinzu (z.B. '# ' oder '- ') für die richtige Formatierung.",
+  "@markdownSpaceWarning": {
+    "description": "Warnmeldung, die Benutzer daran erinnert, nach der Markdown-Syntax ein Leerzeichen hinzuzufügen"
   }
 }

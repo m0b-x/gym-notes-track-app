@@ -362,196 +362,200 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.markdownShortcuts),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) {
-              if (value == 'reset_all') {
-                _showResetDialog();
-              } else if (value == 'remove_custom') {
-                _showRemoveCustomDialog();
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'reset_all',
-                child: Row(
-                  children: [
-                    const Icon(Icons.refresh),
-                    const SizedBox(width: 8),
-                    Text(AppLocalizations.of(context)!.resetToDefault),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'remove_custom',
-                child: Row(
-                  children: [
-                    const Icon(Icons.delete_sweep),
-                    const SizedBox(width: 8),
-                    Text(AppLocalizations.of(context)!.removeAllCustom),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          IconButton(
-            icon: const Icon(Icons.check),
-            onPressed: () {
-              Navigator.pop(context, _shortcuts);
-            },
-          ),
-        ],
-      ),
-      body: _shortcuts.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.keyboard,
-                    size: 64,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.3),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    AppLocalizations.of(context)!.noCustomShortcutsYet,
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    AppLocalizations.of(context)!.tapToAddShortcut,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : ReorderableListView.builder(
-              padding: const EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: 110, // Extra space at bottom for FAB
-              ),
-              itemCount: _shortcuts.length,
-              onReorder: (oldIndex, newIndex) {
-                setState(() {
-                  if (oldIndex < newIndex) {
-                    newIndex -= 1;
-                  }
-                  final item = _shortcuts.removeAt(oldIndex);
-                  _shortcuts.insert(newIndex, item);
-                });
-                _saveShortcuts();
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          Navigator.of(context).pop(_shortcuts);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(AppLocalizations.of(context)!.markdownShortcuts),
+          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+          actions: [
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              onSelected: (value) {
+                if (value == 'reset_all') {
+                  _showResetDialog();
+                } else if (value == 'remove_custom') {
+                  _showRemoveCustomDialog();
+                }
               },
-              itemBuilder: (context, index) {
-                final shortcut = _shortcuts[index];
-                return Opacity(
-                  key: ValueKey(shortcut.id),
-                  opacity: shortcut.isVisible ? 1.0 : 0.5,
-                  child: Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.drag_handle,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.4),
-                          ),
-                          const SizedBox(width: 8),
-                          _buildShortcutIcon(shortcut),
-                        ],
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'reset_all',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.refresh),
+                      const SizedBox(width: 8),
+                      Text(AppLocalizations.of(context)!.resetToDefault),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'remove_custom',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.delete_sweep),
+                      const SizedBox(width: 8),
+                      Text(AppLocalizations.of(context)!.removeAllCustom),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        body: _shortcuts.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.keyboard,
+                      size: 64,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.3),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      AppLocalizations.of(context)!.noCustomShortcutsYet,
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
-                      title: Row(
-                        children: [
-                          Text(shortcut.label),
-                          if (shortcut.isDefault) ...[
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      AppLocalizations.of(context)!.tapToAddShortcut,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : ReorderableListView.builder(
+                padding: const EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: 110, // Extra space at bottom for FAB
+                ),
+                itemCount: _shortcuts.length,
+                onReorder: (oldIndex, newIndex) {
+                  setState(() {
+                    if (oldIndex < newIndex) {
+                      newIndex -= 1;
+                    }
+                    final item = _shortcuts.removeAt(oldIndex);
+                    _shortcuts.insert(newIndex, item);
+                  });
+                  _saveShortcuts();
+                },
+                itemBuilder: (context, index) {
+                  final shortcut = _shortcuts[index];
+                  return Opacity(
+                    key: ValueKey(shortcut.id),
+                    opacity: shortcut.isVisible ? 1.0 : 0.5,
+                    child: Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.drag_handle,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.4),
+                            ),
                             const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.primary.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                AppLocalizations.of(context)!.defaultLabel,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).colorScheme.primary,
+                            _buildShortcutIcon(shortcut),
+                          ],
+                        ),
+                        title: Row(
+                          children: [
+                            Text(shortcut.label),
+                            if (shortcut.isDefault) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  AppLocalizations.of(context)!.defaultLabel,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ],
-                        ],
-                      ),
-                      subtitle: Text(
-                        _getShortcutSubtitle(shortcut),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                        subtitle: Text(
+                          _getShortcutSubtitle(shortcut),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                shortcut.isVisible
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                              onPressed: () => _toggleVisibility(index),
+                              tooltip: shortcut.isVisible
+                                  ? AppLocalizations.of(context)!.hide
+                                  : AppLocalizations.of(context)!.show,
+                            ),
+                            if (!shortcut.isDefault) ...[
+                              IconButton(
+                                icon: const Icon(Icons.edit),
+                                onPressed: () => _editShortcut(index),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete),
+                                onPressed: () => _deleteShortcut(index),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              shortcut.isVisible
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                            ),
-                            onPressed: () => _toggleVisibility(index),
-                            tooltip: shortcut.isVisible
-                                ? AppLocalizations.of(context)!.hide
-                                : AppLocalizations.of(context)!.show,
-                          ),
-                          if (!shortcut.isDefault) ...[
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () => _editShortcut(index),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete),
-                              onPressed: () => _deleteShortcut(index),
-                            ),
-                          ],
-                        ],
-                      ),
                     ),
-                  ),
-                );
-              },
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addShortcut,
-        child: const Icon(Icons.add),
+                  );
+                },
+              ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _addShortcut,
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }
@@ -772,6 +776,42 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                   }
                 });
               },
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(
+                  context,
+                ).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      AppLocalizations.of(context)!.markdownSpaceWarning,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             TextField(

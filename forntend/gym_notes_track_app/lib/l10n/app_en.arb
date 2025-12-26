@@ -460,5 +460,13 @@
         "type": "String"
       }
     }
+  },
+  "markdownSpaceWarning": "Tip: Add a space after markdown syntax (e.g., '# ' or '- ') for proper formatting.",
+  "@markdownSpaceWarning": {
+    "description": "Warning message to remind users to add space after markdown syntax"
+  },
+  "markdownSpaceWarning": "Tip: Add a space after markdown syntax (e.g., '# ' or '- ') for proper formatting.",
+  "@markdownSpaceWarning": {
+    "description": "Warning message to remind users to add space after markdown syntax"
   }
 }

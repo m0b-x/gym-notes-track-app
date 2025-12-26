@@ -342,4 +342,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String shortcutButton(String label) {
     return '$label button';
   }
+
+  @override
+  String get markdownSpaceWarning =>
+      'Tip: Add a space after markdown syntax (e.g., \'# \' or \'- \') for proper formatting.';
 }

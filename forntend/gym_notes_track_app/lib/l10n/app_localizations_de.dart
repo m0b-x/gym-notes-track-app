@@ -345,4 +345,8 @@ class AppLocalizationsDe extends AppLocalizations {
   String shortcutButton(String label) {
     return '$label Schaltfläche';
   }
+
+  @override
+  String get markdownSpaceWarning =>
+      'Tipp: Fügen Sie ein Leerzeichen nach der Markdown-Syntax hinzu (z.B. \'# \' oder \'- \') für die richtige Formatierung.';
 }
