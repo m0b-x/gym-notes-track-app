@@ -316,4 +316,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get header6 => 'Header 6';
+
+  @override
+  String get undo => 'Undo';
+
+  @override
+  String get redo => 'Redo';
+
+  @override
+  String get decreaseFontSize => 'Decrease Font Size';
+
+  @override
+  String get increaseFontSize => 'Increase Font Size';
+
+  @override
+  String get settings => 'Settings';
+
+  @override
+  String get dropPosition => 'Drop position';
+
+  @override
+  String get longPressToReorder => 'Long press to reorder';
+
+  @override
+  String shortcutButton(String label) {
+    return '$label button';
+  }
 }

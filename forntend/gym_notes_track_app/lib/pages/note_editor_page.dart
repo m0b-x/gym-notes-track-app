@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
@@ -13,6 +12,7 @@ import '../models/note.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../utils/text_history_observer.dart';
 import '../utils/custom_snackbar.dart';
+import '../widgets/markdown_toolbar.dart';
 import 'markdown_settings_page.dart';
 
 class NoteEditorPage extends StatefulWidget {
@@ -34,10 +34,6 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   TextHistoryObserver? _textHistory;
   double _previewFontSize = 16.0;
   List<CustomMarkdownShortcut> _allShortcuts = [];
-  final ScrollController _toolbarScrollController = ScrollController();
-  Timer? _autoScrollTimer;
-  int? _draggedIndex;
-  int? _targetIndex;
   String _previousText = '';
   bool _isProcessingTextChange = false;
   bool _autoSaveEnabled = false;
@@ -205,8 +201,6 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     _contentController.dispose();
     _contentFocusNode.dispose();
     _textHistory?.dispose();
-    _toolbarScrollController.dispose();
-    _autoScrollTimer?.cancel();
     _autoSaveTimer?.cancel();
     super.dispose();
   }
@@ -451,10 +445,39 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                     ),
             ),
           ),
-          _buildMarkdownToolbar(),
+          MarkdownToolbar(
+            shortcuts: _allShortcuts,
+            isPreviewMode: _isPreviewMode,
+            canUndo: _textHistory?.canUndo ?? false,
+            canRedo: _textHistory?.canRedo ?? false,
+            previewFontSize: _previewFontSize,
+            onUndo: () => _textHistory?.undo(),
+            onRedo: () => _textHistory?.redo(),
+            onDecreaseFontSize: () {
+              setState(() {
+                _previewFontSize = (_previewFontSize - 2).clamp(10.0, 30.0);
+              });
+            },
+            onIncreaseFontSize: () {
+              setState(() {
+                _previewFontSize = (_previewFontSize + 2).clamp(10.0, 30.0);
+              });
+            },
+            onSettings: _openMarkdownSettings,
+            onShortcutPressed: _handleShortcut,
+            onReorderComplete: _handleReorderComplete,
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _handleReorderComplete(int draggedIndex, int targetIndex) async {
+    setState(() {
+      final item = _allShortcuts.removeAt(draggedIndex);
+      _allShortcuts.insert(targetIndex, item);
+    });
+    await _saveShortcutsOrder();
   }
 
   void _saveNote() {
@@ -521,360 +544,6 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         );
       },
     );
-  }
-
-  Widget _buildMarkdownToolbar() {
-    final visibleShortcuts = _allShortcuts.where((s) => s.isVisible).toList();
-
-    // Create display list with reordering preview
-    List<CustomMarkdownShortcut> displayList = List.from(visibleShortcuts);
-    if (_draggedIndex != null) {
-      // Remove the dragged item from display
-      displayList.removeAt(_draggedIndex!);
-      // If we have a target, insert it there
-      if (_targetIndex != null) {
-        final adjustedTarget = _targetIndex! > _draggedIndex!
-            ? _targetIndex! - 1
-            : _targetIndex!;
-        displayList.insert(adjustedTarget, visibleShortcuts[_draggedIndex!]);
-      }
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        controller: _toolbarScrollController,
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Row(
-          children: [
-            if (!_isPreviewMode) ...[
-              ...displayList.asMap().entries.map((entry) {
-                final displayIndex = entry.key;
-                final shortcut = entry.value;
-                // Find the original index for the data
-                final originalIndex = visibleShortcuts.indexOf(shortcut);
-                // Check if this is the dragged item at its preview position
-                final isPreviewPosition =
-                    _draggedIndex != null &&
-                    _targetIndex != null &&
-                    originalIndex == _draggedIndex &&
-                    displayIndex ==
-                        (_targetIndex! > _draggedIndex!
-                            ? _targetIndex! - 1
-                            : _targetIndex!);
-                return _buildDraggableToolbarButton(
-                  shortcut: shortcut,
-                  index: originalIndex,
-                  isAtPreviewPosition: isPreviewPosition,
-                );
-              }),
-              const SizedBox(width: 8),
-            ],
-            _buildToolbarButton(
-              icon: Icons.undo,
-              onPressed: (_textHistory?.canUndo ?? false)
-                  ? () => _textHistory?.undo()
-                  : null,
-            ),
-            _buildToolbarButton(
-              icon: Icons.redo,
-              onPressed: (_textHistory?.canRedo ?? false)
-                  ? () => _textHistory?.redo()
-                  : null,
-            ),
-            if (_isPreviewMode) ...[
-              const SizedBox(width: 8),
-              _buildToolbarButton(
-                icon: Icons.text_decrease,
-                onPressed: () {
-                  setState(() {
-                    _previewFontSize = (_previewFontSize - 2).clamp(10.0, 30.0);
-                  });
-                },
-              ),
-              _buildToolbarButton(
-                icon: Icons.text_increase,
-                onPressed: () {
-                  setState(() {
-                    _previewFontSize = (_previewFontSize + 2).clamp(10.0, 30.0);
-                  });
-                },
-              ),
-            ],
-            const SizedBox(width: 16),
-            _buildToolbarButton(
-              icon: Icons.settings,
-              onPressed: _openMarkdownSettings,
-            ),
-            const SizedBox(width: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildToolbarButton({
-    Key? key,
-    required IconData icon,
-    required VoidCallback? onPressed,
-  }) {
-    return Padding(
-      key: key,
-      padding: const EdgeInsets.symmetric(horizontal: 3),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            child: Icon(
-              icon,
-              size: 24,
-              color: onPressed == null
-                  ? Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.3)
-                  : Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDraggableToolbarButton({
-    required CustomMarkdownShortcut shortcut,
-    required int index,
-    bool isAtPreviewPosition = false,
-  }) {
-    // Build the appropriate icon/text widget
-    Widget iconWidget;
-    Widget feedbackWidget;
-
-    if (shortcut.id == 'default_header') {
-      // Special rendering for header
-      iconWidget = Text(
-        'H',
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.onSurface,
-        ),
-      );
-      feedbackWidget = Text(
-        'H',
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.onPrimary,
-        ),
-      );
-    } else {
-      // Standard icon
-      final icon = IconData(
-        shortcut.iconCodePoint,
-        fontFamily: shortcut.iconFontFamily,
-      );
-      iconWidget = Icon(
-        icon,
-        size: 24,
-        color: Theme.of(context).iconTheme.color,
-      );
-      feedbackWidget = Icon(
-        icon,
-        size: 24,
-        color: Theme.of(context).colorScheme.onPrimary,
-      );
-    }
-
-    return Tooltip(
-      message: shortcut.label,
-      waitDuration: const Duration(milliseconds: 500),
-      triggerMode: TooltipTriggerMode.longPress,
-      showDuration: const Duration(seconds: 2),
-      child: LongPressDraggable<int>(
-        data: index,
-        feedback: Material(
-          color: Colors.transparent,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Label above the icon
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  shortcut.label,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              // Icon
-              Material(
-                elevation: 6,
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: feedbackWidget,
-                ),
-              ),
-            ],
-          ),
-        ),
-        childWhenDragging: SizedBox.shrink(),
-        onDragStarted: () {
-          HapticFeedback.mediumImpact();
-          setState(() {
-            _draggedIndex = index;
-          });
-        },
-        onDragUpdate: (details) {
-          _handleDragUpdate(details.globalPosition);
-        },
-        onDragEnd: (details) async {
-          _stopAutoScroll();
-          if (_draggedIndex != null &&
-              _targetIndex != null &&
-              _draggedIndex != _targetIndex) {
-            setState(() {
-              final item = _allShortcuts.removeAt(_draggedIndex!);
-              _allShortcuts.insert(_targetIndex!, item);
-              _draggedIndex = null;
-              _targetIndex = null;
-            });
-            await _saveShortcutsOrder();
-          } else {
-            setState(() {
-              _draggedIndex = null;
-              _targetIndex = null;
-            });
-          }
-        },
-        onDraggableCanceled: (velocity, offset) {
-          _stopAutoScroll();
-          setState(() {
-            _draggedIndex = null;
-            _targetIndex = null;
-          });
-        },
-        child: DragTarget<int>(
-          onWillAcceptWithDetails: (details) => details.data != index,
-          onAcceptWithDetails: (details) {
-            // Don't do anything here, the reordering happens in real-time
-          },
-          onMove: (details) {
-            if (_draggedIndex != null && _draggedIndex != index) {
-              setState(() {
-                _targetIndex = index;
-              });
-            }
-          },
-          onLeave: (data) {
-            // No need to reset since we're maintaining the reordered state
-          },
-          builder: (context, candidateData, rejectedData) {
-            final bool isHovering = candidateData.isNotEmpty;
-            final bool isDragging = _draggedIndex == index;
-
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: EdgeInsets.symmetric(
-                horizontal: isHovering && !isDragging ? 20 : 3,
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  decoration: isAtPreviewPosition
-                      ? BoxDecoration(
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.1),
-                        )
-                      : null,
-                  child: InkWell(
-                    onTap: () => _handleShortcut(shortcut),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      child: iconWidget,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  void _handleDragUpdate(Offset globalPosition) {
-    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-
-    final localPosition = renderBox.globalToLocal(globalPosition);
-    final screenWidth = MediaQuery.of(context).size.width;
-    const edgeThreshold = 80.0;
-    const scrollSpeed = 10.0;
-
-    if (localPosition.dx < edgeThreshold) {
-      _startAutoScroll(-scrollSpeed);
-    } else if (localPosition.dx > screenWidth - edgeThreshold) {
-      _startAutoScroll(scrollSpeed);
-    } else {
-      _stopAutoScroll();
-    }
-  }
-
-  void _startAutoScroll(double scrollDelta) {
-    _autoScrollTimer?.cancel();
-    _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
-      if (_toolbarScrollController.hasClients) {
-        final currentOffset = _toolbarScrollController.offset;
-        final newOffset = currentOffset + scrollDelta;
-        final maxScroll = _toolbarScrollController.position.maxScrollExtent;
-
-        if (newOffset >= 0 && newOffset <= maxScroll) {
-          _toolbarScrollController.jumpTo(newOffset);
-        }
-      }
-    });
-  }
-
-  void _stopAutoScroll() {
-    _autoScrollTimer?.cancel();
-    _autoScrollTimer = null;
   }
 
   void _showHeaderMenu() {

@@ -423,5 +423,42 @@
   "header6": "Header 6",
   "@header6": {
     "description": "Header 6 menu item"
+  },
+  "undo": "Undo",
+  "@undo": {
+    "description": "Undo button tooltip"
+  },
+  "redo": "Redo",
+  "@redo": {
+    "description": "Redo button tooltip"
+  },
+  "decreaseFontSize": "Decrease Font Size",
+  "@decreaseFontSize": {
+    "description": "Decrease font size button tooltip"
+  },
+  "increaseFontSize": "Increase Font Size",
+  "@increaseFontSize": {
+    "description": "Increase font size button tooltip"
+  },
+  "settings": "Settings",
+  "@settings": {
+    "description": "Settings button tooltip"
+  },
+  "dropPosition": "Drop position",
+  "@dropPosition": {
+    "description": "Accessibility label for drop indicator during drag"
+  },
+  "longPressToReorder": "Long press to reorder",
+  "@longPressToReorder": {
+    "description": "Accessibility hint for reorderable buttons"
+  },
+  "shortcutButton": "{label} button",
+  "@shortcutButton": {
+    "description": "Accessibility label for shortcut button",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -319,4 +319,30 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get header6 => 'Überschrift 6';
+
+  @override
+  String get undo => 'Rückgängig';
+
+  @override
+  String get redo => 'Wiederholen';
+
+  @override
+  String get decreaseFontSize => 'Schriftgröße verkleinern';
+
+  @override
+  String get increaseFontSize => 'Schriftgröße vergrößern';
+
+  @override
+  String get settings => 'Einstellungen';
+
+  @override
+  String get dropPosition => 'Ablageposition';
+
+  @override
+  String get longPressToReorder => 'Lange drücken zum Neuordnen';
+
+  @override
+  String shortcutButton(String label) {
+    return '$label Schaltfläche';
+  }
 }

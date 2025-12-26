@@ -422,6 +422,43 @@
   },
   "header6": "Überschrift 6",
   "@header6": {
-    "description": "Header 6 menu item"
+    "description": "Header 6 Menüelement"
+  },
+  "undo": "Rückgängig",
+  "@undo": {
+    "description": "Rückgängig-Schaltfläche Tooltip"
+  },
+  "redo": "Wiederholen",
+  "@redo": {
+    "description": "Wiederholen-Schaltfläche Tooltip"
+  },
+  "decreaseFontSize": "Schriftgröße verkleinern",
+  "@decreaseFontSize": {
+    "description": "Tooltip für Schaltfläche zum Verkleinern der Schriftgröße"
+  },
+  "increaseFontSize": "Schriftgröße vergrößern",
+  "@increaseFontSize": {
+    "description": "Tooltip für Schaltfläche zum Vergrößern der Schriftgröße"
+  },
+  "settings": "Einstellungen",
+  "@settings": {
+    "description": "Einstellungen-Schaltfläche Tooltip"
+  },
+  "dropPosition": "Ablageposition",
+  "@dropPosition": {
+    "description": "Barrierefreiheitsbezeichnung für Drop-Indikator beim Ziehen"
+  },
+  "longPressToReorder": "Lange drücken zum Neuordnen",
+  "@longPressToReorder": {
+    "description": "Barrierefreiheitshinweis für neu anordbare Schaltflächen"
+  },
+  "shortcutButton": "{label} Schaltfläche",
+  "@shortcutButton": {
+    "description": "Barrierefreiheitsbezeichnung für Verknüpfungsschaltfläche",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
   }
 }

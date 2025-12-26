@@ -685,6 +685,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Header 6'**
   String get header6;
+
+  /// Undo button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get undo;
+
+  /// Redo button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get redo;
+
+  /// Decrease font size button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Decrease Font Size'**
+  String get decreaseFontSize;
+
+  /// Increase font size button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Increase Font Size'**
+  String get increaseFontSize;
+
+  /// Settings button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settings;
+
+  /// Accessibility label for drop indicator during drag
+  ///
+  /// In en, this message translates to:
+  /// **'Drop position'**
+  String get dropPosition;
+
+  /// Accessibility hint for reorderable buttons
+  ///
+  /// In en, this message translates to:
+  /// **'Long press to reorder'**
+  String get longPressToReorder;
+
+  /// Accessibility label for shortcut button
+  ///
+  /// In en, this message translates to:
+  /// **'{label} button'**
+  String shortcutButton(String label);
 }
 
 class _AppLocalizationsDelegate
