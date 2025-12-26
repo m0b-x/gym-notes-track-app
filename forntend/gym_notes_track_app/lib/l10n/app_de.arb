@@ -50,5 +50,378 @@
   "search": "Suchen",
   "@search": {
     "description": "Search placeholder text"
+  },
+  "error": "Fehler: {message}",
+  "@error": {
+    "description": "Error message with placeholder",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "created": "Erstellt: {date}",
+  "@created": {
+    "description": "Created date label",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "updated": "Aktualisiert: {date}",
+  "@updated": {
+    "description": "Updated date label",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFolder": "Ordner löschen",
+  "@deleteFolder": {
+    "description": "Delete folder dialog title"
+  },
+  "deleteFolderConfirm": "Möchten Sie \"{name}\" wirklich löschen?",
+  "@deleteFolderConfirm": {
+    "description": "Delete folder confirmation message",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rename": "Umbenennen",
+  "@rename": {
+    "description": "Rename button text"
+  },
+  "renameFolder": "Ordner umbenennen",
+  "@renameFolder": {
+    "description": "Rename folder dialog title"
+  },
+  "untitledNote": "Unbenannte Notiz",
+  "@untitledNote": {
+    "description": "Default title for untitled notes"
+  },
+  "emptyNote": "Leere Notiz",
+  "@emptyNote": {
+    "description": "Text shown for empty notes"
+  },
+  "deleteNote": "Notiz löschen",
+  "@deleteNote": {
+    "description": "Delete note dialog title"
+  },
+  "deleteNoteConfirm": "Möchten Sie \"{title}\" wirklich löschen?",
+  "@deleteNoteConfirm": {
+    "description": "Delete note confirmation message",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteThisNote": "diese Notiz",
+  "@deleteThisNote": {
+    "description": "Text for deleting unnamed note"
+  },
+  "enterFolderName": "Ordnernamen eingeben",
+  "@enterFolderName": {
+    "description": "Hint text for folder name input"
+  },
+  "newNote": "Neue Notiz",
+  "@newNote": {
+    "description": "Title for new note"
+  },
+  "switchToEditMode": "Zum Bearbeitungsmodus wechseln",
+  "@switchToEditMode": {
+    "description": "Tooltip for switching to edit mode"
+  },
+  "previewMarkdown": "Markdown-Vorschau",
+  "@previewMarkdown": {
+    "description": "Tooltip for previewing markdown"
+  },
+  "preview": "Vorschau",
+  "@preview": {
+    "description": "Preview button text"
+  },
+  "autoSaveOn": "Auto-Speichern ist EIN (speichert alle 5s nach Änderungen)",
+  "@autoSaveOn": {
+    "description": "Tooltip when auto-save is enabled"
+  },
+  "enableAutoSave": "Auto-Speichern aktivieren",
+  "@enableAutoSave": {
+    "description": "Tooltip to enable auto-save"
+  },
+  "autoSaveOff": "Auto-Speichern AUS",
+  "@autoSaveOff": {
+    "description": "Auto-save off tooltip"
+  },
+  "saveNote": "Notiz speichern",
+  "@saveNote": {
+    "description": "Tooltip for save button"
+  },
+  "noContentYet": "*Noch kein Inhalt*",
+  "@noContentYet": {
+    "description": "Placeholder text when no content"
+  },
+  "startWriting": "Beginnen Sie zu schreiben...",
+  "@startWriting": {
+    "description": "Hint text for note editor"
+  },
+  "noteCannotBeEmpty": "Notiz darf nicht leer sein",
+  "@noteCannotBeEmpty": {
+    "description": "Error message when note is empty"
+  },
+  "noteSaved": "Notiz gespeichert!",
+  "@noteSaved": {
+    "description": "Success message when note is saved"
+  },
+  "editTitle": "Titel bearbeiten",
+  "@editTitle": {
+    "description": "Edit title dialog title"
+  },
+  "enterNoteTitle": "Notiztitel eingeben",
+  "@enterNoteTitle": {
+    "description": "Hint text for note title input"
+  },
+  "autoSaveEnabled": "Auto-Speichern aktiviert",
+  "@autoSaveEnabled": {
+    "description": "Message when auto-save is enabled"
+  },
+  "autoSaveDisabled": "Auto-Speichern deaktiviert",
+  "@autoSaveDisabled": {
+    "description": "Message when auto-save is disabled"
+  },
+  "markdownShortcuts": "Markdown-Verknüpfungen",
+  "@markdownShortcuts": {
+    "description": "Markdown shortcuts page title"
+  },
+  "resetToDefault": "Auf Standard zurücksetzen",
+  "@resetToDefault": {
+    "description": "Reset to default button text"
+  },
+  "removeAllCustom": "Alle benutzerdefinierten entfernen",
+  "@removeAllCustom": {
+    "description": "Remove all custom shortcuts button text"
+  },
+  "noCustomShortcutsYet": "Noch keine benutzerdefinierten Verknüpfungen",
+  "@noCustomShortcutsYet": {
+    "description": "Message when no custom shortcuts exist"
+  },
+  "tapToAddShortcut": "Tippen Sie auf die Schaltfläche +, um eine hinzuzufügen",
+  "@tapToAddShortcut": {
+    "description": "Hint to add shortcuts"
+  },
+  "deleteShortcut": "Verknüpfung löschen",
+  "@deleteShortcut": {
+    "description": "Delete shortcut dialog title"
+  },
+  "deleteShortcutConfirm": "Möchten Sie diese Verknüpfung wirklich löschen?",
+  "@deleteShortcutConfirm": {
+    "description": "Delete shortcut confirmation message"
+  },
+  "resetDialogTitle": "Auf Standard zurücksetzen",
+  "@resetDialogTitle": {
+    "description": "Reset dialog title"
+  },
+  "resetDialogMessage": "Dies stellt alle Standardverknüpfungen in ihrer ursprünglichen Reihenfolge und Einstellungen wieder her. Benutzerdefinierte Verknüpfungen werden behalten, aber ans Ende verschoben.",
+  "@resetDialogMessage": {
+    "description": "Reset dialog message"
+  },
+  "reset": "Zurücksetzen",
+  "@reset": {
+    "description": "Reset button text"
+  },
+  "removeCustomDialogTitle": "Alle benutzerdefinierten entfernen",
+  "@removeCustomDialogTitle": {
+    "description": "Remove custom dialog title"
+  },
+  "removeCustomDialogMessage": "Dies löscht dauerhaft alle von Ihnen erstellten benutzerdefinierten Verknüpfungen. Standardverknüpfungen bleiben erhalten.",
+  "@removeCustomDialogMessage": {
+    "description": "Remove custom dialog message"
+  },
+  "remove": "Entfernen",
+  "@remove": {
+    "description": "Remove button text"
+  },
+  "defaultLabel": "STANDARD",
+  "@defaultLabel": {
+    "description": "Label for default shortcuts"
+  },
+  "insertsCurrentDate": "Fügt aktuelles Datum ein",
+  "@insertsCurrentDate": {
+    "description": "Description for date shortcut"
+  },
+  "opensHeaderMenu": "Öffnet Überschriftenmenü (H1-H6)",
+  "@opensHeaderMenu": {
+    "description": "Description for header shortcut"
+  },
+  "beforeAfterText": "Vorher: \"{before}\" | Nachher: \"{after}\"",
+  "@beforeAfterText": {
+    "description": "Description showing before and after text",
+    "placeholders": {
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "hide": "Verbergen",
+  "@hide": {
+    "description": "Hide button tooltip"
+  },
+  "show": "Anzeigen",
+  "@show": {
+    "description": "Show button tooltip"
+  },
+  "newShortcut": "Neue Verknüpfung",
+  "@newShortcut": {
+    "description": "New shortcut dialog title"
+  },
+  "editShortcut": "Verknüpfung bearbeiten",
+  "@editShortcut": {
+    "description": "Edit shortcut dialog title"
+  },
+  "icon": "Symbol",
+  "@icon": {
+    "description": "Icon label"
+  },
+  "tapToChangeIcon": "Tippen Sie, um das Symbol zu ändern",
+  "@tapToChangeIcon": {
+    "description": "Hint to change icon"
+  },
+  "selectIcon": "Symbol auswählen",
+  "@selectIcon": {
+    "description": "Select icon dialog title"
+  },
+  "label": "Beschriftung",
+  "@label": {
+    "description": "Label input field"
+  },
+  "labelHint": "z.B. Hervorheben",
+  "@labelHint": {
+    "description": "Hint for label input"
+  },
+  "insertType": "Einfügungstyp",
+  "@insertType": {
+    "description": "Insert type label"
+  },
+  "wrapSelectedText": "Ausgewählten Text umschließen",
+  "@wrapSelectedText": {
+    "description": "Wrap selected text option"
+  },
+  "insertCurrentDate": "Aktuelles Datum einfügen",
+  "@insertCurrentDate": {
+    "description": "Insert current date option"
+  },
+  "beforeDate": "Vor Datum (optional)",
+  "@beforeDate": {
+    "description": "Before date label"
+  },
+  "markdownStart": "Markdown-Start",
+  "@markdownStart": {
+    "description": "Markdown start label"
+  },
+  "markdownStartHint": "z.B. ==",
+  "@markdownStartHint": {
+    "description": "Hint for markdown start"
+  },
+  "optionalTextBeforeDate": "Optionaler Text vor Datum",
+  "@optionalTextBeforeDate": {
+    "description": "Hint for text before date"
+  },
+  "afterDate": "Nach Datum (optional)",
+  "@afterDate": {
+    "description": "After date label"
+  },
+  "markdownEnd": "Markdown-Ende",
+  "@markdownEnd": {
+    "description": "Markdown end label"
+  },
+  "optionalTextAfterDate": "Optionaler Text nach Datum",
+  "@optionalTextAfterDate": {
+    "description": "Hint for text after date"
+  },
+  "labelCannotBeEmpty": "Beschriftung darf nicht leer sein",
+  "@labelCannotBeEmpty": {
+    "description": "Error message when label is empty"
+  },
+  "bold": "Fett",
+  "@bold": {
+    "description": "Bold shortcut label"
+  },
+  "italic": "Kursiv",
+  "@italic": {
+    "description": "Italic shortcut label"
+  },
+  "headers": "Überschriften",
+  "@headers": {
+    "description": "Headers shortcut label"
+  },
+  "pointList": "Punktliste",
+  "@pointList": {
+    "description": "Point list shortcut label"
+  },
+  "strikethrough": "Durchgestrichen",
+  "@strikethrough": {
+    "description": "Strikethrough shortcut label"
+  },
+  "bulletList": "Aufzählungsliste",
+  "@bulletList": {
+    "description": "Bullet list shortcut label"
+  },
+  "numberedList": "Nummerierte Liste",
+  "@numberedList": {
+    "description": "Numbered list shortcut label"
+  },
+  "checkbox": "Kontrollkästchen",
+  "@checkbox": {
+    "description": "Checkbox shortcut label"
+  },
+  "quote": "Zitat",
+  "@quote": {
+    "description": "Quote shortcut label"
+  },
+  "inlineCode": "Inline-Code",
+  "@inlineCode": {
+    "description": "Inline code shortcut label"
+  },
+  "codeBlock": "Codeblock",
+  "@codeBlock": {
+    "description": "Code block shortcut label"
+  },
+  "link": "Link",
+  "@link": {
+    "description": "Link shortcut label"
+  },
+  "currentDate": "Aktuelles Datum",
+  "@currentDate": {
+    "description": "Current date shortcut label"
+  },
+  "header1": "Überschrift 1",
+  "@header1": {
+    "description": "Header 1 menu item"
+  },
+  "header2": "Überschrift 2",
+  "@header2": {
+    "description": "Header 2 menu item"
+  },
+  "header3": "Überschrift 3",
+  "@header3": {
+    "description": "Header 3 menu item"
+  },
+  "header4": "Überschrift 4",
+  "@header4": {
+    "description": "Header 4 menu item"
+  },
+  "header5": "Überschrift 5",
+  "@header5": {
+    "description": "Header 5 menu item"
+  },
+  "header6": "Überschrift 6",
+  "@header6": {
+    "description": "Header 6 menu item"
   }
 }

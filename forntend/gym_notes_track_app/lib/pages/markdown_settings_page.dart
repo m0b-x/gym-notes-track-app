@@ -1,30 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import '../l10n/app_localizations.dart';
 import '../models/custom_markdown_shortcut.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/custom_snackbar.dart';
 
-// ========================================
-// Constants
-// ========================================
-class _SettingsConstants {
-  static const String storageKey = 'custom_markdown_shortcuts';
-  static const double cardOpacityHidden = 0.5;
-  static const double cardOpacityVisible = 1.0;
-
-  // Dialog messages
-  static const String deleteDialogTitle = 'Delete Shortcut';
-  static const String deleteDialogMessage =
-      'Are you sure you want to delete this shortcut?';
-  static const String resetDialogTitle = 'Reset to Default';
-  static const String resetDialogMessage =
-      'This will restore all default shortcuts to their original order and settings. Custom shortcuts will be kept but moved to the end.';
-  static const String removeCustomDialogTitle = 'Remove All Custom';
-  static const String removeCustomDialogMessage =
-      'This will permanently delete all custom shortcuts you created. Default shortcuts will remain.';
-}
+// Removed _SettingsConstants class - using AppLocalizations instead
 
 class MarkdownSettingsPage extends StatefulWidget {
   final List<CustomMarkdownShortcut> allShortcuts;
@@ -54,7 +37,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
         .map((shortcut) => shortcut.toJson())
         .toList();
     await prefs.setString(
-      _SettingsConstants.storageKey,
+      'custom_markdown_shortcuts',
       jsonEncode(shortcutsJson),
     );
   }
@@ -117,12 +100,12 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(_SettingsConstants.deleteDialogTitle),
-        content: const Text(_SettingsConstants.deleteDialogMessage),
+        title: Text(AppLocalizations.of(context)!.deleteShortcut),
+        content: Text(AppLocalizations.of(context)!.deleteShortcutConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () {
@@ -132,7 +115,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
               _saveShortcuts();
               Navigator.pop(context);
             },
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete),
           ),
         ],
       ),
@@ -147,19 +130,19 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(_SettingsConstants.resetDialogTitle),
-        content: const Text(_SettingsConstants.resetDialogMessage),
+        title: Text(AppLocalizations.of(context)!.resetDialogTitle),
+        content: Text(AppLocalizations.of(context)!.resetDialogMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () {
               _resetToDefault();
               Navigator.pop(context);
             },
-            child: const Text('Reset'),
+            child: Text(AppLocalizations.of(context)!.reset),
           ),
         ],
       ),
@@ -170,19 +153,22 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(_SettingsConstants.removeCustomDialogTitle),
-        content: const Text(_SettingsConstants.removeCustomDialogMessage),
+        title: Text(AppLocalizations.of(context)!.removeCustomDialogTitle),
+        content: Text(AppLocalizations.of(context)!.removeCustomDialogMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () {
               _removeAllCustom();
               Navigator.pop(context);
             },
-            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+            child: Text(
+              AppLocalizations.of(context)!.remove,
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -364,11 +350,13 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
   String _getShortcutSubtitle(CustomMarkdownShortcut shortcut) {
     switch (shortcut.insertType) {
       case 'date':
-        return 'Inserts current date';
+        return AppLocalizations.of(context)!.insertsCurrentDate;
       case 'header':
-        return 'Opens header menu (H1-H6)';
+        return AppLocalizations.of(context)!.opensHeaderMenu;
       default:
-        return 'Before: "${shortcut.beforeText}" | After: "${shortcut.afterText}"';
+        return AppLocalizations.of(
+          context,
+        )!.beforeAfterText(shortcut.beforeText, shortcut.afterText);
     }
   }
 
@@ -376,7 +364,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Markdown Shortcuts'),
+        title: Text(AppLocalizations.of(context)!.markdownShortcuts),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           PopupMenuButton<String>(
@@ -389,23 +377,23 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'reset_all',
                 child: Row(
                   children: [
-                    Icon(Icons.refresh),
-                    SizedBox(width: 8),
-                    Text('Reset to Default'),
+                    const Icon(Icons.refresh),
+                    const SizedBox(width: 8),
+                    Text(AppLocalizations.of(context)!.resetToDefault),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'remove_custom',
                 child: Row(
                   children: [
-                    Icon(Icons.delete_sweep),
-                    SizedBox(width: 8),
-                    Text('Remove All Custom'),
+                    const Icon(Icons.delete_sweep),
+                    const SizedBox(width: 8),
+                    Text(AppLocalizations.of(context)!.removeAllCustom),
                   ],
                 ),
               ),
@@ -429,26 +417,26 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                     size: 64,
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withOpacity(0.3),
+                    ).colorScheme.onSurface.withValues(alpha: 0.3),
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No custom shortcuts yet',
+                    AppLocalizations.of(context)!.noCustomShortcutsYet,
                     style: TextStyle(
                       fontSize: 18,
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.5),
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Tap the + button to add one',
+                    AppLocalizations.of(context)!.tapToAddShortcut,
                     style: TextStyle(
                       fontSize: 14,
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.5),
+                      ).colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                 ],
@@ -476,9 +464,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                 final shortcut = _shortcuts[index];
                 return Opacity(
                   key: ValueKey(shortcut.id),
-                  opacity: shortcut.isVisible
-                      ? _SettingsConstants.cardOpacityVisible
-                      : _SettingsConstants.cardOpacityHidden,
+                  opacity: shortcut.isVisible ? 1.0 : 0.5,
                   child: Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
@@ -489,7 +475,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                             Icons.drag_handle,
                             color: Theme.of(
                               context,
-                            ).colorScheme.onSurface.withOpacity(0.4),
+                            ).colorScheme.onSurface.withValues(alpha: 0.4),
                           ),
                           const SizedBox(width: 8),
                           _buildShortcutIcon(shortcut),
@@ -508,11 +494,11 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                               decoration: BoxDecoration(
                                 color: Theme.of(
                                   context,
-                                ).colorScheme.primary.withOpacity(0.2),
+                                ).colorScheme.primary.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                'DEFAULT',
+                                AppLocalizations.of(context)!.defaultLabel,
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
@@ -529,7 +515,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                           fontSize: 12,
                           color: Theme.of(
                             context,
-                          ).colorScheme.onSurface.withOpacity(0.6),
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                       trailing: Row(
@@ -542,7 +528,9 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                                   : Icons.visibility_off,
                             ),
                             onPressed: () => _toggleVisibility(index),
-                            tooltip: shortcut.isVisible ? 'Hide' : 'Show',
+                            tooltip: shortcut.isVisible
+                                ? AppLocalizations.of(context)!.hide
+                                : AppLocalizations.of(context)!.show,
                           ),
                           if (!shortcut.isDefault) ...[
                             IconButton(
@@ -642,7 +630,7 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select Icon'),
+        title: Text(AppLocalizations.of(context)!.selectIcon),
         content: SizedBox(
           width: double.maxFinite,
           height: 300,
@@ -669,7 +657,7 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                           ? Theme.of(context).colorScheme.primary
                           : Theme.of(
                               context,
-                            ).colorScheme.onSurface.withOpacity(0.2),
+                            ).colorScheme.onSurface.withValues(alpha: 0.2),
                       width: 2,
                     ),
                     borderRadius: BorderRadius.circular(8),
@@ -686,7 +674,10 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
 
   void _save() {
     if (_labelController.text.isEmpty) {
-      CustomSnackbar.show(context, 'Label cannot be empty');
+      CustomSnackbar.show(
+        context,
+        AppLocalizations.of(context)!.labelCannotBeEmpty,
+      );
       return;
     }
 
@@ -707,13 +698,17 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.shortcut == null ? 'New Shortcut' : 'Edit Shortcut'),
+      title: Text(
+        widget.shortcut == null
+            ? AppLocalizations.of(context)!.newShortcut
+            : AppLocalizations.of(context)!.editShortcut,
+      ),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Icon'),
+            Text(AppLocalizations.of(context)!.icon),
             const SizedBox(height: 8),
             InkWell(
               onTap: _showIconPicker,
@@ -723,7 +718,7 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                   border: Border.all(
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withOpacity(0.3),
+                    ).colorScheme.onSurface.withValues(alpha: 0.3),
                   ),
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -731,7 +726,7 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                   children: [
                     Icon(_selectedIcon, size: 32),
                     const SizedBox(width: 16),
-                    const Text('Tap to change icon'),
+                    Text(AppLocalizations.of(context)!.tapToChangeIcon),
                   ],
                 ),
               ),
@@ -739,17 +734,17 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
             const SizedBox(height: 16),
             TextField(
               controller: _labelController,
-              decoration: const InputDecoration(
-                labelText: 'Label',
-                hintText: 'e.g., Highlight',
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.label,
+                hintText: AppLocalizations.of(context)!.labelHint,
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Insert Type'),
+            Text(AppLocalizations.of(context)!.insertType),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _insertType,
+              initialValue: _insertType,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(
@@ -757,14 +752,14 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                   vertical: 8,
                 ),
               ),
-              items: const [
+              items: [
                 DropdownMenuItem(
                   value: 'wrap',
-                  child: Text('Wrap Selected Text'),
+                  child: Text(AppLocalizations.of(context)!.wrapSelectedText),
                 ),
                 DropdownMenuItem(
                   value: 'date',
-                  child: Text('Insert Current Date'),
+                  child: Text(AppLocalizations.of(context)!.insertCurrentDate),
                 ),
               ],
               onChanged: (value) {
@@ -783,11 +778,11 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
               controller: _beforeController,
               decoration: InputDecoration(
                 labelText: _insertType == 'date'
-                    ? 'Before Date (optional)'
-                    : 'Markdown Start',
+                    ? AppLocalizations.of(context)!.beforeDate
+                    : AppLocalizations.of(context)!.markdownStart,
                 hintText: _insertType == 'date'
-                    ? 'Optional text before date'
-                    : 'e.g., ==',
+                    ? AppLocalizations.of(context)!.optionalTextBeforeDate
+                    : AppLocalizations.of(context)!.markdownStartHint,
                 border: const OutlineInputBorder(),
               ),
             ),
@@ -796,11 +791,11 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
               controller: _afterController,
               decoration: InputDecoration(
                 labelText: _insertType == 'date'
-                    ? 'After Date (optional)'
-                    : 'Markdown End',
+                    ? AppLocalizations.of(context)!.afterDate
+                    : AppLocalizations.of(context)!.markdownEnd,
                 hintText: _insertType == 'date'
-                    ? 'Optional text after date'
-                    : 'e.g., ==',
+                    ? AppLocalizations.of(context)!.optionalTextAfterDate
+                    : AppLocalizations.of(context)!.markdownStartHint,
                 border: const OutlineInputBorder(),
               ),
             ),
@@ -811,7 +806,9 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                   : 'Preview: ${_beforeController.text}text${_afterController.text}',
               style: TextStyle(
                 fontFamily: 'monospace',
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ],
@@ -820,9 +817,12 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
-        TextButton(onPressed: _save, child: const Text('Save')),
+        TextButton(
+          onPressed: _save,
+          child: Text(AppLocalizations.of(context)!.save),
+        ),
       ],
     );
   }

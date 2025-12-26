@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../l10n/app_localizations.dart';
 import '../bloc/folder/folder_bloc.dart';
 import '../bloc/folder/folder_event.dart';
 import '../bloc/folder/folder_state.dart';
@@ -144,7 +145,7 @@ class _FolderContentPageState extends State<FolderContentPage> {
               child: Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: Text(
-                  'Error: ${state.message}',
+                  AppLocalizations.of(context)!.error(state.message),
                   style: const TextStyle(color: Colors.red),
                 ),
               ),
@@ -184,7 +185,7 @@ class _FolderContentPageState extends State<FolderContentPage> {
             children: [
               ListTile(
                 leading: const Icon(Icons.folder, color: Colors.amber),
-                title: const Text('Create Folder'),
+                title: Text(AppLocalizations.of(context)!.createFolder),
                 onTap: () {
                   Navigator.pop(bottomSheetContext);
                   _showCreateFolderDialog();
@@ -193,7 +194,7 @@ class _FolderContentPageState extends State<FolderContentPage> {
               if (widget.folderId != null)
                 ListTile(
                   leading: const Icon(Icons.note, color: Colors.blue),
-                  title: const Text('Create Note'),
+                  title: Text(AppLocalizations.of(context)!.createNote),
                   onTap: () {
                     Navigator.pop(bottomSheetContext);
                     _createNewNote();
@@ -212,19 +213,19 @@ class _FolderContentPageState extends State<FolderContentPage> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Create Folder'),
+        title: Text(AppLocalizations.of(context)!.createFolder),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Folder Name',
-            hintText: 'Enter folder name',
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.folderName,
+            hintText: AppLocalizations.of(context)!.enterFolderName,
           ),
           autofocus: true,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () {
@@ -238,7 +239,7 @@ class _FolderContentPageState extends State<FolderContentPage> {
                 Navigator.pop(dialogContext);
               }
             },
-            child: const Text('Create'),
+            child: Text(AppLocalizations.of(context)!.create),
           ),
         ],
       ),
@@ -272,7 +273,7 @@ class _FolderCard extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         subtitle: Text(
-          'Created: ${_formatDate(folder.createdAt)}',
+          AppLocalizations.of(context)!.created(_formatDate(folder.createdAt)),
           style: const TextStyle(fontSize: 12),
         ),
         trailing: PopupMenuButton<String>(
@@ -284,8 +285,14 @@ class _FolderCard extends StatelessWidget {
             }
           },
           itemBuilder: (context) => [
-            const PopupMenuItem(value: 'rename', child: Text('Rename')),
-            const PopupMenuItem(value: 'delete', child: Text('Delete')),
+            PopupMenuItem(
+              value: 'rename',
+              child: Text(AppLocalizations.of(context)!.rename),
+            ),
+            PopupMenuItem(
+              value: 'delete',
+              child: Text(AppLocalizations.of(context)!.delete),
+            ),
           ],
         ),
         onTap: () {
@@ -309,19 +316,24 @@ class _FolderCard extends StatelessWidget {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Folder'),
-        content: Text('Are you sure you want to delete "${folder.name}"?'),
+        title: Text(AppLocalizations.of(context)!.deleteFolder),
+        content: Text(
+          AppLocalizations.of(context)!.deleteFolderConfirm(folder.name),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () {
               context.read<FolderBloc>().add(DeleteFolder(folder.id));
               Navigator.pop(dialogContext);
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(
+              AppLocalizations.of(context)!.delete,
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -334,16 +346,18 @@ class _FolderCard extends StatelessWidget {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Rename Folder'),
+        title: Text(AppLocalizations.of(context)!.renameFolder),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(labelText: 'Folder Name'),
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.folderName,
+          ),
           autofocus: true,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () {
@@ -354,7 +368,7 @@ class _FolderCard extends StatelessWidget {
                 Navigator.pop(dialogContext);
               }
             },
-            child: const Text('Rename'),
+            child: Text(AppLocalizations.of(context)!.rename),
           ),
         ],
       ),
@@ -375,21 +389,27 @@ class _NoteCard extends StatelessWidget {
       child: ListTile(
         leading: const Icon(Icons.note, size: 40, color: Colors.blue),
         title: Text(
-          note.title.isEmpty ? 'Untitled Note' : note.title,
+          note.title.isEmpty
+              ? AppLocalizations.of(context)!.untitledNote
+              : note.title,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _getPreview(note.content),
+              note.content.isEmpty
+                  ? AppLocalizations.of(context)!.emptyNote
+                  : note.content.replaceAll('\n', ' '),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 4),
             Text(
-              'Updated: ${_formatDate(note.updatedAt)}',
+              AppLocalizations.of(
+                context,
+              )!.updated(_formatDate(note.updatedAt)),
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
@@ -411,11 +431,6 @@ class _NoteCard extends StatelessWidget {
     );
   }
 
-  String _getPreview(String content) {
-    if (content.isEmpty) return 'Empty note';
-    return content.replaceAll('\n', ' ');
-  }
-
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
@@ -424,21 +439,28 @@ class _NoteCard extends StatelessWidget {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Note'),
+        title: Text(AppLocalizations.of(context)!.deleteNote),
         content: Text(
-          'Are you sure you want to delete "${note.title.isEmpty ? 'this note' : note.title}"?',
+          AppLocalizations.of(context)!.deleteNoteConfirm(
+            note.title.isEmpty
+                ? AppLocalizations.of(context)!.deleteThisNote
+                : note.title,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
             onPressed: () {
               context.read<NoteBloc>().add(DeleteNote(note.id));
               Navigator.pop(dialogContext);
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(
+              AppLocalizations.of(context)!.delete,
+              style: const TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),

@@ -50,5 +50,378 @@
   "search": "Search",
   "@search": {
     "description": "Search placeholder text"
+  },
+  "error": "Error: {message}",
+  "@error": {
+    "description": "Error message with placeholder",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "created": "Created: {date}",
+  "@created": {
+    "description": "Created date label",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "updated": "Updated: {date}",
+  "@updated": {
+    "description": "Updated date label",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteFolder": "Delete Folder",
+  "@deleteFolder": {
+    "description": "Delete folder dialog title"
+  },
+  "deleteFolderConfirm": "Are you sure you want to delete \"{name}\"?",
+  "@deleteFolderConfirm": {
+    "description": "Delete folder confirmation message",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "rename": "Rename",
+  "@rename": {
+    "description": "Rename button text"
+  },
+  "renameFolder": "Rename Folder",
+  "@renameFolder": {
+    "description": "Rename folder dialog title"
+  },
+  "untitledNote": "Untitled Note",
+  "@untitledNote": {
+    "description": "Default title for untitled notes"
+  },
+  "emptyNote": "Empty note",
+  "@emptyNote": {
+    "description": "Text shown for empty notes"
+  },
+  "deleteNote": "Delete Note",
+  "@deleteNote": {
+    "description": "Delete note dialog title"
+  },
+  "deleteNoteConfirm": "Are you sure you want to delete \"{title}\"?",
+  "@deleteNoteConfirm": {
+    "description": "Delete note confirmation message",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteThisNote": "this note",
+  "@deleteThisNote": {
+    "description": "Text for deleting unnamed note"
+  },
+  "enterFolderName": "Enter folder name",
+  "@enterFolderName": {
+    "description": "Hint text for folder name input"
+  },
+  "newNote": "New Note",
+  "@newNote": {
+    "description": "Title for new note"
+  },
+  "switchToEditMode": "Switch to Edit mode",
+  "@switchToEditMode": {
+    "description": "Tooltip for switching to edit mode"
+  },
+  "previewMarkdown": "Preview markdown",
+  "@previewMarkdown": {
+    "description": "Tooltip for previewing markdown"
+  },
+  "preview": "Preview",
+  "@preview": {
+    "description": "Preview button text"
+  },
+  "autoSaveOn": "Auto-save is ON (saves every 5s after changes)",
+  "@autoSaveOn": {
+    "description": "Tooltip when auto-save is enabled"
+  },
+  "enableAutoSave": "Enable auto-save",
+  "@enableAutoSave": {
+    "description": "Tooltip to enable auto-save"
+  },
+  "autoSaveOff": "Auto-save OFF",
+  "@autoSaveOff": {
+    "description": "Auto-save off tooltip"
+  },
+  "saveNote": "Save note",
+  "@saveNote": {
+    "description": "Tooltip for save button"
+  },
+  "noContentYet": "*No content yet*",
+  "@noContentYet": {
+    "description": "Placeholder text when no content"
+  },
+  "startWriting": "Start writing...",
+  "@startWriting": {
+    "description": "Hint text for note editor"
+  },
+  "noteCannotBeEmpty": "Note cannot be empty",
+  "@noteCannotBeEmpty": {
+    "description": "Error message when note is empty"
+  },
+  "noteSaved": "Note saved!",
+  "@noteSaved": {
+    "description": "Success message when note is saved"
+  },
+  "editTitle": "Edit Title",
+  "@editTitle": {
+    "description": "Edit title dialog title"
+  },
+  "enterNoteTitle": "Enter note title",
+  "@enterNoteTitle": {
+    "description": "Hint text for note title input"
+  },
+  "autoSaveEnabled": "Auto-save enabled",
+  "@autoSaveEnabled": {
+    "description": "Message when auto-save is enabled"
+  },
+  "autoSaveDisabled": "Auto-save disabled",
+  "@autoSaveDisabled": {
+    "description": "Message when auto-save is disabled"
+  },
+  "markdownShortcuts": "Markdown Shortcuts",
+  "@markdownShortcuts": {
+    "description": "Markdown shortcuts page title"
+  },
+  "resetToDefault": "Reset to Default",
+  "@resetToDefault": {
+    "description": "Reset to default button text"
+  },
+  "removeAllCustom": "Remove All Custom",
+  "@removeAllCustom": {
+    "description": "Remove all custom shortcuts button text"
+  },
+  "noCustomShortcutsYet": "No custom shortcuts yet",
+  "@noCustomShortcutsYet": {
+    "description": "Message when no custom shortcuts exist"
+  },
+  "tapToAddShortcut": "Tap the + button to add one",
+  "@tapToAddShortcut": {
+    "description": "Hint to add shortcuts"
+  },
+  "deleteShortcut": "Delete Shortcut",
+  "@deleteShortcut": {
+    "description": "Delete shortcut dialog title"
+  },
+  "deleteShortcutConfirm": "Are you sure you want to delete this shortcut?",
+  "@deleteShortcutConfirm": {
+    "description": "Delete shortcut confirmation message"
+  },
+  "resetDialogTitle": "Reset to Default",
+  "@resetDialogTitle": {
+    "description": "Reset dialog title"
+  },
+  "resetDialogMessage": "This will restore all default shortcuts to their original order and settings. Custom shortcuts will be kept but moved to the end.",
+  "@resetDialogMessage": {
+    "description": "Reset dialog message"
+  },
+  "reset": "Reset",
+  "@reset": {
+    "description": "Reset button text"
+  },
+  "removeCustomDialogTitle": "Remove All Custom",
+  "@removeCustomDialogTitle": {
+    "description": "Remove custom dialog title"
+  },
+  "removeCustomDialogMessage": "This will permanently delete all custom shortcuts you created. Default shortcuts will remain.",
+  "@removeCustomDialogMessage": {
+    "description": "Remove custom dialog message"
+  },
+  "remove": "Remove",
+  "@remove": {
+    "description": "Remove button text"
+  },
+  "defaultLabel": "DEFAULT",
+  "@defaultLabel": {
+    "description": "Label for default shortcuts"
+  },
+  "insertsCurrentDate": "Inserts current date",
+  "@insertsCurrentDate": {
+    "description": "Description for date shortcut"
+  },
+  "opensHeaderMenu": "Opens header menu (H1-H6)",
+  "@opensHeaderMenu": {
+    "description": "Description for header shortcut"
+  },
+  "beforeAfterText": "Before: \"{before}\" | After: \"{after}\"",
+  "@beforeAfterText": {
+    "description": "Description showing before and after text",
+    "placeholders": {
+      "before": {
+        "type": "String"
+      },
+      "after": {
+        "type": "String"
+      }
+    }
+  },
+  "hide": "Hide",
+  "@hide": {
+    "description": "Hide button tooltip"
+  },
+  "show": "Show",
+  "@show": {
+    "description": "Show button tooltip"
+  },
+  "newShortcut": "New Shortcut",
+  "@newShortcut": {
+    "description": "New shortcut dialog title"
+  },
+  "editShortcut": "Edit Shortcut",
+  "@editShortcut": {
+    "description": "Edit shortcut dialog title"
+  },
+  "icon": "Icon",
+  "@icon": {
+    "description": "Icon label"
+  },
+  "tapToChangeIcon": "Tap to change icon",
+  "@tapToChangeIcon": {
+    "description": "Hint to change icon"
+  },
+  "selectIcon": "Select Icon",
+  "@selectIcon": {
+    "description": "Select icon dialog title"
+  },
+  "label": "Label",
+  "@label": {
+    "description": "Label input field"
+  },
+  "labelHint": "e.g., Highlight",
+  "@labelHint": {
+    "description": "Hint for label input"
+  },
+  "insertType": "Insert Type",
+  "@insertType": {
+    "description": "Insert type label"
+  },
+  "wrapSelectedText": "Wrap Selected Text",
+  "@wrapSelectedText": {
+    "description": "Wrap selected text option"
+  },
+  "insertCurrentDate": "Insert Current Date",
+  "@insertCurrentDate": {
+    "description": "Insert current date option"
+  },
+  "beforeDate": "Before Date (optional)",
+  "@beforeDate": {
+    "description": "Before date label"
+  },
+  "markdownStart": "Markdown Start",
+  "@markdownStart": {
+    "description": "Markdown start label"
+  },
+  "markdownStartHint": "e.g., ==",
+  "@markdownStartHint": {
+    "description": "Hint for markdown start"
+  },
+  "optionalTextBeforeDate": "Optional text before date",
+  "@optionalTextBeforeDate": {
+    "description": "Hint for text before date"
+  },
+  "afterDate": "After Date (optional)",
+  "@afterDate": {
+    "description": "After date label"
+  },
+  "markdownEnd": "Markdown End",
+  "@markdownEnd": {
+    "description": "Markdown end label"
+  },
+  "optionalTextAfterDate": "Optional text after date",
+  "@optionalTextAfterDate": {
+    "description": "Hint for text after date"
+  },
+  "labelCannotBeEmpty": "Label cannot be empty",
+  "@labelCannotBeEmpty": {
+    "description": "Error message when label is empty"
+  },
+  "bold": "Bold",
+  "@bold": {
+    "description": "Bold shortcut label"
+  },
+  "italic": "Italic",
+  "@italic": {
+    "description": "Italic shortcut label"
+  },
+  "headers": "Headers",
+  "@headers": {
+    "description": "Headers shortcut label"
+  },
+  "pointList": "Point List",
+  "@pointList": {
+    "description": "Point list shortcut label"
+  },
+  "strikethrough": "Strikethrough",
+  "@strikethrough": {
+    "description": "Strikethrough shortcut label"
+  },
+  "bulletList": "Bullet List",
+  "@bulletList": {
+    "description": "Bullet list shortcut label"
+  },
+  "numberedList": "Numbered List",
+  "@numberedList": {
+    "description": "Numbered list shortcut label"
+  },
+  "checkbox": "Checkbox",
+  "@checkbox": {
+    "description": "Checkbox shortcut label"
+  },
+  "quote": "Quote",
+  "@quote": {
+    "description": "Quote shortcut label"
+  },
+  "inlineCode": "Inline Code",
+  "@inlineCode": {
+    "description": "Inline code shortcut label"
+  },
+  "codeBlock": "Code Block",
+  "@codeBlock": {
+    "description": "Code block shortcut label"
+  },
+  "link": "Link",
+  "@link": {
+    "description": "Link shortcut label"
+  },
+  "currentDate": "Current Date",
+  "@currentDate": {
+    "description": "Current date shortcut label"
+  },
+  "header1": "Header 1",
+  "@header1": {
+    "description": "Header 1 menu item"
+  },
+  "header2": "Header 2",
+  "@header2": {
+    "description": "Header 2 menu item"
+  },
+  "header3": "Header 3",
+  "@header3": {
+    "description": "Header 3 menu item"
+  },
+  "header4": "Header 4",
+  "@header4": {
+    "description": "Header 4 menu item"
+  },
+  "header5": "Header 5",
+  "@header5": {
+    "description": "Header 5 menu item"
+  },
+  "header6": "Header 6",
+  "@header6": {
+    "description": "Header 6 menu item"
   }
 }

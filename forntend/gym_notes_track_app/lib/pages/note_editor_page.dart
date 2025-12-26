@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
+import '../l10n/app_localizations.dart';
 import '../bloc/note/note_bloc.dart';
 import '../bloc/note/note_event.dart';
 import '../models/note.dart';
@@ -331,7 +332,9 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         title: GestureDetector(
           onTap: _editTitle,
           child: Text(
-            _titleController.text.isEmpty ? 'New Note' : _titleController.text,
+            _titleController.text.isEmpty
+                ? AppLocalizations.of(context)!.newNote
+                : _titleController.text,
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
@@ -339,8 +342,8 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         actions: [
           Tooltip(
             message: _isPreviewMode
-                ? 'Switch to Edit mode'
-                : 'Preview markdown',
+                ? AppLocalizations.of(context)!.switchToEditMode
+                : AppLocalizations.of(context)!.previewMarkdown,
             waitDuration: const Duration(milliseconds: 500),
             child: IconButton(
               icon: Icon(_isPreviewMode ? Icons.edit : Icons.visibility),
@@ -354,13 +357,15 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                   }
                 });
               },
-              tooltip: _isPreviewMode ? 'Edit' : 'Preview',
+              tooltip: _isPreviewMode
+                  ? AppLocalizations.of(context)!.edit
+                  : AppLocalizations.of(context)!.preview,
             ),
           ),
           Tooltip(
             message: _autoSaveEnabled
-                ? 'Auto-save is ON (saves every 5s after changes)'
-                : 'Enable auto-save',
+                ? AppLocalizations.of(context)!.autoSaveOn
+                : AppLocalizations.of(context)!.enableAutoSave,
             waitDuration: const Duration(milliseconds: 500),
             child: IconButton(
               icon: Icon(
@@ -368,16 +373,18 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                 color: _autoSaveEnabled ? Colors.green : null,
               ),
               onPressed: _toggleAutoSave,
-              tooltip: _autoSaveEnabled ? 'Auto-save ON' : 'Auto-save OFF',
+              tooltip: _autoSaveEnabled
+                  ? AppLocalizations.of(context)!.autoSaveOn
+                  : AppLocalizations.of(context)!.autoSaveOff,
             ),
           ),
           Tooltip(
-            message: 'Save note',
+            message: AppLocalizations.of(context)!.saveNote,
             waitDuration: const Duration(milliseconds: 500),
             child: IconButton(
               icon: const Icon(Icons.save),
               onPressed: _hasChanges || _autoSaveEnabled ? _saveNote : null,
-              tooltip: 'Save',
+              tooltip: AppLocalizations.of(context)!.save,
             ),
           ),
         ],
@@ -390,7 +397,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
               child: _isPreviewMode
                   ? Markdown(
                       data: _contentController.text.isEmpty
-                          ? '*No content yet*'
+                          ? AppLocalizations.of(context)!.noContentYet
                           : _contentController.text
                                 .split('\n')
                                 .map((line) => line.isEmpty ? '&nbsp;' : line)
@@ -430,8 +437,8 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                   : TextField(
                       controller: _contentController,
                       focusNode: _contentFocusNode,
-                      decoration: const InputDecoration(
-                        hintText: 'Start writing...',
+                      decoration: InputDecoration(
+                        hintText: AppLocalizations.of(context)!.startWriting,
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.all(0),
                       ),
@@ -455,7 +462,10 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     final content = _contentController.text.trim();
 
     if (title.isEmpty && content.isEmpty) {
-      CustomSnackbar.show(context, 'Note cannot be empty');
+      CustomSnackbar.show(
+        context,
+        AppLocalizations.of(context)!.noteCannotBeEmpty,
+      );
       return;
     }
 
@@ -473,7 +483,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
       _hasChanges = false;
     });
 
-    CustomSnackbar.show(context, 'Note saved!');
+    CustomSnackbar.show(context, AppLocalizations.of(context)!.noteSaved);
 
     Navigator.pop(context);
   }
@@ -484,17 +494,19 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
       builder: (context) {
         final controller = TextEditingController(text: _titleController.text);
         return AlertDialog(
-          title: const Text('Edit Title'),
+          title: Text(AppLocalizations.of(context)!.editTitle),
           content: TextField(
             controller: controller,
             autofocus: true,
-            decoration: const InputDecoration(hintText: 'Enter note title'),
+            decoration: InputDecoration(
+              hintText: AppLocalizations.of(context)!.enterNoteTitle,
+            ),
             style: const TextStyle(fontSize: 18),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
             TextButton(
               onPressed: () {
@@ -503,7 +515,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                 });
                 Navigator.pop(context);
               },
-              child: const Text('Save'),
+              child: Text(AppLocalizations.of(context)!.save),
             ),
           ],
         );
@@ -533,7 +545,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         color: Theme.of(context).colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, -2),
           ),
@@ -630,7 +642,9 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
               icon,
               size: 24,
               color: onPressed == null
-                  ? Theme.of(context).colorScheme.onSurface.withOpacity(0.3)
+                  ? Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.3)
                   : Theme.of(context).colorScheme.onSurface,
             ),
           ),
@@ -700,7 +714,9 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.9),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -722,7 +738,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                   decoration: BoxDecoration(
                     color: Theme.of(
                       context,
-                    ).colorScheme.primary.withOpacity(0.8),
+                    ).colorScheme.primary.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: feedbackWidget,
@@ -768,8 +784,8 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
           });
         },
         child: DragTarget<int>(
-          onWillAccept: (fromIndex) => fromIndex != null && fromIndex != index,
-          onAccept: (fromIndex) {
+          onWillAcceptWithDetails: (details) => details.data != index,
+          onAcceptWithDetails: (details) {
             // Don't do anything here, the reordering happens in real-time
           },
           onMove: (details) {
@@ -803,7 +819,7 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                           borderRadius: BorderRadius.circular(10),
                           color: Theme.of(
                             context,
-                          ).colorScheme.primary.withOpacity(0.1),
+                          ).colorScheme.primary.withValues(alpha: 0.1),
                         )
                       : null,
                   child: InkWell(
@@ -877,46 +893,46 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
         size.height,
       ),
       items: [
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'h1',
           child: Text(
-            'Header 1',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            AppLocalizations.of(context)!.header1,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'h2',
           child: Text(
-            'Header 2',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            AppLocalizations.of(context)!.header2,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'h3',
           child: Text(
-            'Header 3',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            AppLocalizations.of(context)!.header3,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'h4',
           child: Text(
-            'Header 4',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            AppLocalizations.of(context)!.header4,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'h5',
           child: Text(
-            'Header 5',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            AppLocalizations.of(context)!.header5,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
         ),
-        const PopupMenuItem(
+        PopupMenuItem(
           value: 'h6',
           child: Text(
-            'Header 6',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            AppLocalizations.of(context)!.header6,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
           ),
         ),
       ],
@@ -1110,13 +1126,21 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
 
     await prefs.setBool('auto_save_enabled', _autoSaveEnabled);
 
+    if (!mounted) return;
+
     if (_autoSaveEnabled) {
       _startAutoSaveTimer();
-      CustomSnackbar.show(context, 'Auto-save enabled');
+      CustomSnackbar.show(
+        context,
+        AppLocalizations.of(context)!.autoSaveEnabled,
+      );
     } else {
       _autoSaveTimer?.cancel();
       _autoSaveTimer = null;
-      CustomSnackbar.show(context, 'Auto-save disabled');
+      CustomSnackbar.show(
+        context,
+        AppLocalizations.of(context)!.autoSaveDisabled,
+      );
     }
   }
 
