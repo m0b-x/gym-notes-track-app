@@ -8,27 +8,35 @@ import '../models/note.dart';
 import 'note_editor_page.dart';
 import 'note_view_page.dart';
 
-/// Page that displays all notes in a folder
-class NotesPage extends StatelessWidget {
+class NotesPage extends StatefulWidget {
   final Folder folder;
 
   const NotesPage({super.key, required this.folder});
 
   @override
+  State<NotesPage> createState() => _NotesPageState();
+}
+
+class _NotesPageState extends State<NotesPage> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      if (mounted) {
+        context.read<NoteBloc>().add(LoadNotes(widget.folder.id));
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(folder.name),
+        title: Text(widget.folder.name),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: BlocBuilder<NoteBloc, NoteState>(
         builder: (context, state) {
-          if (state is NoteInitial) {
-            // Load notes when page first loads
-            context.read<NoteBloc>().add(LoadNotes(folder.id));
-            return const Center(child: CircularProgressIndicator());
-          }
-
           if (state is NoteLoading) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -43,7 +51,11 @@ class NotesPage extends StatelessWidget {
           }
 
           if (state is NoteLoaded) {
-            if (state.notes.isEmpty) {
+            final filteredNotes = state.notes
+                .where((note) => note.folderId == widget.folder.id)
+                .toList();
+
+            if (filteredNotes.isEmpty) {
               return const Center(
                 child: Text(
                   'No notes yet.\nTap + to create one!',
@@ -54,10 +66,10 @@ class NotesPage extends StatelessWidget {
             }
 
             return ListView.builder(
-              itemCount: state.notes.length,
+              itemCount: filteredNotes.length,
               itemBuilder: (context, index) {
-                final note = state.notes[index];
-                return _NoteCard(note: note, folderId: folder.id);
+                final note = filteredNotes[index];
+                return _NoteCard(note: note, folderId: widget.folder.id);
               },
             );
           }
@@ -66,21 +78,19 @@ class NotesPage extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _createNewNote(context),
+        onPressed: _createNewNote,
         tooltip: 'Create Note',
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  void _createNewNote(BuildContext context) {
+  void _createNewNote() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => NoteEditorPage(
-          folderId: folder.id,
-          note: null, // null means creating a new note
-        ),
+        builder: (context) =>
+            NoteEditorPage(folderId: widget.folder.id, note: null),
       ),
     );
   }

@@ -10,38 +10,55 @@ import '../models/folder.dart';
 import '../models/note.dart';
 import 'note_editor_page.dart';
 
-class FolderContentPage extends StatelessWidget {
+class FolderContentPage extends StatefulWidget {
   final String? folderId;
   final String title;
 
   const FolderContentPage({super.key, this.folderId, required this.title});
 
   @override
+  State<FolderContentPage> createState() => _FolderContentPageState();
+}
+
+class _FolderContentPageState extends State<FolderContentPage> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.folderId != null) {
+      Future.microtask(() {
+        if (mounted) {
+          context.read<NoteBloc>().add(LoadNotes(widget.folderId!));
+        }
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: Text(widget.title),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: RefreshIndicator(
         onRefresh: () async {
           context.read<FolderBloc>().add(LoadFolders());
-          if (folderId != null) {
-            context.read<NoteBloc>().add(LoadNotes(folderId!));
+          if (widget.folderId != null) {
+            context.read<NoteBloc>().add(LoadNotes(widget.folderId!));
           }
         },
         child: CustomScrollView(
-          slivers: [_buildFoldersSection(context), _buildNotesSection(context)],
+          slivers: [_buildFoldersSection(), _buildNotesSection()],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateOptions(context),
+        onPressed: _showCreateOptions,
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildFoldersSection(BuildContext context) {
+  Widget _buildFoldersSection() {
     return BlocBuilder<FolderBloc, FolderState>(
       builder: (context, state) {
         if (state is FolderInitial) {
@@ -83,7 +100,7 @@ class FolderContentPage extends StatelessWidget {
 
         if (state is FolderLoaded) {
           final folders = state.folders
-              .where((folder) => folder.parentId == folderId)
+              .where((folder) => folder.parentId == widget.folderId)
               .toList();
 
           if (folders.isEmpty) {
@@ -103,25 +120,13 @@ class FolderContentPage extends StatelessWidget {
     );
   }
 
-  Widget _buildNotesSection(BuildContext context) {
-    if (folderId == null) {
+  Widget _buildNotesSection() {
+    if (widget.folderId == null) {
       return const SliverToBoxAdapter(child: SizedBox.shrink());
     }
 
     return BlocBuilder<NoteBloc, NoteState>(
       builder: (context, state) {
-        if (state is NoteInitial) {
-          context.read<NoteBloc>().add(LoadNotes(folderId!));
-          return const SliverToBoxAdapter(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: CircularProgressIndicator(),
-              ),
-            ),
-          );
-        }
-
         if (state is NoteLoading) {
           return const SliverToBoxAdapter(
             child: Center(
@@ -148,15 +153,19 @@ class FolderContentPage extends StatelessWidget {
         }
 
         if (state is NoteLoaded) {
-          if (state.notes.isEmpty) {
+          final filteredNotes = state.notes
+              .where((note) => note.folderId == widget.folderId)
+              .toList();
+
+          if (filteredNotes.isEmpty) {
             return const SliverToBoxAdapter(child: SizedBox.shrink());
           }
 
           return SliverList(
             delegate: SliverChildBuilderDelegate((context, index) {
-              final note = state.notes[index];
-              return _NoteCard(note: note, folderId: folderId!);
-            }, childCount: state.notes.length),
+              final note = filteredNotes[index];
+              return _NoteCard(note: note, folderId: widget.folderId!);
+            }, childCount: filteredNotes.length),
           );
         }
 
@@ -165,7 +174,7 @@ class FolderContentPage extends StatelessWidget {
     );
   }
 
-  void _showCreateOptions(BuildContext context) {
+  void _showCreateOptions() {
     showModalBottomSheet(
       context: context,
       builder: (BuildContext bottomSheetContext) {
@@ -178,16 +187,16 @@ class FolderContentPage extends StatelessWidget {
                 title: const Text('Create Folder'),
                 onTap: () {
                   Navigator.pop(bottomSheetContext);
-                  _showCreateFolderDialog(context);
+                  _showCreateFolderDialog();
                 },
               ),
-              if (folderId != null)
+              if (widget.folderId != null)
                 ListTile(
                   leading: const Icon(Icons.note, color: Colors.blue),
                   title: const Text('Create Note'),
                   onTap: () {
                     Navigator.pop(bottomSheetContext);
-                    _createNewNote(context);
+                    _createNewNote();
                   },
                 ),
             ],
@@ -197,7 +206,7 @@ class FolderContentPage extends StatelessWidget {
     );
   }
 
-  void _showCreateFolderDialog(BuildContext context) {
+  void _showCreateFolderDialog() {
     final controller = TextEditingController();
 
     showDialog(
@@ -221,7 +230,10 @@ class FolderContentPage extends StatelessWidget {
             onPressed: () {
               if (controller.text.trim().isNotEmpty) {
                 context.read<FolderBloc>().add(
-                  CreateFolder(controller.text.trim(), parentId: folderId),
+                  CreateFolder(
+                    controller.text.trim(),
+                    parentId: widget.folderId,
+                  ),
                 );
                 Navigator.pop(dialogContext);
               }
@@ -233,11 +245,12 @@ class FolderContentPage extends StatelessWidget {
     );
   }
 
-  void _createNewNote(BuildContext context) {
+  void _createNewNote() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => NoteEditorPage(folderId: folderId!, note: null),
+        builder: (context) =>
+            NoteEditorPage(folderId: widget.folderId!, note: null),
       ),
     );
   }
