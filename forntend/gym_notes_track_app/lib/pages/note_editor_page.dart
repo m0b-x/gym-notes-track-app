@@ -12,6 +12,8 @@ import '../models/note.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../utils/text_history_observer.dart';
 import '../widgets/markdown_toolbar.dart';
+import '../config/default_markdown_shortcuts.dart';
+import '../factories/shortcut_handler_factory.dart';
 import 'markdown_settings_page.dart';
 
 class NoteEditorPage extends StatefulWidget {
@@ -36,130 +38,6 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   String _previousText = '';
   bool _isProcessingTextChange = false;
   Timer? _autoSaveTimer;
-
-  static List<CustomMarkdownShortcut> _getDefaultShortcuts() {
-    return [
-      const CustomMarkdownShortcut(
-        id: 'default_bold',
-        label: 'Bold',
-        iconCodePoint: 0xe238, // format_bold
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '**',
-        afterText: '**',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_italic',
-        label: 'Italic',
-        iconCodePoint: 0xe23f, // format_italic
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '_',
-        afterText: '_',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_header',
-        label: 'Headers',
-        iconCodePoint: 0xe86f,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '# ',
-        afterText: '',
-        isDefault: true,
-        insertType: 'header',
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_point_list',
-        label: 'Point List',
-        iconCodePoint: 0xe065, // fiber_manual_record (bullet point)
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '• ',
-        afterText: '',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_strikethrough',
-        label: 'Strikethrough',
-        iconCodePoint: 0xe257, // format_strikethrough
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '~~',
-        afterText: '~~',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_bullet_list',
-        label: 'Bullet List',
-        iconCodePoint: 0xe241, // format_list_bulleted
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '- ',
-        afterText: '',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_numbered_list',
-        label: 'Numbered List',
-        iconCodePoint: 0xe242, // format_list_numbered
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '1. ',
-        afterText: '',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_checkbox',
-        label: 'Checkbox',
-        iconCodePoint: 0xe834, // check_box_outline_blank
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '- [ ] ',
-        afterText: '',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_quote',
-        label: 'Quote',
-        iconCodePoint: 0xe244, // format_quote
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '> ',
-        afterText: '',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_inline_code',
-        label: 'Inline Code',
-        iconCodePoint: 0xe86f, // code
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '`',
-        afterText: '`',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_code_block',
-        label: 'Code Block',
-        iconCodePoint: 0xe86f, // code
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '```\n',
-        afterText: '\n```',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_link',
-        label: 'Link',
-        iconCodePoint: 0xe157, // link
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '[',
-        afterText: '](url)',
-        isDefault: true,
-      ),
-      const CustomMarkdownShortcut(
-        id: 'default_date',
-        label: 'Current Date',
-        iconCodePoint: 0xe916, // calendar_today
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '',
-        afterText: '',
-        isDefault: true,
-        insertType: 'date',
-      ),
-    ];
-  }
 
   @override
   void initState() {
@@ -517,155 +395,22 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     );
   }
 
-  void _showHeaderMenu() {
-    // Get the position of the text field to position the menu
-    final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-
-    final Size size = renderBox.size;
-
-    showMenu<String>(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        16, // Left padding from screen edge
-        size.height - 300, // Position above the toolbar
-        200,
-        size.height,
-      ),
-      items: [
-        PopupMenuItem(
-          value: 'h1',
-          child: Text(
-            AppLocalizations.of(context)!.header1,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-        ),
-        PopupMenuItem(
-          value: 'h2',
-          child: Text(
-            AppLocalizations.of(context)!.header2,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-        ),
-        PopupMenuItem(
-          value: 'h3',
-          child: Text(
-            AppLocalizations.of(context)!.header3,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ),
-        PopupMenuItem(
-          value: 'h4',
-          child: Text(
-            AppLocalizations.of(context)!.header4,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-          ),
-        ),
-        PopupMenuItem(
-          value: 'h5',
-          child: Text(
-            AppLocalizations.of(context)!.header5,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-          ),
-        ),
-        PopupMenuItem(
-          value: 'h6',
-          child: Text(
-            AppLocalizations.of(context)!.header6,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ],
-    ).then((value) {
-      if (value != null) {
-        switch (value) {
-          case 'h1':
-            _insertMarkdown('# ', '');
-            break;
-          case 'h2':
-            _insertMarkdown('## ', '');
-            break;
-          case 'h3':
-            _insertMarkdown('### ', '');
-            break;
-          case 'h4':
-            _insertMarkdown('#### ', '');
-            break;
-          case 'h5':
-            _insertMarkdown('##### ', '');
-            break;
-          case 'h6':
-            _insertMarkdown('###### ', '');
-            break;
-        }
-      }
-    });
-  }
-
-  void _insertMarkdown(String before, String after) {
-    final text = _contentController.text;
-    final selection = _contentController.selection;
-    final start = selection.start;
-    final end = selection.end;
-
-    String selectedText = '';
-    if (start >= 0 && end >= 0 && start != end) {
-      selectedText = text.substring(start, end);
-    }
-
-    final newText =
-        text.substring(0, start) +
-        before +
-        selectedText +
-        after +
-        text.substring(end);
-
-    _contentController.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(
-        offset: start + before.length + selectedText.length,
-      ),
-    );
-
-    _contentFocusNode.requestFocus();
-    _onTextChanged();
-  }
-
   void _handleShortcut(CustomMarkdownShortcut shortcut) {
-    if (shortcut.insertType == 'date') {
-      _insertCurrentDate(shortcut);
-    } else if (shortcut.insertType == 'header') {
-      _showHeaderMenu();
-    } else {
-      _insertMarkdown(shortcut.beforeText, shortcut.afterText);
-    }
-  }
-
-  void _insertCurrentDate(CustomMarkdownShortcut shortcut) {
-    final currentDate = DateFormat('MMMM d, yyyy').format(DateTime.now());
-    final text = _contentController.text;
-    final selection = _contentController.selection;
-    final cursorPos = selection.start;
-
-    // Insert before text + date + after text
-    final insertText = shortcut.beforeText + currentDate + shortcut.afterText;
-    final newText =
-        text.substring(0, cursorPos) + insertText + text.substring(cursorPos);
-
-    _contentController.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(offset: cursorPos + insertText.length),
+    final handler = ShortcutHandlerFactory.getHandler(shortcut.insertType);
+    handler.execute(
+      context: context,
+      shortcut: shortcut,
+      controller: _contentController,
+      focusNode: _contentFocusNode,
+      onTextChanged: _onTextChanged,
     );
-
-    _contentFocusNode.requestFocus();
-    _onTextChanged();
   }
 
   Future<void> _loadCustomShortcuts() async {
     final prefs = await SharedPreferences.getInstance();
     final shortcutsJson = prefs.getString('custom_markdown_shortcuts');
 
-    final defaults = _getDefaultShortcuts();
+    final defaults = DefaultMarkdownShortcuts.shortcuts;
 
     if (shortcutsJson != null) {
       final List<dynamic> decoded = jsonDecode(shortcutsJson);
