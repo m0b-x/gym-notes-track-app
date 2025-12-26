@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -12,6 +11,7 @@ import '../models/note.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../utils/text_history_observer.dart';
 import '../widgets/markdown_toolbar.dart';
+import '../widgets/interactive_markdown.dart';
 import '../config/default_markdown_shortcuts.dart';
 import '../factories/shortcut_handler_factory.dart';
 import 'markdown_settings_page.dart';
@@ -247,13 +247,10 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: _isPreviewMode
-                    ? Markdown(
+                    ? InteractiveMarkdown(
                         data: _contentController.text.isEmpty
                             ? AppLocalizations.of(context)!.noContentYet
-                            : _contentController.text
-                                  .split('\n')
-                                  .map((line) => line.isEmpty ? '&nbsp;' : line)
-                                  .join('  \n'),
+                            : _contentController.text,
                         selectable: true,
                         padding: const EdgeInsets.all(16),
                         styleSheet: MarkdownStyleSheet(
@@ -285,6 +282,12 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
                           ),
                           code: TextStyle(fontSize: _previewFontSize * 0.9),
                         ),
+                        onCheckboxChanged: (updatedContent) {
+                          setState(() {
+                            _contentController.text = updatedContent;
+                            _hasChanges = true;
+                          });
+                        },
                       )
                     : TextField(
                         controller: _contentController,

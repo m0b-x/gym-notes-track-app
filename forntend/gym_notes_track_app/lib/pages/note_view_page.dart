@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import '../bloc/note/note_bloc.dart';
 import '../bloc/note/note_event.dart';
 import '../models/note.dart';
+import '../widgets/interactive_markdown.dart';
 import 'note_editor_page.dart';
 
 class NoteViewPage extends StatelessWidget {
@@ -63,7 +63,15 @@ class NoteViewPage extends StatelessWidget {
                         style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
                     )
-                  : Markdown(data: note.content, selectable: true),
+                  : InteractiveMarkdown(
+                      data: note.content,
+                      selectable: true,
+                      onCheckboxChanged: (updatedContent) {
+                        context.read<NoteBloc>().add(
+                          UpdateNote(noteId: note.id, content: updatedContent),
+                        );
+                      },
+                    ),
             ),
           ),
         ],
