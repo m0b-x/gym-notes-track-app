@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/note.dart';
@@ -24,9 +23,9 @@ class NoteStorageService {
     ChunkedStorageService? chunkedStorage,
     Uuid? uuid,
     IsolatePool? isolatePool,
-  })  : _chunkedStorage = chunkedStorage ?? ChunkedStorageService(),
-        _uuid = uuid ?? const Uuid(),
-        _isolatePool = isolatePool ?? IsolatePool();
+  }) : _chunkedStorage = chunkedStorage ?? ChunkedStorageService(),
+       _uuid = uuid ?? const Uuid(),
+       _isolatePool = isolatePool ?? IsolatePool();
 
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -70,13 +69,9 @@ class NoteStorageService {
 
     final allMetadata = await _loadAllMetadata();
 
-    debugPrint('NoteStorage loadAll count=${allMetadata.length} folder=$folderId');
-
     var filteredMetadata = folderId != null
         ? allMetadata.where((m) => m.folderId == folderId).toList()
         : allMetadata;
-
-    debugPrint('NoteStorage filtered count=${filteredMetadata.length} page=$page size=$pageSize sort=$sortOrder');
 
     filteredMetadata = _sortMetadata(filteredMetadata, sortOrder);
 
@@ -143,7 +138,9 @@ class NoteStorageService {
       title: title,
       preview: NoteMetadata.generatePreview(content),
       contentLength: content.length,
-      chunkCount: (content.length / ChunkedStorageService.defaultChunkSize).ceil().clamp(1, double.maxFinite.toInt()),
+      chunkCount: (content.length / ChunkedStorageService.defaultChunkSize)
+          .ceil()
+          .clamp(1, double.maxFinite.toInt()),
       isCompressed: shouldCompress,
       createdAt: now,
       updatedAt: now,
@@ -176,7 +173,9 @@ class NoteStorageService {
       await _chunkedStorage.saveContent(noteId: noteId, content: content);
       newPreview = NoteMetadata.generatePreview(content);
       newContentLength = content.length;
-      newChunkCount = (content.length / ChunkedStorageService.defaultChunkSize).ceil().clamp(1, double.maxFinite.toInt());
+      newChunkCount = (content.length / ChunkedStorageService.defaultChunkSize)
+          .ceil()
+          .clamp(1, double.maxFinite.toInt());
       newIsCompressed = CompressionUtils.shouldCompress(content);
     }
 
@@ -278,7 +277,9 @@ class NoteStorageService {
       title: note.title,
       preview: NoteMetadata.generatePreview(note.content),
       contentLength: note.content.length,
-      chunkCount: (note.content.length / ChunkedStorageService.defaultChunkSize).ceil().clamp(1, double.maxFinite.toInt()),
+      chunkCount: (note.content.length / ChunkedStorageService.defaultChunkSize)
+          .ceil()
+          .clamp(1, double.maxFinite.toInt()),
       isCompressed: shouldCompress,
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,

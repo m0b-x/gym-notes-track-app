@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../services/folder_storage_service.dart';
 import 'optimized_folder_event.dart';
@@ -27,7 +26,6 @@ class OptimizedFolderBloc
     LoadFoldersPaginated event,
     Emitter<OptimizedFolderState> emit,
   ) async {
-    debugPrint('FolderBloc Load page=${event.page} parent=${event.parentId} sort=${event.sortOrder}');
     emit(OptimizedFolderLoading(parentId: event.parentId));
 
     try {
@@ -146,7 +144,6 @@ class OptimizedFolderBloc
     RefreshFolders event,
     Emitter<OptimizedFolderState> emit,
   ) async {
-    debugPrint('FolderBloc Refresh parent=${event.parentId ?? _currentParentId}');
     _storageService.clearCache();
     _currentPage = 1;
 

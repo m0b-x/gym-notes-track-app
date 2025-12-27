@@ -40,13 +40,16 @@ class DiffChange {
 enum DiffChangeType { add, remove, modify }
 
 class DiffService {
-  final IsolatePool _isolatePool;
+  IsolatePool? _isolatePool;
+  bool _isInitialized = false;
 
-  DiffService({IsolatePool? isolatePool})
-      : _isolatePool = isolatePool ?? IsolatePool();
+  DiffService({IsolatePool? isolatePool}) : _isolatePool = isolatePool;
 
-  Future<void> initialize() async {
-    await _isolatePool.initialize();
+  Future<void> _ensureInitialized() async {
+    if (_isInitialized) return;
+    _isolatePool ??= IsolatePool();
+    await _isolatePool!.initialize();
+    _isInitialized = true;
   }
 
   Future<DiffResult> computeDiff(String original, String modified) async {
@@ -54,7 +57,8 @@ class DiffService {
       return const DiffResult(hasChanges: false);
     }
 
-    final result = await _isolatePool.execute<Map<String, dynamic>>(
+    await _ensureInitialized();
+    final result = await _isolatePool!.execute<Map<String, dynamic>>(
       'computeDiff',
       {'original': original, 'modified': modified},
     );
@@ -78,8 +82,12 @@ class DiffService {
       final changeMap = c as Map<String, dynamic>;
       return DiffChange(
         type: _parseChangeType(changeMap['type'] as String),
-        line: changeMap['line'] as int? ?? changeMap['modifiedLine'] as int? ?? 0,
-        content: changeMap['content'] as String? ?? changeMap['modified'] as String? ?? '',
+        line:
+            changeMap['line'] as int? ?? changeMap['modifiedLine'] as int? ?? 0,
+        content:
+            changeMap['content'] as String? ??
+            changeMap['modified'] as String? ??
+            '',
         originalContent: changeMap['original'] as String?,
       );
     }).toList();
@@ -131,14 +139,15 @@ class DiffService {
   }
 
   void dispose() {
-    _isolatePool.dispose();
+    _isolatePool?.dispose();
   }
 }
 
 class AutoSaveService {
   final Duration saveInterval;
   final Duration debounceDelay;
-  final Future<void> Function(String noteId, String? title, String? content) onSave;
+  final Future<void> Function(String noteId, String? title, String? content)
+  onSave;
   final void Function(String noteId, bool hasChanges)? onChangeDetected;
 
   final DiffService _diffService;
@@ -155,10 +164,6 @@ class AutoSaveService {
     this.debounceDelay = const Duration(seconds: 5),
     DiffService? diffService,
   }) : _diffService = diffService ?? DiffService();
-
-  Future<void> initialize() async {
-    await _diffService.initialize();
-  }
 
   void startTracking(String noteId, String title, String content) {
     _originalTitle[noteId] = title;
@@ -181,12 +186,19 @@ class AutoSaveService {
     _hasPendingChanges.remove(noteId);
   }
 
-  void onContentChanged(String noteId, String currentTitle, String currentContent) {
+  void onContentChanged(
+    String noteId,
+    String currentTitle,
+    String currentContent,
+  ) {
     final originalTitle = _originalTitle[noteId] ?? '';
     final originalContent = _originalContent[noteId] ?? '';
 
     final titleChanged = currentTitle != originalTitle;
-    final contentChanged = _diffService.quickHasChanges(originalContent, currentContent);
+    final contentChanged = _diffService.quickHasChanges(
+      originalContent,
+      currentContent,
+    );
 
     final hasChanges = titleChanged || contentChanged;
     _hasPendingChanges[noteId] = hasChanges;

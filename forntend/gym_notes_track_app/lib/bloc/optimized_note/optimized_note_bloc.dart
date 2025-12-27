@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../models/note_metadata.dart';
 import '../../services/note_storage_service.dart';
@@ -18,10 +17,13 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
   OptimizedNoteBloc({
     NoteStorageService? storageService,
     SearchService? searchService,
-  })  : _storageService = storageService ?? NoteStorageService(),
-        _searchService = searchService ??
-            SearchService(storageService: storageService ?? NoteStorageService()),
-        super(OptimizedNoteInitial()) {
+  }) : _storageService = storageService ?? NoteStorageService(),
+       _searchService =
+           searchService ??
+           SearchService(
+             storageService: storageService ?? NoteStorageService(),
+           ),
+       super(OptimizedNoteInitial()) {
     on<LoadNotesPaginated>(_onLoadNotesPaginated);
     on<LoadMoreNotes>(_onLoadMoreNotes);
     on<LoadNoteContent>(_onLoadNoteContent);
@@ -38,7 +40,6 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
     LoadNotesPaginated event,
     Emitter<OptimizedNoteState> emit,
   ) async {
-    debugPrint('NoteBloc Load page=${event.page} folder=${event.folderId} sort=${event.sortOrder}');
     emit(OptimizedNoteLoading(folderId: event.folderId));
 
     try {
@@ -57,12 +58,19 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
 
       _lastPaginatedNotes = paginatedNotes;
 
-      emit(OptimizedNoteLoaded(
-        paginatedNotes: paginatedNotes,
-        folderId: event.folderId,
-      ));
+      emit(
+        OptimizedNoteLoaded(
+          paginatedNotes: paginatedNotes,
+          folderId: event.folderId,
+        ),
+      );
     } catch (e) {
-      emit(OptimizedNoteError('Failed to load notes: $e', folderId: event.folderId));
+      emit(
+        OptimizedNoteError(
+          'Failed to load notes: $e',
+          folderId: event.folderId,
+        ),
+      );
     }
   }
 
@@ -76,10 +84,12 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
     if (!currentState.paginatedNotes.hasMore) return;
     if (currentState.isLoadingMore) return;
 
-    emit(currentState.copyWith(
-      isLoadingMore: true,
-      folderId: event.folderId ?? _currentFolderId,
-    ));
+    emit(
+      currentState.copyWith(
+        isLoadingMore: true,
+        folderId: event.folderId ?? _currentFolderId,
+      ),
+    );
 
     try {
       _currentPage++;
@@ -101,16 +111,20 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
 
       _lastPaginatedNotes = updatedPaginatedNotes;
 
-      emit(currentState.copyWith(
-        paginatedNotes: updatedPaginatedNotes,
-        isLoadingMore: false,
-        folderId: event.folderId ?? _currentFolderId,
-      ));
+      emit(
+        currentState.copyWith(
+          paginatedNotes: updatedPaginatedNotes,
+          isLoadingMore: false,
+          folderId: event.folderId ?? _currentFolderId,
+        ),
+      );
     } catch (e) {
-      emit(currentState.copyWith(
-        isLoadingMore: false,
-        folderId: event.folderId ?? _currentFolderId,
-      ));
+      emit(
+        currentState.copyWith(
+          isLoadingMore: false,
+          folderId: event.folderId ?? _currentFolderId,
+        ),
+      );
     }
   }
 
@@ -126,13 +140,20 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
         return;
       }
 
-      emit(OptimizedNoteContentLoaded(
-        note: lazyNote,
-        previousPaginatedNotes: _lastPaginatedNotes,
-        folderId: _currentFolderId,
-      ));
+      emit(
+        OptimizedNoteContentLoaded(
+          note: lazyNote,
+          previousPaginatedNotes: _lastPaginatedNotes,
+          folderId: _currentFolderId,
+        ),
+      );
     } catch (e) {
-      emit(OptimizedNoteError('Failed to load note content: $e', folderId: _currentFolderId));
+      emit(
+        OptimizedNoteError(
+          'Failed to load note content: $e',
+          folderId: _currentFolderId,
+        ),
+      );
     }
   }
 
@@ -151,7 +172,12 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
 
       add(RefreshNotes(folderId: event.folderId));
     } catch (e) {
-      emit(OptimizedNoteError('Failed to create note: $e', folderId: event.folderId));
+      emit(
+        OptimizedNoteError(
+          'Failed to create note: $e',
+          folderId: event.folderId,
+        ),
+      );
     }
   }
 
@@ -167,19 +193,22 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
       );
 
       if (metadata != null) {
-        final content = event.content ?? await _storageService.loadNoteContent(event.noteId);
-        await _searchService.updateIndex(
-          metadata.id,
-          metadata.title,
-          content,
-        );
+        final content =
+            event.content ??
+            await _storageService.loadNoteContent(event.noteId);
+        await _searchService.updateIndex(metadata.id, metadata.title, content);
       }
 
       if (_currentFolderId != null) {
         add(RefreshNotes(folderId: _currentFolderId));
       }
     } catch (e) {
-      emit(OptimizedNoteError('Failed to update note: $e', folderId: _currentFolderId));
+      emit(
+        OptimizedNoteError(
+          'Failed to update note: $e',
+          folderId: _currentFolderId,
+        ),
+      );
     }
   }
 
@@ -193,7 +222,12 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
 
       add(RefreshNotes(folderId: _currentFolderId));
     } catch (e) {
-      emit(OptimizedNoteError('Failed to delete note: $e', folderId: _currentFolderId));
+      emit(
+        OptimizedNoteError(
+          'Failed to delete note: $e',
+          folderId: _currentFolderId,
+        ),
+      );
     }
   }
 
@@ -201,11 +235,13 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
     SearchNotes event,
     Emitter<OptimizedNoteState> emit,
   ) async {
-    emit(const OptimizedNoteSearchResults(
-      results: [],
-      query: '',
-      isSearching: true,
-    ));
+    emit(
+      const OptimizedNoteSearchResults(
+        results: [],
+        query: '',
+        isSearching: true,
+      ),
+    );
 
     try {
       await _searchService.initialize();
@@ -217,11 +253,13 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
             : null,
       );
 
-      emit(OptimizedNoteSearchResults(
-        results: results,
-        query: event.query,
-        isSearching: false,
-      ));
+      emit(
+        OptimizedNoteSearchResults(
+          results: results,
+          query: event.query,
+          isSearching: false,
+        ),
+      );
     } catch (e) {
       emit(OptimizedNoteError('Search failed: $e', folderId: event.folderId));
     }
@@ -236,11 +274,13 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
     if (currentState is OptimizedNoteSearchResults) {
       emit(currentState.copyWith(isSearching: true));
     } else {
-      emit(const OptimizedNoteSearchResults(
-        results: [],
-        query: '',
-        isSearching: true,
-      ));
+      emit(
+        const OptimizedNoteSearchResults(
+          results: [],
+          query: '',
+          isSearching: true,
+        ),
+      );
     }
 
     try {
@@ -251,13 +291,17 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
         folderId: event.folderId,
       );
 
-      emit(OptimizedNoteSearchResults(
-        results: results,
-        query: event.query,
-        isSearching: false,
-      ));
+      emit(
+        OptimizedNoteSearchResults(
+          results: results,
+          query: event.query,
+          isSearching: false,
+        ),
+      );
     } catch (e) {
-      emit(OptimizedNoteError('Quick search failed: $e', folderId: event.folderId));
+      emit(
+        OptimizedNoteError('Quick search failed: $e', folderId: event.folderId),
+      );
     }
   }
 
@@ -266,10 +310,12 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
     Emitter<OptimizedNoteState> emit,
   ) async {
     if (_lastPaginatedNotes != null) {
-      emit(OptimizedNoteLoaded(
-        paginatedNotes: _lastPaginatedNotes!,
-        folderId: _currentFolderId,
-      ));
+      emit(
+        OptimizedNoteLoaded(
+          paginatedNotes: _lastPaginatedNotes!,
+          folderId: _currentFolderId,
+        ),
+      );
     } else {
       add(LoadNotesPaginated(folderId: _currentFolderId));
     }
@@ -279,7 +325,6 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
     RefreshNotes event,
     Emitter<OptimizedNoteState> emit,
   ) async {
-    debugPrint('NoteBloc Refresh folder=${event.folderId ?? _currentFolderId}');
     _currentPage = 1;
 
     final paginatedNotes = await _storageService.loadNotesPaginated(
@@ -290,10 +335,12 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
 
     _lastPaginatedNotes = paginatedNotes;
 
-    emit(OptimizedNoteLoaded(
-      paginatedNotes: paginatedNotes,
-      folderId: event.folderId ?? _currentFolderId,
-    ));
+    emit(
+      OptimizedNoteLoaded(
+        paginatedNotes: paginatedNotes,
+        folderId: event.folderId ?? _currentFolderId,
+      ),
+    );
   }
 
   @override

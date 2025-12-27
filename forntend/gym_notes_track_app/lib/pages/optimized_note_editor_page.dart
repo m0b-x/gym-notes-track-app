@@ -32,7 +32,8 @@ class OptimizedNoteEditorPage extends StatefulWidget {
   });
 
   @override
-  State<OptimizedNoteEditorPage> createState() => _OptimizedNoteEditorPageState();
+  State<OptimizedNoteEditorPage> createState() =>
+      _OptimizedNoteEditorPageState();
 }
 
 class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
@@ -58,7 +59,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.metadata?.title ?? '');
+
+    _titleController = TextEditingController(
+      text: widget.metadata?.title ?? '',
+    );
     _contentController = TextEditingController();
     _previousText = '';
     _contentFocusNode = FocusNode();
@@ -66,15 +70,15 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _titleController.addListener(_onTextChanged);
     _contentController.addListener(_onTextChanged);
 
-    _loadCustomShortcuts();
-    _initializeAutoSave();
-
     if (widget.noteId != null) {
       _loadNoteContent();
     } else {
       _isLoading = false;
       _setupTextHistory();
     }
+
+    _loadCustomShortcuts();
+    _initializeAutoSave();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_isLoading) {
@@ -88,15 +92,17 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _textHistory = TextHistoryObserver(_contentController);
   }
 
-  Future<void> _initializeAutoSave() async {
+  void _initializeAutoSave() {
     _autoSaveService = AutoSaveService(
       onSave: (noteId, title, content) async {
         if (widget.noteId != null) {
-          context.read<OptimizedNoteBloc>().add(UpdateOptimizedNote(
-            noteId: widget.noteId!,
-            title: title,
-            content: content,
-          ));
+          context.read<OptimizedNoteBloc>().add(
+            UpdateOptimizedNote(
+              noteId: widget.noteId!,
+              title: title,
+              content: content,
+            ),
+          );
         }
       },
       onChangeDetected: (noteId, hasChanges) {
@@ -107,8 +113,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         }
       },
     );
-
-    await _autoSaveService?.initialize();
 
     if (widget.noteId != null) {
       _autoSaveService?.startTracking(
@@ -140,9 +144,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   void _updateVirtualScrollingMode() {
-    final shouldUseVirtualScrolling = 
+    final shouldUseVirtualScrolling =
         _contentController.text.length > _virtualScrollingThreshold;
-    
+
     if (shouldUseVirtualScrolling != _useVirtualScrolling) {
       setState(() {
         _useVirtualScrolling = shouldUseVirtualScrolling;
@@ -262,11 +266,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
             _updateVirtualScrollingMode();
           });
           _setupTextHistory();
-          _autoSaveService?.startTracking(
-            widget.noteId!,
-            _titleController.text,
-            _contentController.text,
-          );
           _contentFocusNode.requestFocus();
         }
       },
@@ -341,32 +340,37 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
             ],
           ),
           body: _isLoading
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const CircularProgressIndicator(),
-                      const SizedBox(height: 16),
-                      Text(AppLocalizations.of(context)!.loadingContent),
-                      if (widget.metadata != null &&
-                          widget.metadata!.contentLength > 10000)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            AppLocalizations.of(context)!.largeNoteWarning,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
-                          ),
+              ? Column(
+                  children: [
+                    if (widget.metadata != null) _buildNoteStats(context),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Container(
+                          color: Theme.of(context).scaffoldBackgroundColor,
                         ),
-                    ],
-                  ),
+                      ),
+                    ),
+                    if (_allShortcuts.isNotEmpty)
+                      MarkdownToolbar(
+                        shortcuts: _allShortcuts,
+                        isPreviewMode: _isPreviewMode,
+                        canUndo: false,
+                        canRedo: false,
+                        previewFontSize: _previewFontSize,
+                        onUndo: () {},
+                        onRedo: () {},
+                        onDecreaseFontSize: () {},
+                        onIncreaseFontSize: () {},
+                        onSettings: () {},
+                        onShortcutPressed: (_) {},
+                        onReorderComplete: (_) {},
+                      ),
+                  ],
                 )
               : Column(
                   children: [
-                    if (widget.metadata != null)
-                      _buildNoteStats(context),
+                    if (widget.metadata != null) _buildNoteStats(context),
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -385,12 +389,18 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                       onRedo: () => _textHistory?.redo(),
                       onDecreaseFontSize: () {
                         setState(() {
-                          _previewFontSize = (_previewFontSize - 2).clamp(10.0, 30.0);
+                          _previewFontSize = (_previewFontSize - 2).clamp(
+                            10.0,
+                            30.0,
+                          );
                         });
                       },
                       onIncreaseFontSize: () {
                         setState(() {
-                          _previewFontSize = (_previewFontSize + 2).clamp(10.0, 30.0);
+                          _previewFontSize = (_previewFontSize + 2).clamp(
+                            10.0,
+                            30.0,
+                          );
                         });
                       },
                       onSettings: _openMarkdownSettings,
@@ -412,10 +422,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       child: Row(
         children: [
           Text(
-            AppLocalizations.of(context)!.noteStats(
-              metadata.contentLength,
-              metadata.chunkCount,
-            ),
+            AppLocalizations.of(
+              context,
+            )!.noteStats(metadata.contentLength, metadata.chunkCount),
             style: TextStyle(
               fontSize: 11,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -439,9 +448,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           ],
           const Spacer(),
           Text(
-            AppLocalizations.of(context)!.lineCount(
-              _contentController.text.split('\n').length,
-            ),
+            AppLocalizations.of(
+              context,
+            )!.lineCount(_contentController.text.split('\n').length),
             style: TextStyle(
               fontSize: 11,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -463,9 +472,18 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         selectable: true,
         styleSheet: MarkdownStyleSheet(
           p: TextStyle(fontSize: _previewFontSize),
-          h1: TextStyle(fontSize: _previewFontSize * 2, fontWeight: FontWeight.bold),
-          h2: TextStyle(fontSize: _previewFontSize * 1.5, fontWeight: FontWeight.bold),
-          h3: TextStyle(fontSize: _previewFontSize * 1.25, fontWeight: FontWeight.bold),
+          h1: TextStyle(
+            fontSize: _previewFontSize * 2,
+            fontWeight: FontWeight.bold,
+          ),
+          h2: TextStyle(
+            fontSize: _previewFontSize * 1.5,
+            fontWeight: FontWeight.bold,
+          ),
+          h3: TextStyle(
+            fontSize: _previewFontSize * 1.25,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         onCheckboxChanged: (updatedContent) {
           setState(() {
@@ -482,9 +500,18 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       padding: const EdgeInsets.all(16),
       styleSheet: MarkdownStyleSheet(
         p: TextStyle(fontSize: _previewFontSize),
-        h1: TextStyle(fontSize: _previewFontSize * 2, fontWeight: FontWeight.bold),
-        h2: TextStyle(fontSize: _previewFontSize * 1.5, fontWeight: FontWeight.bold),
-        h3: TextStyle(fontSize: _previewFontSize * 1.25, fontWeight: FontWeight.bold),
+        h1: TextStyle(
+          fontSize: _previewFontSize * 2,
+          fontWeight: FontWeight.bold,
+        ),
+        h2: TextStyle(
+          fontSize: _previewFontSize * 1.5,
+          fontWeight: FontWeight.bold,
+        ),
+        h3: TextStyle(
+          fontSize: _previewFontSize * 1.25,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       onCheckboxChanged: (updatedContent) {
         setState(() {
@@ -605,7 +632,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
     if (shortcut.insertType == 'date') {
       final now = DateTime.now();
-      final formatted = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final formatted =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       final middle = start != end ? text.substring(start, end) : formatted;
       final wrapped = '${shortcut.beforeText}$middle${shortcut.afterText}';
       newText = text.replaceRange(start, end, wrapped);
