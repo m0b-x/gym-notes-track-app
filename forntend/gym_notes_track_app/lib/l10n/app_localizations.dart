@@ -311,7 +311,7 @@ abstract class AppLocalizations {
   /// Hint text for note editor
   ///
   /// In en, this message translates to:
-  /// **'Start writing...'**
+  /// **'Start writing your first note...'**
   String get startWriting;
 
   /// Error message when note is empty
@@ -751,6 +751,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Done'**
   String get doneReordering;
+
+  /// Message when search returns no results
+  ///
+  /// In en, this message translates to:
+  /// **'No results found'**
+  String get noSearchResults;
+
+  /// Hint text for search input
+  ///
+  /// In en, this message translates to:
+  /// **'Type to search notes'**
+  String get searchHint;
+
+  /// Text shown while loading more items
+  ///
+  /// In en, this message translates to:
+  /// **'Loading more...'**
+  String get loadingMore;
+
+  /// Text shown when all notes are loaded
+  ///
+  /// In en, this message translates to:
+  /// **'No more notes'**
+  String get noMoreNotes;
+
+  /// Label for sort options
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by'**
+  String get sortBy;
+
+  /// Sort option for last updated
+  ///
+  /// In en, this message translates to:
+  /// **'Last updated'**
+  String get sortByUpdated;
+
+  /// Sort option for date created
+  ///
+  /// In en, this message translates to:
+  /// **'Date created'**
+  String get sortByCreated;
+
+  /// Sort option for title
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get sortByTitle;
+
+  /// Ascending sort order
+  ///
+  /// In en, this message translates to:
+  /// **'Ascending'**
+  String get ascending;
+
+  /// Descending sort order
+  ///
+  /// In en, this message translates to:
+  /// **'Descending'**
+  String get descending;
+
+  /// Message shown while loading note content
+  ///
+  /// In en, this message translates to:
+  /// **'Loading content...'**
+  String get loadingContent;
+
+  /// Warning for large notes
+  ///
+  /// In en, this message translates to:
+  /// **'This note is very large and may take a moment to load'**
+  String get largeNoteWarning;
+
+  /// Note statistics display
+  ///
+  /// In en, this message translates to:
+  /// **'{count} distinct characters, {chunks} chunks'**
+  String noteStats(int count, int chunks);
+
+  /// Label for compressed notes
+  ///
+  /// In en, this message translates to:
+  /// **'Compressed'**
+  String get compressedNote;
+
+  /// Tooltip for folder search
+  ///
+  /// In en, this message translates to:
+  /// **'Search in this folder'**
+  String get searchInFolder;
+
+  /// Tooltip for global search
+  ///
+  /// In en, this message translates to:
+  /// **'Search all notes'**
+  String get searchAll;
+
+  /// Label for recent searches section
+  ///
+  /// In en, this message translates to:
+  /// **'Recent searches'**
+  String get recentSearches;
+
+  /// Button to clear search history
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search history'**
+  String get clearSearchHistory;
+
+  /// Label for date filter
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by date'**
+  String get filterByDate;
+
+  /// Label for start date filter
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get fromDate;
+
+  /// Label for end date filter
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get toDate;
+
+  /// Button to apply filters
+  ///
+  /// In en, this message translates to:
+  /// **'Apply filter'**
+  String get applyFilter;
+
+  /// Button to clear filters
+  ///
+  /// In en, this message translates to:
+  /// **'Clear filter'**
+  String get clearFilter;
+
+  /// Number of search matches
+  ///
+  /// In en, this message translates to:
+  /// **'{count} matches found'**
+  String matchesFound(int count);
+
+  /// Message shown during auto-save
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-saving...'**
+  String get autoSaving;
+
+  /// Message after successful save
+  ///
+  /// In en, this message translates to:
+  /// **'Changes saved'**
+  String get changesSaved;
+
+  /// Warning about unsaved changes
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved changes'**
+  String get unsavedChanges;
+
+  /// Button to discard changes
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes'**
+  String get discardChanges;
+
+  /// Button to continue editing
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get keepEditing;
+
+  /// Info about virtual scrolling
+  ///
+  /// In en, this message translates to:
+  /// **'Virtual scroll enabled for large content'**
+  String get virtualScrollEnabled;
+
+  /// Number of lines in note
+  ///
+  /// In en, this message translates to:
+  /// **'{count} lines'**
+  String lineCount(int count);
+
+  /// Hint text shown when there are no folders
+  ///
+  /// In en, this message translates to:
+  /// **'Looks like you might want to create a folder'**
+  String get emptyFoldersHint;
+
+  /// Hint text shown when there are no notes in a folder
+  ///
+  /// In en, this message translates to:
+  /// **'Write your first note'**
+  String get emptyNotesHint;
+
+  /// Hint to tap the plus button
+  ///
+  /// In en, this message translates to:
+  /// **'Tap + to get started'**
+  String get tapPlusToCreate;
 }
 
 class _AppLocalizationsDelegate

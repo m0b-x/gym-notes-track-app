@@ -164,7 +164,7 @@
   "@noContentYet": {
     "description": "Placeholder text when no content"
   },
-  "startWriting": "Start writing...",
+  "startWriting": "Start writing your first note...",
   "@startWriting": {
     "description": "Hint text for note editor"
   },
@@ -472,5 +472,159 @@
   "doneReordering": "Done",
   "@doneReordering": {
     "description": "Button text to finish reordering"
+  },
+  "noSearchResults": "No results found",
+  "@noSearchResults": {
+    "description": "Message when search returns no results"
+  },
+  "searchHint": "Type to search notes",
+  "@searchHint": {
+    "description": "Hint text for search input"
+  },
+  "loadingMore": "Loading more...",
+  "@loadingMore": {
+    "description": "Text shown while loading more items"
+  },
+  "noMoreNotes": "No more notes",
+  "@noMoreNotes": {
+    "description": "Text shown when all notes are loaded"
+  },
+  "sortBy": "Sort by",
+  "@sortBy": {
+    "description": "Label for sort options"
+  },
+  "sortByUpdated": "Last updated",
+  "@sortByUpdated": {
+    "description": "Sort option for last updated"
+  },
+  "sortByCreated": "Date created",
+  "@sortByCreated": {
+    "description": "Sort option for date created"
+  },
+  "sortByTitle": "Title",
+  "@sortByTitle": {
+    "description": "Sort option for title"
+  },
+  "ascending": "Ascending",
+  "@ascending": {
+    "description": "Ascending sort order"
+  },
+  "descending": "Descending",
+  "@descending": {
+    "description": "Descending sort order"
+  },
+  "loadingContent": "Loading content...",
+  "@loadingContent": {
+    "description": "Message shown while loading note content"
+  },
+  "largeNoteWarning": "This note is very large and may take a moment to load",
+  "@largeNoteWarning": {
+    "description": "Warning for large notes"
+  },
+  "noteStats": "{count} distinct characters, {chunks} chunks",
+  "@noteStats": {
+    "description": "Note statistics display",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "chunks": {
+        "type": "int"
+      }
+    }
+  },
+  "compressedNote": "Compressed",
+  "@compressedNote": {
+    "description": "Label for compressed notes"
+  },
+  "searchInFolder": "Search in this folder",
+  "@searchInFolder": {
+    "description": "Tooltip for folder search"
+  },
+  "searchAll": "Search all notes",
+  "@searchAll": {
+    "description": "Tooltip for global search"
+  },
+  "recentSearches": "Recent searches",
+  "@recentSearches": {
+    "description": "Label for recent searches section"
+  },
+  "clearSearchHistory": "Clear search history",
+  "@clearSearchHistory": {
+    "description": "Button to clear search history"
+  },
+  "filterByDate": "Filter by date",
+  "@filterByDate": {
+    "description": "Label for date filter"
+  },
+  "fromDate": "From",
+  "@fromDate": {
+    "description": "Label for start date filter"
+  },
+  "toDate": "To",
+  "@toDate": {
+    "description": "Label for end date filter"
+  },
+  "applyFilter": "Apply filter",
+  "@applyFilter": {
+    "description": "Button to apply filters"
+  },
+  "clearFilter": "Clear filter",
+  "@clearFilter": {
+    "description": "Button to clear filters"
+  },
+  "matchesFound": "{count} matches found",
+  "@matchesFound": {
+    "description": "Number of search matches",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "autoSaving": "Auto-saving...",
+  "@autoSaving": {
+    "description": "Message shown during auto-save"
+  },
+  "changesSaved": "Changes saved",
+  "@changesSaved": {
+    "description": "Message after successful save"
+  },
+  "unsavedChanges": "Unsaved changes",
+  "@unsavedChanges": {
+    "description": "Warning about unsaved changes"
+  },
+  "discardChanges": "Discard changes",
+  "@discardChanges": {
+    "description": "Button to discard changes"
+  },
+  "keepEditing": "Keep editing",
+  "@keepEditing": {
+    "description": "Button to continue editing"
+  },
+  "virtualScrollEnabled": "Virtual scroll enabled for large content",
+  "@virtualScrollEnabled": {
+    "description": "Info about virtual scrolling"
+  },
+  "lineCount": "{count} lines",
+  "@lineCount": {
+    "description": "Number of lines in note",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "emptyFoldersHint": "Looks like you might want to create a folder",
+  "@emptyFoldersHint": {
+    "description": "Hint text shown when there are no folders"
+  },
+  "emptyNotesHint": "Write your first note",
+  "@emptyNotesHint": {
+    "description": "Hint text shown when there are no notes in a folder"
+  },
+  "tapPlusToCreate": "Tap + to get started",
+  "@tapPlusToCreate": {
+    "description": "Hint to tap the plus button"
   }
 }

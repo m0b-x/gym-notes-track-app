@@ -55,9 +55,28 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
   List<Widget> _buildContent(BuildContext context) {
     final lines = _currentData.split('\n');
     final widgets = <Widget>[];
+    final List<String> pendingLines = [];
+
+    void flushPendingLines() {
+      if (pendingLines.isNotEmpty) {
+        widgets.add(
+          Markdown(
+            data: pendingLines.join('\n'),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            styleSheet: widget.styleSheet,
+            selectable: widget.selectable,
+            padding: EdgeInsets.zero,
+            softLineBreak: true,
+          ),
+        );
+        pendingLines.clear();
+      }
+    }
 
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i];
+      final trimmedLine = line.trim();
 
       // Check for checkbox patterns
       final uncheckedPattern = RegExp(r'^([\s]*)-\s+\[\s\]\s+(.+)$');
@@ -66,34 +85,98 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
       final uncheckedMatch = uncheckedPattern.firstMatch(line);
       final checkedMatch = checkedPattern.firstMatch(line);
 
+      // Check for bullet list patterns (- , * , • )
+      final bulletPattern = RegExp(r'^([\s]*)[-*•]\s+(.+)$');
+      final bulletMatch = bulletPattern.firstMatch(line);
+      
+      // Check for numbered list patterns (1. , 2. , etc.)
+      final numberedPattern = RegExp(r'^([\s]*)(\d+)\.\s+(.+)$');
+      final numberedMatch = numberedPattern.firstMatch(line);
+
       if (uncheckedMatch != null) {
+        flushPendingLines();
         final indent = uncheckedMatch.group(1)?.length ?? 0;
         final text = uncheckedMatch.group(2) ?? '';
         widgets.add(_buildCheckboxItem(context, i, false, text, indent));
       } else if (checkedMatch != null) {
+        flushPendingLines();
         final indent = checkedMatch.group(1)?.length ?? 0;
         final text = checkedMatch.group(2) ?? '';
         widgets.add(_buildCheckboxItem(context, i, true, text, indent));
+      } else if (bulletMatch != null) {
+        // Manually render bullet list item
+        flushPendingLines();
+        final indent = bulletMatch.group(1)?.length ?? 0;
+        final text = bulletMatch.group(2) ?? '';
+        widgets.add(_buildBulletItem(context, text, indent));
+      } else if (numberedMatch != null) {
+        // Manually render numbered list item
+        flushPendingLines();
+        final indent = numberedMatch.group(1)?.length ?? 0;
+        final number = numberedMatch.group(2) ?? '1';
+        final text = numberedMatch.group(3) ?? '';
+        widgets.add(_buildNumberedItem(context, text, number, indent));
       } else {
-        // Regular line - use markdown for rendering
-        if (line.trim().isNotEmpty) {
-          widgets.add(
-            Markdown(
-              data: line,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              styleSheet: widget.styleSheet,
-              selectable: widget.selectable,
-              padding: EdgeInsets.zero,
-            ),
-          );
+        // Regular line - accumulate for batch markdown rendering
+        if (trimmedLine.isNotEmpty) {
+          pendingLines.add(line);
         } else {
+          // Empty line - flush pending and add spacing
+          flushPendingLines();
           widgets.add(const SizedBox(height: 16));
         }
       }
     }
 
+    // Flush any remaining lines
+    flushPendingLines();
+
     return widgets;
+  }
+
+  Widget _buildBulletItem(BuildContext context, String text, int indent) {
+    return Padding(
+      padding: EdgeInsets.only(left: 16.0 + (indent ~/ 2) * 16.0, top: 4, bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(right: 8, top: 2),
+            child: Text('•', style: TextStyle(fontSize: 16)),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNumberedItem(BuildContext context, String text, String number, int indent) {
+    return Padding(
+      padding: EdgeInsets.only(left: 16.0 + (indent ~/ 2) * 16.0, top: 4, bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8, top: 2),
+            child: SizedBox(
+              width: 20,
+              child: Text('$number.', style: const TextStyle(fontSize: 16)),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildCheckboxItem(

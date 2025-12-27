@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/custom_markdown_shortcut.dart';
-import '../config/app_constants.dart';
+import '../constants/app_constants.dart';
 import '../l10n/app_localizations.dart';
 
 class MarkdownSettingsUtils {

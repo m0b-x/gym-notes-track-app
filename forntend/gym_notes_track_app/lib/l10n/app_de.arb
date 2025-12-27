@@ -472,5 +472,159 @@
   "doneReordering": "Fertig",
   "@doneReordering": {
     "description": "Schaltflächentext zum Beenden der Neuanordnung"
+  },
+  "noSearchResults": "Keine Ergebnisse gefunden",
+  "@noSearchResults": {
+    "description": "Nachricht wenn Suche keine Ergebnisse liefert"
+  },
+  "searchHint": "Tippen um Notizen zu suchen",
+  "@searchHint": {
+    "description": "Hinweistext für Sucheingabe"
+  },
+  "loadingMore": "Lade mehr...",
+  "@loadingMore": {
+    "description": "Text beim Laden weiterer Einträge"
+  },
+  "noMoreNotes": "Keine weiteren Notizen",
+  "@noMoreNotes": {
+    "description": "Text wenn alle Notizen geladen sind"
+  },
+  "sortBy": "Sortieren nach",
+  "@sortBy": {
+    "description": "Label für Sortieroptionen"
+  },
+  "sortByUpdated": "Zuletzt aktualisiert",
+  "@sortByUpdated": {
+    "description": "Sortieroption für zuletzt aktualisiert"
+  },
+  "sortByCreated": "Erstellungsdatum",
+  "@sortByCreated": {
+    "description": "Sortieroption für Erstellungsdatum"
+  },
+  "sortByTitle": "Titel",
+  "@sortByTitle": {
+    "description": "Sortieroption für Titel"
+  },
+  "ascending": "Aufsteigend",
+  "@ascending": {
+    "description": "Aufsteigende Sortierreihenfolge"
+  },
+  "descending": "Absteigend",
+  "@descending": {
+    "description": "Absteigende Sortierreihenfolge"
+  },
+  "loadingContent": "Lade Inhalt...",
+  "@loadingContent": {
+    "description": "Nachricht beim Laden des Notizinhalts"
+  },
+  "largeNoteWarning": "Diese Notiz ist sehr groß und kann einen Moment zum Laden benötigen",
+  "@largeNoteWarning": {
+    "description": "Warnung für große Notizen"
+  },
+  "noteStats": "{count} Zeichen, {chunks} Teile",
+  "@noteStats": {
+    "description": "Notizstatistiken",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "chunks": {
+        "type": "int"
+      }
+    }
+  },
+  "compressedNote": "Komprimiert",
+  "@compressedNote": {
+    "description": "Label für komprimierte Notizen"
+  },
+  "searchInFolder": "In diesem Ordner suchen",
+  "@searchInFolder": {
+    "description": "Tooltip für Ordnersuche"
+  },
+  "searchAll": "Alle Notizen durchsuchen",
+  "@searchAll": {
+    "description": "Tooltip für globale Suche"
+  },
+  "recentSearches": "Letzte Suchen",
+  "@recentSearches": {
+    "description": "Label für letzte Suchen"
+  },
+  "clearSearchHistory": "Suchverlauf löschen",
+  "@clearSearchHistory": {
+    "description": "Schaltfläche zum Löschen des Suchverlaufs"
+  },
+  "filterByDate": "Nach Datum filtern",
+  "@filterByDate": {
+    "description": "Label für Datumsfilter"
+  },
+  "fromDate": "Von",
+  "@fromDate": {
+    "description": "Label für Startdatum-Filter"
+  },
+  "toDate": "Bis",
+  "@toDate": {
+    "description": "Label für Enddatum-Filter"
+  },
+  "applyFilter": "Filter anwenden",
+  "@applyFilter": {
+    "description": "Schaltfläche zum Anwenden von Filtern"
+  },
+  "clearFilter": "Filter löschen",
+  "@clearFilter": {
+    "description": "Schaltfläche zum Löschen von Filtern"
+  },
+  "matchesFound": "{count} Treffer gefunden",
+  "@matchesFound": {
+    "description": "Anzahl der Suchergebnisse",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "autoSaving": "Automatisches Speichern...",
+  "@autoSaving": {
+    "description": "Nachricht beim automatischen Speichern"
+  },
+  "changesSaved": "Änderungen gespeichert",
+  "@changesSaved": {
+    "description": "Nachricht nach erfolgreichem Speichern"
+  },
+  "unsavedChanges": "Ungespeicherte Änderungen",
+  "@unsavedChanges": {
+    "description": "Warnung über ungespeicherte Änderungen"
+  },
+  "discardChanges": "Änderungen verwerfen",
+  "@discardChanges": {
+    "description": "Schaltfläche zum Verwerfen von Änderungen"
+  },
+  "keepEditing": "Weiter bearbeiten",
+  "@keepEditing": {
+    "description": "Schaltfläche zum Fortsetzen der Bearbeitung"
+  },
+  "virtualScrollEnabled": "Virtuelles Scrollen für große Inhalte aktiviert",
+  "@virtualScrollEnabled": {
+    "description": "Info über virtuelles Scrollen"
+  },
+  "lineCount": "{count} Zeilen",
+  "@lineCount": {
+    "description": "Anzahl der Zeilen in Notiz",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "emptyFoldersHint": "Sieht so aus, als möchtest du einen Ordner erstellen",
+  "@emptyFoldersHint": {
+    "description": "Hinweistext wenn keine Ordner vorhanden sind"
+  },
+  "emptyNotesHint": "Schreibe deine erste Notiz",
+  "@emptyNotesHint": {
+    "description": "Hinweistext wenn keine Notizen im Ordner vorhanden sind"
+  },
+  "tapPlusToCreate": "Tippe auf + um zu beginnen",
+  "@tapPlusToCreate": {
+    "description": "Hinweis auf den Plus-Button"
   }
 }

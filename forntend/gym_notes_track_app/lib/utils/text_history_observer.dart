@@ -1,67 +1,156 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 class TextHistoryObserver {
   final TextEditingController controller;
+  final int maxHistoryLength;
+  final Duration debounceDuration;
+  final int largePasteThreshold;
+
   final List<TextEditingValue> _history = [];
-  final List<TextEditingValue> _redoStack = [];
   int _currentIndex = -1;
   bool _isUndoRedoing = false;
+  Timer? _debounceTimer;
+  TextEditingValue? _pendingValue;
+  bool _isDisposed = false;
 
-  TextHistoryObserver(this.controller) {
+  TextHistoryObserver(
+    this.controller, {
+    this.maxHistoryLength = 100,
+    this.debounceDuration = const Duration(milliseconds: 400),
+    this.largePasteThreshold = 20,
+  }) {
     _history.add(controller.value);
     _currentIndex = 0;
     controller.addListener(_onTextChanged);
   }
 
   void _onTextChanged() {
-    if (_isUndoRedoing) return;
+    if (_isUndoRedoing || _isDisposed) return;
 
     final currentValue = controller.value;
+    final lastText = _currentIndex >= 0 ? _history[_currentIndex].text : '';
 
-    if (_currentIndex >= 0 &&
-        _history[_currentIndex].text == currentValue.text) {
+    if (currentValue.text == lastText) return;
+
+    final lengthDiff = (currentValue.text.length - lastText.length).abs();
+    final isLargePaste = lengthDiff >= largePasteThreshold;
+
+    if (isLargePaste) {
+      _commitPendingIfNeeded();
+      _addToHistory(currentValue);
       return;
     }
 
+    _pendingValue = currentValue;
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(debounceDuration, _commitPending);
+  }
+
+  void _commitPending() {
+    if (_isDisposed || _pendingValue == null) return;
+
+    final pending = _pendingValue!;
+    _pendingValue = null;
+
+    if (_currentIndex < 0 || pending.text != _history[_currentIndex].text) {
+      _addToHistory(pending);
+    }
+  }
+
+  void _commitPendingIfNeeded() {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+
+    if (_pendingValue != null &&
+        (_currentIndex < 0 ||
+            _pendingValue!.text != _history[_currentIndex].text)) {
+      _addToHistory(_pendingValue!);
+      _pendingValue = null;
+    }
+  }
+
+  void _addToHistory(TextEditingValue value) {
     if (_currentIndex < _history.length - 1) {
       _history.removeRange(_currentIndex + 1, _history.length);
     }
 
-    _redoStack.clear();
-
-    _history.add(currentValue);
+    _history.add(value);
     _currentIndex = _history.length - 1;
 
-    if (_history.length > 100) {
+    _trimHistory();
+  }
+
+  void _trimHistory() {
+    while (_history.length > maxHistoryLength) {
       _history.removeAt(0);
       _currentIndex--;
     }
   }
 
-  bool get canUndo => _currentIndex > 0;
+  bool get canUndo {
+    _commitPendingIfNeeded();
+    return _currentIndex > 0;
+  }
 
-  bool get canRedo =>
-      _currentIndex < _history.length - 1 || _redoStack.isNotEmpty;
+  bool get canRedo {
+    _commitPendingIfNeeded();
+    return _currentIndex < _history.length - 1;
+  }
 
   void undo() {
+    _commitPendingIfNeeded();
     if (!canUndo) return;
 
     _isUndoRedoing = true;
     _currentIndex--;
-    controller.value = _history[_currentIndex];
+
+    final targetValue = _history[_currentIndex];
+    controller.value = targetValue.copyWith(
+      selection: _clampSelection(targetValue.selection, targetValue.text),
+    );
+
     _isUndoRedoing = false;
   }
 
   void redo() {
-    if (_currentIndex < _history.length - 1) {
-      _isUndoRedoing = true;
-      _currentIndex++;
-      controller.value = _history[_currentIndex];
-      _isUndoRedoing = false;
-    }
+    _commitPendingIfNeeded();
+    if (!canRedo) return;
+
+    _isUndoRedoing = true;
+    _currentIndex++;
+
+    final targetValue = _history[_currentIndex];
+    controller.value = targetValue.copyWith(
+      selection: _clampSelection(targetValue.selection, targetValue.text),
+    );
+
+    _isUndoRedoing = false;
+  }
+
+  TextSelection _clampSelection(TextSelection selection, String text) {
+    final maxOffset = text.length;
+    return TextSelection(
+      baseOffset: selection.baseOffset.clamp(0, maxOffset),
+      extentOffset: selection.extentOffset.clamp(0, maxOffset),
+    );
+  }
+
+  void clear() {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    _pendingValue = null;
+    _history.clear();
+    _history.add(controller.value);
+    _currentIndex = 0;
   }
 
   void dispose() {
+    _isDisposed = true;
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    _pendingValue = null;
     controller.removeListener(_onTextChanged);
   }
 }

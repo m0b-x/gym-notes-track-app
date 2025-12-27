@@ -355,4 +355,115 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get doneReordering => 'Fertig';
+
+  @override
+  String get noSearchResults => 'Keine Ergebnisse gefunden';
+
+  @override
+  String get searchHint => 'Tippen um Notizen zu suchen';
+
+  @override
+  String get loadingMore => 'Lade mehr...';
+
+  @override
+  String get noMoreNotes => 'Keine weiteren Notizen';
+
+  @override
+  String get sortBy => 'Sortieren nach';
+
+  @override
+  String get sortByUpdated => 'Zuletzt aktualisiert';
+
+  @override
+  String get sortByCreated => 'Erstellungsdatum';
+
+  @override
+  String get sortByTitle => 'Titel';
+
+  @override
+  String get ascending => 'Aufsteigend';
+
+  @override
+  String get descending => 'Absteigend';
+
+  @override
+  String get loadingContent => 'Lade Inhalt...';
+
+  @override
+  String get largeNoteWarning =>
+      'Diese Notiz ist sehr groß und kann einen Moment zum Laden benötigen';
+
+  @override
+  String noteStats(int count, int chunks) {
+    return '$count Zeichen, $chunks Teile';
+  }
+
+  @override
+  String get compressedNote => 'Komprimiert';
+
+  @override
+  String get searchInFolder => 'In diesem Ordner suchen';
+
+  @override
+  String get searchAll => 'Alle Notizen durchsuchen';
+
+  @override
+  String get recentSearches => 'Letzte Suchen';
+
+  @override
+  String get clearSearchHistory => 'Suchverlauf löschen';
+
+  @override
+  String get filterByDate => 'Nach Datum filtern';
+
+  @override
+  String get fromDate => 'Von';
+
+  @override
+  String get toDate => 'Bis';
+
+  @override
+  String get applyFilter => 'Filter anwenden';
+
+  @override
+  String get clearFilter => 'Filter löschen';
+
+  @override
+  String matchesFound(int count) {
+    return '$count Treffer gefunden';
+  }
+
+  @override
+  String get autoSaving => 'Automatisches Speichern...';
+
+  @override
+  String get changesSaved => 'Änderungen gespeichert';
+
+  @override
+  String get unsavedChanges => 'Ungespeicherte Änderungen';
+
+  @override
+  String get discardChanges => 'Änderungen verwerfen';
+
+  @override
+  String get keepEditing => 'Weiter bearbeiten';
+
+  @override
+  String get virtualScrollEnabled =>
+      'Virtuelles Scrollen für große Inhalte aktiviert';
+
+  @override
+  String lineCount(int count) {
+    return '$count Zeilen';
+  }
+
+  @override
+  String get emptyFoldersHint =>
+      'Sieht so aus, als möchtest du einen Ordner erstellen';
+
+  @override
+  String get emptyNotesHint => 'Schreibe deine erste Notiz';
+
+  @override
+  String get tapPlusToCreate => 'Tippe auf + um zu beginnen';
 }

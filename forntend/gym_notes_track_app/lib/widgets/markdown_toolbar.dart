@@ -133,7 +133,13 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
               ...visibleShortcuts.map(
                 (shortcut) => _ShortcutButton(
                   shortcut: shortcut,
-                  onTap: () => widget.onShortcutPressed(shortcut),
+                  onTap: () {
+                    if (shortcut.id == 'default_header') {
+                      _showHeaderMenu(context);
+                    } else {
+                      widget.onShortcutPressed(shortcut);
+                    }
+                  },
                 ),
               ),
               const SizedBox(width: 8),
@@ -183,6 +189,55 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
         ),
       ),
     );
+  }
+
+  void _showHeaderMenu(BuildContext context) {
+    final headerShortcuts = List.generate(6, (i) {
+      final level = i + 1;
+      return CustomMarkdownShortcut(
+        id: 'header_level_$level',
+        label: 'H$level',
+        iconCodePoint: 0xe86f,
+        iconFontFamily: 'MaterialIcons',
+        beforeText: '${'#' * level} ',
+        afterText: '',
+        insertType: 'header',
+      );
+    });
+
+    final renderBox = context.findRenderObject() as RenderBox?;
+    final overlay = Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
+    if (renderBox == null || overlay == null) return;
+
+    final position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        renderBox.localToGlobal(Offset.zero, ancestor: overlay),
+        renderBox.localToGlobal(renderBox.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    showMenu<CustomMarkdownShortcut>(
+      context: context,
+      position: position,
+      items: headerShortcuts.map((s) {
+        final level = s.label.substring(1);
+        return PopupMenuItem<CustomMarkdownShortcut>(
+          value: s,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Header $level'),
+              Text(s.beforeText.trim()),
+            ],
+          ),
+        );
+      }).toList(),
+    ).then((selected) {
+      if (selected != null) {
+        widget.onShortcutPressed(selected);
+      }
+    });
   }
 
   Widget _buildReorderMode(BuildContext context) {
@@ -484,7 +539,7 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
                                   _targetIndex = null;
                                 });
                               },
-                              onDraggableCanceled: (_, __) {
+                              onDraggableCanceled: (_, _) {
                                 _stopAutoScroll();
                                 setState(() {
                                   _draggingIndex = null;

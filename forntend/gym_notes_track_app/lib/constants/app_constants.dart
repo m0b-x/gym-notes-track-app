@@ -1,4 +1,3 @@
-/// Application-wide constants
 class AppConstants {
   // Storage Keys
   static const String foldersStorageKey = 'folders';

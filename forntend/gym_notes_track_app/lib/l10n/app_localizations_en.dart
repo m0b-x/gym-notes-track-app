@@ -124,7 +124,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noContentYet => '*No content yet*';
 
   @override
-  String get startWriting => 'Start writing...';
+  String get startWriting => 'Start writing your first note...';
 
   @override
   String get noteCannotBeEmpty => 'Note cannot be empty';
@@ -352,4 +352,113 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get doneReordering => 'Done';
+
+  @override
+  String get noSearchResults => 'No results found';
+
+  @override
+  String get searchHint => 'Type to search notes';
+
+  @override
+  String get loadingMore => 'Loading more...';
+
+  @override
+  String get noMoreNotes => 'No more notes';
+
+  @override
+  String get sortBy => 'Sort by';
+
+  @override
+  String get sortByUpdated => 'Last updated';
+
+  @override
+  String get sortByCreated => 'Date created';
+
+  @override
+  String get sortByTitle => 'Title';
+
+  @override
+  String get ascending => 'Ascending';
+
+  @override
+  String get descending => 'Descending';
+
+  @override
+  String get loadingContent => 'Loading content...';
+
+  @override
+  String get largeNoteWarning =>
+      'This note is very large and may take a moment to load';
+
+  @override
+  String noteStats(int count, int chunks) {
+    return '$count distinct characters, $chunks chunks';
+  }
+
+  @override
+  String get compressedNote => 'Compressed';
+
+  @override
+  String get searchInFolder => 'Search in this folder';
+
+  @override
+  String get searchAll => 'Search all notes';
+
+  @override
+  String get recentSearches => 'Recent searches';
+
+  @override
+  String get clearSearchHistory => 'Clear search history';
+
+  @override
+  String get filterByDate => 'Filter by date';
+
+  @override
+  String get fromDate => 'From';
+
+  @override
+  String get toDate => 'To';
+
+  @override
+  String get applyFilter => 'Apply filter';
+
+  @override
+  String get clearFilter => 'Clear filter';
+
+  @override
+  String matchesFound(int count) {
+    return '$count matches found';
+  }
+
+  @override
+  String get autoSaving => 'Auto-saving...';
+
+  @override
+  String get changesSaved => 'Changes saved';
+
+  @override
+  String get unsavedChanges => 'Unsaved changes';
+
+  @override
+  String get discardChanges => 'Discard changes';
+
+  @override
+  String get keepEditing => 'Keep editing';
+
+  @override
+  String get virtualScrollEnabled => 'Virtual scroll enabled for large content';
+
+  @override
+  String lineCount(int count) {
+    return '$count lines';
+  }
+
+  @override
+  String get emptyFoldersHint => 'Looks like you might want to create a folder';
+
+  @override
+  String get emptyNotesHint => 'Write your first note';
+
+  @override
+  String get tapPlusToCreate => 'Tap + to get started';
 }
