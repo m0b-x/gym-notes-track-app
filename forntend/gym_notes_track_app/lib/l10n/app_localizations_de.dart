@@ -349,4 +349,10 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get markdownSpaceWarning =>
       'Tipp: Fügen Sie ein Leerzeichen nach der Markdown-Syntax hinzu (z.B. \'# \' oder \'- \') für die richtige Formatierung.';
+
+  @override
+  String get reorderShortcuts => 'Verknüpfungen neu anordnen';
+
+  @override
+  String get doneReordering => 'Fertig';
 }

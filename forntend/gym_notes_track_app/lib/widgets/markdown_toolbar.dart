@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import '../models/custom_markdown_shortcut.dart';
 import '../l10n/app_localizations.dart';
-import '../config/app_constants.dart';
 
 class MarkdownToolbar extends StatefulWidget {
   final List<CustomMarkdownShortcut> shortcuts;
@@ -17,11 +16,10 @@ class MarkdownToolbar extends StatefulWidget {
   final VoidCallback onIncreaseFontSize;
   final VoidCallback onSettings;
   final Function(CustomMarkdownShortcut) onShortcutPressed;
-  final Future<void> Function(int draggedIndex, int targetIndex)
-  onReorderComplete;
+  final Function(List<CustomMarkdownShortcut>)? onReorderComplete;
   final bool showSettings;
-  final bool enableReordering;
   final bool showBackground;
+  final bool showReorder;
 
   const MarkdownToolbar({
     super.key,
@@ -36,10 +34,10 @@ class MarkdownToolbar extends StatefulWidget {
     required this.onIncreaseFontSize,
     required this.onSettings,
     required this.onShortcutPressed,
-    required this.onReorderComplete,
+    this.onReorderComplete,
     this.showSettings = true,
-    this.enableReordering = true,
     this.showBackground = true,
+    this.showReorder = true,
   });
 
   @override
@@ -47,72 +45,70 @@ class MarkdownToolbar extends StatefulWidget {
 }
 
 class _MarkdownToolbarState extends State<MarkdownToolbar> {
-  final ScrollController _scrollController = ScrollController();
-  final Map<int, GlobalKey> _buttonKeys = {};
-  Timer? _autoScrollTimer;
-  int? _draggingIndex;
-  int? _hoveringIndex;
+  bool _isReorderMode = false;
+  late List<CustomMarkdownShortcut> _reorderableShortcuts;
 
   @override
-  void dispose() {
-    _scrollController.dispose();
-    _autoScrollTimer?.cancel();
-    _buttonKeys.clear();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _reorderableShortcuts = List.from(widget.shortcuts);
+  }
+
+  @override
+  void didUpdateWidget(MarkdownToolbar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_isReorderMode) {
+      _reorderableShortcuts = List.from(widget.shortcuts);
+    }
+  }
+
+  void _enterReorderMode() {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _isReorderMode = true;
+      _reorderableShortcuts = List.from(widget.shortcuts);
+    });
+  }
+
+  void _exitReorderMode() {
+    HapticFeedback.lightImpact();
+    widget.onReorderComplete?.call(_reorderableShortcuts);
+    setState(() {
+      _isReorderMode = false;
+    });
+  }
+
+  void _onReorder(int oldIndex, int newIndex) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+      final item = _reorderableShortcuts.removeAt(oldIndex);
+      _reorderableShortcuts.insert(newIndex, item);
+    });
+  }
+
+  Widget _buildVerticalDivider(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 24,
+      color: Theme.of(context).colorScheme.outlineVariant,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isReorderMode) {
+      return _buildReorderMode(context);
+    }
+    return _buildNormalMode(context);
+  }
+
+  Widget _buildNormalMode(BuildContext context) {
     final visibleShortcuts = widget.shortcuts
         .where((s) => s.isVisible)
         .toList();
-
-    final keysToRemove = _buttonKeys.keys
-        .where((key) => key >= visibleShortcuts.length)
-        .toList();
-    for (final key in keysToRemove) {
-      _buttonKeys.remove(key);
-    }
-    for (int i = 0; i < visibleShortcuts.length; i++) {
-      _buttonKeys.putIfAbsent(i, () => GlobalKey());
-    }
-
-    final List<Widget> shortcutWidgets = [];
-    for (int index = 0; index < visibleShortcuts.length; index++) {
-      final shortcut = visibleShortcuts[index];
-      final isDragging = _draggingIndex == index;
-      final isHovering = _hoveringIndex == index;
-
-      if (isHovering &&
-          _draggingIndex != null &&
-          !isDragging &&
-          widget.enableReordering) {
-        shortcutWidgets.add(_DropIndicator(key: ValueKey('drop_$index')));
-      }
-
-      if (widget.enableReordering) {
-        shortcutWidgets.add(
-          _DraggableButton(
-            key: _buttonKeys[index],
-            shortcut: shortcut,
-            index: index,
-            isDragging: isDragging,
-            onTap: () => widget.onShortcutPressed(shortcut),
-            onDragStarted: () => _onDragStarted(index),
-            onDragUpdate: _onDragUpdate,
-            onDragEnd: _onDragEnd,
-          ),
-        );
-      } else {
-        shortcutWidgets.add(
-          _SimpleButton(
-            key: ValueKey('simple_$index'),
-            shortcut: shortcut,
-            onTap: () => widget.onShortcutPressed(shortcut),
-          ),
-        );
-      }
-    }
 
     return Container(
       decoration: widget.showBackground
@@ -128,14 +124,20 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
             )
           : null,
       child: SingleChildScrollView(
-        controller: _scrollController,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (!widget.isPreviewMode) ...[
-              ...shortcutWidgets,
+              ...visibleShortcuts.map(
+                (shortcut) => _ShortcutButton(
+                  shortcut: shortcut,
+                  onTap: () => widget.onShortcutPressed(shortcut),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildVerticalDivider(context),
               const SizedBox(width: 8),
             ],
             _ToolbarButton(
@@ -162,6 +164,14 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
               ),
             ],
             const SizedBox(width: 16),
+            if (widget.showReorder &&
+                !widget.isPreviewMode &&
+                widget.onReorderComplete != null)
+              _ToolbarButton(
+                icon: Icons.swap_horiz,
+                tooltip: AppLocalizations.of(context)!.reorderShortcuts,
+                onPressed: _enterReorderMode,
+              ),
             if (widget.showSettings)
               _ToolbarButton(
                 icon: Icons.settings,
@@ -175,71 +185,162 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
     );
   }
 
-  void _onDragStarted(int index) {
-    HapticFeedback.mediumImpact();
-    setState(() {
-      _draggingIndex = index;
-      _hoveringIndex = null;
-    });
-  }
-
-  void _onDragUpdate(DragUpdateDetails details) {
-    final globalPosition = details.globalPosition;
-    _updateHoverIndex(globalPosition);
-    _handleAutoScroll(globalPosition);
-  }
-
-  void _onDragEnd(DraggableDetails details) async {
-    _stopAutoScroll();
-
-    final draggedIndex = _draggingIndex;
-    final targetIndex = _hoveringIndex;
-
-    setState(() {
-      _draggingIndex = null;
-      _hoveringIndex = null;
-    });
-
-    if (draggedIndex != null &&
-        targetIndex != null &&
-        draggedIndex != targetIndex) {
-      await widget.onReorderComplete(draggedIndex, targetIndex);
-    }
-  }
-
-  void _updateHoverIndex(Offset globalPosition) {
-    if (!mounted) return;
-
-    final visibleShortcuts = widget.shortcuts
+  Widget _buildReorderMode(BuildContext context) {
+    final visibleShortcuts = _reorderableShortcuts
         .where((s) => s.isVisible)
         .toList();
 
-    int? newHoverIndex;
-    for (int i = 0; i < visibleShortcuts.length; i++) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.drag_indicator,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  AppLocalizations.of(context)!.reorderShortcuts,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: _exitReorderMode,
+                  child: Text(AppLocalizations.of(context)!.doneReordering),
+                ),
+              ],
+            ),
+          ),
+          HorizontalReorderableList(
+            itemCount: visibleShortcuts.length,
+            onReorder: (oldIndex, newIndex) {
+              final oldFullIndex = _reorderableShortcuts.indexOf(
+                visibleShortcuts[oldIndex],
+              );
+              final newFullIndex = newIndex >= visibleShortcuts.length
+                  ? _reorderableShortcuts.indexOf(visibleShortcuts.last) + 1
+                  : _reorderableShortcuts.indexOf(visibleShortcuts[newIndex]);
+              _onReorder(oldFullIndex, newFullIndex);
+            },
+            itemBuilder: (context, index) =>
+                _ReorderableShortcutItem(shortcut: visibleShortcuts[index]),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class HorizontalReorderableList extends StatefulWidget {
+  final int itemCount;
+  final void Function(int oldIndex, int newIndex) onReorder;
+  final Widget Function(BuildContext context, int index) itemBuilder;
+  final int itemsPerRow;
+
+  const HorizontalReorderableList({
+    super.key,
+    required this.itemCount,
+    required this.onReorder,
+    required this.itemBuilder,
+    this.itemsPerRow = 3,
+  });
+
+  @override
+  State<HorizontalReorderableList> createState() =>
+      _HorizontalReorderableListState();
+}
+
+class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
+  final ScrollController _verticalScrollController = ScrollController();
+  final ScrollController _horizontalScrollController = ScrollController();
+  final Map<int, GlobalKey> _itemKeys = {};
+  Timer? _autoScrollTimer;
+  int? _draggingIndex;
+  int? _targetIndex;
+
+  static const double _edgeScrollThreshold = 50.0;
+  static const double _autoScrollSpeed = 8.0;
+
+  @override
+  void dispose() {
+    _verticalScrollController.dispose();
+    _horizontalScrollController.dispose();
+    _autoScrollTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    _updateTargetIndex(details.globalPosition);
+    _handleAutoScroll(details.globalPosition);
+  }
+
+  void _updateTargetIndex(Offset globalPosition) {
+    if (!mounted || _draggingIndex == null) return;
+
+    int? newTargetIndex;
+    double minDistance = double.infinity;
+
+    for (int i = 0; i < widget.itemCount; i++) {
       if (i == _draggingIndex) continue;
 
-      final key = _buttonKeys[i];
-      if (key?.currentContext?.mounted != true) continue;
+      final key = _itemKeys[i];
+      if (key?.currentContext == null) continue;
 
-      final renderBox = key?.currentContext?.findRenderObject() as RenderBox?;
+      final renderBox = key!.currentContext!.findRenderObject() as RenderBox?;
       if (renderBox == null || !renderBox.hasSize) continue;
 
-      final buttonPosition = renderBox.localToGlobal(Offset.zero);
-      final buttonSize = renderBox.size;
-      final buttonCenter = buttonPosition.dx + buttonSize.width / 2;
+      final itemPosition = renderBox.localToGlobal(Offset.zero);
+      final itemSize = renderBox.size;
+      final itemCenter = Offset(
+        itemPosition.dx + itemSize.width / 2,
+        itemPosition.dy + itemSize.height / 2,
+      );
 
-      if (globalPosition.dx < buttonCenter) {
-        newHoverIndex = i;
-        break;
+      final distance = (globalPosition - itemCenter).distance;
+      if (distance < minDistance) {
+        minDistance = distance;
+        if (globalPosition.dx < itemCenter.dx ||
+            (globalPosition.dy < itemCenter.dy &&
+                (globalPosition.dx - itemCenter.dx).abs() < itemSize.width / 2)) {
+          newTargetIndex = i;
+        } else {
+          newTargetIndex = i + 1;
+        }
       }
     }
 
-    newHoverIndex ??= visibleShortcuts.length;
+    newTargetIndex ??= widget.itemCount;
+    newTargetIndex = newTargetIndex.clamp(0, widget.itemCount);
 
-    if (newHoverIndex != _hoveringIndex && mounted) {
-      setState(() {
-        _hoveringIndex = newHoverIndex;
-      });
+    if (newTargetIndex != _targetIndex && mounted) {
+      HapticFeedback.selectionClick();
+      setState(() => _targetIndex = newTargetIndex);
     }
   }
 
@@ -248,30 +349,53 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
     if (renderBox == null) return;
 
     final localPosition = renderBox.globalToLocal(globalPosition);
-    final screenWidth = MediaQuery.of(context).size.width;
+    final size = renderBox.size;
 
-    if (localPosition.dx < AppConstants.edgeScrollThreshold) {
-      _startAutoScroll(-AppConstants.autoScrollSpeed);
-    } else if (localPosition.dx >
-        screenWidth - AppConstants.edgeScrollThreshold) {
-      _startAutoScroll(AppConstants.autoScrollSpeed);
+    double deltaX = 0;
+    double deltaY = 0;
+
+    if (localPosition.dx < _edgeScrollThreshold) {
+      deltaX = -_autoScrollSpeed;
+    } else if (localPosition.dx > size.width - _edgeScrollThreshold) {
+      deltaX = _autoScrollSpeed;
+    }
+
+    if (localPosition.dy < _edgeScrollThreshold) {
+      deltaY = -_autoScrollSpeed;
+    } else if (localPosition.dy > size.height - _edgeScrollThreshold) {
+      deltaY = _autoScrollSpeed;
+    }
+
+    if (deltaX != 0 || deltaY != 0) {
+      _startAutoScroll(deltaX, deltaY);
     } else {
       _stopAutoScroll();
     }
   }
 
-  void _startAutoScroll(double scrollDelta) {
-    if (_autoScrollTimer != null) return;
+  void _startAutoScroll(double deltaX, double deltaY) {
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (deltaX != 0 && _horizontalScrollController.hasClients) {
+        final currentX = _horizontalScrollController.offset;
+        final newX = (currentX + deltaX).clamp(
+          0.0,
+          _horizontalScrollController.position.maxScrollExtent,
+        );
+        if (newX != currentX) {
+          _horizontalScrollController.jumpTo(newX);
+        }
+      }
 
-    _autoScrollTimer = Timer.periodic(AppConstants.autoScrollTickDuration, (_) {
-      if (!_scrollController.hasClients) return;
-
-      final currentOffset = _scrollController.offset;
-      final newOffset = currentOffset + scrollDelta;
-      final maxScroll = _scrollController.position.maxScrollExtent;
-
-      if (newOffset >= 0 && newOffset <= maxScroll) {
-        _scrollController.jumpTo(newOffset);
+      if (deltaY != 0 && _verticalScrollController.hasClients) {
+        final currentY = _verticalScrollController.offset;
+        final newY = (currentY + deltaY).clamp(
+          0.0,
+          _verticalScrollController.position.maxScrollExtent,
+        );
+        if (newY != currentY) {
+          _verticalScrollController.jumpTo(newY);
+        }
       }
     });
   }
@@ -280,88 +404,218 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
     _autoScrollTimer?.cancel();
     _autoScrollTimer = null;
   }
-}
-
-class _DropIndicator extends StatelessWidget {
-  const _DropIndicator({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      label: AppLocalizations.of(context)!.dropPosition,
-      child: Container(
-        width: 4,
-        height: 52,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary,
-          borderRadius: BorderRadius.circular(2),
+    for (int i = 0; i < widget.itemCount; i++) {
+      _itemKeys.putIfAbsent(i, () => GlobalKey());
+    }
+
+    final rows = <List<int>>[];
+    for (var i = 0; i < widget.itemCount; i += widget.itemsPerRow) {
+      final end = (i + widget.itemsPerRow > widget.itemCount)
+          ? widget.itemCount
+          : i + widget.itemsPerRow;
+      rows.add(List.generate(end - i, (j) => i + j));
+    }
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 200),
+      child: SingleChildScrollView(
+        controller: _verticalScrollController,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: SingleChildScrollView(
+          controller: _horizontalScrollController,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: rows.asMap().entries.map((entry) {
+              final rowIndex = entry.key;
+              final indices = entry.value;
+
+              return Padding(
+                padding: EdgeInsets.only(bottom: rowIndex < rows.length - 1 ? 8 : 0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: indices.asMap().entries.map((itemEntry) {
+                    final indexInRow = itemEntry.key;
+                    final index = itemEntry.value;
+                    final child = widget.itemBuilder(context, index);
+                    final isDragging = _draggingIndex == index;
+                    final isTarget = _targetIndex == index;
+
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isTarget && _draggingIndex != null && !isDragging)
+                          Container(
+                            width: 4,
+                            height: 44,
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        DragTarget<int>(
+                          key: _itemKeys[index],
+                          onWillAcceptWithDetails: (details) =>
+                              details.data != index,
+                          onAcceptWithDetails: (details) {
+                            widget.onReorder(details.data, index);
+                            setState(() {
+                              _draggingIndex = null;
+                              _targetIndex = null;
+                            });
+                          },
+                          builder: (context, candidateData, rejectedData) {
+                            return LongPressDraggable<int>(
+                              data: index,
+                              onDragStarted: () {
+                                HapticFeedback.mediumImpact();
+                                setState(() => _draggingIndex = index);
+                              },
+                              onDragUpdate: _onDragUpdate,
+                              onDragEnd: (_) {
+                                _stopAutoScroll();
+                                setState(() {
+                                  _draggingIndex = null;
+                                  _targetIndex = null;
+                                });
+                              },
+                              onDraggableCanceled: (_, __) {
+                                _stopAutoScroll();
+                                setState(() {
+                                  _draggingIndex = null;
+                                  _targetIndex = null;
+                                });
+                              },
+                              feedback: Material(
+                                elevation: 8,
+                                borderRadius: BorderRadius.circular(12),
+                                color: Theme.of(context).colorScheme.surface,
+                                child: child,
+                              ),
+                              childWhenDragging:
+                                  Opacity(opacity: 0.3, child: child),
+                              child: Opacity(
+                                opacity: isDragging ? 0.3 : 1.0,
+                                child: child,
+                              ),
+                            );
+                          },
+                        ),
+                        if (indexInRow < indices.length - 1)
+                          const SizedBox(width: 8),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              );
+            }).toList(),
+          ),
         ),
       ),
     );
   }
 }
 
-class _DraggableButton extends StatelessWidget {
+class _ReorderableShortcutItem extends StatelessWidget {
   final CustomMarkdownShortcut shortcut;
-  final int index;
-  final bool isDragging;
-  final VoidCallback onTap;
-  final VoidCallback onDragStarted;
-  final Function(DragUpdateDetails) onDragUpdate;
-  final Function(DraggableDetails) onDragEnd;
 
-  const _DraggableButton({
-    super.key,
-    required this.shortcut,
-    required this.index,
-    required this.isDragging,
-    required this.onTap,
-    required this.onDragStarted,
-    required this.onDragUpdate,
-    required this.onDragEnd,
-  });
+  const _ReorderableShortcutItem({required this.shortcut});
 
   @override
   Widget build(BuildContext context) {
-    final buttonContent = _buildButtonContent(context);
-    final placeholderContent = _buildPlaceholder(context);
-    final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final dragFeedback = _buildDragFeedback(theme);
-
-    return Semantics(
-      button: true,
-      label: l10n.shortcutButton(shortcut.label),
-      hint: l10n.longPressToReorder,
-      child: Tooltip(
-        message: shortcut.label,
-        waitDuration: AppConstants.longPressDelay,
-        child: LongPressDraggable<int>(
-          data: index,
-          feedback: dragFeedback,
-          childWhenDragging: placeholderContent,
-          onDragStarted: onDragStarted,
-          onDragUpdate: onDragUpdate,
-          onDragEnd: onDragEnd,
-          onDraggableCanceled: (_, _) => onDragEnd(
-            DraggableDetails(
-              wasAccepted: false,
-              velocity: Velocity.zero,
-              offset: Offset.zero,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.drag_indicator,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 6),
+          _buildIcon(context),
+          const SizedBox(width: 8),
+          Text(
+            shortcut.label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                child: buttonContent,
-              ),
-            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIcon(BuildContext context) {
+    if (shortcut.id == 'default_bold') {
+      return Text(
+        'B',
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      );
+    }
+    if (shortcut.id == 'default_italic') {
+      return Text(
+        'I',
+        style: TextStyle(
+          fontSize: 16,
+          fontStyle: FontStyle.italic,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      );
+    }
+    if (shortcut.id == 'default_header') {
+      return Text(
+        'H',
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      );
+    }
+    return Icon(
+      IconData(shortcut.iconCodePoint, fontFamily: shortcut.iconFontFamily),
+      size: 18,
+      color: Theme.of(context).colorScheme.onSurface,
+    );
+  }
+}
+
+class _ShortcutButton extends StatelessWidget {
+  final CustomMarkdownShortcut shortcut;
+  final VoidCallback onTap;
+
+  const _ShortcutButton({required this.shortcut, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: shortcut.label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            child: _buildButtonContent(context),
           ),
         ),
       ),
@@ -369,6 +623,26 @@ class _DraggableButton extends StatelessWidget {
   }
 
   Widget _buildButtonContent(BuildContext context) {
+    if (shortcut.id == 'default_bold') {
+      return Text(
+        'B',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).iconTheme.color,
+        ),
+      );
+    }
+    if (shortcut.id == 'default_italic') {
+      return Text(
+        'I',
+        style: TextStyle(
+          fontSize: 20,
+          fontStyle: FontStyle.italic,
+          color: Theme.of(context).iconTheme.color,
+        ),
+      );
+    }
     if (shortcut.id == 'default_header') {
       return Text(
         'H',
@@ -383,100 +657,6 @@ class _DraggableButton extends StatelessWidget {
       IconData(shortcut.iconCodePoint, fontFamily: shortcut.iconFontFamily),
       size: 24,
       color: Theme.of(context).iconTheme.color,
-    );
-  }
-
-  Widget _buildPlaceholder(BuildContext context) {
-    return Opacity(
-      opacity: 0.3,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        child: _buildButtonContent(context),
-      ),
-    );
-  }
-
-  Widget _buildDragFeedback(ThemeData theme) {
-    final feedbackContent = shortcut.id == 'default_header'
-        ? Text(
-            'H',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onPrimary,
-            ),
-          )
-        : Icon(
-            IconData(
-              shortcut.iconCodePoint,
-              fontFamily: shortcut.iconFontFamily,
-            ),
-            size: 24,
-            color: theme.colorScheme.onPrimary,
-          );
-
-    String tooltipText = shortcut.label;
-    if (shortcut.insertType == 'wrap') {
-      tooltipText = '${shortcut.beforeText}text${shortcut.afterText}';
-    } else if (shortcut.insertType == 'date') {
-      final now = DateTime.now();
-      final formattedDate =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      tooltipText = '${shortcut.beforeText}$formattedDate${shortcut.afterText}';
-    }
-
-    return Material(
-      color: Colors.transparent,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.9),
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: feedbackContent,
-          ),
-          Positioned(
-            bottom: 60,
-            left: -50,
-            right: -50,
-            child: Center(
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 200),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  tooltipText,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 2,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -515,55 +695,6 @@ class _ToolbarButton extends StatelessWidget {
                     : Theme.of(context).colorScheme.onSurface,
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// Simple non-draggable button for use in dialogs
-class _SimpleButton extends StatelessWidget {
-  final CustomMarkdownShortcut shortcut;
-  final VoidCallback onTap;
-
-  const _SimpleButton({super.key, required this.shortcut, required this.onTap});
-
-  Widget _buildButtonContent(BuildContext context) {
-    if (shortcut.id == 'default_header') {
-      return Container(
-        width: 24,
-        height: 24,
-        alignment: Alignment.center,
-        child: Text(
-          'H',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
-        ),
-      );
-    }
-    return Icon(
-      IconData(shortcut.iconCodePoint, fontFamily: shortcut.iconFontFamily),
-      size: 24,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: shortcut.label,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            child: _buildButtonContent(context),
           ),
         ),
       ),

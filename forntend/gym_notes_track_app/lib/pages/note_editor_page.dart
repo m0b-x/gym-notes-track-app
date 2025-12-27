@@ -14,7 +14,6 @@ import '../widgets/markdown_toolbar.dart';
 import '../widgets/interactive_markdown.dart';
 import '../config/default_markdown_shortcuts.dart';
 import '../config/app_constants.dart';
-import '../factories/shortcut_handler_factory.dart';
 import 'markdown_settings_page.dart';
 
 class NoteEditorPage extends StatefulWidget {
@@ -335,10 +334,11 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
     );
   }
 
-  Future<void> _handleReorderComplete(int draggedIndex, int targetIndex) async {
+  Future<void> _handleReorderComplete(
+    List<CustomMarkdownShortcut> reorderedShortcuts,
+  ) async {
     setState(() {
-      final item = _allShortcuts.removeAt(draggedIndex);
-      _allShortcuts.insert(targetIndex, item);
+      _allShortcuts = reorderedShortcuts;
     });
     await _saveShortcutsOrder();
   }
@@ -400,14 +400,25 @@ class _NoteEditorPageState extends State<NoteEditorPage> {
   }
 
   void _handleShortcut(CustomMarkdownShortcut shortcut) {
-    final handler = ShortcutHandlerFactory.getHandler(shortcut.insertType);
-    handler.execute(
-      context: context,
-      shortcut: shortcut,
-      controller: _contentController,
-      focusNode: _contentFocusNode,
-      onTextChanged: _onTextChanged,
+    final text = _contentController.text;
+    final selection = _contentController.selection;
+    final cursorPos = selection.baseOffset;
+
+    if (cursorPos < 0) return;
+
+    final boldLabel = '**${shortcut.label}**';
+    final newText =
+        text.substring(0, cursorPos) +
+        boldLabel +
+        text.substring(selection.extentOffset);
+
+    _contentController.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: cursorPos + boldLabel.length),
     );
+
+    _onTextChanged();
+    _contentFocusNode.requestFocus();
   }
 
   Future<void> _loadCustomShortcuts() async {

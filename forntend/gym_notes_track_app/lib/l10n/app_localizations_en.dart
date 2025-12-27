@@ -346,4 +346,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get markdownSpaceWarning =>
       'Tip: Add a space after markdown syntax (e.g., \'# \' or \'- \') for proper formatting.';
+
+  @override
+  String get reorderShortcuts => 'Reorder shortcuts';
+
+  @override
+  String get doneReordering => 'Done';
 }

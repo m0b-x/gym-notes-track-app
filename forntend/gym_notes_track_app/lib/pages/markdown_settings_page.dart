@@ -6,7 +6,6 @@ import '../models/custom_markdown_shortcut.dart';
 import '../utils/custom_snackbar.dart';
 import '../config/available_icons.dart';
 import '../widgets/markdown_toolbar.dart';
-import '../factories/shortcut_handler_factory.dart';
 import '../utils/markdown_settings_utils.dart';
 
 class MarkdownSettingsPage extends StatefulWidget {
@@ -398,6 +397,9 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
   List<CustomMarkdownShortcut> _shortcuts = [];
   TextEditingController? _activeController;
   FocusNode? _activeFocusNode;
+  String _previousBeforeText = '';
+  String _previousAfterText = '';
+  bool _isProcessingTextChange = false;
 
   @override
   void initState() {
@@ -410,6 +412,14 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
     );
     _afterController = TextEditingController(
       text: widget.shortcut?.afterText ?? '',
+    );
+    _previousBeforeText = _beforeController.text;
+    _previousAfterText = _afterController.text;
+    _beforeController.addListener(
+      () => _handleTextChange(_beforeController, true),
+    );
+    _afterController.addListener(
+      () => _handleTextChange(_afterController, false),
     );
     _beforeFocusNode = FocusNode();
     _afterFocusNode = FocusNode();
@@ -505,17 +515,142 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
     });
   }
 
+  void _handleTextChange(TextEditingController controller, bool isBefore) {
+    if (_isProcessingTextChange) return;
+
+    final text = controller.text;
+    final selection = controller.selection;
+    final previousText = isBefore ? _previousBeforeText : _previousAfterText;
+
+    final textLengthIncreased = text.length > previousText.length;
+    if (isBefore) {
+      _previousBeforeText = text;
+    } else {
+      _previousAfterText = text;
+    }
+
+    if (!textLengthIncreased) return;
+
+    if (selection.baseOffset > 0 &&
+        selection.baseOffset <= text.length &&
+        text[selection.baseOffset - 1] == '\n') {
+      _isProcessingTextChange = true;
+      int prevLineStart;
+      if (selection.baseOffset < 2) {
+        prevLineStart = 0;
+      } else {
+        prevLineStart = text.lastIndexOf('\n', selection.baseOffset - 2);
+        if (prevLineStart == -1) {
+          prevLineStart = 0;
+        } else {
+          prevLineStart++;
+        }
+      }
+
+      String prevLine = text.substring(prevLineStart, selection.baseOffset - 1);
+
+      if (_isEmptyListItem(prevLine.trim())) {
+        final newText =
+            text.substring(0, prevLineStart) +
+            text.substring(selection.baseOffset);
+        controller.value = TextEditingValue(
+          text: newText,
+          selection: TextSelection.collapsed(offset: prevLineStart),
+        );
+        if (isBefore) {
+          _previousBeforeText = newText;
+        } else {
+          _previousAfterText = newText;
+        }
+        _isProcessingTextChange = false;
+        return;
+      }
+
+      String? listPrefix = _getListPrefix(prevLine);
+      if (listPrefix != null) {
+        final beforeCursor = text.substring(0, selection.baseOffset);
+        final afterCursor = text.substring(selection.baseOffset);
+
+        if (!afterCursor.startsWith(listPrefix)) {
+          final newText = beforeCursor + listPrefix + afterCursor;
+          final newOffset = selection.baseOffset + listPrefix.length;
+
+          controller.value = TextEditingValue(
+            text: newText,
+            selection: TextSelection.collapsed(offset: newOffset),
+          );
+          if (isBefore) {
+            _previousBeforeText = newText;
+          } else {
+            _previousAfterText = newText;
+          }
+        }
+      }
+      _isProcessingTextChange = false;
+    }
+  }
+
+  bool _isEmptyListItem(String line) {
+    line = line.trim();
+
+    final emptyPatterns = ['•', '-', '- [ ]', '- [x]', '- [X]'];
+
+    for (var pattern in emptyPatterns) {
+      if (line == pattern) return true;
+    }
+
+    final numberedPattern = RegExp(r'^\d+\.$');
+    return numberedPattern.hasMatch(line);
+  }
+
+  String? _getListPrefix(String line) {
+    line = line.trimLeft();
+
+    if (line.startsWith('• ')) {
+      return '• ';
+    }
+
+    if (line.startsWith('- ') && !line.startsWith('- [')) {
+      return '- ';
+    }
+
+    if (line.startsWith('- [ ] ')) {
+      return '- [ ] ';
+    }
+    if (line.startsWith('- [x] ') || line.startsWith('- [X] ')) {
+      return '- [ ] ';
+    }
+
+    final numberedMatch = RegExp(r'^(\d+)\.\s').firstMatch(line);
+    if (numberedMatch != null) {
+      final currentNumber = int.parse(numberedMatch.group(1)!);
+      return '${currentNumber + 1}. ';
+    }
+
+    return null;
+  }
+
   void _handleShortcut(CustomMarkdownShortcut shortcut) {
     if (_activeController == null || _activeFocusNode == null) return;
 
-    final handler = ShortcutHandlerFactory.getHandler(shortcut.insertType);
-    handler.execute(
-      context: context,
-      shortcut: shortcut,
-      controller: _activeController!,
-      focusNode: _activeFocusNode!,
-      onTextChanged: () {},
+    final text = _activeController!.text;
+    final selection = _activeController!.selection;
+    final cursorPos = selection.baseOffset;
+
+    if (cursorPos < 0) return;
+
+    final boldLabel = '**${shortcut.label}**';
+    final newText =
+        text.substring(0, cursorPos) +
+        boldLabel +
+        text.substring(selection.extentOffset);
+
+    _activeController!.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: cursorPos + boldLabel.length),
     );
+
+    _activeFocusNode!.requestFocus();
   }
 
   void _save() {
@@ -766,10 +901,9 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                   onIncreaseFontSize: () {},
                   onSettings: () {},
                   onShortcutPressed: _handleShortcut,
-                  onReorderComplete: (draggedIndex, targetIndex) async {},
                   showSettings: false,
-                  enableReordering: false,
                   showBackground: false,
+                  showReorder: false,
                 ),
               ),
           ],

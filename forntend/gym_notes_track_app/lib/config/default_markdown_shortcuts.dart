@@ -33,7 +33,7 @@ class DefaultMarkdownShortcuts {
         const CustomMarkdownShortcut(
           id: 'default_point_list',
           label: 'Point List',
-          iconCodePoint: 0xe065,
+          iconCodePoint: 0x2022,
           iconFontFamily: 'MaterialIcons',
           beforeText: '• ',
           afterText: '',

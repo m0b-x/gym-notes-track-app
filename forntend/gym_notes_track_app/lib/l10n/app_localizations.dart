@@ -739,6 +739,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tip: Add a space after markdown syntax (e.g., \'# \' or \'- \') for proper formatting.'**
   String get markdownSpaceWarning;
+
+  /// Tooltip for reorder shortcuts button
+  ///
+  /// In en, this message translates to:
+  /// **'Reorder shortcuts'**
+  String get reorderShortcuts;
+
+  /// Button text to finish reordering
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get doneReordering;
 }
 
 class _AppLocalizationsDelegate
