@@ -12,6 +12,7 @@ import '../models/note_metadata.dart';
 import '../services/folder_storage_service.dart';
 import '../services/note_storage_service.dart';
 import '../widgets/infinite_scroll_list.dart';
+import '../utils/bloc_helpers.dart';
 import 'optimized_note_editor_page.dart';
 import 'search_page.dart';
 
@@ -49,6 +50,7 @@ class _OptimizedFolderContentPageState
   }
 
   void _loadData() {
+    debugPrint('Loading data for folder=${widget.folderId}');
     context.read<OptimizedFolderBloc>().add(
       LoadFoldersPaginated(
         parentId: widget.folderId,
@@ -208,8 +210,10 @@ class _OptimizedFolderContentPageState
 
   Widget _buildFoldersSection() {
     return BlocBuilder<OptimizedFolderBloc, OptimizedFolderState>(
+      buildWhen: FolderBlocFilters.forParentFolder(widget.folderId),
       builder: (context, state) {
         if (state is OptimizedFolderInitial) {
+          debugPrint('Folders state -> initial for ${widget.folderId}');
           context.read<OptimizedFolderBloc>().add(
             LoadFoldersPaginated(
               parentId: widget.folderId,
@@ -227,6 +231,7 @@ class _OptimizedFolderContentPageState
         }
 
         if (state is OptimizedFolderLoading) {
+          debugPrint('Folders state -> loading for ${widget.folderId}');
           return const SliverToBoxAdapter(
             child: Center(
               child: Padding(
@@ -238,6 +243,7 @@ class _OptimizedFolderContentPageState
         }
 
         if (state is OptimizedFolderError) {
+          debugPrint('Folders state -> error ${state.message}');
           return SliverToBoxAdapter(
             child: Center(
               child: Padding(
@@ -254,6 +260,10 @@ class _OptimizedFolderContentPageState
         if (state is OptimizedFolderLoaded) {
           final folders = state.paginatedFolders.folders;
 
+          debugPrint(
+            'Folders state -> loaded count=${folders.length} hasMore=${state.paginatedFolders.hasMore} parent=${widget.folderId}',
+          );
+
           if (folders.isEmpty) {
             return const SliverToBoxAdapter(child: SizedBox.shrink());
           }
@@ -268,7 +278,11 @@ class _OptimizedFolderContentPageState
                   );
                 }
                 final folder = folders[index];
-                return _FolderCard(folder: folder, parentId: widget.folderId);
+                return _FolderCard(
+                  folder: folder,
+                  parentId: widget.folderId,
+                  onReturn: _loadData,
+                );
               },
               childCount:
                   folders.length + (state.paginatedFolders.hasMore ? 1 : 0),
@@ -287,8 +301,10 @@ class _OptimizedFolderContentPageState
     }
 
     return BlocBuilder<OptimizedNoteBloc, OptimizedNoteState>(
+      buildWhen: NoteBlocFilters.forFolder(widget.folderId),
       builder: (context, state) {
         if (state is OptimizedNoteLoading) {
+          debugPrint('Notes state -> loading for ${widget.folderId}');
           return const SliverToBoxAdapter(
             child: Center(
               child: Padding(
@@ -300,6 +316,7 @@ class _OptimizedFolderContentPageState
         }
 
         if (state is OptimizedNoteError) {
+          debugPrint('Notes state -> error ${state.message}');
           return SliverToBoxAdapter(
             child: Center(
               child: Padding(
@@ -314,18 +331,23 @@ class _OptimizedFolderContentPageState
         }
 
         if (state is OptimizedNoteLoaded) {
-          final notes = state.paginatedNotes.notes
-              .where((note) => note.folderId == widget.folderId)
-              .toList();
+          final notes = NoteStateHelper.getNotesForFolder(
+            state,
+            widget.folderId,
+          );
 
-          if (notes.isEmpty) {
+          debugPrint(
+            'Notes state -> loaded count=${notes?.length ?? 0} hasMore=${state.paginatedNotes.hasMore} folder=${widget.folderId}',
+          );
+
+          if (notes == null || notes.isEmpty) {
             return const SliverToBoxAdapter(child: SizedBox.shrink());
           }
 
           return InfiniteScrollSliver<NoteMetadata>(
             items: notes,
-            hasMore: state.paginatedNotes.hasMore,
-            isLoadingMore: state.isLoadingMore,
+            hasMore: NoteStateHelper.hasMoreForFolder(state, widget.folderId),
+            isLoadingMore: NoteStateHelper.isLoadingMore(state),
             controller: _scrollController,
             onLoadMore: () {
               context.read<OptimizedNoteBloc>().add(
@@ -333,7 +355,45 @@ class _OptimizedFolderContentPageState
               );
             },
             itemBuilder: (context, note, index) {
-              return _NoteCard(metadata: note, folderId: widget.folderId!);
+              return _NoteCard(
+                metadata: note,
+                folderId: widget.folderId!,
+                onReturn: _loadData,
+              );
+            },
+          );
+        }
+
+        if (state is OptimizedNoteContentLoaded) {
+          final notes = NoteStateHelper.getNotesForFolder(
+            state,
+            widget.folderId,
+          );
+
+          debugPrint(
+            'Notes state -> content loaded, showing previous list count=${notes?.length ?? 0} folder=${widget.folderId}',
+          );
+
+          if (notes == null || notes.isEmpty) {
+            return const SliverToBoxAdapter(child: SizedBox.shrink());
+          }
+
+          return InfiniteScrollSliver<NoteMetadata>(
+            items: notes,
+            hasMore: NoteStateHelper.hasMoreForFolder(state, widget.folderId),
+            isLoadingMore: false,
+            controller: _scrollController,
+            onLoadMore: () {
+              context.read<OptimizedNoteBloc>().add(
+                LoadMoreNotes(folderId: widget.folderId),
+              );
+            },
+            itemBuilder: (context, note, index) {
+              return _NoteCard(
+                metadata: note,
+                folderId: widget.folderId!,
+                onReturn: _loadData,
+              );
             },
           );
         }
@@ -347,6 +407,7 @@ class _OptimizedFolderContentPageState
     return BlocBuilder<OptimizedFolderBloc, OptimizedFolderState>(
       builder: (context, folderState) {
         return BlocBuilder<OptimizedNoteBloc, OptimizedNoteState>(
+          buildWhen: NoteBlocFilters.forEmptyState(widget.folderId),
           builder: (context, noteState) {
             bool foldersEmpty = true;
             if (folderState is OptimizedFolderLoaded) {
@@ -354,17 +415,20 @@ class _OptimizedFolderContentPageState
             }
 
             bool notesEmpty = true;
-            if (noteState is OptimizedNoteLoaded && widget.folderId != null) {
-              final notes = noteState.paginatedNotes.notes
-                  .where((note) => note.folderId == widget.folderId)
-                  .toList();
-              notesEmpty = notes.isEmpty;
+            if (widget.folderId != null) {
+              final notes = NoteStateHelper.getNotesForFolder(
+                noteState,
+                widget.folderId,
+              );
+              notesEmpty = notes == null || notes.isEmpty;
             }
 
             if (foldersEmpty &&
                 notesEmpty &&
                 folderState is OptimizedFolderLoaded &&
-                (widget.folderId == null || noteState is OptimizedNoteLoaded)) {
+                (widget.folderId == null ||
+                    noteState is OptimizedNoteLoaded ||
+                    noteState is OptimizedNoteContentLoaded)) {
               return SliverFillRemaining(
                 hasScrollBody: false,
                 child: Center(
@@ -491,21 +555,32 @@ class _OptimizedFolderContentPageState
   }
 
   void _createNewNote() {
+    debugPrint('Navigation -> push create note for folder=${widget.folderId}');
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) =>
             OptimizedNoteEditorPage(folderId: widget.folderId!),
       ),
-    );
+    ).then((_) {
+      if (mounted) {
+        debugPrint('Navigation -> back from create note, reloading');
+        _loadData();
+      }
+    });
   }
 }
 
 class _FolderCard extends StatelessWidget {
   final Folder folder;
   final String? parentId;
+  final VoidCallback onReturn;
 
-  const _FolderCard({required this.folder, this.parentId});
+  const _FolderCard({
+    required this.folder,
+    this.parentId,
+    required this.onReturn,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -522,6 +597,9 @@ class _FolderCard extends StatelessWidget {
           onPressed: () => _confirmDelete(context),
         ),
         onTap: () {
+          debugPrint(
+            'Navigation -> into folder ${folder.id} from parent=$parentId',
+          );
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -530,7 +608,14 @@ class _FolderCard extends StatelessWidget {
                 title: folder.name,
               ),
             ),
-          );
+          ).then((_) {
+            if (context.mounted) {
+              debugPrint(
+                'Navigation -> back from folder ${folder.id}, reloading parent=$parentId',
+              );
+              onReturn();
+            }
+          });
         },
       ),
     );
@@ -570,8 +655,13 @@ class _FolderCard extends StatelessWidget {
 class _NoteCard extends StatelessWidget {
   final NoteMetadata metadata;
   final String folderId;
+  final VoidCallback onReturn;
 
-  const _NoteCard({required this.metadata, required this.folderId});
+  const _NoteCard({
+    required this.metadata,
+    required this.folderId,
+    required this.onReturn,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -637,6 +727,9 @@ class _NoteCard extends StatelessWidget {
           onPressed: () => _confirmDelete(context),
         ),
         onTap: () {
+          debugPrint(
+            'Navigation -> into note ${metadata.id} in folder=$folderId',
+          );
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -646,7 +739,14 @@ class _NoteCard extends StatelessWidget {
                 metadata: metadata,
               ),
             ),
-          );
+          ).then((_) {
+            if (context.mounted) {
+              debugPrint(
+                'Navigation -> back from note ${metadata.id}, reloading folder=$folderId',
+              );
+              onReturn();
+            }
+          });
         },
       ),
     );

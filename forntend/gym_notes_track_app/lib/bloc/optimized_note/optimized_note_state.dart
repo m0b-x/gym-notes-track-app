@@ -11,46 +11,59 @@ abstract class OptimizedNoteState extends Equatable {
 
 class OptimizedNoteInitial extends OptimizedNoteState {}
 
-class OptimizedNoteLoading extends OptimizedNoteState {}
+class OptimizedNoteLoading extends OptimizedNoteState {
+  final String? folderId;
+
+  const OptimizedNoteLoading({this.folderId});
+
+  @override
+  List<Object?> get props => [folderId];
+}
 
 class OptimizedNoteLoaded extends OptimizedNoteState {
   final PaginatedNotes paginatedNotes;
   final Map<String, String> loadedContent;
   final bool isLoadingMore;
+  final String? folderId;
 
   const OptimizedNoteLoaded({
     required this.paginatedNotes,
     this.loadedContent = const {},
     this.isLoadingMore = false,
+    this.folderId,
   });
 
   OptimizedNoteLoaded copyWith({
     PaginatedNotes? paginatedNotes,
     Map<String, String>? loadedContent,
     bool? isLoadingMore,
+    String? folderId,
   }) {
     return OptimizedNoteLoaded(
       paginatedNotes: paginatedNotes ?? this.paginatedNotes,
       loadedContent: loadedContent ?? this.loadedContent,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      folderId: folderId ?? this.folderId,
     );
   }
 
   @override
-  List<Object?> get props => [paginatedNotes, loadedContent, isLoadingMore];
+  List<Object?> get props => [paginatedNotes, loadedContent, isLoadingMore, folderId];
 }
 
 class OptimizedNoteContentLoaded extends OptimizedNoteState {
   final LazyNote note;
   final PaginatedNotes? previousPaginatedNotes;
+  final String? folderId;
 
   const OptimizedNoteContentLoaded({
     required this.note,
     this.previousPaginatedNotes,
+    this.folderId,
   });
 
   @override
-  List<Object?> get props => [note, previousPaginatedNotes];
+  List<Object?> get props => [note, previousPaginatedNotes, folderId];
 }
 
 class OptimizedNoteSearchResults extends OptimizedNoteState {
@@ -82,9 +95,10 @@ class OptimizedNoteSearchResults extends OptimizedNoteState {
 
 class OptimizedNoteError extends OptimizedNoteState {
   final String message;
+  final String? folderId;
 
-  const OptimizedNoteError(this.message);
+  const OptimizedNoteError(this.message, {this.folderId});
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, folderId];
 }

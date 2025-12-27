@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../services/folder_storage_service.dart';
 import 'optimized_folder_event.dart';
@@ -26,7 +27,8 @@ class OptimizedFolderBloc
     LoadFoldersPaginated event,
     Emitter<OptimizedFolderState> emit,
   ) async {
-    emit(OptimizedFolderLoading());
+    debugPrint('FolderBloc Load page=${event.page} parent=${event.parentId} sort=${event.sortOrder}');
+    emit(OptimizedFolderLoading(parentId: event.parentId));
 
     try {
       await _storageService.initialize();
@@ -42,9 +44,12 @@ class OptimizedFolderBloc
         sortOrder: event.sortOrder,
       );
 
-      emit(OptimizedFolderLoaded(paginatedFolders: paginatedFolders));
+      emit(OptimizedFolderLoaded(
+        paginatedFolders: paginatedFolders,
+        parentId: event.parentId,
+      ));
     } catch (e) {
-      emit(OptimizedFolderError('Failed to load folders: $e'));
+      emit(OptimizedFolderError('Failed to load folders: $e', parentId: event.parentId));
     }
   }
 
@@ -58,7 +63,7 @@ class OptimizedFolderBloc
     if (!currentState.paginatedFolders.hasMore) return;
     if (currentState.isLoadingMore) return;
 
-    emit(currentState.copyWith(isLoadingMore: true));
+    emit(currentState.copyWith(isLoadingMore: true, parentId: event.parentId ?? _currentParentId));
 
     try {
       _currentPage++;
@@ -82,10 +87,11 @@ class OptimizedFolderBloc
         currentState.copyWith(
           paginatedFolders: updatedPaginatedFolders,
           isLoadingMore: false,
+          parentId: event.parentId ?? _currentParentId,
         ),
       );
     } catch (e) {
-      emit(currentState.copyWith(isLoadingMore: false));
+      emit(currentState.copyWith(isLoadingMore: false, parentId: event.parentId ?? _currentParentId));
     }
   }
 
@@ -101,7 +107,7 @@ class OptimizedFolderBloc
 
       add(RefreshFolders(parentId: event.parentId));
     } catch (e) {
-      emit(OptimizedFolderError('Failed to create folder: $e'));
+      emit(OptimizedFolderError('Failed to create folder: $e', parentId: event.parentId));
     }
   }
 
@@ -119,7 +125,7 @@ class OptimizedFolderBloc
 
       add(RefreshFolders(parentId: folder?.parentId));
     } catch (e) {
-      emit(OptimizedFolderError('Failed to update folder: $e'));
+      emit(OptimizedFolderError('Failed to update folder: $e', parentId: _currentParentId));
     }
   }
 
@@ -132,7 +138,7 @@ class OptimizedFolderBloc
 
       add(RefreshFolders(parentId: event.parentId));
     } catch (e) {
-      emit(OptimizedFolderError('Failed to delete folder: $e'));
+      emit(OptimizedFolderError('Failed to delete folder: $e', parentId: event.parentId));
     }
   }
 
@@ -140,6 +146,7 @@ class OptimizedFolderBloc
     RefreshFolders event,
     Emitter<OptimizedFolderState> emit,
   ) async {
+    debugPrint('FolderBloc Refresh parent=${event.parentId ?? _currentParentId}');
     _storageService.clearCache();
     _currentPage = 1;
 

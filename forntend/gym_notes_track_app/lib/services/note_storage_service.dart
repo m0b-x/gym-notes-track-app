@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/note.dart';
@@ -69,9 +70,13 @@ class NoteStorageService {
 
     final allMetadata = await _loadAllMetadata();
 
+    debugPrint('NoteStorage loadAll count=${allMetadata.length} folder=$folderId');
+
     var filteredMetadata = folderId != null
         ? allMetadata.where((m) => m.folderId == folderId).toList()
         : allMetadata;
+
+    debugPrint('NoteStorage filtered count=${filteredMetadata.length} page=$page size=$pageSize sort=$sortOrder');
 
     filteredMetadata = _sortMetadata(filteredMetadata, sortOrder);
 

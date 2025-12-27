@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/folder.dart';
@@ -89,9 +90,13 @@ class FolderStorageService {
 
     final allFolders = await _loadAllFolders();
 
+    debugPrint('FolderStorage loadAll count=${allFolders.length} parent=$parentId');
+
     var filteredFolders = allFolders
         .where((f) => f.parentId == parentId)
         .toList();
+
+    debugPrint('FolderStorage filtered count=${filteredFolders.length} page=$page size=$pageSize sort=$sortOrder');
 
     filteredFolders = _sortFolders(filteredFolders, sortOrder);
 
