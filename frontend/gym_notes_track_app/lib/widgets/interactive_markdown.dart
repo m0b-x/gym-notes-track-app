@@ -88,7 +88,7 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
       // Check for bullet list patterns (- , * , • )
       final bulletPattern = RegExp(r'^([\s]*)[-*•]\s+(.+)$');
       final bulletMatch = bulletPattern.firstMatch(line);
-      
+
       // Check for numbered list patterns (1. , 2. , etc.)
       final numberedPattern = RegExp(r'^([\s]*)(\d+)\.\s+(.+)$');
       final numberedMatch = numberedPattern.firstMatch(line);
@@ -136,7 +136,11 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
 
   Widget _buildBulletItem(BuildContext context, String text, int indent) {
     return Padding(
-      padding: EdgeInsets.only(left: 16.0 + (indent ~/ 2) * 16.0, top: 4, bottom: 4),
+      padding: EdgeInsets.only(
+        left: 16.0 + (indent ~/ 2) * 16.0,
+        top: 4,
+        bottom: 4,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -144,20 +148,24 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
             padding: EdgeInsets.only(right: 8, top: 2),
             child: Text('•', style: TextStyle(fontSize: 16)),
           ),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 16),
-            ),
-          ),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 16))),
         ],
       ),
     );
   }
 
-  Widget _buildNumberedItem(BuildContext context, String text, String number, int indent) {
+  Widget _buildNumberedItem(
+    BuildContext context,
+    String text,
+    String number,
+    int indent,
+  ) {
     return Padding(
-      padding: EdgeInsets.only(left: 16.0 + (indent ~/ 2) * 16.0, top: 4, bottom: 4),
+      padding: EdgeInsets.only(
+        left: 16.0 + (indent ~/ 2) * 16.0,
+        top: 4,
+        bottom: 4,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -168,12 +176,7 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
               child: Text('$number.', style: const TextStyle(fontSize: 16)),
             ),
           ),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 16),
-            ),
-          ),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 16))),
         ],
       ),
     );

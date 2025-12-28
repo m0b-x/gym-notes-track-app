@@ -63,11 +63,7 @@ class UpdateOptimizedNote extends OptimizedNoteEvent {
   final String? title;
   final String? content;
 
-  const UpdateOptimizedNote({
-    required this.noteId,
-    this.title,
-    this.content,
-  });
+  const UpdateOptimizedNote({required this.noteId, this.title, this.content});
 
   @override
   List<Object?> get props => [noteId, title, content];

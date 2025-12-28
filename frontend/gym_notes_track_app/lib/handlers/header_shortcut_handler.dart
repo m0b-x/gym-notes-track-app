@@ -19,12 +19,7 @@ class HeaderShortcutHandler implements MarkdownShortcutHandler {
 
     showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        16,
-        size.height - 300,
-        200,
-        size.height,
-      ),
+      position: RelativeRect.fromLTRB(16, size.height - 300, 200, size.height),
       items: _buildHeaderMenuItems(context),
     ).then((value) {
       if (value != null) {
@@ -108,7 +103,8 @@ class HeaderShortcutHandler implements MarkdownShortcutHandler {
       selectedText = text.substring(start, end);
     }
 
-    final newText = text.substring(0, start) + prefix + selectedText + text.substring(end);
+    final newText =
+        text.substring(0, start) + prefix + selectedText + text.substring(end);
 
     controller.value = TextEditingValue(
       text: newText,

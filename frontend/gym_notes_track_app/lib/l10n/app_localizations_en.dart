@@ -461,4 +461,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tapPlusToCreate => 'Tap + to get started';
+
+  @override
+  String charactersCount(int current, int max) {
+    return '$current/$max characters';
+  }
 }

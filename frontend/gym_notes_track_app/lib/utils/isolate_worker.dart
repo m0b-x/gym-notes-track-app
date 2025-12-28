@@ -70,7 +70,9 @@ class IsolateWorker {
         return _parseNotesInIsolate(payload as String);
 
       case 'buildSearchIndex':
-        return _buildSearchIndexInIsolate(payload as List<Map<String, dynamic>>);
+        return _buildSearchIndexInIsolate(
+          payload as List<Map<String, dynamic>>,
+        );
 
       case 'computeDiff':
         return _computeDiffInIsolate(payload as Map<String, String>);
@@ -142,7 +144,9 @@ class IsolateWorker {
     return words;
   }
 
-  static Map<String, dynamic> _computeDiffInIsolate(Map<String, String> payload) {
+  static Map<String, dynamic> _computeDiffInIsolate(
+    Map<String, String> payload,
+  ) {
     final original = payload['original'] ?? '';
     final modified = payload['modified'] ?? '';
 
@@ -160,18 +164,10 @@ class IsolateWorker {
 
     while (i < originalLines.length || j < modifiedLines.length) {
       if (i >= originalLines.length) {
-        changes.add({
-          'type': 'add',
-          'line': j,
-          'content': modifiedLines[j],
-        });
+        changes.add({'type': 'add', 'line': j, 'content': modifiedLines[j]});
         j++;
       } else if (j >= modifiedLines.length) {
-        changes.add({
-          'type': 'remove',
-          'line': i,
-          'content': originalLines[i],
-        });
+        changes.add({'type': 'remove', 'line': i, 'content': originalLines[i]});
         i++;
       } else if (originalLines[i] == modifiedLines[j]) {
         i++;

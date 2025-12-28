@@ -955,6 +955,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap + to get started'**
   String get tapPlusToCreate;
+
+  /// Character count display
+  ///
+  /// In en, this message translates to:
+  /// **'{current}/{max} characters'**
+  String charactersCount(int current, int max);
 }
 
 class _AppLocalizationsDelegate

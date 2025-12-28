@@ -90,16 +90,16 @@ class NoteMetadata extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        folderId,
-        title,
-        preview,
-        contentLength,
-        chunkCount,
-        isCompressed,
-        createdAt,
-        updatedAt,
-      ];
+    id,
+    folderId,
+    title,
+    preview,
+    contentLength,
+    chunkCount,
+    isCompressed,
+    createdAt,
+    updatedAt,
+  ];
 }
 
 class LazyNote extends Equatable {
@@ -194,11 +194,11 @@ class PaginatedNotes extends Equatable {
 
   @override
   List<Object?> get props => [
-        notes,
-        currentPage,
-        totalPages,
-        totalCount,
-        hasMore,
-        isLoading,
-      ];
+    notes,
+    currentPage,
+    totalPages,
+    totalCount,
+    hasMore,
+    isLoading,
+  ];
 }

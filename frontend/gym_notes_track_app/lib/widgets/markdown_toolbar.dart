@@ -206,13 +206,17 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
     });
 
     final renderBox = context.findRenderObject() as RenderBox?;
-    final overlay = Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
+    final overlay =
+        Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
     if (renderBox == null || overlay == null) return;
 
     final position = RelativeRect.fromRect(
       Rect.fromPoints(
         renderBox.localToGlobal(Offset.zero, ancestor: overlay),
-        renderBox.localToGlobal(renderBox.size.bottomRight(Offset.zero), ancestor: overlay),
+        renderBox.localToGlobal(
+          renderBox.size.bottomRight(Offset.zero),
+          ancestor: overlay,
+        ),
       ),
       Offset.zero & overlay.size,
     );
@@ -226,10 +230,7 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
           value: s,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Header $level'),
-              Text(s.beforeText.trim()),
-            ],
+            children: [Text('Header $level'), Text(s.beforeText.trim())],
           ),
         );
       }).toList(),
@@ -382,7 +383,8 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
         minDistance = distance;
         if (globalPosition.dx < itemCenter.dx ||
             (globalPosition.dy < itemCenter.dy &&
-                (globalPosition.dx - itemCenter.dx).abs() < itemSize.width / 2)) {
+                (globalPosition.dx - itemCenter.dx).abs() <
+                    itemSize.width / 2)) {
           newTargetIndex = i;
         } else {
           newTargetIndex = i + 1;
@@ -490,7 +492,9 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
               final indices = entry.value;
 
               return Padding(
-                padding: EdgeInsets.only(bottom: rowIndex < rows.length - 1 ? 8 : 0),
+                padding: EdgeInsets.only(
+                  bottom: rowIndex < rows.length - 1 ? 8 : 0,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: indices.asMap().entries.map((itemEntry) {
@@ -552,8 +556,10 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
                                 color: Theme.of(context).colorScheme.surface,
                                 child: child,
                               ),
-                              childWhenDragging:
-                                  Opacity(opacity: 0.3, child: child),
+                              childWhenDragging: Opacity(
+                                opacity: 0.3,
+                                child: child,
+                              ),
                               child: Opacity(
                                 opacity: isDragging ? 0.3 : 1.0,
                                 child: child,

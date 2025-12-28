@@ -65,7 +65,9 @@ class _SearchPageState extends State<SearchPage> {
             hintText: AppLocalizations.of(context)!.search,
             border: InputBorder.none,
             hintStyle: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.6),
             ),
           ),
           style: const TextStyle(fontSize: 18),
@@ -263,13 +265,15 @@ class _SearchResultCard extends StatelessWidget {
         spans.add(TextSpan(text: text.substring(start, index)));
       }
 
-      spans.add(TextSpan(
-        text: text.substring(index, index + query.length),
-        style: TextStyle(
-          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-          color: Theme.of(context).colorScheme.onPrimaryContainer,
+      spans.add(
+        TextSpan(
+          text: text.substring(index, index + query.length),
+          style: TextStyle(
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
+          ),
         ),
-      ));
+      );
 
       start = index + query.length;
     }

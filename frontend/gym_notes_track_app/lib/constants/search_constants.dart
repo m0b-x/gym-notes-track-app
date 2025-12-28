@@ -1,6 +1,5 @@
 class SearchConstants {
-
-static const diacriticsMap = {
+  static const diacriticsMap = {
     'À': 'A',
     'Á': 'A',
     'Â': 'A',

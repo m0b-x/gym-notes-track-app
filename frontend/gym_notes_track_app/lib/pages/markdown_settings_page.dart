@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import '../l10n/app_localizations.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../utils/custom_snackbar.dart';
 import '../config/available_icons.dart';
 import '../widgets/markdown_toolbar.dart';
 import '../utils/markdown_settings_utils.dart';
+import '../widgets/interactive_markdown.dart';
 
 class MarkdownSettingsPage extends StatefulWidget {
   final List<CustomMarkdownShortcut> allShortcuts;
@@ -686,6 +688,7 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
         _beforeFocusNode.hasFocus || _afterFocusNode.hasFocus;
 
     return AlertDialog(
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
       title: Text(
         widget.shortcut == null
             ? AppLocalizations.of(context)!.newShortcut
@@ -846,14 +849,15 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          AppLocalizations.of(context)!
-                              .charactersCount(_beforeController.text.length, _maxChars),
+                          AppLocalizations.of(context)!.charactersCount(
+                            _beforeController.text.length,
+                            _maxChars,
+                          ),
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ),
@@ -885,27 +889,58 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          AppLocalizations.of(context)!
-                              .charactersCount(_afterController.text.length, _maxChars),
+                          AppLocalizations.of(context)!.charactersCount(
+                            _afterController.text.length,
+                            _maxChars,
+                          ),
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        _insertType == 'date'
-                            ? 'Preview: ${_beforeController.text}${DateFormat('MMMM d, yyyy').format(DateTime.now())}${_afterController.text}'
-                            : 'Preview: ${_beforeController.text}text${_afterController.text}',
+                        AppLocalizations.of(context)!.preview,
                         style: TextStyle(
-                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
                           color: Theme.of(
                             context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.6),
+                          ).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outlineVariant,
+                          ),
+                        ),
+                        child: InteractiveMarkdown(
+                          data: _insertType == 'date'
+                              ? '${_beforeController.text}${DateFormat('MMMM d, yyyy').format(DateTime.now())}${_afterController.text}'
+                              : '${_beforeController.text}text${_afterController.text}',
+                          styleSheet: MarkdownStyleSheet(
+                            p: const TextStyle(fontSize: 14),
+                            h1: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            h2: const TextStyle(
+                              fontSize: 21,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            h3: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
                     ],

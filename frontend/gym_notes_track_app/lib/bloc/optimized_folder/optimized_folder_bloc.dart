@@ -42,12 +42,19 @@ class OptimizedFolderBloc
         sortOrder: event.sortOrder,
       );
 
-      emit(OptimizedFolderLoaded(
-        paginatedFolders: paginatedFolders,
-        parentId: event.parentId,
-      ));
+      emit(
+        OptimizedFolderLoaded(
+          paginatedFolders: paginatedFolders,
+          parentId: event.parentId,
+        ),
+      );
     } catch (e) {
-      emit(OptimizedFolderError('Failed to load folders: $e', parentId: event.parentId));
+      emit(
+        OptimizedFolderError(
+          'Failed to load folders: $e',
+          parentId: event.parentId,
+        ),
+      );
     }
   }
 
@@ -61,7 +68,12 @@ class OptimizedFolderBloc
     if (!currentState.paginatedFolders.hasMore) return;
     if (currentState.isLoadingMore) return;
 
-    emit(currentState.copyWith(isLoadingMore: true, parentId: event.parentId ?? _currentParentId));
+    emit(
+      currentState.copyWith(
+        isLoadingMore: true,
+        parentId: event.parentId ?? _currentParentId,
+      ),
+    );
 
     try {
       _currentPage++;
@@ -89,7 +101,12 @@ class OptimizedFolderBloc
         ),
       );
     } catch (e) {
-      emit(currentState.copyWith(isLoadingMore: false, parentId: event.parentId ?? _currentParentId));
+      emit(
+        currentState.copyWith(
+          isLoadingMore: false,
+          parentId: event.parentId ?? _currentParentId,
+        ),
+      );
     }
   }
 
@@ -105,7 +122,12 @@ class OptimizedFolderBloc
 
       add(RefreshFolders(parentId: event.parentId));
     } catch (e) {
-      emit(OptimizedFolderError('Failed to create folder: $e', parentId: event.parentId));
+      emit(
+        OptimizedFolderError(
+          'Failed to create folder: $e',
+          parentId: event.parentId,
+        ),
+      );
     }
   }
 
@@ -123,7 +145,12 @@ class OptimizedFolderBloc
 
       add(RefreshFolders(parentId: folder?.parentId));
     } catch (e) {
-      emit(OptimizedFolderError('Failed to update folder: $e', parentId: _currentParentId));
+      emit(
+        OptimizedFolderError(
+          'Failed to update folder: $e',
+          parentId: _currentParentId,
+        ),
+      );
     }
   }
 
@@ -136,7 +163,12 @@ class OptimizedFolderBloc
 
       add(RefreshFolders(parentId: event.parentId));
     } catch (e) {
-      emit(OptimizedFolderError('Failed to delete folder: $e', parentId: event.parentId));
+      emit(
+        OptimizedFolderError(
+          'Failed to delete folder: $e',
+          parentId: event.parentId,
+        ),
+      );
     }
   }
 

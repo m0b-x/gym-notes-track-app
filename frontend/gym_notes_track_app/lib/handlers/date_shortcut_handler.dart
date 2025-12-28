@@ -18,7 +18,8 @@ class DateShortcutHandler implements MarkdownShortcutHandler {
     final cursorPos = selection.start;
 
     final insertText = shortcut.beforeText + currentDate + shortcut.afterText;
-    final newText = text.substring(0, cursorPos) + insertText + text.substring(cursorPos);
+    final newText =
+        text.substring(0, cursorPos) + insertText + text.substring(cursorPos);
 
     controller.value = TextEditingValue(
       text: newText,

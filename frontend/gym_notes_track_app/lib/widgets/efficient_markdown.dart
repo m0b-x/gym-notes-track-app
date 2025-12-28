@@ -88,20 +88,24 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
 
       if (line.trim().startsWith('```')) {
         inCodeBlock = !inCodeBlock;
-        parsedLines.add(MarkdownLine(
-          index: i,
-          content: line,
-          type: MarkdownLineType.codeBlock,
-        ));
+        parsedLines.add(
+          MarkdownLine(
+            index: i,
+            content: line,
+            type: MarkdownLineType.codeBlock,
+          ),
+        );
         continue;
       }
 
       if (inCodeBlock) {
-        parsedLines.add(MarkdownLine(
-          index: i,
-          content: line,
-          type: MarkdownLineType.codeBlock,
-        ));
+        parsedLines.add(
+          MarkdownLine(
+            index: i,
+            content: line,
+            type: MarkdownLineType.codeBlock,
+          ),
+        );
         continue;
       }
 
@@ -195,7 +199,9 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
       );
     }
 
-    if (trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('• ')) {
+    if (trimmed.startsWith('- ') ||
+        trimmed.startsWith('* ') ||
+        trimmed.startsWith('• ')) {
       final indent = line.length - line.trimLeft().length;
       return MarkdownLine(
         index: index,
@@ -393,7 +399,9 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
             line.content,
             TextStyle(
               fontStyle: FontStyle.italic,
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
         );
@@ -429,7 +437,11 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
 
   Widget _buildCheckbox(BuildContext context, MarkdownLine line) {
     return Padding(
-      padding: EdgeInsets.only(left: line.indentLevel * 16.0, top: 4, bottom: 4),
+      padding: EdgeInsets.only(
+        left: line.indentLevel * 16.0,
+        top: 4,
+        bottom: 4,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -440,11 +452,15 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
             child: Padding(
               padding: const EdgeInsets.only(right: 8, top: 2),
               child: Icon(
-                line.isChecked ? Icons.check_box : Icons.check_box_outline_blank,
+                line.isChecked
+                    ? Icons.check_box
+                    : Icons.check_box_outline_blank,
                 size: 20,
                 color: line.isChecked
                     ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    : Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ),
@@ -457,9 +473,13 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
                 line.content,
                 style: TextStyle(
                   fontSize: 16,
-                  decoration: line.isChecked ? TextDecoration.lineThrough : null,
+                  decoration: line.isChecked
+                      ? TextDecoration.lineThrough
+                      : null,
                   color: line.isChecked
-                      ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)
+                      ? Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5)
                       : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
@@ -507,11 +527,19 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
       (RegExp(r'__(.+?)__'), const TextStyle(fontWeight: FontWeight.bold)),
       (RegExp(r'\*(.+?)\*'), const TextStyle(fontStyle: FontStyle.italic)),
       (RegExp(r'_(.+?)_'), const TextStyle(fontStyle: FontStyle.italic)),
-      (RegExp(r'~~(.+?)~~'), const TextStyle(decoration: TextDecoration.lineThrough)),
-      (RegExp(r'`(.+?)`'), TextStyle(
-        fontFamily: 'monospace',
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-      )),
+      (
+        RegExp(r'~~(.+?)~~'),
+        const TextStyle(decoration: TextDecoration.lineThrough),
+      ),
+      (
+        RegExp(r'`(.+?)`'),
+        TextStyle(
+          fontFamily: 'monospace',
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest,
+        ),
+      ),
     ];
 
     int currentIndex = 0;
@@ -533,25 +561,30 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
         }
       }
 
-      if (earliestMatch != null && earliestMatchStart != null && matchStyle != null) {
+      if (earliestMatch != null &&
+          earliestMatchStart != null &&
+          matchStyle != null) {
         if (earliestMatchStart > currentIndex) {
-          spans.add(TextSpan(
-            text: text.substring(currentIndex, earliestMatchStart),
-            style: defaultStyle,
-          ));
+          spans.add(
+            TextSpan(
+              text: text.substring(currentIndex, earliestMatchStart),
+              style: defaultStyle,
+            ),
+          );
         }
 
-        spans.add(TextSpan(
-          text: earliestMatch.group(1),
-          style: defaultStyle.merge(matchStyle),
-        ));
+        spans.add(
+          TextSpan(
+            text: earliestMatch.group(1),
+            style: defaultStyle.merge(matchStyle),
+          ),
+        );
 
         currentIndex = earliestMatchStart + earliestMatch.group(0)!.length;
       } else {
-        spans.add(TextSpan(
-          text: text.substring(currentIndex),
-          style: defaultStyle,
-        ));
+        spans.add(
+          TextSpan(text: text.substring(currentIndex), style: defaultStyle),
+        );
         break;
       }
     }
@@ -581,7 +614,8 @@ class EfficientMarkdownEditor extends StatefulWidget {
   });
 
   @override
-  State<EfficientMarkdownEditor> createState() => _EfficientMarkdownEditorState();
+  State<EfficientMarkdownEditor> createState() =>
+      _EfficientMarkdownEditorState();
 }
 
 class _EfficientMarkdownEditorState extends State<EfficientMarkdownEditor> {
@@ -607,9 +641,18 @@ class _EfficientMarkdownEditorState extends State<EfficientMarkdownEditor> {
       },
       styleSheet: MarkdownStyleSheet(
         p: TextStyle(fontSize: widget.previewFontSize),
-        h1: TextStyle(fontSize: widget.previewFontSize * 2, fontWeight: FontWeight.bold),
-        h2: TextStyle(fontSize: widget.previewFontSize * 1.5, fontWeight: FontWeight.bold),
-        h3: TextStyle(fontSize: widget.previewFontSize * 1.25, fontWeight: FontWeight.bold),
+        h1: TextStyle(
+          fontSize: widget.previewFontSize * 2,
+          fontWeight: FontWeight.bold,
+        ),
+        h2: TextStyle(
+          fontSize: widget.previewFontSize * 1.5,
+          fontWeight: FontWeight.bold,
+        ),
+        h3: TextStyle(
+          fontSize: widget.previewFontSize * 1.25,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

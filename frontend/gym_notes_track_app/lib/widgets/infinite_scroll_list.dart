@@ -92,9 +92,7 @@ class _InfiniteScrollListState<T> extends State<InfiniteScrollList<T>> {
     return widget.loadingWidget ??
         const Padding(
           padding: EdgeInsets.all(16.0),
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
+          child: Center(child: CircularProgressIndicator()),
         );
   }
 }
@@ -120,7 +118,8 @@ class InfiniteScrollSliver<T> extends StatefulWidget {
   });
 
   @override
-  State<InfiniteScrollSliver<T>> createState() => _InfiniteScrollSliverState<T>();
+  State<InfiniteScrollSliver<T>> createState() =>
+      _InfiniteScrollSliverState<T>();
 }
 
 class _InfiniteScrollSliverState<T> extends State<InfiniteScrollSliver<T>> {
@@ -146,22 +145,19 @@ class _InfiniteScrollSliverState<T> extends State<InfiniteScrollSliver<T>> {
   @override
   Widget build(BuildContext context) {
     return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          if (index >= widget.items.length) {
-            if (widget.isLoadingMore) {
-              return const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            return const SizedBox.shrink();
+      delegate: SliverChildBuilderDelegate((context, index) {
+        if (index >= widget.items.length) {
+          if (widget.isLoadingMore) {
+            return const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(child: CircularProgressIndicator()),
+            );
           }
+          return const SizedBox.shrink();
+        }
 
-          return widget.itemBuilder(context, widget.items[index], index);
-        },
-        childCount: widget.items.length + (widget.hasMore ? 1 : 0),
-      ),
+        return widget.itemBuilder(context, widget.items[index], index);
+      }, childCount: widget.items.length + (widget.hasMore ? 1 : 0)),
     );
   }
 }

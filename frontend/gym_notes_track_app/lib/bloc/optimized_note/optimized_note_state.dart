@@ -48,7 +48,12 @@ class OptimizedNoteLoaded extends OptimizedNoteState {
   }
 
   @override
-  List<Object?> get props => [paginatedNotes, loadedContent, isLoadingMore, folderId];
+  List<Object?> get props => [
+    paginatedNotes,
+    loadedContent,
+    isLoadingMore,
+    folderId,
+  ];
 }
 
 class OptimizedNoteContentLoaded extends OptimizedNoteState {

@@ -66,10 +66,9 @@ class ChunkedStorageService {
     final prefs = await SharedPreferences.getInstance();
     final allChunks = await _loadAllChunks(prefs);
 
-    final noteChunks = allChunks
-        .where((chunk) => chunk.noteId == noteId)
-        .toList()
-      ..sort((a, b) => a.index.compareTo(b.index));
+    final noteChunks =
+        allChunks.where((chunk) => chunk.noteId == noteId).toList()
+          ..sort((a, b) => a.index.compareTo(b.index));
 
     if (noteChunks.isEmpty) {
       return '';
@@ -148,13 +147,15 @@ class ChunkedStorageService {
           ? CompressionUtils.compressToBase64(chunkContent)
           : chunkContent;
 
-      chunks.add(ContentChunk(
-        id: '${noteId}_chunk_$index',
-        noteId: noteId,
-        index: index,
-        content: processedContent,
-        isCompressed: shouldCompress,
-      ));
+      chunks.add(
+        ContentChunk(
+          id: '${noteId}_chunk_$index',
+          noteId: noteId,
+          index: index,
+          content: processedContent,
+          isCompressed: shouldCompress,
+        ),
+      );
 
       position = end;
       index++;

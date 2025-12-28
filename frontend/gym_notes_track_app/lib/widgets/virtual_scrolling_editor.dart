@@ -97,12 +97,14 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
 
     int offset = 0;
     for (int i = 0; i < lines.length; i++) {
-      virtualLines.add(VirtualLine(
-        lineNumber: i,
-        content: lines[i],
-        startOffset: offset,
-        endOffset: offset + lines[i].length,
-      ));
+      virtualLines.add(
+        VirtualLine(
+          lineNumber: i,
+          content: lines[i],
+          startOffset: offset,
+          endOffset: offset + lines[i].length,
+        ),
+      );
       offset += lines[i].length + 1;
     }
 
@@ -114,7 +116,8 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
     final cursorOffset = _hiddenController.selection.baseOffset;
 
     for (int i = 0; i < _lines.length; i++) {
-      if (cursorOffset <= _lines[i].endOffset + (i < _lines.length - 1 ? 1 : 0)) {
+      if (cursorOffset <=
+          _lines[i].endOffset + (i < _lines.length - 1 ? 1 : 0)) {
         _cursorLine = i;
         _cursorColumn = cursorOffset - _lines[i].startOffset;
         break;
@@ -142,10 +145,14 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
     final scrollOffset = _scrollController.offset;
 
     _firstVisibleLine = (scrollOffset / widget.lineHeight).floor();
-    _firstVisibleLine = (_firstVisibleLine - widget.visibleLinesBuffer).clamp(0, _lines.length - 1);
+    _firstVisibleLine = (_firstVisibleLine - widget.visibleLinesBuffer).clamp(
+      0,
+      _lines.length - 1,
+    );
 
     final visibleCount = (viewportHeight / widget.lineHeight).ceil();
-    _lastVisibleLine = _firstVisibleLine + visibleCount + widget.visibleLinesBuffer * 2;
+    _lastVisibleLine =
+        _firstVisibleLine + visibleCount + widget.visibleLinesBuffer * 2;
     _lastVisibleLine = _lastVisibleLine.clamp(0, _lines.length - 1);
   }
 
@@ -178,7 +185,9 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
     final offset = textPainter.getPositionForOffset(localPosition);
     final newCursorOffset = line.startOffset + offset.offset;
 
-    _hiddenController.selection = TextSelection.collapsed(offset: newCursorOffset);
+    _hiddenController.selection = TextSelection.collapsed(
+      offset: newCursorOffset,
+    );
     _updateCursorPosition();
     setState(() {});
   }
@@ -192,16 +201,20 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
 
       if (event.logicalKey == LogicalKeyboardKey.backspace) {
         if (selection.isCollapsed && selection.baseOffset > 0) {
-          final newText = text.substring(0, selection.baseOffset - 1) +
+          final newText =
+              text.substring(0, selection.baseOffset - 1) +
               text.substring(selection.baseOffset);
           _hiddenController.value = TextEditingValue(
             text: newText,
-            selection: TextSelection.collapsed(offset: selection.baseOffset - 1),
+            selection: TextSelection.collapsed(
+              offset: selection.baseOffset - 1,
+            ),
           );
         }
       } else if (event.logicalKey == LogicalKeyboardKey.delete) {
         if (selection.isCollapsed && selection.baseOffset < text.length) {
-          final newText = text.substring(0, selection.baseOffset) +
+          final newText =
+              text.substring(0, selection.baseOffset) +
               text.substring(selection.baseOffset + 1);
           _hiddenController.value = TextEditingValue(
             text: newText,
@@ -249,7 +262,8 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
     final selection = _hiddenController.selection;
     final currentText = _hiddenController.text;
 
-    final newText = currentText.substring(0, selection.baseOffset) +
+    final newText =
+        currentText.substring(0, selection.baseOffset) +
         text +
         currentText.substring(selection.extentOffset);
 
@@ -290,7 +304,8 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
                   padding: const EdgeInsets.all(8.0),
                   child: Text(
                     widget.hintText!,
-                    style: widget.hintStyle ??
+                    style:
+                        widget.hintStyle ??
                         TextStyle(
                           color: Theme.of(context).hintColor,
                           fontSize: 16,
@@ -324,7 +339,11 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
 
     final widgets = <Widget>[];
 
-    for (int i = _firstVisibleLine; i <= _lastVisibleLine && i < _lines.length; i++) {
+    for (
+      int i = _firstVisibleLine;
+      i <= _lastVisibleLine && i < _lines.length;
+      i++
+    ) {
       final line = _lines[i];
 
       widgets.add(
@@ -340,7 +359,9 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
               alignment: Alignment.centerLeft,
               child: Text(
                 line.content.isEmpty ? ' ' : line.content,
-                style: widget.textStyle ?? const TextStyle(fontSize: 16, height: 1.5),
+                style:
+                    widget.textStyle ??
+                    const TextStyle(fontSize: 16, height: 1.5),
                 maxLines: 1,
                 overflow: TextOverflow.visible,
               ),
@@ -362,7 +383,10 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
 
     final textPainter = TextPainter(
       text: TextSpan(
-        text: line.content.substring(0, _cursorColumn.clamp(0, line.content.length)),
+        text: line.content.substring(
+          0,
+          _cursorColumn.clamp(0, line.content.length),
+        ),
         style: widget.textStyle ?? const TextStyle(fontSize: 16),
       ),
       textDirection: TextDirection.ltr,
@@ -445,10 +469,14 @@ class _VirtualTextViewerState extends State<VirtualTextViewer> {
     final scrollOffset = _scrollController.offset;
 
     _firstVisibleLine = (scrollOffset / widget.lineHeight).floor();
-    _firstVisibleLine = (_firstVisibleLine - widget.visibleLinesBuffer).clamp(0, _lines.length - 1);
+    _firstVisibleLine = (_firstVisibleLine - widget.visibleLinesBuffer).clamp(
+      0,
+      _lines.length - 1,
+    );
 
     final visibleCount = (viewportHeight / widget.lineHeight).ceil();
-    _lastVisibleLine = _firstVisibleLine + visibleCount + widget.visibleLinesBuffer * 2;
+    _lastVisibleLine =
+        _firstVisibleLine + visibleCount + widget.visibleLinesBuffer * 2;
     _lastVisibleLine = _lastVisibleLine.clamp(0, _lines.length - 1);
   }
 
@@ -468,9 +496,7 @@ class _VirtualTextViewerState extends State<VirtualTextViewer> {
             SliverToBoxAdapter(
               child: SizedBox(
                 height: totalHeight,
-                child: Stack(
-                  children: _buildVisibleLines(),
-                ),
+                child: Stack(children: _buildVisibleLines()),
               ),
             ),
           ],
@@ -482,7 +508,11 @@ class _VirtualTextViewerState extends State<VirtualTextViewer> {
   List<Widget> _buildVisibleLines() {
     final widgets = <Widget>[];
 
-    for (int i = _firstVisibleLine; i <= _lastVisibleLine && i < _lines.length; i++) {
+    for (
+      int i = _firstVisibleLine;
+      i <= _lastVisibleLine && i < _lines.length;
+      i++
+    ) {
       final line = _lines[i];
 
       widgets.add(
@@ -491,13 +521,16 @@ class _VirtualTextViewerState extends State<VirtualTextViewer> {
           left: 0,
           right: 0,
           height: widget.lineHeight,
-          child: widget.lineBuilder?.call(line, i) ??
+          child:
+              widget.lineBuilder?.call(line, i) ??
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 alignment: Alignment.centerLeft,
                 child: Text(
                   line.isEmpty ? ' ' : line,
-                  style: widget.textStyle ?? const TextStyle(fontSize: 16, height: 1.5),
+                  style:
+                      widget.textStyle ??
+                      const TextStyle(fontSize: 16, height: 1.5),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

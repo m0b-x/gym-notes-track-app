@@ -6,8 +6,6 @@ import '../utils/isolate_worker.dart';
 import 'note_storage_service.dart';
 
 String removeDiacritics(String text) {
-
-
   final buffer = StringBuffer();
   for (int i = 0; i < text.length; i++) {
     final char = text[i];

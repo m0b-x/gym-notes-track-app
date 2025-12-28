@@ -21,7 +21,8 @@ class DefaultShortcutHandler implements MarkdownShortcutHandler {
       selectedText = text.substring(start, end);
     }
 
-    final newText = text.substring(0, start) +
+    final newText =
+        text.substring(0, start) +
         shortcut.beforeText +
         selectedText +
         shortcut.afterText +
