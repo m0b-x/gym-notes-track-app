@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../l10n/app_localizations.dart';
@@ -394,6 +395,7 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
   late FocusNode _afterFocusNode;
   late IconData _selectedIcon;
   late String _insertType;
+  static const int _maxChars = 250;
   List<CustomMarkdownShortcut> _shortcuts = [];
   TextEditingController? _activeController;
   FocusNode? _activeFocusNode;
@@ -418,9 +420,11 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
     _beforeController.addListener(
       () => _handleTextChange(_beforeController, true),
     );
+    _beforeController.addListener(() => setState(() {}));
     _afterController.addListener(
       () => _handleTextChange(_afterController, false),
     );
+    _afterController.addListener(() => setState(() {}));
     _beforeFocusNode = FocusNode();
     _afterFocusNode = FocusNode();
 
@@ -697,7 +701,6 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () {
-                  // Unfocus text fields when tapping outside
                   _beforeFocusNode.unfocus();
                   _afterFocusNode.unfocus();
                 },
@@ -823,6 +826,8 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                         minLines: 3,
                         keyboardType: TextInputType.multiline,
                         textInputAction: TextInputAction.newline,
+                        maxLength: _maxChars,
+                        maxLengthEnforcement: MaxLengthEnforcement.enforced,
                         decoration: InputDecoration(
                           labelText: _insertType == 'date'
                               ? AppLocalizations.of(context)!.beforeDate
@@ -834,9 +839,25 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                               : AppLocalizations.of(context)!.markdownStartHint,
                           border: const OutlineInputBorder(),
                           alignLabelWithHint: true,
+                          counterText: '',
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          AppLocalizations.of(context)!
+                              .charactersCount(_beforeController.text.length, _maxChars),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
                       TextField(
                         controller: _afterController,
                         focusNode: _afterFocusNode,
@@ -844,6 +865,8 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                         minLines: 3,
                         keyboardType: TextInputType.multiline,
                         textInputAction: TextInputAction.newline,
+                        maxLength: _maxChars,
+                        maxLengthEnforcement: MaxLengthEnforcement.enforced,
                         decoration: InputDecoration(
                           labelText: _insertType == 'date'
                               ? AppLocalizations.of(context)!.afterDate
@@ -855,6 +878,22 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                               : AppLocalizations.of(context)!.markdownStartHint,
                           border: const OutlineInputBorder(),
                           alignLabelWithHint: true,
+                          counterText: '',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          AppLocalizations.of(context)!
+                              .charactersCount(_afterController.text.length, _maxChars),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),

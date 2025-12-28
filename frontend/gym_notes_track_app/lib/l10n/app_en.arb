@@ -627,4 +627,13 @@
   "@tapPlusToCreate": {
     "description": "Hint to tap the plus button"
   }
+  ,
+  "charactersCount": "{current}/{max} characters",
+  "@charactersCount": {
+    "description": "Character count display",
+    "placeholders": {
+      "current": { "type": "int" },
+      "max": { "type": "int" }
+    }
+  }
 }

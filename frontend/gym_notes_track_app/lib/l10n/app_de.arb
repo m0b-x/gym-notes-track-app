@@ -212,6 +212,14 @@
   "@tapToAddShortcut": {
     "description": "Hint to add shortcuts"
   },
+    "charactersCount": "{current}/{max} Zeichen",
+    "@charactersCount": {
+      "description": "Character count display",
+      "placeholders": {
+        "current": { "type": "int" },
+        "max": { "type": "int" }
+      }
+    },
   "deleteShortcut": "Verknüpfung löschen",
   "@deleteShortcut": {
     "description": "Delete shortcut dialog title"
