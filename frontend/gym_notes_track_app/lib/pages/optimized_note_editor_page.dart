@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../l10n/app_localizations.dart';
 import '../bloc/optimized_note/optimized_note_bloc.dart';
@@ -15,7 +14,9 @@ import '../widgets/markdown_toolbar.dart';
 import '../widgets/efficient_markdown.dart';
 import '../widgets/interactive_markdown.dart';
 import '../widgets/virtual_scrolling_editor.dart';
+import '../widgets/scroll_progress_indicator.dart';
 import '../config/default_markdown_shortcuts.dart';
+import '../database/database.dart';
 import '../constants/app_constants.dart';
 import 'markdown_settings_page.dart';
 
@@ -40,6 +41,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   late TextEditingController _titleController;
   late TextEditingController _contentController;
   late FocusNode _contentFocusNode;
+  late ScrollController _editorScrollController;
+  final GlobalKey<VirtualScrollingEditorState> _virtualEditorKey = GlobalKey();
 
   bool _hasChanges = false;
   bool _isPreviewMode = false;
@@ -66,6 +69,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _contentController = TextEditingController();
     _previousText = '';
     _contentFocusNode = FocusNode();
+    _editorScrollController = ScrollController();
 
     _titleController.addListener(_onTextChanged);
     _contentController.addListener(_onTextChanged);
@@ -161,6 +165,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _titleController.dispose();
     _contentController.dispose();
     _contentFocusNode.dispose();
+    _editorScrollController.dispose();
     _textHistory?.dispose();
     super.dispose();
   }
@@ -326,12 +331,36 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                 child: IconButton(
                   icon: Icon(_isPreviewMode ? Icons.edit : Icons.visibility),
                   onPressed: () {
+                    // Save scroll position ratio before switching modes
+                    double scrollRatio = 0;
+                    if (_editorScrollController.hasClients) {
+                      final maxScroll =
+                          _editorScrollController.position.maxScrollExtent;
+                      if (maxScroll > 0) {
+                        scrollRatio =
+                            _editorScrollController.offset / maxScroll;
+                      }
+                    }
+
                     setState(() {
                       _isPreviewMode = !_isPreviewMode;
                       if (!_isPreviewMode) {
                         Future.delayed(AppConstants.shortDelay, () {
                           _contentFocusNode.requestFocus();
                         });
+                      }
+                    });
+
+                    // Restore scroll position after mode switch
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (_editorScrollController.hasClients) {
+                        final newMaxScroll =
+                            _editorScrollController.position.maxScrollExtent;
+                        final targetOffset = (scrollRatio * newMaxScroll).clamp(
+                          0.0,
+                          newMaxScroll,
+                        );
+                        _editorScrollController.jumpTo(targetOffset);
                       }
                     });
                   },
@@ -467,90 +496,151 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         : _contentController.text;
 
     if (_useVirtualScrolling) {
-      return EfficientMarkdownView(
-        data: content,
-        selectable: true,
-        styleSheet: MarkdownStyleSheet(
-          p: TextStyle(fontSize: _previewFontSize),
-          h1: TextStyle(
-            fontSize: _previewFontSize * 2,
-            fontWeight: FontWeight.bold,
+      return Stack(
+        children: [
+          EfficientMarkdownView(
+            data: content,
+            selectable: true,
+            scrollController: _editorScrollController,
+            styleSheet: MarkdownStyleSheet(
+              p: TextStyle(fontSize: _previewFontSize),
+              h1: TextStyle(
+                fontSize: _previewFontSize * 2,
+                fontWeight: FontWeight.bold,
+              ),
+              h2: TextStyle(
+                fontSize: _previewFontSize * 1.5,
+                fontWeight: FontWeight.bold,
+              ),
+              h3: TextStyle(
+                fontSize: _previewFontSize * 1.25,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            onCheckboxChanged: (updatedContent) {
+              setState(() {
+                _contentController.text = updatedContent;
+                _hasChanges = true;
+              });
+            },
           ),
-          h2: TextStyle(
-            fontSize: _previewFontSize * 1.5,
-            fontWeight: FontWeight.bold,
+          Positioned(
+            top: 8,
+            bottom: 8,
+            right: 0,
+            child: ScrollProgressIndicator(
+              scrollController: _editorScrollController,
+            ),
           ),
-          h3: TextStyle(
-            fontSize: _previewFontSize * 1.25,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        onCheckboxChanged: (updatedContent) {
-          setState(() {
-            _contentController.text = updatedContent;
-            _hasChanges = true;
-          });
-        },
+        ],
       );
     }
 
-    return InteractiveMarkdown(
-      data: content,
-      selectable: true,
-      padding: const EdgeInsets.all(16),
-      styleSheet: MarkdownStyleSheet(
-        p: TextStyle(fontSize: _previewFontSize),
-        h1: TextStyle(
-          fontSize: _previewFontSize * 2,
-          fontWeight: FontWeight.bold,
+    return Stack(
+      children: [
+        InteractiveMarkdown(
+          data: content,
+          selectable: true,
+          scrollController: _editorScrollController,
+          padding: const EdgeInsets.all(16),
+          styleSheet: MarkdownStyleSheet(
+            p: TextStyle(fontSize: _previewFontSize),
+            h1: TextStyle(
+              fontSize: _previewFontSize * 2,
+              fontWeight: FontWeight.bold,
+            ),
+            h2: TextStyle(
+              fontSize: _previewFontSize * 1.5,
+              fontWeight: FontWeight.bold,
+            ),
+            h3: TextStyle(
+              fontSize: _previewFontSize * 1.25,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          onCheckboxChanged: (updatedContent) {
+            setState(() {
+              _contentController.text = updatedContent;
+              _hasChanges = true;
+            });
+          },
         ),
-        h2: TextStyle(
-          fontSize: _previewFontSize * 1.5,
-          fontWeight: FontWeight.bold,
+        Positioned(
+          top: 8,
+          bottom: 8,
+          right: 0,
+          child: ScrollProgressIndicator(
+            scrollController: _editorScrollController,
+          ),
         ),
-        h3: TextStyle(
-          fontSize: _previewFontSize * 1.25,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      onCheckboxChanged: (updatedContent) {
-        setState(() {
-          _contentController.text = updatedContent;
-          _hasChanges = true;
-        });
-      },
+      ],
     );
   }
 
   Widget _buildEditor() {
     if (_useVirtualScrolling) {
-      return VirtualScrollingEditor(
-        initialContent: _contentController.text,
-        focusNode: _contentFocusNode,
-        hintText: AppLocalizations.of(context)!.startWriting,
-        textStyle: const TextStyle(fontSize: 16, height: 1.5),
-        onChanged: (value) {
-          _contentController.text = value;
-          _handleTextChange();
-        },
+      return Stack(
+        children: [
+          VirtualScrollingEditor(
+            key: _virtualEditorKey,
+            initialContent: _contentController.text,
+            focusNode: _contentFocusNode,
+            scrollController: _editorScrollController,
+            hintText: AppLocalizations.of(context)!.startWriting,
+            textStyle: const TextStyle(fontSize: 16, height: 1.5),
+            onChanged: (value) {
+              _contentController.text = value;
+              _handleTextChange();
+            },
+          ),
+          Positioned(
+            top: 8,
+            bottom: 8,
+            right: 0,
+            child: ScrollProgressIndicator(
+              scrollController: _editorScrollController,
+            ),
+          ),
+        ],
       );
     }
 
-    return TextField(
-      controller: _contentController,
-      focusNode: _contentFocusNode,
-      decoration: InputDecoration(
-        hintText: AppLocalizations.of(context)!.startWriting,
-        border: InputBorder.none,
-        contentPadding: const EdgeInsets.all(0),
-      ),
-      maxLines: null,
-      expands: true,
-      textAlignVertical: TextAlignVertical.top,
-      keyboardType: TextInputType.multiline,
-      textInputAction: TextInputAction.newline,
-      style: const TextStyle(fontSize: 16, height: 1.5),
-      onChanged: (_) => _handleTextChange(),
+    return Stack(
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              controller: _editorScrollController,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: TextField(
+                  controller: _contentController,
+                  focusNode: _contentFocusNode,
+                  decoration: InputDecoration(
+                    hintText: AppLocalizations.of(context)!.startWriting,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.all(0),
+                  ),
+                  maxLines: null,
+                  textAlignVertical: TextAlignVertical.top,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.newline,
+                  style: const TextStyle(fontSize: 16, height: 1.5),
+                  onChanged: (_) => _handleTextChange(),
+                ),
+              ),
+            );
+          },
+        ),
+        Positioned(
+          top: 8,
+          bottom: 8,
+          right: 0,
+          child: ScrollProgressIndicator(
+            scrollController: _editorScrollController,
+          ),
+        ),
+      ],
     );
   }
 
@@ -620,8 +710,16 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   void _handleShortcut(CustomMarkdownShortcut shortcut) {
-    final text = _contentController.text;
-    final selection = _contentController.selection;
+    // Get the appropriate controller - use VirtualScrollingEditor's if active
+    final TextEditingController activeController;
+    if (_useVirtualScrolling && _virtualEditorKey.currentState != null) {
+      activeController = _virtualEditorKey.currentState!.controller;
+    } else {
+      activeController = _contentController;
+    }
+
+    final text = activeController.text;
+    final selection = activeController.selection;
     final start = selection.start;
     final end = selection.end;
 
@@ -658,19 +756,24 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       }
     }
 
-    _contentController.value = TextEditingValue(
+    activeController.value = TextEditingValue(
       text: newText,
       selection: TextSelection.collapsed(offset: newCursor),
     );
+
+    // Sync back to _contentController if using virtual editor
+    if (_useVirtualScrolling && activeController != _contentController) {
+      _contentController.text = newText;
+    }
 
     _onTextChanged();
     _contentFocusNode.requestFocus();
   }
 
   Future<void> _loadCustomShortcuts() async {
-    final prefs = await SharedPreferences.getInstance();
-    final shortcutsJson = prefs.getString(
-      AppConstants.markdownShortcutsStorageKey,
+    final db = await AppDatabase.getInstance();
+    final shortcutsJson = await db.userSettingsDao.getValue(
+      'markdown_shortcuts',
     );
 
     final defaults = DefaultMarkdownShortcuts.shortcuts;
@@ -681,31 +784,22 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           .map((json) => CustomMarkdownShortcut.fromJson(json))
           .toList();
 
-      final Map<String, CustomMarkdownShortcut> loadedMap = {
-        for (var s in loaded) s.id: s,
-      };
+      // Create a set of loaded shortcut IDs to track what we have
+      final loadedIds = loaded.map((s) => s.id).toSet();
 
-      final mergedShortcuts = <CustomMarkdownShortcut>[];
+      // Start with loaded shortcuts in their saved order
+      final mergedShortcuts = List<CustomMarkdownShortcut>.from(loaded);
 
+      // Add any new default shortcuts that weren't in the saved data
       for (var defaultShortcut in defaults) {
-        if (loadedMap.containsKey(defaultShortcut.id)) {
-          mergedShortcuts.add(loadedMap[defaultShortcut.id]!);
-        } else {
+        if (!loadedIds.contains(defaultShortcut.id)) {
           mergedShortcuts.add(defaultShortcut);
-        }
-      }
-
-      for (var shortcut in loaded) {
-        if (!shortcut.isDefault) {
-          mergedShortcuts.add(shortcut);
         }
       }
 
       setState(() {
         _allShortcuts = mergedShortcuts;
       });
-
-      await _saveShortcutsOrder();
     } else {
       setState(() {
         _allShortcuts = defaults;
@@ -714,14 +808,22 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   Future<void> _saveShortcutsOrder() async {
-    final prefs = await SharedPreferences.getInstance();
-    final shortcutsJson = _allShortcuts
-        .map((shortcut) => shortcut.toJson())
-        .toList();
-    await prefs.setString(
-      AppConstants.markdownShortcutsStorageKey,
-      jsonEncode(shortcutsJson),
-    );
+    try {
+      final db = await AppDatabase.getInstance();
+      final shortcutsJson = _allShortcuts
+          .map((shortcut) => shortcut.toJson())
+          .toList();
+      await db.userSettingsDao.setValue(
+        'markdown_shortcuts',
+        jsonEncode(shortcutsJson),
+      );
+      debugPrint(
+        '[NoteEditor] Shortcuts order saved (${_allShortcuts.length} items)',
+      );
+    } catch (e, stackTrace) {
+      debugPrint('[NoteEditor] ERROR saving shortcuts order: $e');
+      debugPrintStack(stackTrace: stackTrace, maxFrames: 5);
+    }
   }
 
   Future<void> _openMarkdownSettings() async {
@@ -737,12 +839,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         _allShortcuts = result;
       });
 
-      final prefs = await SharedPreferences.getInstance();
+      final db = await AppDatabase.getInstance();
       final shortcutsJson = result
           .map((shortcut) => shortcut.toJson())
           .toList();
-      await prefs.setString(
-        AppConstants.markdownShortcutsStorageKey,
+      await db.userSettingsDao.setValue(
+        'markdown_shortcuts',
         jsonEncode(shortcutsJson),
       );
     }

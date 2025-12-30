@@ -1,13 +1,13 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
-import '../models/folder.dart';
-import '../utils/isolate_worker.dart';
+import '../database/database.dart';
+import '../database/daos/folder_dao.dart';
+import '../repositories/folder_repository.dart';
+import '../models/folder.dart' as model;
+import '../constants/app_constants.dart';
 
 enum FoldersSortOrder { nameAsc, nameDesc, createdAsc, createdDesc }
 
 class PaginatedFolders {
-  final List<Folder> folders;
+  final List<model.Folder> folders;
   final int currentPage;
   final int totalPages;
   final int totalCount;
@@ -22,7 +22,7 @@ class PaginatedFolders {
   });
 
   PaginatedFolders copyWith({
-    List<Folder>? folders,
+    List<model.Folder>? folders,
     int? currentPage,
     int? totalPages,
     int? totalCount,
@@ -39,44 +39,17 @@ class PaginatedFolders {
 }
 
 class FolderStorageService {
-  static const String _foldersStorageKey = 'optimized_folders';
-  static const int defaultPageSize = 20;
+  static const int defaultPageSize = AppConstants.defaultPageSize;
 
-  final Uuid _uuid;
-  final IsolatePool _isolatePool;
-
-  List<Folder>? _foldersCache;
+  final FolderRepository _repository;
   bool _isInitialized = false;
 
-  FolderStorageService({Uuid? uuid, IsolatePool? isolatePool})
-    : _uuid = uuid ?? const Uuid(),
-      _isolatePool = isolatePool ?? IsolatePool();
+  FolderStorageService({required FolderRepository repository})
+    : _repository = repository;
 
   Future<void> initialize() async {
     if (_isInitialized) return;
-
-    await _isolatePool.initialize();
-    await _migrateIfNeeded();
     _isInitialized = true;
-  }
-
-  Future<void> _migrateIfNeeded() async {
-    final prefs = await SharedPreferences.getInstance();
-    final legacyFolders = prefs.getString('folders');
-
-    if (legacyFolders == null) return;
-
-    final existingOptimized = prefs.getString(_foldersStorageKey);
-    if (existingOptimized != null) return;
-
-    final result = await _isolatePool.execute<List<dynamic>>(
-      'jsonDecode',
-      legacyFolders,
-    );
-
-    if (!result.isSuccess || result.data == null) return;
-
-    await prefs.setString(_foldersStorageKey, legacyFolders);
   }
 
   Future<PaginatedFolders> loadFoldersPaginated({
@@ -87,28 +60,27 @@ class FolderStorageService {
   }) async {
     await initialize();
 
-    final allFolders = await _loadAllFolders();
-
-    var filteredFolders = allFolders
-        .where((f) => f.parentId == parentId)
-        .toList();
-
-    filteredFolders = _sortFolders(filteredFolders, sortOrder);
-
-    final totalCount = filteredFolders.length;
+    final totalCount = await _repository.getFolderCount(parentId);
     final totalPages = (totalCount / pageSize).ceil().clamp(
       1,
       double.maxFinite.toInt(),
     );
-    final startIndex = (page - 1) * pageSize;
-    final endIndex = (startIndex + pageSize).clamp(0, totalCount);
+    final offset = (page - 1) * pageSize;
 
-    final pageFolders = startIndex < totalCount
-        ? filteredFolders.sublist(startIndex, endIndex)
-        : <Folder>[];
+    final (sortField, ascending) = _mapSortOrder(sortOrder);
+
+    final folders = await _repository.getFoldersPaginated(
+      parentId: parentId,
+      limit: pageSize,
+      offset: offset,
+      sortField: sortField,
+      ascending: ascending,
+    );
+
+    final modelFolders = folders.map(_folderToModel).toList();
 
     return PaginatedFolders(
-      folders: pageFolders,
+      folders: modelFolders,
       currentPage: page,
       totalPages: totalPages,
       totalCount: totalCount,
@@ -116,171 +88,78 @@ class FolderStorageService {
     );
   }
 
-  Future<List<Folder>> loadAllFoldersForParent(String? parentId) async {
+  Future<List<model.Folder>> loadAllFoldersForParent(String? parentId) async {
     await initialize();
-
-    final allFolders = await _loadAllFolders();
-    return allFolders.where((f) => f.parentId == parentId).toList();
+    final folders = await _repository.getFoldersByParent(parentId);
+    return folders.map(_folderToModel).toList();
   }
 
-  Future<Folder?> getFolderById(String folderId) async {
+  Future<model.Folder?> getFolderById(String folderId) async {
     await initialize();
-
-    final allFolders = await _loadAllFolders();
-    try {
-      return allFolders.firstWhere((f) => f.id == folderId);
-    } catch (_) {
-      return null;
-    }
+    final folder = await _repository.getFolderById(folderId);
+    return folder != null ? _folderToModel(folder) : null;
   }
 
   Future<int> getSubfolderCount(String folderId) async {
     await initialize();
-
-    final allFolders = await _loadAllFolders();
-    return allFolders.where((f) => f.parentId == folderId).length;
+    return _repository.getFolderCount(folderId);
   }
 
-  Future<Folder> createFolder({required String name, String? parentId}) async {
+  Future<model.Folder> createFolder({
+    required String name,
+    String? parentId,
+  }) async {
     await initialize();
-
-    final now = DateTime.now();
-    final folder = Folder(
-      id: _uuid.v4(),
+    final folder = await _repository.createFolder(
       name: name,
       parentId: parentId,
-      createdAt: now,
     );
-
-    final allFolders = await _loadAllFolders();
-    allFolders.add(folder);
-    await _saveFolders(allFolders);
-
-    _foldersCache = null;
-
-    return folder;
+    return _folderToModel(folder);
   }
 
-  Future<Folder?> updateFolder({
+  Future<model.Folder?> updateFolder({
     required String folderId,
     String? name,
     String? parentId,
   }) async {
     await initialize();
-
-    final allFolders = await _loadAllFolders();
-    final index = allFolders.indexWhere((f) => f.id == folderId);
-
-    if (index == -1) return null;
-
-    final updatedFolder = allFolders[index].copyWith(
+    final folder = await _repository.updateFolder(
+      id: folderId,
       name: name,
       parentId: parentId,
+      updateParent: parentId != null,
     );
-
-    allFolders[index] = updatedFolder;
-    await _saveFolders(allFolders);
-
-    _foldersCache = null;
-
-    return updatedFolder;
+    return folder != null ? _folderToModel(folder) : null;
   }
 
   Future<void> deleteFolder(String folderId) async {
     await initialize();
-
-    final allFolders = await _loadAllFolders();
-
-    final idsToDelete = _getAllDescendantIds(folderId, allFolders);
-    idsToDelete.add(folderId);
-
-    allFolders.removeWhere((f) => idsToDelete.contains(f.id));
-    await _saveFolders(allFolders);
-
-    _foldersCache = null;
+    await _repository.deleteFolder(folderId);
   }
 
-  Set<String> _getAllDescendantIds(String folderId, List<Folder> allFolders) {
-    final descendants = <String>{};
-    final directChildren = allFolders.where((f) => f.parentId == folderId);
-
-    for (final child in directChildren) {
-      descendants.add(child.id);
-      descendants.addAll(_getAllDescendantIds(child.id, allFolders));
-    }
-
-    return descendants;
-  }
-
-  Future<List<Folder>> _loadAllFolders() async {
-    if (_foldersCache != null) return List.from(_foldersCache!);
-
-    final prefs = await SharedPreferences.getInstance();
-    final foldersString = prefs.getString(_foldersStorageKey);
-
-    if (foldersString == null) {
-      _foldersCache = [];
-      return [];
-    }
-
-    final result = await _isolatePool.execute<List<dynamic>>(
-      'jsonDecode',
-      foldersString,
+  model.Folder _folderToModel(Folder folder) {
+    return model.Folder(
+      id: folder.id,
+      name: folder.name,
+      parentId: folder.parentId,
+      createdAt: folder.createdAt,
     );
-
-    if (!result.isSuccess || result.data == null) {
-      _foldersCache = [];
-      return [];
-    }
-
-    final folders = result.data!
-        .map((json) => Folder.fromJson(json as Map<String, dynamic>))
-        .toList();
-
-    _foldersCache = folders;
-    return List.from(folders);
   }
 
-  Future<void> _saveFolders(List<Folder> folders) async {
-    final prefs = await SharedPreferences.getInstance();
-    final foldersJson = folders.map((f) => f.toJson()).toList();
-
-    final result = await _isolatePool.execute<String>(
-      'jsonEncode',
-      foldersJson,
-    );
-
-    if (result.isSuccess && result.data != null) {
-      await prefs.setString(_foldersStorageKey, result.data!);
-    } else {
-      await prefs.setString(_foldersStorageKey, jsonEncode(foldersJson));
-    }
-
-    _foldersCache = folders;
-  }
-
-  List<Folder> _sortFolders(List<Folder> folders, FoldersSortOrder sortOrder) {
-    final sorted = List<Folder>.from(folders);
-
+  (FolderSortField, bool) _mapSortOrder(FoldersSortOrder sortOrder) {
     switch (sortOrder) {
       case FoldersSortOrder.nameAsc:
-        sorted.sort(
-          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-        );
+        return (FolderSortField.name, true);
       case FoldersSortOrder.nameDesc:
-        sorted.sort(
-          (a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()),
-        );
+        return (FolderSortField.name, false);
       case FoldersSortOrder.createdAsc:
-        sorted.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        return (FolderSortField.createdAt, true);
       case FoldersSortOrder.createdDesc:
-        sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return (FolderSortField.createdAt, false);
     }
-
-    return sorted;
   }
 
-  void clearCache() {
-    _foldersCache = null;
+  void invalidateCache() {
+    _repository.invalidateAll();
   }
 }

@@ -9,6 +9,7 @@ class InteractiveMarkdown extends StatefulWidget {
   final MarkdownStyleSheet? styleSheet;
   final bool selectable;
   final EdgeInsets? padding;
+  final ScrollController? scrollController;
 
   const InteractiveMarkdown({
     super.key,
@@ -17,6 +18,7 @@ class InteractiveMarkdown extends StatefulWidget {
     this.styleSheet,
     this.selectable = false,
     this.padding,
+    this.scrollController,
   });
 
   @override
@@ -44,6 +46,7 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
   Widget build(BuildContext context) {
     // Parse and build custom widgets for checkboxes
     return SingleChildScrollView(
+      controller: widget.scrollController,
       padding: widget.padding ?? EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

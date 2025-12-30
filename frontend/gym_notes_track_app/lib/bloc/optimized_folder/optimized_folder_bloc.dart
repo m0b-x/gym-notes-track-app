@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../services/folder_storage_service.dart';
 import 'optimized_folder_event.dart';
@@ -11,8 +12,8 @@ class OptimizedFolderBloc
   int _currentPage = 1;
   FoldersSortOrder _currentSortOrder = FoldersSortOrder.nameAsc;
 
-  OptimizedFolderBloc({FolderStorageService? storageService})
-    : _storageService = storageService ?? FolderStorageService(),
+  OptimizedFolderBloc({required FolderStorageService storageService})
+    : _storageService = storageService,
       super(OptimizedFolderInitial()) {
     on<LoadFoldersPaginated>(_onLoadFoldersPaginated);
     on<LoadMoreFolders>(_onLoadMoreFolders);
@@ -48,7 +49,8 @@ class OptimizedFolderBloc
           parentId: event.parentId,
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logError('Failed to load folders', e, stackTrace);
       emit(
         OptimizedFolderError(
           'Failed to load folders: $e',
@@ -100,7 +102,8 @@ class OptimizedFolderBloc
           parentId: event.parentId ?? _currentParentId,
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logError('Failed to load more folders', e, stackTrace);
       emit(
         currentState.copyWith(
           isLoadingMore: false,
@@ -121,7 +124,8 @@ class OptimizedFolderBloc
       );
 
       add(RefreshFolders(parentId: event.parentId));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logError('Failed to create folder', e, stackTrace);
       emit(
         OptimizedFolderError(
           'Failed to create folder: $e',
@@ -144,7 +148,8 @@ class OptimizedFolderBloc
       );
 
       add(RefreshFolders(parentId: folder?.parentId));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logError('Failed to update folder', e, stackTrace);
       emit(
         OptimizedFolderError(
           'Failed to update folder: $e',
@@ -162,7 +167,8 @@ class OptimizedFolderBloc
       await _storageService.deleteFolder(event.folderId);
 
       add(RefreshFolders(parentId: event.parentId));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logError('Failed to delete folder', e, stackTrace);
       emit(
         OptimizedFolderError(
           'Failed to delete folder: $e',
@@ -176,7 +182,7 @@ class OptimizedFolderBloc
     RefreshFolders event,
     Emitter<OptimizedFolderState> emit,
   ) async {
-    _storageService.clearCache();
+    _storageService.invalidateCache();
     _currentPage = 1;
 
     add(
@@ -185,5 +191,15 @@ class OptimizedFolderBloc
         sortOrder: _currentSortOrder,
       ),
     );
+  }
+
+  void _logError(String message, Object error, StackTrace stackTrace) {
+    debugPrint('\n╔══════════════════════════════════════════════════════════');
+    debugPrint('║ [OptimizedFolderBloc] $message');
+    debugPrint('║ Error: $error');
+    debugPrint('╠══════════════════════════════════════════════════════════');
+    debugPrint('║ Stack trace:');
+    debugPrintStack(stackTrace: stackTrace, maxFrames: 10);
+    debugPrint('╚══════════════════════════════════════════════════════════\n');
   }
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../models/note_metadata.dart';
 import '../../services/note_storage_service.dart';
@@ -15,14 +16,10 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
   PaginatedNotes? _lastPaginatedNotes;
 
   OptimizedNoteBloc({
-    NoteStorageService? storageService,
-    SearchService? searchService,
-  }) : _storageService = storageService ?? NoteStorageService(),
-       _searchService =
-           searchService ??
-           SearchService(
-             storageService: storageService ?? NoteStorageService(),
-           ),
+    required NoteStorageService storageService,
+    required SearchService searchService,
+  }) : _storageService = storageService,
+       _searchService = searchService,
        super(OptimizedNoteInitial()) {
     on<LoadNotesPaginated>(_onLoadNotesPaginated);
     on<LoadMoreNotes>(_onLoadMoreNotes);
@@ -64,7 +61,8 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
           folderId: event.folderId,
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logError('Failed to load notes', e, stackTrace);
       emit(
         OptimizedNoteError(
           'Failed to load notes: $e',
@@ -118,7 +116,8 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
           folderId: event.folderId ?? _currentFolderId,
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logError('Failed to load more notes', e, stackTrace);
       emit(
         currentState.copyWith(
           isLoadingMore: false,
@@ -147,7 +146,8 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
           folderId: _currentFolderId,
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logError('Failed to load note content', e, stackTrace);
       emit(
         OptimizedNoteError(
           'Failed to load note content: $e',
@@ -171,7 +171,8 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
       await _searchService.updateIndex(metadata.id, event.title, event.content);
 
       add(RefreshNotes(folderId: event.folderId));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logError('Failed to create note', e, stackTrace);
       emit(
         OptimizedNoteError(
           'Failed to create note: $e',
@@ -202,7 +203,8 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
       if (_currentFolderId != null) {
         add(RefreshNotes(folderId: _currentFolderId));
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logError('Failed to update note', e, stackTrace);
       emit(
         OptimizedNoteError(
           'Failed to update note: $e',
@@ -221,7 +223,8 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
       await _searchService.removeFromIndex(event.noteId);
 
       add(RefreshNotes(folderId: _currentFolderId));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logError('Failed to delete note', e, stackTrace);
       emit(
         OptimizedNoteError(
           'Failed to delete note: $e',
@@ -260,7 +263,8 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
           isSearching: false,
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logError('Search failed', e, stackTrace);
       emit(OptimizedNoteError('Search failed: $e', folderId: event.folderId));
     }
   }
@@ -298,7 +302,8 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
           isSearching: false,
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logError('Quick search failed', e, stackTrace);
       emit(
         OptimizedNoteError('Quick search failed: $e', folderId: event.folderId),
       );
@@ -341,6 +346,16 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
         folderId: event.folderId ?? _currentFolderId,
       ),
     );
+  }
+
+  void _logError(String message, Object error, StackTrace stackTrace) {
+    debugPrint('\n╔══════════════════════════════════════════════════════════');
+    debugPrint('║ [OptimizedNoteBloc] $message');
+    debugPrint('║ Error: $error');
+    debugPrint('╠══════════════════════════════════════════════════════════');
+    debugPrint('║ Stack trace:');
+    debugPrintStack(stackTrace: stackTrace, maxFrames: 10);
+    debugPrint('╚══════════════════════════════════════════════════════════\n');
   }
 
   @override

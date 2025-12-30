@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/custom_markdown_shortcut.dart';
-import '../constants/app_constants.dart';
+import '../database/database.dart';
 import '../l10n/app_localizations.dart';
 
 class MarkdownSettingsUtils {
+  static const String _shortcutsKey = 'markdown_shortcuts';
+
   static Future<void> saveShortcuts(
     List<CustomMarkdownShortcut> shortcuts,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
+    final db = await AppDatabase.getInstance();
     final shortcutsJson = shortcuts
         .map((shortcut) => shortcut.toJson())
         .toList();
-    await prefs.setString(
-      AppConstants.markdownShortcutsStorageKey,
-      jsonEncode(shortcutsJson),
-    );
+    await db.userSettingsDao.setValue(_shortcutsKey, jsonEncode(shortcutsJson));
   }
 
   static List<CustomMarkdownShortcut> getDefaultShortcuts() {
@@ -185,10 +183,8 @@ class MarkdownSettingsUtils {
   }
 
   static Future<List<CustomMarkdownShortcut>> loadShortcuts() async {
-    final prefs = await SharedPreferences.getInstance();
-    final shortcutsJson = prefs.getString(
-      AppConstants.markdownShortcutsStorageKey,
-    );
+    final db = await AppDatabase.getInstance();
+    final shortcutsJson = await db.userSettingsDao.getValue(_shortcutsKey);
 
     final defaults = getDefaultShortcuts();
 

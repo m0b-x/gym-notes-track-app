@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:gym_notes_track_app/constants/search_constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/note_metadata.dart';
-import '../utils/isolate_worker.dart';
 import 'note_storage_service.dart';
 
 String removeDiacritics(String text) {
@@ -211,22 +210,17 @@ class SearchService {
   static const String _recentSearchesKey = 'recent_searches';
 
   final NoteStorageService _storageService;
-  final IsolatePool _isolatePool;
   final SearchIndex _searchIndex = SearchIndex();
 
   List<String> _recentSearches = [];
   bool _isInitialized = false;
 
-  SearchService({
-    required NoteStorageService storageService,
-    IsolatePool? isolatePool,
-  }) : _storageService = storageService,
-       _isolatePool = isolatePool ?? IsolatePool();
+  SearchService({required NoteStorageService storageService})
+    : _storageService = storageService;
 
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    await _isolatePool.initialize();
     await _loadRecentSearches();
     _isInitialized = true;
   }
@@ -497,6 +491,5 @@ class SearchService {
 
   void dispose() {
     _searchIndex.clear();
-    _isolatePool.dispose();
   }
 }

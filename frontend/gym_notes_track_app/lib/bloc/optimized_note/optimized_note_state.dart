@@ -2,16 +2,21 @@ import 'package:equatable/equatable.dart';
 import '../../models/note_metadata.dart';
 import '../../services/search_service.dart';
 
-abstract class OptimizedNoteState extends Equatable {
+/// Sealed state class for OptimizedNoteBloc with exhaustiveness checking
+sealed class OptimizedNoteState extends Equatable {
   const OptimizedNoteState();
 
   @override
   List<Object?> get props => [];
 }
 
-class OptimizedNoteInitial extends OptimizedNoteState {}
+/// Initial state before any action
+final class OptimizedNoteInitial extends OptimizedNoteState {
+  const OptimizedNoteInitial();
+}
 
-class OptimizedNoteLoading extends OptimizedNoteState {
+/// Loading state while fetching notes
+final class OptimizedNoteLoading extends OptimizedNoteState {
   final String? folderId;
 
   const OptimizedNoteLoading({this.folderId});
@@ -20,7 +25,8 @@ class OptimizedNoteLoading extends OptimizedNoteState {
   List<Object?> get props => [folderId];
 }
 
-class OptimizedNoteLoaded extends OptimizedNoteState {
+/// Successfully loaded paginated notes
+final class OptimizedNoteLoaded extends OptimizedNoteState {
   final PaginatedNotes paginatedNotes;
   final Map<String, String> loadedContent;
   final bool isLoadingMore;
@@ -56,7 +62,8 @@ class OptimizedNoteLoaded extends OptimizedNoteState {
   ];
 }
 
-class OptimizedNoteContentLoaded extends OptimizedNoteState {
+/// Note content loaded for editing/viewing
+final class OptimizedNoteContentLoaded extends OptimizedNoteState {
   final LazyNote note;
   final PaginatedNotes? previousPaginatedNotes;
   final String? folderId;
@@ -71,7 +78,8 @@ class OptimizedNoteContentLoaded extends OptimizedNoteState {
   List<Object?> get props => [note, previousPaginatedNotes, folderId];
 }
 
-class OptimizedNoteSearchResults extends OptimizedNoteState {
+/// Search results state
+final class OptimizedNoteSearchResults extends OptimizedNoteState {
   final List<SearchResult> results;
   final String query;
   final bool isSearching;
@@ -98,12 +106,28 @@ class OptimizedNoteSearchResults extends OptimizedNoteState {
   List<Object?> get props => [results, query, isSearching];
 }
 
-class OptimizedNoteError extends OptimizedNoteState {
+/// Error state with typed error information
+final class OptimizedNoteError extends OptimizedNoteState {
   final String message;
   final String? folderId;
+  final NoteErrorType errorType;
 
-  const OptimizedNoteError(this.message, {this.folderId});
+  const OptimizedNoteError(
+    this.message, {
+    this.folderId,
+    this.errorType = NoteErrorType.unknown,
+  });
 
   @override
-  List<Object?> get props => [message, folderId];
+  List<Object?> get props => [message, folderId, errorType];
+}
+
+/// Types of errors that can occur in note operations
+enum NoteErrorType {
+  notFound,
+  loadFailed,
+  saveFailed,
+  deleteFailed,
+  searchFailed,
+  unknown,
 }

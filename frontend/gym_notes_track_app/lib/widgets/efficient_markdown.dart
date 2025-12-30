@@ -43,6 +43,7 @@ class EfficientMarkdownView extends StatefulWidget {
   final bool selectable;
   final double itemExtent;
   final int cacheExtent;
+  final ScrollController? scrollController;
 
   const EfficientMarkdownView({
     super.key,
@@ -52,6 +53,7 @@ class EfficientMarkdownView extends StatefulWidget {
     this.selectable = false,
     this.itemExtent = 32.0,
     this.cacheExtent = 500,
+    this.scrollController,
   });
 
   @override
@@ -276,6 +278,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
+      controller: widget.scrollController,
       itemCount: _parsedLines.length,
       cacheExtent: widget.cacheExtent.toDouble(),
       itemBuilder: (context, index) {

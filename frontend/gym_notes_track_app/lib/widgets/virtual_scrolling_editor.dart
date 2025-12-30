@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -22,6 +24,7 @@ class VirtualScrollingEditor extends StatefulWidget {
   final String? hintText;
   final TextStyle? hintStyle;
   final FocusNode? focusNode;
+  final ScrollController? scrollController;
   final bool readOnly;
   final double lineHeight;
   final int visibleLinesBuffer;
@@ -34,6 +37,7 @@ class VirtualScrollingEditor extends StatefulWidget {
     this.hintText,
     this.hintStyle,
     this.focusNode,
+    this.scrollController,
     this.readOnly = false,
     this.lineHeight = 24.0,
     this.visibleLinesBuffer = 10,
@@ -45,21 +49,27 @@ class VirtualScrollingEditor extends StatefulWidget {
 
 class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
   late ScrollController _scrollController;
+  bool _ownsScrollController = false;
   late TextEditingController _hiddenController;
   late FocusNode _focusNode;
-  late List<VirtualLine> _lines;
+  List<VirtualLine> _lines = [];
 
   int _firstVisibleLine = 0;
   int _lastVisibleLine = 0;
   int _cursorLine = 0;
   int _cursorColumn = 0;
   bool _showCursor = true;
+  Timer? _cursorTimer;
+  Timer? _debounceTimer;
+
+  // Debounce delay for large text updates
+  static const _debounceDelay = Duration(milliseconds: 16);
 
   String get text => _hiddenController.text;
 
   set text(String value) {
     _hiddenController.text = value;
-    _updateLines();
+    _updateLinesImmediate();
   }
 
   TextEditingController get controller => _hiddenController;
@@ -67,11 +77,17 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
+    if (widget.scrollController != null) {
+      _scrollController = widget.scrollController!;
+      _ownsScrollController = false;
+    } else {
+      _scrollController = ScrollController();
+      _ownsScrollController = true;
+    }
     _hiddenController = TextEditingController(text: widget.initialContent);
     _focusNode = widget.focusNode ?? FocusNode();
 
-    _updateLines();
+    _updateLinesImmediate();
 
     _hiddenController.addListener(_onTextChanged);
     _scrollController.addListener(_onScroll);
@@ -82,7 +98,12 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _cursorTimer?.cancel();
+    _debounceTimer?.cancel();
+    if (_ownsScrollController) {
+      _scrollController.dispose();
+    }
+    _hiddenController.removeListener(_onTextChanged);
     _hiddenController.dispose();
     if (widget.focusNode == null) {
       _focusNode.dispose();
@@ -90,7 +111,8 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
     super.dispose();
   }
 
-  void _updateLines() {
+  /// Immediate update for programmatic changes
+  void _updateLinesImmediate() {
     final content = _hiddenController.text;
     final lines = content.split('\n');
     final virtualLines = <VirtualLine>[];
@@ -114,6 +136,7 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
 
   void _updateCursorPosition() {
     final cursorOffset = _hiddenController.selection.baseOffset;
+    if (cursorOffset < 0) return;
 
     for (int i = 0; i < _lines.length; i++) {
       if (cursorOffset <=
@@ -126,68 +149,128 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
   }
 
   void _onTextChanged() {
-    _updateLines();
-    widget.onChanged?.call(_hiddenController.text);
-    setState(() {});
+    // Debounce updates for large text changes (like paste)
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(_debounceDelay, () {
+      if (!mounted) return;
+      _updateLinesImmediate();
+      _scrollCursorIntoView();
+      widget.onChanged?.call(_hiddenController.text);
+      setState(() {});
+    });
+  }
+
+  void _scrollCursorIntoView() {
+    if (!_scrollController.hasClients) return;
+
+    final cursorY = _cursorLine * widget.lineHeight;
+    final viewportHeight = _scrollController.position.viewportDimension;
+    final currentScroll = _scrollController.offset;
+
+    // Calculate max scroll based on total content, not the current maxScrollExtent
+    // (which may not have updated yet after a paste)
+    final totalContentHeight = _lines.length * widget.lineHeight;
+    final maxScroll = (totalContentHeight - viewportHeight).clamp(
+      0.0,
+      double.infinity,
+    );
+
+    // Check if cursor is below the visible area
+    final bottomThreshold =
+        currentScroll + viewportHeight - widget.lineHeight * 2;
+    if (cursorY > bottomThreshold) {
+      // Position cursor near the bottom of the viewport with some padding
+      final targetScroll = (cursorY - viewportHeight + widget.lineHeight * 3)
+          .clamp(0.0, maxScroll);
+      _scrollController.jumpTo(targetScroll);
+      return;
+    }
+
+    // Check if cursor is above the visible area
+    final topThreshold = currentScroll + widget.lineHeight;
+    if (cursorY < topThreshold) {
+      final targetScroll = (cursorY - widget.lineHeight).clamp(0.0, maxScroll);
+      _scrollController.jumpTo(targetScroll);
+    }
   }
 
   void _onScroll() {
+    if (!mounted) return;
     _calculateVisibleLines();
     setState(() {});
   }
 
   void _onFocusChanged() {
+    if (!mounted) return;
     setState(() {});
   }
 
   void _calculateVisibleLines() {
+    if (!_scrollController.hasClients) {
+      _firstVisibleLine = 0;
+      _lastVisibleLine = (widget.visibleLinesBuffer * 2).clamp(
+        0,
+        _lines.isEmpty ? 0 : _lines.length - 1,
+      );
+      return;
+    }
+
     final viewportHeight = _scrollController.position.viewportDimension;
     final scrollOffset = _scrollController.offset;
 
     _firstVisibleLine = (scrollOffset / widget.lineHeight).floor();
     _firstVisibleLine = (_firstVisibleLine - widget.visibleLinesBuffer).clamp(
       0,
-      _lines.length - 1,
+      _lines.isEmpty ? 0 : _lines.length - 1,
     );
 
     final visibleCount = (viewportHeight / widget.lineHeight).ceil();
     _lastVisibleLine =
         _firstVisibleLine + visibleCount + widget.visibleLinesBuffer * 2;
-    _lastVisibleLine = _lastVisibleLine.clamp(0, _lines.length - 1);
+    _lastVisibleLine = _lastVisibleLine.clamp(
+      0,
+      _lines.isEmpty ? 0 : _lines.length - 1,
+    );
   }
 
   void _startCursorBlink() {
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (!mounted) return false;
+    _cursorTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       setState(() {
         _showCursor = !_showCursor;
       });
-      return true;
     });
   }
 
   void _handleTap(int lineIndex, Offset localPosition) {
     if (widget.readOnly) return;
-
     _focusNode.requestFocus();
 
     final line = _lines[lineIndex];
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: line.content,
-        style: widget.textStyle ?? const TextStyle(fontSize: 16),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-
-    final offset = textPainter.getPositionForOffset(localPosition);
-    final newCursorOffset = line.startOffset + offset.offset;
-
-    _hiddenController.selection = TextSelection.collapsed(
-      offset: newCursorOffset,
-    );
+    if (line.content.isEmpty) {
+      _hiddenController.selection = TextSelection.collapsed(
+        offset: line.startOffset,
+      );
+    } else {
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: line.content,
+          style: widget.textStyle ?? const TextStyle(fontSize: 16),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      final tapX = localPosition.dx - 8;
+      final offset = textPainter.getPositionForOffset(
+        Offset(tapX.clamp(0, double.infinity), 0),
+      );
+      _hiddenController.selection = TextSelection.collapsed(
+        offset: line.startOffset + offset.offset,
+      );
+    }
     _updateCursorPosition();
     setState(() {});
   }
@@ -199,29 +282,8 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
       final selection = _hiddenController.selection;
       final text = _hiddenController.text;
 
-      if (event.logicalKey == LogicalKeyboardKey.backspace) {
-        if (selection.isCollapsed && selection.baseOffset > 0) {
-          final newText =
-              text.substring(0, selection.baseOffset - 1) +
-              text.substring(selection.baseOffset);
-          _hiddenController.value = TextEditingValue(
-            text: newText,
-            selection: TextSelection.collapsed(
-              offset: selection.baseOffset - 1,
-            ),
-          );
-        }
-      } else if (event.logicalKey == LogicalKeyboardKey.delete) {
-        if (selection.isCollapsed && selection.baseOffset < text.length) {
-          final newText =
-              text.substring(0, selection.baseOffset) +
-              text.substring(selection.baseOffset + 1);
-          _hiddenController.value = TextEditingValue(
-            text: newText,
-            selection: selection,
-          );
-        }
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      // Handle only navigation keys - text input is handled by the TextField
+      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
         _moveCursorVertically(-1);
       } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
         _moveCursorVertically(1);
@@ -239,8 +301,6 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
           );
           _updateCursorPosition();
         }
-      } else if (event.logicalKey == LogicalKeyboardKey.enter) {
-        _insertText('\n');
       }
     }
   }
@@ -256,23 +316,6 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
     _hiddenController.selection = TextSelection.collapsed(offset: newOffset);
     _updateCursorPosition();
     setState(() {});
-  }
-
-  void _insertText(String text) {
-    final selection = _hiddenController.selection;
-    final currentText = _hiddenController.text;
-
-    final newText =
-        currentText.substring(0, selection.baseOffset) +
-        text +
-        currentText.substring(selection.extentOffset);
-
-    _hiddenController.value = TextEditingValue(
-      text: newText,
-      selection: TextSelection.collapsed(
-        offset: selection.baseOffset + text.length,
-      ),
-    );
   }
 
   void scrollToLine(int lineNumber) {
@@ -291,46 +334,73 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
   @override
   Widget build(BuildContext context) {
     final totalHeight = _lines.length * widget.lineHeight;
+    final isEmpty = _hiddenController.text.isEmpty;
 
-    return KeyboardListener(
-      focusNode: _focusNode,
-      onKeyEvent: _handleKeyEvent,
-      child: GestureDetector(
-        onTap: () => _focusNode.requestFocus(),
-        child: Container(
-          color: Colors.transparent,
-          child: _lines.isEmpty && widget.hintText != null
-              ? Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    widget.hintText!,
-                    style:
-                        widget.hintStyle ??
-                        TextStyle(
-                          color: Theme.of(context).hintColor,
-                          fontSize: 16,
-                        ),
-                  ),
-                )
-              : CustomScrollView(
-                  controller: _scrollController,
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: SizedBox(
-                        height: totalHeight,
-                        child: Stack(
-                          children: [
-                            ..._buildVisibleLines(context),
-                            if (_focusNode.hasFocus && _showCursor)
-                              _buildCursor(context),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+    return Stack(
+      children: [
+        // Invisible TextField that handles all text input including paste
+        Positioned.fill(
+          child: Opacity(
+            opacity: 0.0,
+            child: TextField(
+              controller: _hiddenController,
+              focusNode: _focusNode,
+              maxLines: null,
+              expands: true,
+              readOnly: widget.readOnly,
+              style: const TextStyle(fontSize: 1),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ),
         ),
-      ),
+        // Visible layer with virtualized rendering
+        Positioned.fill(
+          child: KeyboardListener(
+            focusNode: FocusNode(),
+            onKeyEvent: _handleKeyEvent,
+            child: GestureDetector(
+              onTap: () => _focusNode.requestFocus(),
+              behavior: HitTestBehavior.translucent,
+              child: Container(
+                color: Colors.transparent,
+                child: isEmpty && widget.hintText != null
+                    ? Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(
+                          widget.hintText!,
+                          style:
+                              widget.hintStyle ??
+                              TextStyle(
+                                color: Theme.of(context).hintColor,
+                                fontSize: 16,
+                              ),
+                        ),
+                      )
+                    : CustomScrollView(
+                        controller: _scrollController,
+                        slivers: [
+                          SliverToBoxAdapter(
+                            child: SizedBox(
+                              height: totalHeight,
+                              child: Stack(
+                                children: [
+                                  ..._buildVisibleLines(context),
+                                  if (_focusNode.hasFocus && _showCursor)
+                                    _buildCursor(context),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -338,6 +408,8 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
     _calculateVisibleLines();
 
     final widgets = <Widget>[];
+    final textStyle =
+        widget.textStyle ?? const TextStyle(fontSize: 16, height: 1.5);
 
     for (
       int i = _firstVisibleLine;
@@ -345,6 +417,7 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
       i++
     ) {
       final line = _lines[i];
+      final lineIndex = i;
 
       widgets.add(
         Positioned(
@@ -353,15 +426,15 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
           right: 0,
           height: widget.lineHeight,
           child: GestureDetector(
-            onTapDown: (details) => _handleTap(i, details.localPosition),
+            onTapDown: (details) =>
+                _handleTap(lineIndex, details.localPosition),
+            behavior: HitTestBehavior.opaque,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               alignment: Alignment.centerLeft,
               child: Text(
                 line.content.isEmpty ? ' ' : line.content,
-                style:
-                    widget.textStyle ??
-                    const TextStyle(fontSize: 16, height: 1.5),
+                style: textStyle,
                 maxLines: 1,
                 overflow: TextOverflow.visible,
               ),
@@ -375,11 +448,11 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
   }
 
   Widget _buildCursor(BuildContext context) {
-    final line = _lines.isNotEmpty && _cursorLine < _lines.length
-        ? _lines[_cursorLine]
-        : null;
+    if (_lines.isEmpty || _cursorLine >= _lines.length) {
+      return const SizedBox.shrink();
+    }
 
-    if (line == null) return const SizedBox.shrink();
+    final line = _lines[_cursorLine];
 
     final textPainter = TextPainter(
       text: TextSpan(

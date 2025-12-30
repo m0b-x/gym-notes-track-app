@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import '../utils/isolate_worker.dart';
 
 class DiffResult {
@@ -208,8 +209,13 @@ class AutoSaveService {
     if (!hasChanges) return;
 
     _debounceTimers[noteId]?.cancel();
-    _debounceTimers[noteId] = Timer(debounceDelay, () {
-      _saveIfChanged(noteId, currentTitle, currentContent);
+    _debounceTimers[noteId] = Timer(debounceDelay, () async {
+      try {
+        await _saveIfChanged(noteId, currentTitle, currentContent);
+      } catch (e, stackTrace) {
+        debugPrint('[AutoSaveService] Error during debounced save: $e');
+        debugPrintStack(stackTrace: stackTrace, maxFrames: 5);
+      }
     });
   }
 

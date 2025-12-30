@@ -1,16 +1,21 @@
 import 'package:equatable/equatable.dart';
 import '../../services/folder_storage_service.dart';
 
-abstract class OptimizedFolderState extends Equatable {
+/// Sealed state class for OptimizedFolderBloc with exhaustiveness checking
+sealed class OptimizedFolderState extends Equatable {
   const OptimizedFolderState();
 
   @override
   List<Object?> get props => [];
 }
 
-class OptimizedFolderInitial extends OptimizedFolderState {}
+/// Initial state before any action
+final class OptimizedFolderInitial extends OptimizedFolderState {
+  const OptimizedFolderInitial();
+}
 
-class OptimizedFolderLoading extends OptimizedFolderState {
+/// Loading state while fetching folders
+final class OptimizedFolderLoading extends OptimizedFolderState {
   final String? parentId;
 
   const OptimizedFolderLoading({this.parentId});
@@ -19,7 +24,8 @@ class OptimizedFolderLoading extends OptimizedFolderState {
   List<Object?> get props => [parentId];
 }
 
-class OptimizedFolderLoaded extends OptimizedFolderState {
+/// Successfully loaded paginated folders
+final class OptimizedFolderLoaded extends OptimizedFolderState {
   final PaginatedFolders paginatedFolders;
   final bool isLoadingMore;
   final String? parentId;
@@ -46,12 +52,28 @@ class OptimizedFolderLoaded extends OptimizedFolderState {
   List<Object?> get props => [paginatedFolders, isLoadingMore, parentId];
 }
 
-class OptimizedFolderError extends OptimizedFolderState {
+/// Error state with typed error information
+final class OptimizedFolderError extends OptimizedFolderState {
   final String message;
   final String? parentId;
+  final FolderErrorType errorType;
 
-  const OptimizedFolderError(this.message, {this.parentId});
+  const OptimizedFolderError(
+    this.message, {
+    this.parentId,
+    this.errorType = FolderErrorType.unknown,
+  });
 
   @override
-  List<Object?> get props => [message, parentId];
+  List<Object?> get props => [message, parentId, errorType];
+}
+
+/// Types of errors that can occur in folder operations
+enum FolderErrorType {
+  notFound,
+  loadFailed,
+  createFailed,
+  updateFailed,
+  deleteFailed,
+  unknown,
 }

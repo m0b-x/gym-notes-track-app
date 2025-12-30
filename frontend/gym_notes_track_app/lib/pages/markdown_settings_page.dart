@@ -10,6 +10,7 @@ import '../config/available_icons.dart';
 import '../widgets/markdown_toolbar.dart';
 import '../utils/markdown_settings_utils.dart';
 import '../widgets/interactive_markdown.dart';
+import '../widgets/app_loading_bar.dart';
 
 class MarkdownSettingsPage extends StatefulWidget {
   final List<CustomMarkdownShortcut> allShortcuts;
@@ -30,18 +31,26 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
   }
 
   Future<void> _saveShortcuts() async {
-    await MarkdownSettingsUtils.saveShortcuts(_shortcuts);
+    try {
+      await MarkdownSettingsUtils.saveShortcuts(_shortcuts);
+      debugPrint(
+        '[MarkdownSettings] Shortcuts saved successfully (${_shortcuts.length} items)',
+      );
+    } catch (e, stackTrace) {
+      debugPrint('[MarkdownSettings] ERROR saving shortcuts: $e');
+      debugPrintStack(stackTrace: stackTrace, maxFrames: 5);
+    }
   }
 
   void _addShortcut() {
     showDialog(
       context: context,
       builder: (context) => _ShortcutEditorDialog(
-        onSave: (shortcut) {
+        onSave: (shortcut) async {
           setState(() {
             _shortcuts.add(shortcut);
           });
-          _saveShortcuts();
+          await _saveShortcuts();
         },
       ),
     );
@@ -58,23 +67,23 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       context: context,
       builder: (context) => _ShortcutEditorDialog(
         shortcut: shortcut,
-        onSave: (updatedShortcut) {
+        onSave: (updatedShortcut) async {
           setState(() {
             _shortcuts[index] = updatedShortcut;
           });
-          _saveShortcuts();
+          await _saveShortcuts();
         },
       ),
     );
   }
 
-  void _toggleVisibility(int index) {
+  Future<void> _toggleVisibility(int index) async {
     setState(() {
       _shortcuts[index] = _shortcuts[index].copyWith(
         isVisible: !_shortcuts[index].isVisible,
       );
     });
-    _saveShortcuts();
+    await _saveShortcuts();
   }
 
   void _deleteShortcut(int index) {
@@ -95,12 +104,13 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
             child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
+              final navigator = Navigator.of(context);
               setState(() {
                 _shortcuts.removeAt(index);
               });
-              _saveShortcuts();
-              Navigator.pop(context);
+              await _saveShortcuts();
+              navigator.pop();
             },
             child: Text(AppLocalizations.of(context)!.delete),
           ),
@@ -158,18 +168,18 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     );
   }
 
-  void _resetToDefault() {
+  Future<void> _resetToDefault() async {
     setState(() {
       _shortcuts = MarkdownSettingsUtils.resetToDefault(_shortcuts);
     });
-    _saveShortcuts();
+    await _saveShortcuts();
   }
 
-  void _removeAllCustom() {
+  Future<void> _removeAllCustom() async {
     setState(() {
       _shortcuts = MarkdownSettingsUtils.removeAllCustom(_shortcuts);
     });
-    _saveShortcuts();
+    await _saveShortcuts();
   }
 
   @override
@@ -181,7 +191,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
           Navigator.of(context).pop(_shortcuts);
         }
       },
-      child: Scaffold(
+      child: LoadingScaffold(
         appBar: AppBar(
           title: Text(AppLocalizations.of(context)!.markdownShortcuts),
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -263,7 +273,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                   bottom: 110, // Extra space at bottom for FAB
                 ),
                 itemCount: _shortcuts.length,
-                onReorder: (oldIndex, newIndex) {
+                onReorder: (oldIndex, newIndex) async {
                   setState(() {
                     if (oldIndex < newIndex) {
                       newIndex -= 1;
@@ -271,7 +281,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                     final item = _shortcuts.removeAt(oldIndex);
                     _shortcuts.insert(newIndex, item);
                   });
-                  _saveShortcuts();
+                  await _saveShortcuts();
                 },
                 itemBuilder: (context, index) {
                   final shortcut = _shortcuts[index];
