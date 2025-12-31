@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
-/// A custom markdown widget that allows interactive checkboxes
-/// User can tap on checkboxes to toggle between checked and unchecked states
 class InteractiveMarkdown extends StatefulWidget {
   final String data;
   final Function(String)? onCheckboxChanged;
@@ -10,6 +8,8 @@ class InteractiveMarkdown extends StatefulWidget {
   final bool selectable;
   final EdgeInsets? padding;
   final ScrollController? scrollController;
+  final int? selectedLine;
+  final Function(int)? onLineTap;
 
   const InteractiveMarkdown({
     super.key,
@@ -19,6 +19,8 @@ class InteractiveMarkdown extends StatefulWidget {
     this.selectable = false,
     this.padding,
     this.scrollController,
+    this.selectedLine,
+    this.onLineTap,
   });
 
   @override
@@ -44,7 +46,6 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
 
   @override
   Widget build(BuildContext context) {
-    // Parse and build custom widgets for checkboxes
     return SingleChildScrollView(
       controller: widget.scrollController,
       padding: widget.padding ?? EdgeInsets.zero,
@@ -58,83 +59,91 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
   List<Widget> _buildContent(BuildContext context) {
     final lines = _currentData.split('\n');
     final widgets = <Widget>[];
-    final List<String> pendingLines = [];
-
-    void flushPendingLines() {
-      if (pendingLines.isNotEmpty) {
-        widgets.add(
-          Markdown(
-            data: pendingLines.join('\n'),
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            styleSheet: widget.styleSheet,
-            selectable: widget.selectable,
-            padding: EdgeInsets.zero,
-            softLineBreak: true,
-          ),
-        );
-        pendingLines.clear();
-      }
-    }
 
     for (int i = 0; i < lines.length; i++) {
       final line = lines[i];
       final trimmedLine = line.trim();
+      final isSelected = widget.selectedLine == i;
 
-      // Check for checkbox patterns
       final uncheckedPattern = RegExp(r'^([\s]*)-\s+\[\s\]\s+(.+)$');
       final checkedPattern = RegExp(r'^([\s]*)-\s+\[[xX]\]\s+(.+)$');
 
       final uncheckedMatch = uncheckedPattern.firstMatch(line);
       final checkedMatch = checkedPattern.firstMatch(line);
 
-      // Check for bullet list patterns (- , * , • )
       final bulletPattern = RegExp(r'^([\s]*)[-*•]\s+(.+)$');
       final bulletMatch = bulletPattern.firstMatch(line);
 
-      // Check for numbered list patterns (1. , 2. , etc.)
       final numberedPattern = RegExp(r'^([\s]*)(\d+)\.\s+(.+)$');
       final numberedMatch = numberedPattern.firstMatch(line);
 
+      Widget lineWidget;
+
       if (uncheckedMatch != null) {
-        flushPendingLines();
         final indent = uncheckedMatch.group(1)?.length ?? 0;
         final text = uncheckedMatch.group(2) ?? '';
-        widgets.add(_buildCheckboxItem(context, i, false, text, indent));
+        lineWidget = _buildCheckboxItem(context, i, false, text, indent);
       } else if (checkedMatch != null) {
-        flushPendingLines();
         final indent = checkedMatch.group(1)?.length ?? 0;
         final text = checkedMatch.group(2) ?? '';
-        widgets.add(_buildCheckboxItem(context, i, true, text, indent));
+        lineWidget = _buildCheckboxItem(context, i, true, text, indent);
       } else if (bulletMatch != null) {
-        // Manually render bullet list item
-        flushPendingLines();
         final indent = bulletMatch.group(1)?.length ?? 0;
         final text = bulletMatch.group(2) ?? '';
-        widgets.add(_buildBulletItem(context, text, indent));
+        lineWidget = _buildBulletItem(context, text, indent);
       } else if (numberedMatch != null) {
-        // Manually render numbered list item
-        flushPendingLines();
         final indent = numberedMatch.group(1)?.length ?? 0;
         final number = numberedMatch.group(2) ?? '1';
         final text = numberedMatch.group(3) ?? '';
-        widgets.add(_buildNumberedItem(context, text, number, indent));
+        lineWidget = _buildNumberedItem(context, text, number, indent);
+      } else if (trimmedLine.isEmpty) {
+        lineWidget = const SizedBox(height: 16);
       } else {
-        // Regular line - accumulate for batch markdown rendering
-        if (trimmedLine.isNotEmpty) {
-          pendingLines.add(line);
-        } else {
-          // Empty line - flush pending and add spacing
-          flushPendingLines();
-          widgets.add(const SizedBox(height: 16));
-        }
+        lineWidget = _buildMarkdownLine(context, line);
       }
+
+      widgets.add(_wrapWithSelection(context, lineWidget, i, isSelected));
     }
 
-    // Flush any remaining lines
-    flushPendingLines();
-
     return widgets;
+  }
+
+  Widget _wrapWithSelection(
+    BuildContext context,
+    Widget child,
+    int lineIndex,
+    bool isSelected,
+  ) {
+    return GestureDetector(
+      onTap: () => widget.onLineTap?.call(lineIndex),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: double.infinity,
+        decoration: isSelected
+            ? BoxDecoration(
+                border: Border(
+                  left: BorderSide(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 2,
+                  ),
+                ),
+              )
+            : null,
+        child: child,
+      ),
+    );
+  }
+
+  Widget _buildMarkdownLine(BuildContext context, String line) {
+    return Markdown(
+      data: line,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      styleSheet: widget.styleSheet,
+      selectable: widget.selectable,
+      padding: EdgeInsets.zero,
+      softLineBreak: true,
+    );
   }
 
   Widget _buildBulletItem(BuildContext context, String text, int indent) {

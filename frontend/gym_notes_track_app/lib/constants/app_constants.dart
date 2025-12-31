@@ -42,7 +42,7 @@ class AppConstants {
   static const int defaultChunkSize = 10000; // 10KB chunks
   static const int compressionThreshold = 5000;
   static const int previewMaxLength = 200;
-  static const int virtualScrollingThreshold = 5000;
+  static const int virtualScrollingThreshold = 3000;
 
   // ============================================================
   // SEARCH CONSTANTS

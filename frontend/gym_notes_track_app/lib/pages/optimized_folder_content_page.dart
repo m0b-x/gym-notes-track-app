@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import '../l10n/app_localizations.dart';
 import '../bloc/optimized_folder/optimized_folder_bloc.dart';
 import '../bloc/optimized_folder/optimized_folder_event.dart';
@@ -9,9 +10,11 @@ import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
 import '../models/folder.dart';
 import '../models/note_metadata.dart';
+import '../repositories/note_repository.dart';
 import '../services/folder_storage_service.dart';
 import '../services/note_storage_service.dart';
 import '../widgets/infinite_scroll_list.dart';
+import '../widgets/app_drawer.dart';
 import '../utils/bloc_helpers.dart';
 import 'optimized_note_editor_page.dart';
 import 'search_page.dart';
@@ -37,6 +40,8 @@ class _OptimizedFolderContentPageState
   NotesSortOrder _notesSortOrder = NotesSortOrder.updatedDesc;
   final FoldersSortOrder _foldersSortOrder = FoldersSortOrder.nameAsc;
 
+  NoteRepository get _noteRepository => GetIt.I<NoteRepository>();
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +52,10 @@ class _OptimizedFolderContentPageState
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _preloadNoteContent(List<String> noteIds) {
+    _noteRepository.preloadContent(noteIds);
   }
 
   void _loadData() {
@@ -78,8 +87,19 @@ class _OptimizedFolderContentPageState
 
   @override
   Widget build(BuildContext context) {
+    final isRootPage = widget.folderId == null;
+
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
+        automaticallyImplyLeading:
+            isRootPage, // Shows hamburger menu on root page
+        leading: !isRootPage
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
         title: Text(
           widget.title,
           style: const TextStyle(fontWeight: FontWeight.bold),
@@ -330,6 +350,8 @@ class _OptimizedFolderContentPageState
             return const SliverToBoxAdapter(child: SizedBox.shrink());
           }
 
+          _preloadNoteContent(notes.take(3).map((n) => n.id).toList());
+
           return InfiniteScrollSliver<NoteMetadata>(
             items: notes,
             hasMore: NoteStateHelper.hasMoreForFolder(state, widget.folderId),
@@ -359,6 +381,8 @@ class _OptimizedFolderContentPageState
           if (notes == null || notes.isEmpty) {
             return const SliverToBoxAdapter(child: SizedBox.shrink());
           }
+
+          _preloadNoteContent(notes.take(3).map((n) => n.id).toList());
 
           return InfiniteScrollSliver<NoteMetadata>(
             items: notes,

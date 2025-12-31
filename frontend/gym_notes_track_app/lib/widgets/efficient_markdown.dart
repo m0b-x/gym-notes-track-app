@@ -44,6 +44,8 @@ class EfficientMarkdownView extends StatefulWidget {
   final double itemExtent;
   final int cacheExtent;
   final ScrollController? scrollController;
+  final int? selectedLine;
+  final Function(int)? onLineTap;
 
   const EfficientMarkdownView({
     super.key,
@@ -54,6 +56,8 @@ class EfficientMarkdownView extends StatefulWidget {
     this.itemExtent = 32.0,
     this.cacheExtent = 500,
     this.scrollController,
+    this.selectedLine,
+    this.onLineTap,
   });
 
   @override
@@ -63,11 +67,29 @@ class EfficientMarkdownView extends StatefulWidget {
 class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
   late List<MarkdownLine> _parsedLines;
   late String _currentData;
+  List<String> _cachedLines = [];
+
+  static final _boldPattern = RegExp(r'\*\*(.+?)\*\*');
+  static final _boldAltPattern = RegExp(r'__(.+?)__');
+  static final _italicPattern = RegExp(r'\*(.+?)\*');
+  static final _italicAltPattern = RegExp(r'_(.+?)_');
+  static final _strikethroughPattern = RegExp(r'~~(.+?)~~');
+  static final _codePattern = RegExp(r'`(.+?)`');
+  static final _checkboxUncheckedPattern = RegExp(
+    r'^([\s]*)-\s+\[\s\]\s+(.+)$',
+  );
+  static final _checkboxCheckedPattern = RegExp(
+    r'^([\s]*)-\s+\[[xX]\]\s+(.+)$',
+  );
+  static final _numberedListPattern = RegExp(r'^(\d+)\.\s+(.+)$');
+
+  static const int _incrementalParseThreshold = 1000;
 
   @override
   void initState() {
     super.initState();
     _currentData = widget.data;
+    _cachedLines = _currentData.split('\n');
     _parsedLines = _parseMarkdown(_currentData);
   }
 
@@ -75,9 +97,113 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
   void didUpdateWidget(EfficientMarkdownView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.data != widget.data) {
+      final oldData = _currentData;
       _currentData = widget.data;
-      _parsedLines = _parseMarkdown(_currentData);
+
+      if (_currentData.length < _incrementalParseThreshold ||
+          oldData.length < _incrementalParseThreshold) {
+        _cachedLines = _currentData.split('\n');
+        _parsedLines = _parseMarkdown(_currentData);
+      } else {
+        _incrementalParse(oldData, _currentData);
+      }
     }
+  }
+
+  void _incrementalParse(String oldData, String newData) {
+    final newLines = newData.split('\n');
+    final oldLines = _cachedLines;
+    final lineCountDiff = newLines.length - oldLines.length;
+
+    if (lineCountDiff.abs() > 10) {
+      _cachedLines = newLines;
+      _parsedLines = _parseMarkdown(newData);
+      return;
+    }
+
+    int firstDiff = 0;
+    final minLen = oldLines.length < newLines.length
+        ? oldLines.length
+        : newLines.length;
+
+    while (firstDiff < minLen && oldLines[firstDiff] == newLines[firstDiff]) {
+      firstDiff++;
+    }
+
+    int oldEndDiff = oldLines.length - 1;
+    int newEndDiff = newLines.length - 1;
+
+    while (oldEndDiff > firstDiff &&
+        newEndDiff > firstDiff &&
+        oldLines[oldEndDiff] == newLines[newEndDiff]) {
+      oldEndDiff--;
+      newEndDiff--;
+    }
+
+    if (firstDiff > newEndDiff && lineCountDiff == 0) {
+      _cachedLines = newLines;
+      return;
+    }
+
+    final newParsedLines = <MarkdownLine>[];
+
+    for (int i = 0; i < firstDiff && i < _parsedLines.length; i++) {
+      newParsedLines.add(_parsedLines[i]);
+    }
+
+    bool inCodeBlock = false;
+    for (int i = 0; i < firstDiff; i++) {
+      if (newLines[i].trim().startsWith('```')) {
+        inCodeBlock = !inCodeBlock;
+      }
+    }
+
+    for (int i = firstDiff; i <= newEndDiff; i++) {
+      final line = newLines[i];
+      if (line.trim().startsWith('```')) {
+        inCodeBlock = !inCodeBlock;
+        newParsedLines.add(
+          MarkdownLine(
+            index: i,
+            content: line,
+            type: MarkdownLineType.codeBlock,
+          ),
+        );
+      } else if (inCodeBlock) {
+        newParsedLines.add(
+          MarkdownLine(
+            index: i,
+            content: line,
+            type: MarkdownLineType.codeBlock,
+          ),
+        );
+      } else {
+        newParsedLines.add(_parseLine(i, line));
+      }
+    }
+
+    final oldRemainingStart = oldEndDiff + 1;
+    final indexOffset = lineCountDiff;
+
+    for (int i = oldRemainingStart; i < oldLines.length; i++) {
+      final oldParsedIndex = i;
+      if (oldParsedIndex < _parsedLines.length) {
+        final oldLine = _parsedLines[oldParsedIndex];
+        newParsedLines.add(
+          MarkdownLine(
+            index: oldLine.index + indexOffset,
+            content: oldLine.content,
+            type: oldLine.type,
+            indentLevel: oldLine.indentLevel,
+            isChecked: oldLine.isChecked,
+            listNumber: oldLine.listNumber,
+          ),
+        );
+      }
+    }
+
+    _cachedLines = newLines;
+    _parsedLines = newParsedLines;
   }
 
   List<MarkdownLine> _parseMarkdown(String data) {
@@ -176,10 +302,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
       );
     }
 
-    final checkboxUnchecked = RegExp(r'^([\s]*)-\s+\[\s\]\s+(.+)$');
-    final checkboxChecked = RegExp(r'^([\s]*)-\s+\[[xX]\]\s+(.+)$');
-
-    final uncheckedMatch = checkboxUnchecked.firstMatch(line);
+    final uncheckedMatch = _checkboxUncheckedPattern.firstMatch(line);
     if (uncheckedMatch != null) {
       return MarkdownLine(
         index: index,
@@ -190,7 +313,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
       );
     }
 
-    final checkedMatch = checkboxChecked.firstMatch(line);
+    final checkedMatch = _checkboxCheckedPattern.firstMatch(line);
     if (checkedMatch != null) {
       return MarkdownLine(
         index: index,
@@ -213,7 +336,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
       );
     }
 
-    final numberedMatch = RegExp(r'^(\d+)\.\s+(.+)$').firstMatch(trimmed);
+    final numberedMatch = _numberedListPattern.firstMatch(trimmed);
     if (numberedMatch != null) {
       final indent = line.length - line.trimLeft().length;
       return MarkdownLine(
@@ -283,8 +406,40 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
       cacheExtent: widget.cacheExtent.toDouble(),
       itemBuilder: (context, index) {
         final line = _parsedLines[index];
-        return _buildLine(context, line);
+        final isSelected = widget.selectedLine == index;
+        return _wrapWithSelection(
+          context,
+          _buildLine(context, line),
+          index,
+          isSelected,
+        );
       },
+    );
+  }
+
+  Widget _wrapWithSelection(
+    BuildContext context,
+    Widget child,
+    int lineIndex,
+    bool isSelected,
+  ) {
+    return GestureDetector(
+      onTap: () => widget.onLineTap?.call(lineIndex),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: double.infinity,
+        decoration: isSelected
+            ? BoxDecoration(
+                border: Border(
+                  left: BorderSide(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 2,
+                  ),
+                ),
+              )
+            : null,
+        child: child,
+      ),
     );
   }
 
@@ -525,24 +680,21 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
       fontSize: 16,
     );
 
+    final codeStyle = TextStyle(
+      fontFamily: 'monospace',
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+    );
+
     final patterns = [
-      (RegExp(r'\*\*(.+?)\*\*'), const TextStyle(fontWeight: FontWeight.bold)),
-      (RegExp(r'__(.+?)__'), const TextStyle(fontWeight: FontWeight.bold)),
-      (RegExp(r'\*(.+?)\*'), const TextStyle(fontStyle: FontStyle.italic)),
-      (RegExp(r'_(.+?)_'), const TextStyle(fontStyle: FontStyle.italic)),
+      (_boldPattern, const TextStyle(fontWeight: FontWeight.bold)),
+      (_boldAltPattern, const TextStyle(fontWeight: FontWeight.bold)),
+      (_italicPattern, const TextStyle(fontStyle: FontStyle.italic)),
+      (_italicAltPattern, const TextStyle(fontStyle: FontStyle.italic)),
       (
-        RegExp(r'~~(.+?)~~'),
+        _strikethroughPattern,
         const TextStyle(decoration: TextDecoration.lineThrough),
       ),
-      (
-        RegExp(r'`(.+?)`'),
-        TextStyle(
-          fontFamily: 'monospace',
-          backgroundColor: Theme.of(
-            context,
-          ).colorScheme.surfaceContainerHighest,
-        ),
-      ),
+      (_codePattern, codeStyle),
     ];
 
     int currentIndex = 0;

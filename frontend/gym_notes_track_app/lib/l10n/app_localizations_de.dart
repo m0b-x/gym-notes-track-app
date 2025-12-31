@@ -471,4 +471,74 @@ class AppLocalizationsDe extends AppLocalizations {
   String charactersCount(int current, int max) {
     return '$current/$max Zeichen';
   }
+
+  @override
+  String get databaseSettings => 'Database';
+
+  @override
+  String get databaseSettingsDesc => 'Manage database location and storage';
+
+  @override
+  String get about => 'About';
+
+  @override
+  String get databaseLocation => 'Database Location';
+
+  @override
+  String get copyPath => 'Copy Path';
+
+  @override
+  String get openInFinder => 'Open Folder';
+
+  @override
+  String get databaseStats => 'Statistics';
+
+  @override
+  String get size => 'Size';
+
+  @override
+  String get lastModified => 'Last Modified';
+
+  @override
+  String get maintenance => 'Maintenance';
+
+  @override
+  String get maintenanceDesc =>
+      'Run SQLite VACUUM to reclaim unused space from deleted notes and folders. This rebuilds the database file, defragments the data, and can significantly reduce file size after deleting large amounts of content. The operation may take a few seconds depending on database size.';
+
+  @override
+  String get optimizeDatabase => 'Optimize Database';
+
+  @override
+  String get dangerZone => 'Danger Zone';
+
+  @override
+  String get dangerZoneDesc =>
+      'These actions are irreversible. All your notes and folders will be permanently deleted.';
+
+  @override
+  String get deleteAllData => 'Delete All Data';
+
+  @override
+  String get pathCopied => 'Path copied to clipboard';
+
+  @override
+  String get notSupportedOnPlatform => 'Not supported on this platform';
+
+  @override
+  String get errorOpeningFolder => 'Error opening folder';
+
+  @override
+  String get optimizing => 'Optimizing database...';
+
+  @override
+  String get optimizationComplete => 'Database optimized successfully';
+
+  @override
+  String get deleteConfirmation =>
+      'This action cannot be undone. All your notes, folders, and data will be permanently deleted. Are you absolutely sure?';
+
+  @override
+  String get deleteNotImplemented =>
+      'Delete functionality not yet implemented for safety';
 }

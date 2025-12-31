@@ -4,6 +4,7 @@ import '../database/daos/note_dao.dart';
 import '../database/daos/content_chunk_dao.dart';
 import '../models/note_metadata.dart';
 import '../constants/app_constants.dart';
+import '../utils/lru_cache.dart';
 
 /// Event types for note changes
 enum NoteChangeType { created, updated, deleted }
@@ -26,13 +27,11 @@ class NoteChange {
 class NoteRepository {
   final AppDatabase _db;
 
-  final Map<String, Note> _noteCache = {};
-  final Map<String, String> _contentCache = {};
+  late final LruCache<String, Note> _noteCache;
+  late final LruCache<String, String> _contentCache;
   final Map<String?, List<Note>> _folderNotesCache = {};
   final Map<String?, int> _countCache = {};
 
-  static const int _maxContentCacheSize = AppConstants.maxContentCacheSize;
-  static const int _maxNoteCacheSize = AppConstants.maxNoteCacheSize;
   static const Duration _cacheExpiry = AppConstants.cacheExpiry;
 
   DateTime? _lastCacheClean;
@@ -50,7 +49,12 @@ class NoteRepository {
     );
   }
 
-  NoteRepository({required AppDatabase database}) : _db = database;
+  NoteRepository({required AppDatabase database}) : _db = database {
+    _noteCache = LruCache<String, Note>(maxSize: AppConstants.maxNoteCacheSize);
+    _contentCache = LruCache<String, String>(
+      maxSize: AppConstants.maxContentCacheSize,
+    );
+  }
 
   NoteDao get _noteDao => _db.noteDao;
   ContentChunkDao get _chunkDao => _db.contentChunkDao;
@@ -58,14 +62,14 @@ class NoteRepository {
   Future<Note?> getNoteById(String id, {bool forceRefresh = false}) async {
     _cleanCacheIfNeeded();
 
-    if (!forceRefresh && _noteCache.containsKey(id)) {
-      return _noteCache[id];
+    if (!forceRefresh) {
+      final cached = _noteCache.get(id);
+      if (cached != null) return cached;
     }
 
     final note = await _noteDao.getNoteById(id);
     if (note != null) {
-      _noteCache[id] = note;
-      _trimNoteCache();
+      _noteCache.put(id, note);
     }
     return note;
   }
@@ -84,9 +88,8 @@ class NoteRepository {
     _folderNotesCache[folderId] = notes;
 
     for (final note in notes) {
-      _noteCache[note.id] = note;
+      _noteCache.put(note.id, note);
     }
-    _trimNoteCache();
 
     return notes;
   }
@@ -120,24 +123,35 @@ class NoteRepository {
     );
 
     for (final note in notes) {
-      _noteCache[note.id] = note;
+      _noteCache.put(note.id, note);
     }
-    _trimNoteCache();
 
     return notes;
   }
 
   Future<String> loadContent(String noteId, {bool forceRefresh = false}) async {
-    if (!forceRefresh && _contentCache.containsKey(noteId)) {
-      return _contentCache[noteId]!;
+    if (!forceRefresh) {
+      final cached = _contentCache.get(noteId);
+      if (cached != null) return cached;
     }
 
     final content = await _chunkDao.loadContent(noteId);
-    _contentCache[noteId] = content;
-    _trimContentCache();
+    _contentCache.put(noteId, content);
 
     return content;
   }
+
+  void preloadContent(List<String> noteIds) {
+    for (final noteId in noteIds) {
+      if (!_contentCache.containsKey(noteId)) {
+        _chunkDao.loadContent(noteId).then((content) {
+          _contentCache.put(noteId, content);
+        });
+      }
+    }
+  }
+
+  bool isContentCached(String noteId) => _contentCache.containsKey(noteId);
 
   Future<Note> createNote({
     required String folderId,
@@ -159,8 +173,8 @@ class NoteRepository {
 
     await _chunkDao.saveContent(noteId: note.id, content: content);
 
-    _noteCache[note.id] = note;
-    _contentCache[note.id] = content;
+    _noteCache.put(note.id, note);
+    _contentCache.put(note.id, content);
     _invalidateFolderCache(folderId);
 
     // Emit change event for reactive updates
@@ -187,7 +201,7 @@ class NoteRepository {
   }) async {
     if (content != null) {
       await _chunkDao.saveContent(noteId: id, content: content);
-      _contentCache[id] = content;
+      _contentCache.put(id, content);
     }
 
     final note = await _noteDao.updateNote(
@@ -200,7 +214,7 @@ class NoteRepository {
     );
 
     if (note != null) {
-      _noteCache[id] = note;
+      _noteCache.put(id, note);
       _invalidateFolderCache(note.folderId);
 
       // Emit change event for reactive updates
@@ -255,7 +269,7 @@ class NoteRepository {
   Stream<List<Note>> watchNotesByFolder(String? folderId) {
     return _noteDao.watchNotesByFolder(folderId).map((notes) {
       for (final note in notes) {
-        _noteCache[note.id] = note;
+        _noteCache.put(note.id, note);
       }
       _folderNotesCache[folderId] = notes;
       return notes;
@@ -282,28 +296,6 @@ class NoteRepository {
     _contentCache.clear();
     _folderNotesCache.clear();
     _countCache.clear();
-  }
-
-  void _trimNoteCache() {
-    if (_noteCache.length > _maxNoteCacheSize) {
-      final keysToRemove = _noteCache.keys
-          .take(_noteCache.length - _maxNoteCacheSize)
-          .toList();
-      for (final key in keysToRemove) {
-        _noteCache.remove(key);
-      }
-    }
-  }
-
-  void _trimContentCache() {
-    if (_contentCache.length > _maxContentCacheSize) {
-      final keysToRemove = _contentCache.keys
-          .take(_contentCache.length - _maxContentCacheSize)
-          .toList();
-      for (final key in keysToRemove) {
-        _contentCache.remove(key);
-      }
-    }
   }
 
   void _cleanCacheIfNeeded() {

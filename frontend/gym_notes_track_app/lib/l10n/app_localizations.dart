@@ -710,7 +710,7 @@ abstract class AppLocalizations {
   /// **'Increase Font Size'**
   String get increaseFontSize;
 
-  /// Settings button tooltip
+  /// Settings label
   ///
   /// In en, this message translates to:
   /// **'Settings'**
@@ -961,6 +961,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{current}/{max} characters'**
   String charactersCount(int current, int max);
+
+  /// Database settings menu item
+  ///
+  /// In en, this message translates to:
+  /// **'Database'**
+  String get databaseSettings;
+
+  /// Database settings description
+  ///
+  /// In en, this message translates to:
+  /// **'Manage database location and storage'**
+  String get databaseSettingsDesc;
+
+  /// About menu item
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get about;
+
+  /// Database location card title
+  ///
+  /// In en, this message translates to:
+  /// **'Database Location'**
+  String get databaseLocation;
+
+  /// Copy path button text
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Path'**
+  String get copyPath;
+
+  /// Open in Finder/Explorer button text
+  ///
+  /// In en, this message translates to:
+  /// **'Open Folder'**
+  String get openInFinder;
+
+  /// Database statistics card title
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics'**
+  String get databaseStats;
+
+  /// Size label
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get size;
+
+  /// Last modified label
+  ///
+  /// In en, this message translates to:
+  /// **'Last Modified'**
+  String get lastModified;
+
+  /// Maintenance card title
+  ///
+  /// In en, this message translates to:
+  /// **'Maintenance'**
+  String get maintenance;
+
+  /// Maintenance description
+  ///
+  /// In en, this message translates to:
+  /// **'Run SQLite VACUUM to reclaim unused space from deleted notes and folders. This rebuilds the database file, defragments the data, and can significantly reduce file size after deleting large amounts of content. The operation may take a few seconds depending on database size.'**
+  String get maintenanceDesc;
+
+  /// Optimize database button text
+  ///
+  /// In en, this message translates to:
+  /// **'Optimize Database'**
+  String get optimizeDatabase;
+
+  /// Danger zone card title
+  ///
+  /// In en, this message translates to:
+  /// **'Danger Zone'**
+  String get dangerZone;
+
+  /// Danger zone description
+  ///
+  /// In en, this message translates to:
+  /// **'These actions are irreversible. All your notes and folders will be permanently deleted.'**
+  String get dangerZoneDesc;
+
+  /// Delete all data button text
+  ///
+  /// In en, this message translates to:
+  /// **'Delete All Data'**
+  String get deleteAllData;
+
+  /// Path copied confirmation message
+  ///
+  /// In en, this message translates to:
+  /// **'Path copied to clipboard'**
+  String get pathCopied;
+
+  /// Platform not supported message
+  ///
+  /// In en, this message translates to:
+  /// **'Not supported on this platform'**
+  String get notSupportedOnPlatform;
+
+  /// Error opening folder message
+  ///
+  /// In en, this message translates to:
+  /// **'Error opening folder'**
+  String get errorOpeningFolder;
+
+  /// Optimizing message
+  ///
+  /// In en, this message translates to:
+  /// **'Optimizing database...'**
+  String get optimizing;
+
+  /// Optimization complete message
+  ///
+  /// In en, this message translates to:
+  /// **'Database optimized successfully'**
+  String get optimizationComplete;
+
+  /// Delete confirmation message
+  ///
+  /// In en, this message translates to:
+  /// **'This action cannot be undone. All your notes, folders, and data will be permanently deleted. Are you absolutely sure?'**
+  String get deleteConfirmation;
+
+  /// Delete not implemented message
+  ///
+  /// In en, this message translates to:
+  /// **'Delete functionality not yet implemented for safety'**
+  String get deleteNotImplemented;
 }
 
 class _AppLocalizationsDelegate

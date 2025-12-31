@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+/// Represents a single line in the virtual editor with its metadata
 class VirtualLine {
   final int lineNumber;
   final String content;
@@ -17,6 +18,10 @@ class VirtualLine {
   });
 }
 
+/// A high-performance text editor that virtualizes line rendering.
+///
+/// Only renders lines that are visible in the viewport plus a small buffer,
+/// making it suitable for editing very large documents (50K+ characters).
 class VirtualScrollingEditor extends StatefulWidget {
   final String initialContent;
   final ValueChanged<String>? onChanged;
@@ -27,7 +32,6 @@ class VirtualScrollingEditor extends StatefulWidget {
   final ScrollController? scrollController;
   final bool readOnly;
   final double lineHeight;
-  final int visibleLinesBuffer;
 
   const VirtualScrollingEditor({
     super.key,
@@ -40,7 +44,6 @@ class VirtualScrollingEditor extends StatefulWidget {
     this.scrollController,
     this.readOnly = false,
     this.lineHeight = 24.0,
-    this.visibleLinesBuffer = 10,
   });
 
   @override
@@ -48,28 +51,52 @@ class VirtualScrollingEditor extends StatefulWidget {
 }
 
 class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
+  static const _defaultTextStyle = TextStyle(fontSize: 16, height: 1.5);
+  static const _hiddenTextStyle = TextStyle(fontSize: 1);
+  static const _defaultHintStyle = TextStyle(fontSize: 16);
+  static const _horizontalPadding = EdgeInsets.symmetric(horizontal: 8);
+  static const _hintPadding = EdgeInsets.all(8.0);
+
   late ScrollController _scrollController;
   bool _ownsScrollController = false;
   late TextEditingController _hiddenController;
   late FocusNode _focusNode;
+
+  /// The parsed lines of the document
   List<VirtualLine> _lines = [];
 
-  int _firstVisibleLine = 0;
-  int _lastVisibleLine = 0;
+  /// Cursor state
   int _cursorLine = 0;
   int _cursorColumn = 0;
-  bool _showCursor = true;
+  final ValueNotifier<bool> _showCursor = ValueNotifier(true);
   Timer? _cursorTimer;
-  Timer? _debounceTimer;
 
-  // Debounce delay for large text updates
+  /// Debounce timer for expensive operations
+  Timer? _debounceTimer;
   static const _debounceDelay = Duration(milliseconds: 16);
 
+  /// Tracking for incremental updates
+  String _previousContent = '';
+  int _previousLineCount = 0;
+
+  /// Key to force SliverList rebuild when content changes
+  int _listKey = 0;
+
+  /// Cached text style for performance
+  TextStyle? _cachedTextStyle;
+
+  /// ValueNotifier for the current cursor line - allows targeted rebuilds
+  final ValueNotifier<int> _cursorLineNotifier = ValueNotifier(0);
+
+  /// Track if we need a full rebuild or just cursor line update
+  bool _needsFullRebuild = false;
+
+  // Public getters for accessing editor state
   String get text => _hiddenController.text;
 
   set text(String value) {
     _hiddenController.text = value;
-    _updateLinesImmediate();
+    _rebuildLines();
   }
 
   TextEditingController get controller => _hiddenController;
@@ -77,6 +104,8 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
   @override
   void initState() {
     super.initState();
+
+    // Initialize scroll controller
     if (widget.scrollController != null) {
       _scrollController = widget.scrollController!;
       _ownsScrollController = false;
@@ -84,15 +113,21 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
       _scrollController = ScrollController();
       _ownsScrollController = true;
     }
+
+    // Initialize text controller and focus node
     _hiddenController = TextEditingController(text: widget.initialContent);
     _focusNode = widget.focusNode ?? FocusNode();
 
-    _updateLinesImmediate();
+    // Parse initial content into lines
+    _rebuildLines();
+    _previousContent = _hiddenController.text;
+    _previousLineCount = _lines.length;
 
+    // Set up listeners
     _hiddenController.addListener(_onTextChanged);
-    _scrollController.addListener(_onScroll);
     _focusNode.addListener(_onFocusChanged);
 
+    // Start cursor blink
     _startCursorBlink();
   }
 
@@ -100,19 +135,24 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
   void dispose() {
     _cursorTimer?.cancel();
     _debounceTimer?.cancel();
+    _showCursor.dispose();
+    _cursorLineNotifier.dispose();
+
     if (_ownsScrollController) {
       _scrollController.dispose();
     }
+
     _hiddenController.removeListener(_onTextChanged);
     _hiddenController.dispose();
+
     if (widget.focusNode == null) {
       _focusNode.dispose();
     }
+
     super.dispose();
   }
 
-  /// Immediate update for programmatic changes
-  void _updateLinesImmediate() {
+  void _rebuildLines() {
     final content = _hiddenController.text;
     final lines = content.split('\n');
     final virtualLines = <VirtualLine>[];
@@ -127,66 +167,166 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
           endOffset: offset + lines[i].length,
         ),
       );
-      offset += lines[i].length + 1;
+      offset += lines[i].length + 1; // +1 for newline
     }
 
     _lines = virtualLines;
-    _updateCursorPosition();
+    _listKey++;
   }
 
+  /// Updates only the affected line for small edits (optimization)
+  void _updateSingleLine(String content, int cursorOffset) {
+    cursorOffset = cursorOffset.clamp(0, content.length);
+
+    // Find line boundaries from actual content
+    int lineStart = cursorOffset > 0
+        ? content.lastIndexOf('\n', cursorOffset - 1)
+        : -1;
+    lineStart = lineStart == -1 ? 0 : lineStart + 1;
+
+    int lineEnd = content.indexOf('\n', cursorOffset);
+    lineEnd = lineEnd == -1 ? content.length : lineEnd;
+
+    // Find line index by counting newlines
+    int lineIndex = 0;
+    for (int i = 0; i < lineStart; i++) {
+      if (content[i] == '\n') lineIndex++;
+    }
+
+    if (lineIndex >= _lines.length) {
+      _rebuildLines();
+      return;
+    }
+
+    final lineContent = content.substring(lineStart, lineEnd);
+    final oldLine = _lines[lineIndex];
+    final lengthDiff = lineContent.length - oldLine.content.length;
+
+    // Update the changed line
+    _lines[lineIndex] = VirtualLine(
+      lineNumber: lineIndex,
+      content: lineContent,
+      startOffset: lineStart,
+      endOffset: lineEnd,
+    );
+
+    // Update offsets for all following lines
+    if (lengthDiff != 0) {
+      for (int i = lineIndex + 1; i < _lines.length; i++) {
+        final line = _lines[i];
+        _lines[i] = VirtualLine(
+          lineNumber: line.lineNumber,
+          content: line.content,
+          startOffset: line.startOffset + lengthDiff,
+          endOffset: line.endOffset + lengthDiff,
+        );
+      }
+    }
+
+    _listKey++; // Force rebuild of affected lines
+  }
+
+  /// Updates the cursor position based on selection
   void _updateCursorPosition() {
     final cursorOffset = _hiddenController.selection.baseOffset;
-    if (cursorOffset < 0) return;
+    if (cursorOffset < 0 || _lines.isEmpty) return;
 
     for (int i = 0; i < _lines.length; i++) {
-      if (cursorOffset <=
-          _lines[i].endOffset + (i < _lines.length - 1 ? 1 : 0)) {
+      final line = _lines[i];
+      final isLastLine = i == _lines.length - 1;
+      final lineEndWithNewline = line.endOffset + (isLastLine ? 0 : 1);
+
+      if (cursorOffset <= lineEndWithNewline) {
         _cursorLine = i;
-        _cursorColumn = cursorOffset - _lines[i].startOffset;
+        _cursorColumn = cursorOffset - line.startOffset;
         break;
       }
     }
   }
 
   void _onTextChanged() {
-    // Debounce updates for large text changes (like paste)
+    final content = _hiddenController.text;
+    final cursorOffset = _hiddenController.selection.baseOffset;
+    final newLineCount = '\n'.allMatches(content).length + 1;
+    final lineCountChanged = newLineCount != _previousLineCount;
+    final contentLengthDiff = (content.length - _previousContent.length).abs();
+
+    final oldCursorLine = _cursorLine;
+    final oldCursorColumn = _cursorColumn;
+
+    // Always rebuild lines to ensure fresh offsets for cursor positioning
+    // This is critical for autocorrect which can change text unexpectedly
+    if (!lineCountChanged &&
+        contentLengthDiff <= 2 &&
+        _lines.isNotEmpty &&
+        cursorOffset >= 0) {
+      _updateSingleLine(content, cursorOffset);
+      _needsFullRebuild = false;
+    } else {
+      _rebuildLines();
+      _needsFullRebuild = true;
+    }
+
+    _previousContent = content;
+    _previousLineCount = newLineCount;
+
+    // Update cursor position from the hidden controller's selection
+    if (cursorOffset >= 0 && _lines.isNotEmpty) {
+      for (int i = 0; i < _lines.length; i++) {
+        final line = _lines[i];
+        if (cursorOffset <= line.endOffset || i == _lines.length - 1) {
+          _cursorLine = i;
+          _cursorColumn = (cursorOffset - line.startOffset).clamp(
+            0,
+            line.content.length,
+          );
+          break;
+        }
+      }
+    }
+
+    // Rebuild if line count changed, cursor moved to different line, OR cursor column changed
+    final cursorMoved =
+        oldCursorLine != _cursorLine || oldCursorColumn != _cursorColumn;
+    if (_needsFullRebuild || lineCountChanged || cursorMoved) {
+      setState(() {});
+    }
+    _cursorLineNotifier.value = _cursorLine;
+
+    // Debounce expensive operations
     _debounceTimer?.cancel();
     _debounceTimer = Timer(_debounceDelay, () {
       if (!mounted) return;
-      _updateLinesImmediate();
+
       _scrollCursorIntoView();
       widget.onChanged?.call(_hiddenController.text);
-      setState(() {});
     });
   }
 
+  /// Scrolls the view to ensure the cursor is visible
   void _scrollCursorIntoView() {
     if (!_scrollController.hasClients) return;
 
     final cursorY = _cursorLine * widget.lineHeight;
     final viewportHeight = _scrollController.position.viewportDimension;
     final currentScroll = _scrollController.offset;
-
-    // Calculate max scroll based on total content, not the current maxScrollExtent
-    // (which may not have updated yet after a paste)
     final totalContentHeight = _lines.length * widget.lineHeight;
     final maxScroll = (totalContentHeight - viewportHeight).clamp(
       0.0,
       double.infinity,
     );
 
-    // Check if cursor is below the visible area
+    // Check if cursor is below visible area
     final bottomThreshold =
         currentScroll + viewportHeight - widget.lineHeight * 2;
     if (cursorY > bottomThreshold) {
-      // Position cursor near the bottom of the viewport with some padding
       final targetScroll = (cursorY - viewportHeight + widget.lineHeight * 3)
           .clamp(0.0, maxScroll);
       _scrollController.jumpTo(targetScroll);
       return;
     }
 
-    // Check if cursor is above the visible area
+    // Check if cursor is above visible area
     final topThreshold = currentScroll + widget.lineHeight;
     if (cursorY < topThreshold) {
       final targetScroll = (cursorY - widget.lineHeight).clamp(0.0, maxScroll);
@@ -194,43 +334,9 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
     }
   }
 
-  void _onScroll() {
-    if (!mounted) return;
-    _calculateVisibleLines();
-    setState(() {});
-  }
-
   void _onFocusChanged() {
     if (!mounted) return;
     setState(() {});
-  }
-
-  void _calculateVisibleLines() {
-    if (!_scrollController.hasClients) {
-      _firstVisibleLine = 0;
-      _lastVisibleLine = (widget.visibleLinesBuffer * 2).clamp(
-        0,
-        _lines.isEmpty ? 0 : _lines.length - 1,
-      );
-      return;
-    }
-
-    final viewportHeight = _scrollController.position.viewportDimension;
-    final scrollOffset = _scrollController.offset;
-
-    _firstVisibleLine = (scrollOffset / widget.lineHeight).floor();
-    _firstVisibleLine = (_firstVisibleLine - widget.visibleLinesBuffer).clamp(
-      0,
-      _lines.isEmpty ? 0 : _lines.length - 1,
-    );
-
-    final visibleCount = (viewportHeight / widget.lineHeight).ceil();
-    _lastVisibleLine =
-        _firstVisibleLine + visibleCount + widget.visibleLinesBuffer * 2;
-    _lastVisibleLine = _lastVisibleLine.clamp(
-      0,
-      _lines.isEmpty ? 0 : _lines.length - 1,
-    );
   }
 
   void _startCursorBlink() {
@@ -239,42 +345,64 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
         timer.cancel();
         return;
       }
-      setState(() {
-        _showCursor = !_showCursor;
-      });
+      _showCursor.value = !_showCursor.value;
     });
   }
 
-  void _handleTap(int lineIndex, Offset localPosition) {
+  /// Handles tap on a line to position cursor
+  void _handleLineTap(int lineIndex, Offset localPosition) {
     if (widget.readOnly) return;
     _focusNode.requestFocus();
 
+    if (lineIndex >= _lines.length) return;
+
     final line = _lines[lineIndex];
+    final tapX = (localPosition.dx - 8).clamp(0.0, double.infinity);
+
     if (line.content.isEmpty) {
+      _cursorLine = lineIndex;
+      _cursorColumn = 0;
       _hiddenController.selection = TextSelection.collapsed(
         offset: line.startOffset,
       );
     } else {
+      final textStyle = widget.textStyle ?? _defaultTextStyle;
       final textPainter = TextPainter(
-        text: TextSpan(
-          text: line.content,
-          style: widget.textStyle ?? const TextStyle(fontSize: 16),
-        ),
+        text: TextSpan(text: line.content, style: textStyle),
         textDirection: TextDirection.ltr,
       );
       textPainter.layout();
-      final tapX = localPosition.dx - 8;
-      final offset = textPainter.getPositionForOffset(
-        Offset(tapX.clamp(0, double.infinity), 0),
-      );
+
+      // Build array of caret X positions for each character boundary
+      final caretPositions = <double>[];
+      for (int i = 0; i <= line.content.length; i++) {
+        caretPositions.add(
+          textPainter.getOffsetForCaret(TextPosition(offset: i), Rect.zero).dx,
+        );
+      }
+
+      // Find the closest caret position to the tap
+      int charOffset = 0;
+      double minDistance = (tapX - caretPositions[0]).abs();
+      for (int i = 1; i < caretPositions.length; i++) {
+        final distance = (tapX - caretPositions[i]).abs();
+        if (distance < minDistance) {
+          minDistance = distance;
+          charOffset = i;
+        }
+      }
+
+      _cursorLine = lineIndex;
+      _cursorColumn = charOffset;
       _hiddenController.selection = TextSelection.collapsed(
-        offset: line.startOffset + offset.offset,
+        offset: line.startOffset + charOffset,
       );
     }
-    _updateCursorPosition();
+
     setState(() {});
   }
 
+  /// Handles keyboard navigation
   void _handleKeyEvent(KeyEvent event) {
     if (widget.readOnly) return;
 
@@ -282,7 +410,6 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
       final selection = _hiddenController.selection;
       final text = _hiddenController.text;
 
-      // Handle only navigation keys - text input is handled by the TextField
       if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
         _moveCursorVertically(-1);
       } else if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
@@ -318,6 +445,7 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
     setState(() {});
   }
 
+  /// Public method to scroll to a specific line
   void scrollToLine(int lineNumber) {
     final offset = lineNumber * widget.lineHeight;
     _scrollController.animateTo(
@@ -327,18 +455,18 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
     );
   }
 
+  /// Public method to scroll to the cursor position
   void scrollToCursor() {
     scrollToLine(_cursorLine);
   }
 
   @override
   Widget build(BuildContext context) {
-    final totalHeight = _lines.length * widget.lineHeight;
     final isEmpty = _hiddenController.text.isEmpty;
 
     return Stack(
       children: [
-        // Invisible TextField that handles all text input including paste
+        // Hidden TextField for text input handling
         Positioned.fill(
           child: Opacity(
             opacity: 0.0,
@@ -348,7 +476,7 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
               maxLines: null,
               expands: true,
               readOnly: widget.readOnly,
-              style: const TextStyle(fontSize: 1),
+              style: _hiddenTextStyle,
               decoration: const InputDecoration(
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.zero,
@@ -356,7 +484,7 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
             ),
           ),
         ),
-        // Visible layer with virtualized rendering
+        // Visible virtualized content
         Positioned.fill(
           child: KeyboardListener(
             focusNode: FocusNode(),
@@ -364,39 +492,19 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
             child: GestureDetector(
               onTap: () => _focusNode.requestFocus(),
               behavior: HitTestBehavior.translucent,
-              child: Container(
-                color: Colors.transparent,
-                child: isEmpty && widget.hintText != null
-                    ? Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(
-                          widget.hintText!,
-                          style:
-                              widget.hintStyle ??
-                              TextStyle(
-                                color: Theme.of(context).hintColor,
-                                fontSize: 16,
-                              ),
-                        ),
-                      )
-                    : CustomScrollView(
-                        controller: _scrollController,
-                        slivers: [
-                          SliverToBoxAdapter(
-                            child: SizedBox(
-                              height: totalHeight,
-                              child: Stack(
-                                children: [
-                                  ..._buildVisibleLines(context),
-                                  if (_focusNode.hasFocus && _showCursor)
-                                    _buildCursor(context),
-                                ],
-                              ),
+              child: isEmpty && widget.hintText != null
+                  ? Padding(
+                      padding: _hintPadding,
+                      child: Text(
+                        widget.hintText!,
+                        style:
+                            widget.hintStyle ??
+                            _defaultHintStyle.copyWith(
+                              color: Theme.of(context).hintColor,
                             ),
-                          ),
-                        ],
                       ),
-              ),
+                    )
+                  : _buildVirtualizedContent(context),
             ),
           ),
         ),
@@ -404,88 +512,139 @@ class VirtualScrollingEditorState extends State<VirtualScrollingEditor> {
     );
   }
 
-  List<Widget> _buildVisibleLines(BuildContext context) {
-    _calculateVisibleLines();
+  /// Builds the virtualized scrollable content using SliverFixedExtentList
+  Widget _buildVirtualizedContent(BuildContext context) {
+    _cachedTextStyle ??= widget.textStyle ?? _defaultTextStyle;
+    final textStyle = _cachedTextStyle!;
+    final hasFocus = _focusNode.hasFocus;
 
-    final widgets = <Widget>[];
-    final textStyle =
-        widget.textStyle ?? const TextStyle(fontSize: 16, height: 1.5);
+    return CustomScrollView(
+      controller: _scrollController,
+      slivers: [
+        SliverFixedExtentList(
+          key: ValueKey(_listKey),
+          itemExtent: widget.lineHeight,
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              if (index >= _lines.length) return null;
 
-    for (
-      int i = _firstVisibleLine;
-      i <= _lastVisibleLine && i < _lines.length;
-      i++
-    ) {
-      final line = _lines[i];
-      final lineIndex = i;
+              final line = _lines[index];
+              // Read _cursorLine directly, not from captured variable
+              final isCursorLine = index == _cursorLine && hasFocus;
 
-      widgets.add(
-        Positioned(
-          top: i * widget.lineHeight,
-          left: 0,
-          right: 0,
-          height: widget.lineHeight,
-          child: GestureDetector(
-            onTapDown: (details) =>
-                _handleTap(lineIndex, details.localPosition),
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              alignment: Alignment.centerLeft,
-              child: Text(
-                line.content.isEmpty ? ' ' : line.content,
-                style: textStyle,
-                maxLines: 1,
-                overflow: TextOverflow.visible,
-              ),
-            ),
+              // Use RepaintBoundary for non-cursor lines to prevent unnecessary repaints
+              Widget lineWidget = GestureDetector(
+                onTapDown: (details) =>
+                    _handleLineTap(index, details.localPosition),
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: _horizontalPadding,
+                  child: isCursorLine
+                      ? _buildCursorLineWidget(line, textStyle)
+                      : Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            line.content.isEmpty ? ' ' : line.content,
+                            style: textStyle,
+                            maxLines: 1,
+                            overflow: TextOverflow.clip,
+                          ),
+                        ),
+                ),
+              );
+
+              // Wrap non-cursor lines in RepaintBoundary for isolation
+              return isCursorLine
+                  ? lineWidget
+                  : RepaintBoundary(child: lineWidget);
+            },
+            childCount: _lines.length,
+            addAutomaticKeepAlives: false,
+            addRepaintBoundaries: true,
           ),
         ),
-      );
-    }
-
-    return widgets;
+      ],
+    );
   }
 
-  Widget _buildCursor(BuildContext context) {
-    if (_lines.isEmpty || _cursorLine >= _lines.length) {
-      return const SizedBox.shrink();
-    }
+  /// Builds the cursor line widget with text and cursor
+  Widget _buildCursorLineWidget(VirtualLine line, TextStyle textStyle) {
+    return ValueListenableBuilder<int>(
+      valueListenable: _cursorLineNotifier,
+      builder: (context, _, _) {
+        // IMPORTANT: Read fresh line data from _lines, not the captured parameter
+        // This ensures we get the latest content after fast typing
+        final currentLine = _cursorLine < _lines.length
+            ? _lines[_cursorLine]
+            : line;
+        final content = currentLine.content;
 
-    final line = _lines[_cursorLine];
-
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: line.content.substring(
-          0,
-          _cursorColumn.clamp(0, line.content.length),
-        ),
-        style: widget.textStyle ?? const TextStyle(fontSize: 16),
-      ),
-      textDirection: TextDirection.ltr,
+        return Stack(
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                content.isEmpty ? ' ' : content,
+                style: textStyle,
+                maxLines: 1,
+                overflow: TextOverflow.clip,
+              ),
+            ),
+            ValueListenableBuilder<bool>(
+              valueListenable: _showCursor,
+              builder: (context, showCursor, child) {
+                if (!showCursor) return const SizedBox.shrink();
+                return _buildCursorWidget(currentLine, textStyle);
+              },
+            ),
+          ],
+        );
+      },
     );
-    textPainter.layout();
+  }
 
-    final cursorX = textPainter.width + 8;
-    final cursorY = _cursorLine * widget.lineHeight;
+  /// Builds the cursor widget for a line
+  Widget _buildCursorWidget(VirtualLine line, TextStyle textStyle) {
+    final freshLine = _cursorLine < _lines.length ? _lines[_cursorLine] : line;
+    final column = _cursorColumn.clamp(0, freshLine.content.length);
+    double cursorX = 0;
+
+    if (column > 0 && freshLine.content.isNotEmpty) {
+      // Use getOffsetForCaret for consistency with tap handling
+      final textPainter = TextPainter(
+        text: TextSpan(text: freshLine.content, style: textStyle),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      cursorX = textPainter
+          .getOffsetForCaret(TextPosition(offset: column), Rect.zero)
+          .dx;
+    }
 
     return Positioned(
       left: cursorX,
-      top: cursorY + 2,
-      child: Container(
-        width: 2,
-        height: widget.lineHeight - 4,
-        color: Theme.of(context).colorScheme.primary,
-      ),
+      top: 2,
+      bottom: 2,
+      child: const _CursorWidget(),
     );
   }
 }
 
+/// Extracted cursor widget to avoid rebuilds
+class _CursorWidget extends StatelessWidget {
+  const _CursorWidget();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 2, color: Theme.of(context).colorScheme.primary);
+  }
+}
+
+/// A simpler read-only virtualized text viewer
 class VirtualTextViewer extends StatefulWidget {
   final String content;
   final TextStyle? textStyle;
   final double lineHeight;
-  final int visibleLinesBuffer;
   final Widget Function(String line, int lineNumber)? lineBuilder;
 
   const VirtualTextViewer({
@@ -493,7 +652,6 @@ class VirtualTextViewer extends StatefulWidget {
     required this.content,
     this.textStyle,
     this.lineHeight = 24.0,
-    this.visibleLinesBuffer = 10,
     this.lineBuilder,
   });
 
@@ -502,18 +660,17 @@ class VirtualTextViewer extends StatefulWidget {
 }
 
 class _VirtualTextViewerState extends State<VirtualTextViewer> {
+  static const _defaultTextStyle = TextStyle(fontSize: 16, height: 1.5);
+  static const _horizontalPadding = EdgeInsets.symmetric(horizontal: 8);
+
   late ScrollController _scrollController;
   late List<String> _lines;
-
-  int _firstVisibleLine = 0;
-  int _lastVisibleLine = 0;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     _lines = widget.content.split('\n');
-    _scrollController.addListener(_onScroll);
   }
 
   @override
@@ -530,88 +687,42 @@ class _VirtualTextViewerState extends State<VirtualTextViewer> {
     super.dispose();
   }
 
-  void _onScroll() {
-    _calculateVisibleLines();
-    setState(() {});
-  }
-
-  void _calculateVisibleLines() {
-    if (!_scrollController.hasClients) return;
-
-    final viewportHeight = _scrollController.position.viewportDimension;
-    final scrollOffset = _scrollController.offset;
-
-    _firstVisibleLine = (scrollOffset / widget.lineHeight).floor();
-    _firstVisibleLine = (_firstVisibleLine - widget.visibleLinesBuffer).clamp(
-      0,
-      _lines.length - 1,
-    );
-
-    final visibleCount = (viewportHeight / widget.lineHeight).ceil();
-    _lastVisibleLine =
-        _firstVisibleLine + visibleCount + widget.visibleLinesBuffer * 2;
-    _lastVisibleLine = _lastVisibleLine.clamp(0, _lines.length - 1);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final totalHeight = _lines.length * widget.lineHeight;
+    final textStyle = widget.textStyle ?? _defaultTextStyle;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _calculateVisibleLines();
-        });
+    return CustomScrollView(
+      controller: _scrollController,
+      slivers: [
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              if (index >= _lines.length) return null;
 
-        return CustomScrollView(
-          controller: _scrollController,
-          slivers: [
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: totalHeight,
-                child: Stack(children: _buildVisibleLines()),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
+              final line = _lines[index];
 
-  List<Widget> _buildVisibleLines() {
-    final widgets = <Widget>[];
-
-    for (
-      int i = _firstVisibleLine;
-      i <= _lastVisibleLine && i < _lines.length;
-      i++
-    ) {
-      final line = _lines[i];
-
-      widgets.add(
-        Positioned(
-          top: i * widget.lineHeight,
-          left: 0,
-          right: 0,
-          height: widget.lineHeight,
-          child:
-              widget.lineBuilder?.call(line, i) ??
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  line.isEmpty ? ' ' : line,
-                  style:
-                      widget.textStyle ??
-                      const TextStyle(fontSize: 16, height: 1.5),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
+              return SizedBox(
+                height: widget.lineHeight,
+                child:
+                    widget.lineBuilder?.call(line, index) ??
+                    Container(
+                      padding: _horizontalPadding,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        line.isEmpty ? ' ' : line,
+                        style: textStyle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+              );
+            },
+            childCount: _lines.length,
+            addAutomaticKeepAlives: false,
+            addRepaintBoundaries: true,
+          ),
         ),
-      );
-    }
-
-    return widgets;
+      ],
+    );
   }
 }

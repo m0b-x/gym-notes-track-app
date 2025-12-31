@@ -635,5 +635,97 @@
       "current": { "type": "int" },
       "max": { "type": "int" }
     }
+  },
+  "settings": "Settings",
+  "@settings": {
+    "description": "Settings label"
+  },
+  "databaseSettings": "Database",
+  "@databaseSettings": {
+    "description": "Database settings menu item"
+  },
+  "databaseSettingsDesc": "Manage database location and storage",
+  "@databaseSettingsDesc": {
+    "description": "Database settings description"
+  },
+  "about": "About",
+  "@about": {
+    "description": "About menu item"
+  },
+  "databaseLocation": "Database Location",
+  "@databaseLocation": {
+    "description": "Database location card title"
+  },
+  "copyPath": "Copy Path",
+  "@copyPath": {
+    "description": "Copy path button text"
+  },
+  "openInFinder": "Open Folder",
+  "@openInFinder": {
+    "description": "Open in Finder/Explorer button text"
+  },
+  "databaseStats": "Statistics",
+  "@databaseStats": {
+    "description": "Database statistics card title"
+  },
+  "size": "Size",
+  "@size": {
+    "description": "Size label"
+  },
+  "lastModified": "Last Modified",
+  "@lastModified": {
+    "description": "Last modified label"
+  },
+  "maintenance": "Maintenance",
+  "@maintenance": {
+    "description": "Maintenance card title"
+  },
+  "maintenanceDesc": "Run SQLite VACUUM to reclaim unused space from deleted notes and folders. This rebuilds the database file, defragments the data, and can significantly reduce file size after deleting large amounts of content. The operation may take a few seconds depending on database size.",
+  "@maintenanceDesc": {
+    "description": "Maintenance description"
+  },
+  "optimizeDatabase": "Optimize Database",
+  "@optimizeDatabase": {
+    "description": "Optimize database button text"
+  },
+  "dangerZone": "Danger Zone",
+  "@dangerZone": {
+    "description": "Danger zone card title"
+  },
+  "dangerZoneDesc": "These actions are irreversible. All your notes and folders will be permanently deleted.",
+  "@dangerZoneDesc": {
+    "description": "Danger zone description"
+  },
+  "deleteAllData": "Delete All Data",
+  "@deleteAllData": {
+    "description": "Delete all data button text"
+  },
+  "pathCopied": "Path copied to clipboard",
+  "@pathCopied": {
+    "description": "Path copied confirmation message"
+  },
+  "notSupportedOnPlatform": "Not supported on this platform",
+  "@notSupportedOnPlatform": {
+    "description": "Platform not supported message"
+  },
+  "errorOpeningFolder": "Error opening folder",
+  "@errorOpeningFolder": {
+    "description": "Error opening folder message"
+  },
+  "optimizing": "Optimizing database...",
+  "@optimizing": {
+    "description": "Optimizing message"
+  },
+  "optimizationComplete": "Database optimized successfully",
+  "@optimizationComplete": {
+    "description": "Optimization complete message"
+  },
+  "deleteConfirmation": "This action cannot be undone. All your notes, folders, and data will be permanently deleted. Are you absolutely sure?",
+  "@deleteConfirmation": {
+    "description": "Delete confirmation message"
+  },
+  "deleteNotImplemented": "Delete functionality not yet implemented for safety",
+  "@deleteNotImplemented": {
+    "description": "Delete not implemented message"
   }
 }
