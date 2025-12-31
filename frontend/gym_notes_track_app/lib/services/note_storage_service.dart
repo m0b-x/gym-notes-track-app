@@ -13,6 +13,8 @@ enum NotesSortOrder {
   createdAsc,
   titleAsc,
   titleDesc,
+  positionAsc,
+  positionDesc,
 }
 
 class NoteStorageService {
@@ -209,6 +211,10 @@ class NoteStorageService {
         return (NoteSortField.title, true);
       case NotesSortOrder.titleDesc:
         return (NoteSortField.title, false);
+      case NotesSortOrder.positionAsc:
+        return (NoteSortField.position, true);
+      case NotesSortOrder.positionDesc:
+        return (NoteSortField.position, false);
     }
   }
 
@@ -218,6 +224,15 @@ class NoteStorageService {
     for (final note in notes) {
       await _repository.deleteNote(note.id);
     }
+  }
+
+  /// Reorder notes within a folder
+  Future<void> reorderNotes({
+    required String folderId,
+    required List<String> orderedIds,
+  }) async {
+    await initialize();
+    await _repository.reorderNotes(folderId: folderId, orderedIds: orderedIds);
   }
 
   Stream<List<NoteMetadata>> watchNotesByFolder(String? folderId) {

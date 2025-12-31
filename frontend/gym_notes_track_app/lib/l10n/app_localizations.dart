@@ -1082,6 +1082,18 @@ abstract class AppLocalizations {
   /// **'Database optimized successfully'**
   String get optimizationComplete;
 
+  /// Saved suffix for size reduction
+  ///
+  /// In en, this message translates to:
+  /// **'saved'**
+  String get saved;
+
+  /// Message when no space was reclaimed
+  ///
+  /// In en, this message translates to:
+  /// **'database already optimized'**
+  String get alreadyOptimized;
+
   /// Delete confirmation message
   ///
   /// In en, this message translates to:
@@ -1093,6 +1105,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete functionality not yet implemented for safety'**
   String get deleteNotImplemented;
+
+  /// Loading text while deleting data
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting all data...'**
+  String get deletingData;
+
+  /// Title for data deleted success dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Data Deleted'**
+  String get dataDeleted;
+
+  /// Message after data deletion requiring restart
+  ///
+  /// In en, this message translates to:
+  /// **'All data has been deleted. Please restart the app to continue.'**
+  String get restartRequired;
+
+  /// Button to exit the app
+  ///
+  /// In en, this message translates to:
+  /// **'Exit App'**
+  String get exitApp;
+
+  /// Error message prefix for deletion failure
+  ///
+  /// In en, this message translates to:
+  /// **'Error deleting data'**
+  String get errorDeletingData;
+
+  /// Rename note dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Rename Note'**
+  String get renameNote;
+
+  /// Hint text for rename input
+  ///
+  /// In en, this message translates to:
+  /// **'Enter new name'**
+  String get enterNewName;
+
+  /// Reorder mode toggle tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Reorder Mode'**
+  String get reorderMode;
+
+  /// Hint for drag and drop reordering
+  ///
+  /// In en, this message translates to:
+  /// **'Drag items to reorder'**
+  String get dragToReorder;
+
+  /// Custom sort order option
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Order'**
+  String get sortByCustom;
+
+  /// Move item up action
+  ///
+  /// In en, this message translates to:
+  /// **'Move Up'**
+  String get moveUp;
+
+  /// Move item down action
+  ///
+  /// In en, this message translates to:
+  /// **'Move Down'**
+  String get moveDown;
 }
 
 class _AppLocalizationsDelegate

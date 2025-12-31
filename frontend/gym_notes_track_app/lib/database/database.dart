@@ -42,6 +42,25 @@ class AppDatabase extends _$AppDatabase {
     return _instance!;
   }
 
+  /// Closes the database and deletes all data files.
+  /// After calling this, the app should be restarted.
+  static Future<void> deleteAllData() async {
+    // Close the current instance if it exists
+    if (_instance != null) {
+      await _instance!.close();
+      _instance = null;
+    }
+
+    // Get the database folder path
+    final dbFolder = await getApplicationDocumentsDirectory();
+    final gymNotesDir = Directory(p.join(dbFolder.path, 'gym_notes'));
+
+    // Delete the entire gym_notes directory (includes db, device_id, etc.)
+    if (await gymNotesDir.exists()) {
+      await gymNotesDir.delete(recursive: true);
+    }
+  }
+
   static Future<String> _getOrCreateDeviceId() async {
     final directory = await getApplicationDocumentsDirectory();
     final deviceFile = File(p.join(directory.path, 'gym_notes', 'device_id'));
@@ -59,7 +78,7 @@ class AppDatabase extends _$AppDatabase {
   String get deviceId => _deviceId;
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration {
@@ -81,6 +100,35 @@ class AppDatabase extends _$AppDatabase {
           );
           // Drop redundant index if exists
           await customStatement('DROP INDEX IF EXISTS idx_chunks_note');
+        }
+        if (from < 4) {
+          // Add position column for manual ordering
+          await m.addColumn(folders, folders.position);
+          await m.addColumn(notes, notes.position);
+          // Initialize positions based on creation date
+          await customStatement('''
+            UPDATE folders SET position = (
+              SELECT COUNT(*) FROM folders f2 
+              WHERE f2.created_at < folders.created_at 
+              AND COALESCE(f2.parent_id, '') = COALESCE(folders.parent_id, '')
+              AND f2.is_deleted = 0
+            ) WHERE is_deleted = 0
+          ''');
+          await customStatement('''
+            UPDATE notes SET position = (
+              SELECT COUNT(*) FROM notes n2 
+              WHERE n2.created_at < notes.created_at 
+              AND n2.folder_id = notes.folder_id
+              AND n2.is_deleted = 0
+            ) WHERE is_deleted = 0
+          ''');
+          // Add position indexes
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_folders_position ON folders(parent_id, position) WHERE is_deleted = 0',
+          );
+          await customStatement(
+            'CREATE INDEX IF NOT EXISTS idx_notes_position ON notes(folder_id, position) WHERE is_deleted = 0',
+          );
         }
       },
     );
@@ -120,6 +168,10 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> rebuildFtsIndex() async {
     await customStatement("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')");
+  }
+
+  Future<void> vacuum() async {
+    await customStatement('VACUUM');
   }
 
   String generateHlc() {

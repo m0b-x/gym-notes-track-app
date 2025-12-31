@@ -243,6 +243,30 @@ class FolderRepository {
     }
   }
 
+  /// Reorder folders within a parent
+  Future<void> reorderFolders({
+    String? parentId,
+    required List<String> orderedIds,
+  }) async {
+    await _folderDao.reorderFolders(parentId: parentId, orderedIds: orderedIds);
+    _invalidateParentCache(parentId);
+
+    // Emit change events for all reordered folders
+    for (final folderId in orderedIds) {
+      final folder = await getFolderById(folderId, forceRefresh: true);
+      if (folder != null) {
+        _folderChangesController.add(
+          FolderChange(
+            type: FolderChangeType.updated,
+            folderId: folderId,
+            parentId: parentId,
+            folder: _folderCache[folderId],
+          ),
+        );
+      }
+    }
+  }
+
   Future<List<String>> getAllDescendantIds(String folderId) {
     return _folderDao.getAllDescendantIds(folderId);
   }

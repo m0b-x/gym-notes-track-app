@@ -83,6 +83,10 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
         query.orderBy([
           (n) => OrderingTerm(expression: n.updatedAt, mode: orderMode),
         ]);
+      case NoteSortField.position:
+        query.orderBy([
+          (n) => OrderingTerm(expression: n.position, mode: orderMode),
+        ]);
     }
 
     query.limit(limit, offset: offset);
@@ -108,6 +112,13 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
     final id = db.generateId();
     final hlc = db.generateHlc();
 
+    // Get the next position for this folder
+    final maxPosQuery = selectOnly(notes)..addColumns([notes.position.max()]);
+    maxPosQuery.where(notes.folderId.equals(folderId));
+    maxPosQuery.where(notes.isDeleted.equals(false));
+    final maxPosResult = await maxPosQuery.getSingle();
+    final maxPos = maxPosResult.read(notes.position.max()) ?? -1;
+
     final companion = NotesCompanion(
       id: Value(id),
       folderId: Value(folderId),
@@ -116,6 +127,7 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
       contentLength: Value(contentLength),
       chunkCount: Value(chunkCount),
       isCompressed: Value(isCompressed),
+      position: Value(maxPos + 1),
       createdAt: Value(now),
       updatedAt: Value(now),
       hlcTimestamp: Value(hlc),
@@ -265,6 +277,55 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
     await (delete(notes)..where((n) => n.id.equals(id))).go();
   }
 
+  /// Update the position of a note
+  Future<Note?> updateNotePosition({
+    required String id,
+    required int newPosition,
+  }) async {
+    final existing = await getNoteById(id);
+    if (existing == null) return null;
+
+    final now = DateTime.now();
+    final hlc = db.generateHlc();
+
+    await (update(notes)..where((n) => n.id.equals(id))).write(
+      NotesCompanion(
+        position: Value(newPosition),
+        updatedAt: Value(now),
+        hlcTimestamp: Value(hlc),
+        deviceId: Value(db.deviceId),
+        version: Value(existing.version + 1),
+      ),
+    );
+    return getNoteById(id);
+  }
+
+  /// Reorder notes within a folder
+  Future<void> reorderNotes({
+    required String folderId,
+    required List<String> orderedIds,
+  }) async {
+    final now = DateTime.now();
+    final hlc = db.generateHlc();
+
+    await transaction(() async {
+      for (int i = 0; i < orderedIds.length; i++) {
+        final existing = await getNoteById(orderedIds[i]);
+        if (existing != null) {
+          await (update(notes)..where((n) => n.id.equals(orderedIds[i]))).write(
+            NotesCompanion(
+              position: Value(i),
+              updatedAt: Value(now),
+              hlcTimestamp: Value(hlc),
+              deviceId: Value(db.deviceId),
+              version: Value(existing.version + 1),
+            ),
+          );
+        }
+      }
+    });
+  }
+
   Future<void> deleteNotesInFolder(String folderId) async {
     final notesInFolder = await getNotesByFolder(folderId);
     for (final note in notesInFolder) {
@@ -333,6 +394,7 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
             version: row.read<int>('version'),
             isDeleted: row.read<bool>('is_deleted'),
             deletedAt: row.readNullable<DateTime>('deleted_at'),
+            position: row.read<int>('position'),
           ),
         )
         .toList();
@@ -404,4 +466,4 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
   }
 }
 
-enum NoteSortField { title, createdAt, updatedAt }
+enum NoteSortField { title, createdAt, updatedAt, position }

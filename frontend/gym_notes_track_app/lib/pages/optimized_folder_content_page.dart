@@ -39,6 +39,7 @@ class _OptimizedFolderContentPageState
   final ScrollController _scrollController = ScrollController();
   NotesSortOrder _notesSortOrder = NotesSortOrder.updatedDesc;
   final FoldersSortOrder _foldersSortOrder = FoldersSortOrder.nameAsc;
+  bool _isReorderMode = false;
 
   NoteRepository get _noteRepository => GetIt.I<NoteRepository>();
 
@@ -52,6 +53,12 @@ class _OptimizedFolderContentPageState
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _toggleReorderMode() {
+    setState(() {
+      _isReorderMode = !_isReorderMode;
+    });
   }
 
   void _preloadNoteContent(List<String> noteIds) {
@@ -106,6 +113,12 @@ class _OptimizedFolderContentPageState
         ),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          // Reorder mode toggle
+          IconButton(
+            icon: Icon(_isReorderMode ? Icons.check : Icons.swap_vert),
+            tooltip: AppLocalizations.of(context)!.reorderMode,
+            onPressed: _toggleReorderMode,
+          ),
           IconButton(
             icon: const Icon(Icons.search),
             tooltip: widget.folderId != null
@@ -120,7 +133,7 @@ class _OptimizedFolderContentPageState
               );
             },
           ),
-          if (widget.folderId != null)
+          if (widget.folderId != null && !_isReorderMode)
             PopupMenuButton<NotesSortOrder>(
               icon: const Icon(Icons.sort),
               tooltip: AppLocalizations.of(context)!.sortBy,
@@ -280,6 +293,37 @@ class _OptimizedFolderContentPageState
             return const SliverToBoxAdapter(child: SizedBox.shrink());
           }
 
+          if (_isReorderMode) {
+            return SliverReorderableList(
+              itemCount: folders.length,
+              onReorder: (oldIndex, newIndex) {
+                if (oldIndex < newIndex) {
+                  newIndex -= 1;
+                }
+                final reorderedFolders = List<Folder>.from(folders);
+                final item = reorderedFolders.removeAt(oldIndex);
+                reorderedFolders.insert(newIndex, item);
+                context.read<OptimizedFolderBloc>().add(
+                  ReorderFolders(
+                    parentId: widget.folderId,
+                    orderedIds: reorderedFolders.map((f) => f.id).toList(),
+                  ),
+                );
+              },
+              itemBuilder: (context, index) {
+                final folder = folders[index];
+                return _FolderCard(
+                  key: ValueKey(folder.id),
+                  folder: folder,
+                  parentId: widget.folderId,
+                  onReturn: _loadData,
+                  isReorderMode: true,
+                  index: index,
+                );
+              },
+            );
+          }
+
           return SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
@@ -352,6 +396,37 @@ class _OptimizedFolderContentPageState
 
           _preloadNoteContent(notes.take(3).map((n) => n.id).toList());
 
+          if (_isReorderMode) {
+            return SliverReorderableList(
+              itemCount: notes.length,
+              onReorder: (oldIndex, newIndex) {
+                if (oldIndex < newIndex) {
+                  newIndex -= 1;
+                }
+                final reorderedNotes = List<NoteMetadata>.from(notes);
+                final item = reorderedNotes.removeAt(oldIndex);
+                reorderedNotes.insert(newIndex, item);
+                context.read<OptimizedNoteBloc>().add(
+                  ReorderNotes(
+                    folderId: widget.folderId!,
+                    orderedIds: reorderedNotes.map((n) => n.id).toList(),
+                  ),
+                );
+              },
+              itemBuilder: (context, index) {
+                final note = notes[index];
+                return _NoteCard(
+                  key: ValueKey(note.id),
+                  metadata: note,
+                  folderId: widget.folderId!,
+                  onReturn: _loadData,
+                  isReorderMode: true,
+                  index: index,
+                );
+              },
+            );
+          }
+
           return InfiniteScrollSliver<NoteMetadata>(
             items: notes,
             hasMore: NoteStateHelper.hasMoreForFolder(state, widget.folderId),
@@ -383,6 +458,37 @@ class _OptimizedFolderContentPageState
           }
 
           _preloadNoteContent(notes.take(3).map((n) => n.id).toList());
+
+          if (_isReorderMode) {
+            return SliverReorderableList(
+              itemCount: notes.length,
+              onReorder: (oldIndex, newIndex) {
+                if (oldIndex < newIndex) {
+                  newIndex -= 1;
+                }
+                final reorderedNotes = List<NoteMetadata>.from(notes);
+                final item = reorderedNotes.removeAt(oldIndex);
+                reorderedNotes.insert(newIndex, item);
+                context.read<OptimizedNoteBloc>().add(
+                  ReorderNotes(
+                    folderId: widget.folderId!,
+                    orderedIds: reorderedNotes.map((n) => n.id).toList(),
+                  ),
+                );
+              },
+              itemBuilder: (context, index) {
+                final note = notes[index];
+                return _NoteCard(
+                  key: ValueKey(note.id),
+                  metadata: note,
+                  folderId: widget.folderId!,
+                  onReturn: _loadData,
+                  isReorderMode: true,
+                  index: index,
+                );
+              },
+            );
+          }
 
           return InfiniteScrollSliver<NoteMetadata>(
             items: notes,
@@ -579,11 +685,16 @@ class _FolderCard extends StatelessWidget {
   final Folder folder;
   final String? parentId;
   final VoidCallback onReturn;
+  final bool isReorderMode;
+  final int? index;
 
   const _FolderCard({
+    super.key,
     required this.folder,
     this.parentId,
     required this.onReturn,
+    this.isReorderMode = false,
+    this.index,
   });
 
   @override
@@ -591,30 +702,120 @@ class _FolderCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListTile(
-        leading: const Icon(Icons.folder, size: 40, color: Colors.amber),
+        leading: isReorderMode
+            ? ReorderableDragStartListener(
+                index: index ?? 0,
+                child: const Icon(Icons.drag_handle, color: Colors.grey),
+              )
+            : const Icon(Icons.folder, size: 40, color: Colors.amber),
         title: Text(
           folder.name,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete, color: Colors.red),
-          onPressed: () => _confirmDelete(context),
-        ),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => OptimizedFolderContentPage(
-                folderId: folder.id,
-                title: folder.name,
+        trailing: isReorderMode
+            ? const Icon(Icons.folder, size: 24, color: Colors.amber)
+            : PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'rename':
+                      _showRenameDialog(context);
+                      break;
+                    case 'delete':
+                      _confirmDelete(context);
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'rename',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.edit, size: 20),
+                        const SizedBox(width: 12),
+                        Text(AppLocalizations.of(context)!.rename),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.delete, size: 20, color: Colors.red),
+                        const SizedBox(width: 12),
+                        Text(
+                          AppLocalizations.of(context)!.delete,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ).then((_) {
-            if (context.mounted) {
-              onReturn();
+        onTap: isReorderMode
+            ? null
+            : () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => OptimizedFolderContentPage(
+                      folderId: folder.id,
+                      title: folder.name,
+                    ),
+                  ),
+                ).then((_) {
+                  if (context.mounted) {
+                    onReturn();
+                  }
+                });
+              },
+        onLongPress: isReorderMode ? null : () => _showRenameDialog(context),
+      ),
+    );
+  }
+
+  void _showRenameDialog(BuildContext context) {
+    final controller = TextEditingController(text: folder.name);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppLocalizations.of(context)!.renameFolder),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: AppLocalizations.of(context)!.enterNewName,
+          ),
+          onSubmitted: (value) {
+            if (value.trim().isNotEmpty) {
+              context.read<OptimizedFolderBloc>().add(
+                UpdateOptimizedFolder(folderId: folder.id, name: value.trim()),
+              );
+              Navigator.pop(dialogContext);
             }
-          });
-        },
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(AppLocalizations.of(context)!.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                context.read<OptimizedFolderBloc>().add(
+                  UpdateOptimizedFolder(
+                    folderId: folder.id,
+                    name: controller.text.trim(),
+                  ),
+                );
+                Navigator.pop(dialogContext);
+              }
+            },
+            child: Text(AppLocalizations.of(context)!.save),
+          ),
+        ],
       ),
     );
   }
@@ -654,11 +855,16 @@ class _NoteCard extends StatelessWidget {
   final NoteMetadata metadata;
   final String folderId;
   final VoidCallback onReturn;
+  final bool isReorderMode;
+  final int? index;
 
   const _NoteCard({
+    super.key,
     required this.metadata,
     required this.folderId,
     required this.onReturn,
+    this.isReorderMode = false,
+    this.index,
   });
 
   @override
@@ -666,21 +872,26 @@ class _NoteCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListTile(
-        leading: Stack(
-          children: [
-            const Icon(Icons.note, size: 40, color: Colors.blue),
-            if (metadata.isCompressed)
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Icon(
-                  Icons.compress,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+        leading: isReorderMode
+            ? ReorderableDragStartListener(
+                index: index ?? 0,
+                child: const Icon(Icons.drag_handle, color: Colors.grey),
+              )
+            : Stack(
+                children: [
+                  const Icon(Icons.note, size: 40, color: Colors.blue),
+                  if (metadata.isCompressed)
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Icon(
+                        Icons.compress,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                ],
               ),
-          ],
-        ),
         title: Text(
           metadata.title.isEmpty
               ? AppLocalizations.of(context)!.untitledNote
@@ -720,30 +931,113 @@ class _NoteCard extends StatelessWidget {
             ),
           ],
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete, color: Colors.red),
-          onPressed: () => _confirmDelete(context),
-        ),
-        onTap: () {
-          Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) {
-                return OptimizedNoteEditorPage(
-                  folderId: folderId,
-                  noteId: metadata.id,
-                  metadata: metadata,
-                );
+        trailing: isReorderMode
+            ? const Icon(Icons.note, size: 24, color: Colors.blue)
+            : PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'rename':
+                      _showRenameDialog(context);
+                      break;
+                    case 'delete':
+                      _confirmDelete(context);
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'rename',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.edit, size: 20),
+                        const SizedBox(width: 12),
+                        Text(AppLocalizations.of(context)!.rename),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.delete, size: 20, color: Colors.red),
+                        const SizedBox(width: 12),
+                        Text(
+                          AppLocalizations.of(context)!.delete,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+        onTap: isReorderMode
+            ? null
+            : () {
+                Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) {
+                      return OptimizedNoteEditorPage(
+                        folderId: folderId,
+                        noteId: metadata.id,
+                        metadata: metadata,
+                      );
+                    },
+                    transitionDuration: Duration.zero,
+                    reverseTransitionDuration: const Duration(
+                      milliseconds: 150,
+                    ),
+                  ),
+                ).then((_) {
+                  if (context.mounted) {
+                    onReturn();
+                  }
+                });
               },
-              transitionDuration: Duration.zero,
-              reverseTransitionDuration: const Duration(milliseconds: 150),
-            ),
-          ).then((_) {
-            if (context.mounted) {
-              onReturn();
-            }
-          });
-        },
+        onLongPress: isReorderMode ? null : () => _showRenameDialog(context),
+      ),
+    );
+  }
+
+  void _showRenameDialog(BuildContext context) {
+    final controller = TextEditingController(text: metadata.title);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppLocalizations.of(context)!.renameNote),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: AppLocalizations.of(context)!.enterNewName,
+          ),
+          onSubmitted: (value) {
+            context.read<OptimizedNoteBloc>().add(
+              UpdateOptimizedNote(noteId: metadata.id, title: value.trim()),
+            );
+            Navigator.pop(dialogContext);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(AppLocalizations.of(context)!.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              context.read<OptimizedNoteBloc>().add(
+                UpdateOptimizedNote(
+                  noteId: metadata.id,
+                  title: controller.text.trim(),
+                ),
+              );
+              Navigator.pop(dialogContext);
+            },
+            child: Text(AppLocalizations.of(context)!.save),
+          ),
+        ],
       ),
     );
   }

@@ -530,10 +530,53 @@ class AppLocalizationsEn extends AppLocalizations {
   String get optimizationComplete => 'Database optimized successfully';
 
   @override
+  String get saved => 'saved';
+
+  @override
+  String get alreadyOptimized => 'database already optimized';
+
+  @override
   String get deleteConfirmation =>
       'This action cannot be undone. All your notes, folders, and data will be permanently deleted. Are you absolutely sure?';
 
   @override
   String get deleteNotImplemented =>
       'Delete functionality not yet implemented for safety';
+
+  @override
+  String get deletingData => 'Deleting all data...';
+
+  @override
+  String get dataDeleted => 'Data Deleted';
+
+  @override
+  String get restartRequired =>
+      'All data has been deleted. Please restart the app to continue.';
+
+  @override
+  String get exitApp => 'Exit App';
+
+  @override
+  String get errorDeletingData => 'Error deleting data';
+
+  @override
+  String get renameNote => 'Rename Note';
+
+  @override
+  String get enterNewName => 'Enter new name';
+
+  @override
+  String get reorderMode => 'Reorder Mode';
+
+  @override
+  String get dragToReorder => 'Drag items to reorder';
+
+  @override
+  String get sortByCustom => 'Custom Order';
+
+  @override
+  String get moveUp => 'Move Up';
+
+  @override
+  String get moveDown => 'Move Down';
 }

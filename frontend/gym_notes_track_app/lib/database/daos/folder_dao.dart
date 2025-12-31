@@ -89,6 +89,10 @@ class FolderDao extends DatabaseAccessor<AppDatabase> with _$FolderDaoMixin {
         query.orderBy([
           (f) => OrderingTerm(expression: f.updatedAt, mode: orderMode),
         ]);
+      case FolderSortField.position:
+        query.orderBy([
+          (f) => OrderingTerm(expression: f.position, mode: orderMode),
+        ]);
     }
 
     query.limit(limit, offset: offset);
@@ -107,10 +111,23 @@ class FolderDao extends DatabaseAccessor<AppDatabase> with _$FolderDaoMixin {
     final id = db.generateId();
     final hlc = db.generateHlc();
 
+    // Get the next position for this parent
+    final maxPosQuery = selectOnly(folders)
+      ..addColumns([folders.position.max()]);
+    if (parentId == null) {
+      maxPosQuery.where(folders.parentId.isNull());
+    } else {
+      maxPosQuery.where(folders.parentId.equals(parentId));
+    }
+    maxPosQuery.where(folders.isDeleted.equals(false));
+    final maxPosResult = await maxPosQuery.getSingle();
+    final maxPos = maxPosResult.read(folders.position.max()) ?? -1;
+
     final companion = FoldersCompanion(
       id: Value(id),
       name: Value(name),
       parentId: Value(parentId),
+      position: Value(maxPos + 1),
       createdAt: Value(now),
       updatedAt: Value(now),
       hlcTimestamp: Value(hlc),
@@ -168,6 +185,57 @@ class FolderDao extends DatabaseAccessor<AppDatabase> with _$FolderDaoMixin {
 
   Future<void> hardDeleteFolder(String id) async {
     await (delete(folders)..where((f) => f.id.equals(id))).go();
+  }
+
+  /// Update the position of a folder
+  Future<Folder?> updateFolderPosition({
+    required String id,
+    required int newPosition,
+  }) async {
+    final existing = await getFolderById(id);
+    if (existing == null) return null;
+
+    final now = DateTime.now();
+    final hlc = db.generateHlc();
+
+    await (update(folders)..where((f) => f.id.equals(id))).write(
+      FoldersCompanion(
+        position: Value(newPosition),
+        updatedAt: Value(now),
+        hlcTimestamp: Value(hlc),
+        deviceId: Value(db.deviceId),
+        version: Value(existing.version + 1),
+      ),
+    );
+    return getFolderById(id);
+  }
+
+  /// Reorder folders within a parent
+  Future<void> reorderFolders({
+    String? parentId,
+    required List<String> orderedIds,
+  }) async {
+    final now = DateTime.now();
+    final hlc = db.generateHlc();
+
+    await transaction(() async {
+      for (int i = 0; i < orderedIds.length; i++) {
+        final existing = await getFolderById(orderedIds[i]);
+        if (existing != null) {
+          await (update(
+            folders,
+          )..where((f) => f.id.equals(orderedIds[i]))).write(
+            FoldersCompanion(
+              position: Value(i),
+              updatedAt: Value(now),
+              hlcTimestamp: Value(hlc),
+              deviceId: Value(db.deviceId),
+              version: Value(existing.version + 1),
+            ),
+          );
+        }
+      }
+    });
   }
 
   Future<List<String>> getAllDescendantIds(String folderId) async {
@@ -239,4 +307,4 @@ class FolderDao extends DatabaseAccessor<AppDatabase> with _$FolderDaoMixin {
   }
 }
 
-enum FolderSortField { name, createdAt, updatedAt }
+enum FolderSortField { name, createdAt, updatedAt, position }

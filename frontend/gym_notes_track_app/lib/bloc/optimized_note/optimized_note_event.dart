@@ -110,3 +110,13 @@ class RefreshNotes extends OptimizedNoteEvent {
   @override
   List<Object?> get props => [folderId];
 }
+
+class ReorderNotes extends OptimizedNoteEvent {
+  final String folderId;
+  final List<String> orderedIds;
+
+  const ReorderNotes({required this.folderId, required this.orderedIds});
+
+  @override
+  List<Object?> get props => [folderId, orderedIds];
+}

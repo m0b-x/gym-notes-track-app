@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import '../database/database.dart';
 import '../l10n/app_localizations.dart';
 
 /// Database settings page for managing database location and operations
@@ -393,10 +394,11 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!mounted) return;
+      ScaffoldMessenger.of(this.context).showSnackBar(
         SnackBar(
           content: Text(
-            '${AppLocalizations.of(context)!.errorOpeningFolder}: $e',
+            '${AppLocalizations.of(this.context)!.errorOpeningFolder}: $e',
           ),
           behavior: SnackBarBehavior.floating,
         ),
@@ -405,6 +407,9 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
   }
 
   Future<void> _optimizeDatabase(BuildContext context) async {
+    // Capture size before optimization
+    final sizeBefore = _databaseSizeBytes;
+
     // Show loading dialog
     showDialog(
       context: context,
@@ -420,58 +425,139 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       ),
     );
 
-    // Simulate optimization (in a real app, you'd run VACUUM on the database)
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final db = await AppDatabase.getInstance();
+      await db.vacuum();
+      await db.rebuildFtsIndex();
 
-    Navigator.pop(context); // Close loading dialog
+      if (!mounted) return;
+      Navigator.pop(this.context); // Close loading dialog
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(AppLocalizations.of(context)!.optimizationComplete),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+      // Refresh stats to get new size
+      await _loadDatabaseInfo();
 
-    // Refresh stats
-    _loadDatabaseInfo();
+      if (!mounted) return;
+
+      // Calculate size difference
+      final sizeAfter = _databaseSizeBytes;
+      String message;
+      if (sizeBefore != null && sizeAfter != null) {
+        final savedBytes = sizeBefore - sizeAfter;
+        if (savedBytes > 0) {
+          message =
+              '${AppLocalizations.of(this.context)!.optimizationComplete} (${_formatFileSize(savedBytes)} ${AppLocalizations.of(this.context)!.saved})';
+        } else {
+          message =
+              '${AppLocalizations.of(this.context)!.optimizationComplete} (${AppLocalizations.of(this.context)!.alreadyOptimized})';
+        }
+      } else {
+        message = AppLocalizations.of(this.context)!.optimizationComplete;
+      }
+
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(this.context);
+
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(
+          content: Text('${AppLocalizations.of(this.context)!.error}: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _showDeleteConfirmation(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         icon: Icon(
           Icons.warning_rounded,
           size: 48,
-          color: Theme.of(context).colorScheme.error,
+          color: Theme.of(dialogContext).colorScheme.error,
         ),
-        title: Text(AppLocalizations.of(context)!.deleteAllData),
-        content: Text(AppLocalizations.of(context)!.deleteConfirmation),
+        title: Text(AppLocalizations.of(dialogContext)!.deleteAllData),
+        content: Text(AppLocalizations.of(dialogContext)!.deleteConfirmation),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(AppLocalizations.of(dialogContext)!.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
             ),
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Implement actual database deletion
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    AppLocalizations.of(context)!.deleteNotImplemented,
-                  ),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await _performDatabaseDeletion();
             },
-            child: Text(AppLocalizations.of(context)!.delete),
+            child: Text(AppLocalizations.of(dialogContext)!.delete),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _performDatabaseDeletion() async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Text(AppLocalizations.of(dialogContext)!.deletingData),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      await AppDatabase.deleteAllData();
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      // Show success and exit app (user needs to restart)
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(
+            Icons.check_circle_rounded,
+            size: 48,
+            color: Colors.green,
+          ),
+          title: Text(AppLocalizations.of(dialogContext)!.dataDeleted),
+          content: Text(AppLocalizations.of(dialogContext)!.restartRequired),
+          actions: [
+            FilledButton(
+              onPressed: () {
+                // Exit the app
+                SystemNavigator.pop();
+              },
+              child: Text(AppLocalizations.of(dialogContext)!.exitApp),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${AppLocalizations.of(context)!.errorDeletingData}: $e',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 }

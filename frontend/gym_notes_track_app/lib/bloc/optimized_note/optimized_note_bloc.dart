@@ -31,6 +31,7 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
     on<QuickSearchNotes>(_onQuickSearchNotes);
     on<ClearSearch>(_onClearSearch);
     on<RefreshNotes>(_onRefreshNotes);
+    on<ReorderNotes>(_onReorderNotes);
   }
 
   Future<void> _onLoadNotesPaginated(
@@ -346,6 +347,29 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
         folderId: event.folderId ?? _currentFolderId,
       ),
     );
+  }
+
+  Future<void> _onReorderNotes(
+    ReorderNotes event,
+    Emitter<OptimizedNoteState> emit,
+  ) async {
+    try {
+      await _storageService.reorderNotes(
+        folderId: event.folderId,
+        orderedIds: event.orderedIds,
+      );
+
+      // Refresh to get updated order
+      add(RefreshNotes(folderId: event.folderId));
+    } catch (e, stackTrace) {
+      _logError('Failed to reorder notes', e, stackTrace);
+      emit(
+        OptimizedNoteError(
+          'Failed to reorder notes: $e',
+          folderId: event.folderId,
+        ),
+      );
+    }
   }
 
   void _logError(String message, Object error, StackTrace stackTrace) {

@@ -4,7 +4,14 @@ import '../repositories/folder_repository.dart';
 import '../models/folder.dart' as model;
 import '../constants/app_constants.dart';
 
-enum FoldersSortOrder { nameAsc, nameDesc, createdAsc, createdDesc }
+enum FoldersSortOrder {
+  nameAsc,
+  nameDesc,
+  createdAsc,
+  createdDesc,
+  positionAsc,
+  positionDesc,
+}
 
 class PaginatedFolders {
   final List<model.Folder> folders;
@@ -137,6 +144,18 @@ class FolderStorageService {
     await _repository.deleteFolder(folderId);
   }
 
+  /// Reorder folders within a parent
+  Future<void> reorderFolders({
+    String? parentId,
+    required List<String> orderedIds,
+  }) async {
+    await initialize();
+    await _repository.reorderFolders(
+      parentId: parentId,
+      orderedIds: orderedIds,
+    );
+  }
+
   model.Folder _folderToModel(Folder folder) {
     return model.Folder(
       id: folder.id,
@@ -156,6 +175,10 @@ class FolderStorageService {
         return (FolderSortField.createdAt, true);
       case FoldersSortOrder.createdDesc:
         return (FolderSortField.createdAt, false);
+      case FoldersSortOrder.positionAsc:
+        return (FolderSortField.position, true);
+      case FoldersSortOrder.positionDesc:
+        return (FolderSortField.position, false);
     }
   }
 

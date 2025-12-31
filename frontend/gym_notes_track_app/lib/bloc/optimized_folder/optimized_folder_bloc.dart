@@ -21,6 +21,7 @@ class OptimizedFolderBloc
     on<UpdateOptimizedFolder>(_onUpdateFolder);
     on<DeleteOptimizedFolder>(_onDeleteFolder);
     on<RefreshFolders>(_onRefreshFolders);
+    on<ReorderFolders>(_onReorderFolders);
   }
 
   Future<void> _onLoadFoldersPaginated(
@@ -191,6 +192,29 @@ class OptimizedFolderBloc
         sortOrder: _currentSortOrder,
       ),
     );
+  }
+
+  Future<void> _onReorderFolders(
+    ReorderFolders event,
+    Emitter<OptimizedFolderState> emit,
+  ) async {
+    try {
+      await _storageService.reorderFolders(
+        parentId: event.parentId,
+        orderedIds: event.orderedIds,
+      );
+
+      // Refresh to get updated order
+      add(RefreshFolders(parentId: event.parentId));
+    } catch (e, stackTrace) {
+      _logError('Failed to reorder folders', e, stackTrace);
+      emit(
+        OptimizedFolderError(
+          'Failed to reorder folders: $e',
+          parentId: event.parentId,
+        ),
+      );
+    }
   }
 
   void _logError(String message, Object error, StackTrace stackTrace) {

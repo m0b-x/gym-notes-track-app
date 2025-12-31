@@ -254,6 +254,30 @@ class NoteRepository {
     }
   }
 
+  /// Reorder notes within a folder
+  Future<void> reorderNotes({
+    required String folderId,
+    required List<String> orderedIds,
+  }) async {
+    await _noteDao.reorderNotes(folderId: folderId, orderedIds: orderedIds);
+    _invalidateFolderCache(folderId);
+
+    // Emit change events for all reordered notes
+    for (final noteId in orderedIds) {
+      final note = await getNoteById(noteId, forceRefresh: true);
+      if (note != null) {
+        _noteChangesController.add(
+          NoteChange(
+            type: NoteChangeType.updated,
+            noteId: noteId,
+            folderId: folderId,
+            note: note,
+          ),
+        );
+      }
+    }
+  }
+
   Future<List<Note>> searchNotes(String query, {String? folderId}) async {
     return _noteDao.searchNotes(query, folderId: folderId);
   }

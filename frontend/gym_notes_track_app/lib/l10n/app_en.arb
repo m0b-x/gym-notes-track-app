@@ -720,6 +720,14 @@
   "@optimizationComplete": {
     "description": "Optimization complete message"
   },
+  "saved": "saved",
+  "@saved": {
+    "description": "Saved suffix for size reduction"
+  },
+  "alreadyOptimized": "database already optimized",
+  "@alreadyOptimized": {
+    "description": "Message when no space was reclaimed"
+  },
   "deleteConfirmation": "This action cannot be undone. All your notes, folders, and data will be permanently deleted. Are you absolutely sure?",
   "@deleteConfirmation": {
     "description": "Delete confirmation message"
@@ -727,5 +735,53 @@
   "deleteNotImplemented": "Delete functionality not yet implemented for safety",
   "@deleteNotImplemented": {
     "description": "Delete not implemented message"
+  },
+  "deletingData": "Deleting all data...",
+  "@deletingData": {
+    "description": "Loading text while deleting data"
+  },
+  "dataDeleted": "Data Deleted",
+  "@dataDeleted": {
+    "description": "Title for data deleted success dialog"
+  },
+  "restartRequired": "All data has been deleted. Please restart the app to continue.",
+  "@restartRequired": {
+    "description": "Message after data deletion requiring restart"
+  },
+  "exitApp": "Exit App",
+  "@exitApp": {
+    "description": "Button to exit the app"
+  },
+  "errorDeletingData": "Error deleting data",
+  "@errorDeletingData": {
+    "description": "Error message prefix for deletion failure"
+  },
+  "renameNote": "Rename Note",
+  "@renameNote": {
+    "description": "Rename note dialog title"
+  },
+  "enterNewName": "Enter new name",
+  "@enterNewName": {
+    "description": "Hint text for rename input"
+  },
+  "reorderMode": "Reorder Mode",
+  "@reorderMode": {
+    "description": "Reorder mode toggle tooltip"
+  },
+  "dragToReorder": "Drag items to reorder",
+  "@dragToReorder": {
+    "description": "Hint for drag and drop reordering"
+  },
+  "sortByCustom": "Custom Order",
+  "@sortByCustom": {
+    "description": "Custom sort order option"
+  },
+  "moveUp": "Move Up",
+  "@moveUp": {
+    "description": "Move item up action"
+  },
+  "moveDown": "Move Down",
+  "@moveDown": {
+    "description": "Move item down action"
   }
 }
