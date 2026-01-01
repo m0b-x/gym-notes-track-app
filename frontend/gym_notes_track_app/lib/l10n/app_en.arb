@@ -756,6 +756,26 @@
   "@errorDeletingData": {
     "description": "Error message prefix for deletion failure"
   },
+  "shareDatabase": "Share Database",
+  "@shareDatabase": {
+    "description": "Share database button text"
+  },
+  "shareDatabaseDesc": "Export and share your database file via email, messaging apps, or cloud storage for backup purposes.",
+  "@shareDatabaseDesc": {
+    "description": "Share database description"
+  },
+  "preparingShare": "Preparing to share...",
+  "@preparingShare": {
+    "description": "Message shown while preparing share"
+  },
+  "shareError": "Error sharing database",
+  "@shareError": {
+    "description": "Share error message prefix"
+  },
+  "databaseNotFound": "Database file not found",
+  "@databaseNotFound": {
+    "description": "Error when database file does not exist"
+  },
   "renameNote": "Rename Note",
   "@renameNote": {
     "description": "Rename note dialog title"

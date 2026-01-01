@@ -1136,6 +1136,36 @@ abstract class AppLocalizations {
   /// **'Error deleting data'**
   String get errorDeletingData;
 
+  /// Share database button text
+  ///
+  /// In en, this message translates to:
+  /// **'Share Database'**
+  String get shareDatabase;
+
+  /// Share database description
+  ///
+  /// In en, this message translates to:
+  /// **'Export and share your database file via email, messaging apps, or cloud storage for backup purposes.'**
+  String get shareDatabaseDesc;
+
+  /// Message shown while preparing share
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing to share...'**
+  String get preparingShare;
+
+  /// Share error message prefix
+  ///
+  /// In en, this message translates to:
+  /// **'Error sharing database'**
+  String get shareError;
+
+  /// Error when database file does not exist
+  ///
+  /// In en, this message translates to:
+  /// **'Database file not found'**
+  String get databaseNotFound;
+
   /// Rename note dialog title
   ///
   /// In en, this message translates to:

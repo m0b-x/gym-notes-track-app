@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:share_plus/share_plus.dart';
 import '../database/database.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/gradient_app_bar.dart';
@@ -214,6 +215,39 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
 
                   const SizedBox(height: 16),
 
+                  // Share database card
+                  _buildInfoCard(
+                    context: context,
+                    colorScheme: colorScheme,
+                    icon: Icons.share_rounded,
+                    title: AppLocalizations.of(context)!.shareDatabase,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AppLocalizations.of(context)!.shareDatabaseDesc,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.tonalIcon(
+                            onPressed: () => _shareDatabase(context),
+                            icon: const Icon(Icons.share_rounded, size: 18),
+                            label: Text(
+                              AppLocalizations.of(context)!.shareDatabase,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
                   // Danger zone card
                   _buildDangerCard(context, colorScheme),
                 ],
@@ -401,6 +435,57 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
           content: Text(
             '${AppLocalizations.of(this.context)!.errorOpeningFolder}: $e',
           ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _shareDatabase(BuildContext context) async {
+    if (_databasePath == null) return;
+
+    final dbFile = File(_databasePath!);
+    if (!await dbFile.exists()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(this.context)!.databaseNotFound),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: this.context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Text(AppLocalizations.of(dialogContext)!.preparingShare),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final xFile = XFile(_databasePath!);
+
+      if (!mounted) return;
+      Navigator.pop(this.context);
+
+      await SharePlus.instance.share(ShareParams(files: [xFile]));
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(this.context);
+
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(
+          content: Text('${AppLocalizations.of(this.context)!.shareError}: $e'),
           behavior: SnackBarBehavior.floating,
         ),
       );

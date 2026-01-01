@@ -473,96 +473,112 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
-  String get databaseSettings => 'Database';
+  String get databaseSettings => 'Datenbank';
 
   @override
-  String get databaseSettingsDesc => 'Manage database location and storage';
+  String get databaseSettingsDesc => 'Datenbankspeicherort und -verwaltung';
 
   @override
   String get about => 'About';
 
   @override
-  String get databaseLocation => 'Database Location';
+  String get databaseLocation => 'Datenbankspeicherort';
 
   @override
-  String get copyPath => 'Copy Path';
+  String get copyPath => 'Pfad kopieren';
 
   @override
-  String get openInFinder => 'Open Folder';
+  String get openInFinder => 'Ordner öffnen';
 
   @override
-  String get databaseStats => 'Statistics';
+  String get databaseStats => 'Statistiken';
 
   @override
-  String get size => 'Size';
+  String get size => 'Größe';
 
   @override
-  String get lastModified => 'Last Modified';
+  String get lastModified => 'Zuletzt geändert';
 
   @override
-  String get maintenance => 'Maintenance';
+  String get maintenance => 'Wartung';
 
   @override
   String get maintenanceDesc =>
-      'Run SQLite VACUUM to reclaim unused space from deleted notes and folders. This rebuilds the database file, defragments the data, and can significantly reduce file size after deleting large amounts of content. The operation may take a few seconds depending on database size.';
+      'SQLite VACUUM ausführen, um ungenutzten Speicherplatz von gelöschten Notizen und Ordnern zurückzugewinnen. Dies erstellt die Datenbankdatei neu, defragmentiert die Daten und kann die Dateigröße nach dem Löschen großer Inhaltsmengen erheblich reduzieren.';
 
   @override
-  String get optimizeDatabase => 'Optimize Database';
+  String get optimizeDatabase => 'Datenbank optimieren';
 
   @override
-  String get dangerZone => 'Danger Zone';
+  String get dangerZone => 'Gefahrenzone';
 
   @override
   String get dangerZoneDesc =>
-      'These actions are irreversible. All your notes and folders will be permanently deleted.';
+      'Diese Aktionen sind unwiderruflich. Alle Notizen und Ordner werden dauerhaft gelöscht.';
 
   @override
-  String get deleteAllData => 'Delete All Data';
+  String get deleteAllData => 'Alle Daten löschen';
 
   @override
-  String get pathCopied => 'Path copied to clipboard';
+  String get pathCopied => 'Pfad in Zwischenablage kopiert';
 
   @override
-  String get notSupportedOnPlatform => 'Not supported on this platform';
+  String get notSupportedOnPlatform => 'Auf dieser Plattform nicht unterstützt';
 
   @override
-  String get errorOpeningFolder => 'Error opening folder';
+  String get errorOpeningFolder => 'Fehler beim Öffnen des Ordners';
 
   @override
-  String get optimizing => 'Optimizing database...';
+  String get optimizing => 'Datenbank wird optimiert...';
 
   @override
-  String get optimizationComplete => 'Database optimized successfully';
+  String get optimizationComplete => 'Datenbank erfolgreich optimiert';
 
   @override
-  String get saved => 'saved';
+  String get saved => 'gespart';
 
   @override
-  String get alreadyOptimized => 'database already optimized';
+  String get alreadyOptimized => 'Datenbank bereits optimiert';
 
   @override
   String get deleteConfirmation =>
-      'This action cannot be undone. All your notes, folders, and data will be permanently deleted. Are you absolutely sure?';
+      'Diese Aktion kann nicht rückgängig gemacht werden. Alle Notizen, Ordner und Daten werden dauerhaft gelöscht. Sind Sie absolut sicher?';
 
   @override
   String get deleteNotImplemented =>
       'Delete functionality not yet implemented for safety';
 
   @override
-  String get deletingData => 'Deleting all data...';
+  String get deletingData => 'Alle Daten werden gelöscht...';
 
   @override
-  String get dataDeleted => 'Data Deleted';
+  String get dataDeleted => 'Daten gelöscht';
 
   @override
   String get restartRequired =>
-      'All data has been deleted. Please restart the app to continue.';
+      'Alle Daten wurden gelöscht. Bitte starten Sie die App neu, um fortzufahren.';
 
   @override
-  String get exitApp => 'Exit App';
+  String get exitApp => 'App beenden';
 
   @override
-  String get errorDeletingData => 'Error deleting data';
+  String get errorDeletingData => 'Fehler beim Löschen der Daten';
+
+  @override
+  String get shareDatabase => 'Datenbank teilen';
+
+  @override
+  String get shareDatabaseDesc =>
+      'Exportieren und teilen Sie Ihre Datenbankdatei per E-Mail, Messenger-Apps oder Cloud-Speicher für Backup-Zwecke.';
+
+  @override
+  String get preparingShare => 'Teilen wird vorbereitet...';
+
+  @override
+  String get shareError => 'Fehler beim Teilen der Datenbank';
+
+  @override
+  String get databaseNotFound => 'Datenbankdatei nicht gefunden';
 
   @override
   String get renameNote => 'Rename Note';

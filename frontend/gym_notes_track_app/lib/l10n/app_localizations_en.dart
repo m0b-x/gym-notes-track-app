@@ -560,6 +560,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorDeletingData => 'Error deleting data';
 
   @override
+  String get shareDatabase => 'Share Database';
+
+  @override
+  String get shareDatabaseDesc =>
+      'Export and share your database file via email, messaging apps, or cloud storage for backup purposes.';
+
+  @override
+  String get preparingShare => 'Preparing to share...';
+
+  @override
+  String get shareError => 'Error sharing database';
+
+  @override
+  String get databaseNotFound => 'Database file not found';
+
+  @override
   String get renameNote => 'Rename Note';
 
   @override

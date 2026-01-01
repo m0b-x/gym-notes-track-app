@@ -735,5 +735,133 @@
   "settingsReset": "Einstellungen wurden auf Standard zurückgesetzt",
   "@settingsReset": {
     "description": "Settings reset confirmation message"
+  },
+  "databaseSettings": "Datenbank",
+  "@databaseSettings": {
+    "description": "Database settings menu item"
+  },
+  "databaseSettingsDesc": "Datenbankspeicherort und -verwaltung",
+  "@databaseSettingsDesc": {
+    "description": "Database settings description"
+  },
+  "databaseLocation": "Datenbankspeicherort",
+  "@databaseLocation": {
+    "description": "Database location card title"
+  },
+  "copyPath": "Pfad kopieren",
+  "@copyPath": {
+    "description": "Copy path button text"
+  },
+  "openInFinder": "Ordner öffnen",
+  "@openInFinder": {
+    "description": "Open in Finder/Explorer button text"
+  },
+  "databaseStats": "Statistiken",
+  "@databaseStats": {
+    "description": "Database statistics card title"
+  },
+  "size": "Größe",
+  "@size": {
+    "description": "Size label"
+  },
+  "lastModified": "Zuletzt geändert",
+  "@lastModified": {
+    "description": "Last modified label"
+  },
+  "maintenance": "Wartung",
+  "@maintenance": {
+    "description": "Maintenance card title"
+  },
+  "maintenanceDesc": "SQLite VACUUM ausführen, um ungenutzten Speicherplatz von gelöschten Notizen und Ordnern zurückzugewinnen. Dies erstellt die Datenbankdatei neu, defragmentiert die Daten und kann die Dateigröße nach dem Löschen großer Inhaltsmengen erheblich reduzieren.",
+  "@maintenanceDesc": {
+    "description": "Maintenance description"
+  },
+  "optimizeDatabase": "Datenbank optimieren",
+  "@optimizeDatabase": {
+    "description": "Optimize database button text"
+  },
+  "dangerZone": "Gefahrenzone",
+  "@dangerZone": {
+    "description": "Danger zone card title"
+  },
+  "dangerZoneDesc": "Diese Aktionen sind unwiderruflich. Alle Notizen und Ordner werden dauerhaft gelöscht.",
+  "@dangerZoneDesc": {
+    "description": "Danger zone description"
+  },
+  "deleteAllData": "Alle Daten löschen",
+  "@deleteAllData": {
+    "description": "Delete all data button text"
+  },
+  "pathCopied": "Pfad in Zwischenablage kopiert",
+  "@pathCopied": {
+    "description": "Path copied confirmation message"
+  },
+  "notSupportedOnPlatform": "Auf dieser Plattform nicht unterstützt",
+  "@notSupportedOnPlatform": {
+    "description": "Platform not supported message"
+  },
+  "errorOpeningFolder": "Fehler beim Öffnen des Ordners",
+  "@errorOpeningFolder": {
+    "description": "Error opening folder message"
+  },
+  "optimizing": "Datenbank wird optimiert...",
+  "@optimizing": {
+    "description": "Optimizing message"
+  },
+  "optimizationComplete": "Datenbank erfolgreich optimiert",
+  "@optimizationComplete": {
+    "description": "Optimization complete message"
+  },
+  "saved": "gespart",
+  "@saved": {
+    "description": "Saved suffix for size reduction"
+  },
+  "alreadyOptimized": "Datenbank bereits optimiert",
+  "@alreadyOptimized": {
+    "description": "Message when no space was reclaimed"
+  },
+  "deleteConfirmation": "Diese Aktion kann nicht rückgängig gemacht werden. Alle Notizen, Ordner und Daten werden dauerhaft gelöscht. Sind Sie absolut sicher?",
+  "@deleteConfirmation": {
+    "description": "Delete confirmation message"
+  },
+  "deletingData": "Alle Daten werden gelöscht...",
+  "@deletingData": {
+    "description": "Loading text while deleting data"
+  },
+  "dataDeleted": "Daten gelöscht",
+  "@dataDeleted": {
+    "description": "Title for data deleted success dialog"
+  },
+  "restartRequired": "Alle Daten wurden gelöscht. Bitte starten Sie die App neu, um fortzufahren.",
+  "@restartRequired": {
+    "description": "Message after data deletion requiring restart"
+  },
+  "exitApp": "App beenden",
+  "@exitApp": {
+    "description": "Button to exit the app"
+  },
+  "errorDeletingData": "Fehler beim Löschen der Daten",
+  "@errorDeletingData": {
+    "description": "Error message prefix for deletion failure"
+  },
+  "shareDatabase": "Datenbank teilen",
+  "@shareDatabase": {
+    "description": "Share database button text"
+  },
+  "shareDatabaseDesc": "Exportieren und teilen Sie Ihre Datenbankdatei per E-Mail, Messenger-Apps oder Cloud-Speicher für Backup-Zwecke.",
+  "@shareDatabaseDesc": {
+    "description": "Share database description"
+  },
+  "preparingShare": "Teilen wird vorbereitet...",
+  "@preparingShare": {
+    "description": "Message shown while preparing share"
+  },
+  "shareError": "Fehler beim Teilen der Datenbank",
+  "@shareError": {
+    "description": "Share error message prefix"
+  },
+  "databaseNotFound": "Datenbankdatei nicht gefunden",
+  "@databaseNotFound": {
+    "description": "Error when database file does not exist"
   }
 }
