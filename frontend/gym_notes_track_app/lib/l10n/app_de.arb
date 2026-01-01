@@ -863,5 +863,37 @@
   "databaseNotFound": "Datenbankdatei nicht gefunden",
   "@databaseNotFound": {
     "description": "Error when database file does not exist"
+  },
+  "shareNote": "Notiz teilen",
+  "@shareNote": {
+    "description": "Share note option"
+  },
+  "noteOptions": "Notiz-Optionen",
+  "@noteOptions": {
+    "description": "Note options bottom sheet title"
+  },
+  "exportingNote": "Notiz wird exportiert...",
+  "@exportingNote": {
+    "description": "Message shown while exporting note"
+  },
+  "noteExportError": "Fehler beim Exportieren der Notiz",
+  "@noteExportError": {
+    "description": "Error message when note export fails"
+  },
+  "chooseExportFormat": "Exportformat wählen",
+  "@chooseExportFormat": {
+    "description": "Title for export format selection dialog"
+  },
+  "exportAsMarkdown": "Markdown (.md)",
+  "@exportAsMarkdown": {
+    "description": "Export as markdown option"
+  },
+  "exportAsJson": "JSON (.json)",
+  "@exportAsJson": {
+    "description": "Export as JSON option"
+  },
+  "exportAsText": "Nur Text (.txt)",
+  "@exportAsText": {
+    "description": "Export as plain text option"
   }
 }

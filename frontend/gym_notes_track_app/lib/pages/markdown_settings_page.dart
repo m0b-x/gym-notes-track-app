@@ -674,6 +674,7 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
       CustomSnackbar.show(
         context,
         AppLocalizations.of(context)!.labelCannotBeEmpty,
+        withToolbarOffset: true,
       );
       return;
     }

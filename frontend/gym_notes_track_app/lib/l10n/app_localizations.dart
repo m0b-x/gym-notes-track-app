@@ -1345,6 +1345,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settings have been reset to defaults'**
   String get settingsReset;
+
+  /// Share note option
+  ///
+  /// In en, this message translates to:
+  /// **'Share Note'**
+  String get shareNote;
+
+  /// Note options bottom sheet title
+  ///
+  /// In en, this message translates to:
+  /// **'Note Options'**
+  String get noteOptions;
+
+  /// Message shown while exporting note
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting note...'**
+  String get exportingNote;
+
+  /// Error message when note export fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error exporting note'**
+  String get noteExportError;
+
+  /// Title for export format selection dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Choose Export Format'**
+  String get chooseExportFormat;
+
+  /// Export as markdown option
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown (.md)'**
+  String get exportAsMarkdown;
+
+  /// Export as JSON option
+  ///
+  /// In en, this message translates to:
+  /// **'JSON (.json)'**
+  String get exportAsJson;
+
+  /// Export as plain text option
+  ///
+  /// In en, this message translates to:
+  /// **'Plain Text (.txt)'**
+  String get exportAsText;
 }
 
 class _AppLocalizationsDelegate

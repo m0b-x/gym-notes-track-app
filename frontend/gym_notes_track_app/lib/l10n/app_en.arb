@@ -904,5 +904,37 @@
   "settingsReset": "Settings have been reset to defaults",
   "@settingsReset": {
     "description": "Settings reset confirmation message"
+  },
+  "shareNote": "Share Note",
+  "@shareNote": {
+    "description": "Share note option"
+  },
+  "noteOptions": "Note Options",
+  "@noteOptions": {
+    "description": "Note options bottom sheet title"
+  },
+  "exportingNote": "Exporting note...",
+  "@exportingNote": {
+    "description": "Message shown while exporting note"
+  },
+  "noteExportError": "Error exporting note",
+  "@noteExportError": {
+    "description": "Error message when note export fails"
+  },
+  "chooseExportFormat": "Choose Export Format",
+  "@chooseExportFormat": {
+    "description": "Title for export format selection dialog"
+  },
+  "exportAsMarkdown": "Markdown (.md)",
+  "@exportAsMarkdown": {
+    "description": "Export as markdown option"
+  },
+  "exportAsJson": "JSON (.json)",
+  "@exportAsJson": {
+    "description": "Export as JSON option"
+  },
+  "exportAsText": "Plain Text (.txt)",
+  "@exportAsText": {
+    "description": "Export as plain text option"
   }
 }

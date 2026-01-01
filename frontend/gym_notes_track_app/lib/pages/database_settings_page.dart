@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 import '../database/database.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/custom_snackbar.dart';
 import '../widgets/gradient_app_bar.dart';
 
 /// Database settings page for managing database location and operations
@@ -398,13 +399,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
   void _copyPath(BuildContext context) {
     if (_databasePath != null) {
       Clipboard.setData(ClipboardData(text: _databasePath!));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context)!.pathCopied),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      CustomSnackbar.show(context, AppLocalizations.of(context)!.pathCopied);
     }
   }
 
@@ -421,22 +416,16 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       } else if (Platform.isLinux) {
         await Process.run('xdg-open', [directory]);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)!.notSupportedOnPlatform),
-            behavior: SnackBarBehavior.floating,
-          ),
+        CustomSnackbar.show(
+          context,
+          AppLocalizations.of(context)!.notSupportedOnPlatform,
         );
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(this.context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${AppLocalizations.of(this.context)!.errorOpeningFolder}: $e',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
+      CustomSnackbar.showError(
+        this.context,
+        '${AppLocalizations.of(this.context)!.errorOpeningFolder}: $e',
       );
     }
   }
@@ -447,11 +436,9 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
     final dbFile = File(_databasePath!);
     if (!await dbFile.exists()) {
       if (!mounted) return;
-      ScaffoldMessenger.of(this.context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(this.context)!.databaseNotFound),
-          behavior: SnackBarBehavior.floating,
-        ),
+      CustomSnackbar.showError(
+        this.context,
+        AppLocalizations.of(this.context)!.databaseNotFound,
       );
       return;
     }
@@ -483,11 +470,9 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       if (!mounted) return;
       Navigator.pop(this.context);
 
-      ScaffoldMessenger.of(this.context).showSnackBar(
-        SnackBar(
-          content: Text('${AppLocalizations.of(this.context)!.shareError}: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      CustomSnackbar.showError(
+        this.context,
+        '${AppLocalizations.of(this.context)!.shareError}: $e',
       );
     }
   }
@@ -540,18 +525,14 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
         message = AppLocalizations.of(this.context)!.optimizationComplete;
       }
 
-      ScaffoldMessenger.of(this.context).showSnackBar(
-        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-      );
+      CustomSnackbar.showSuccess(this.context, message);
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(this.context);
 
-      ScaffoldMessenger.of(this.context).showSnackBar(
-        SnackBar(
-          content: Text('${AppLocalizations.of(this.context)!.error}: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      CustomSnackbar.showError(
+        this.context,
+        '${AppLocalizations.of(this.context)!.error}: $e',
       );
     }
   }
@@ -636,13 +617,9 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       if (!mounted) return;
       Navigator.pop(context); // Close loading dialog
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${AppLocalizations.of(context)!.errorDeletingData}: $e',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
+      CustomSnackbar.showError(
+        context,
+        '${AppLocalizations.of(context)!.errorDeletingData}: $e',
       );
     }
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
 import '../services/settings_service.dart';
+import '../utils/custom_snackbar.dart';
 import '../widgets/gradient_app_bar.dart';
 
 /// Controls settings page for managing gestures and interactions
@@ -374,11 +375,9 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     });
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(AppLocalizations.of(context)!.settingsReset),
-        behavior: SnackBarBehavior.floating,
-      ),
+    CustomSnackbar.showSuccess(
+      context,
+      AppLocalizations.of(context)!.settingsReset,
     );
   }
 }

@@ -677,4 +677,28 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get settingsReset => 'Einstellungen wurden auf Standard zurückgesetzt';
+
+  @override
+  String get shareNote => 'Notiz teilen';
+
+  @override
+  String get noteOptions => 'Notiz-Optionen';
+
+  @override
+  String get exportingNote => 'Notiz wird exportiert...';
+
+  @override
+  String get noteExportError => 'Fehler beim Exportieren der Notiz';
+
+  @override
+  String get chooseExportFormat => 'Exportformat wählen';
+
+  @override
+  String get exportAsMarkdown => 'Markdown (.md)';
+
+  @override
+  String get exportAsJson => 'JSON (.json)';
+
+  @override
+  String get exportAsText => 'Nur Text (.txt)';
 }

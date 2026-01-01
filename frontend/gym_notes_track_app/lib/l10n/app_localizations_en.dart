@@ -672,4 +672,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsReset => 'Settings have been reset to defaults';
+
+  @override
+  String get shareNote => 'Share Note';
+
+  @override
+  String get noteOptions => 'Note Options';
+
+  @override
+  String get exportingNote => 'Exporting note...';
+
+  @override
+  String get noteExportError => 'Error exporting note';
+
+  @override
+  String get chooseExportFormat => 'Choose Export Format';
+
+  @override
+  String get exportAsMarkdown => 'Markdown (.md)';
+
+  @override
+  String get exportAsJson => 'JSON (.json)';
+
+  @override
+  String get exportAsText => 'Plain Text (.txt)';
 }

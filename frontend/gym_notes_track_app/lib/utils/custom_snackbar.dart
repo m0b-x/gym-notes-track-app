@@ -1,74 +1,53 @@
 import 'package:flutter/material.dart';
 
 class CustomSnackbar {
+  static const double _toolbarOffset = 70.0;
+
   static void show(
     BuildContext context,
     String message, {
-    Duration duration = const Duration(seconds: 2),
-    Color? backgroundColor,
-    Color? textColor,
+    Duration duration = const Duration(seconds: 3),
+    bool withToolbarOffset = false,
   }) {
-    final overlay = Overlay.of(context);
-    late OverlayEntry overlayEntry;
-
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        bottom: 80,
-        left: 16,
-        right: 16,
-        child: Material(
-          color: Colors.transparent,
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(milliseconds: 300),
-            builder: (context, value, child) {
-              return Transform.translate(
-                offset: Offset(0, 20 * (1 - value)),
-                child: Opacity(opacity: value, child: child),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color:
-                    backgroundColor ??
-                    Theme.of(context).colorScheme.inverseSurface,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Expanded(
-                    child: Text(
-                      message,
-                      style: TextStyle(
-                        color:
-                            textColor ??
-                            Theme.of(context).colorScheme.onInverseSurface,
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          bottom: withToolbarOffset ? _toolbarOffset : 16,
         ),
+        duration: duration,
+        showCloseIcon: true,
       ),
     );
+  }
 
-    overlay.insert(overlayEntry);
+  static void showError(
+    BuildContext context,
+    String message, {
+    bool withToolbarOffset = false,
+  }) {
+    show(
+      context,
+      message,
+      duration: const Duration(seconds: 4),
+      withToolbarOffset: withToolbarOffset,
+    );
+  }
 
-    Future.delayed(duration, () {
-      overlayEntry.remove();
-    });
+  static void showSuccess(
+    BuildContext context,
+    String message, {
+    bool withToolbarOffset = false,
+  }) {
+    show(
+      context,
+      message,
+      duration: const Duration(seconds: 2),
+      withToolbarOffset: withToolbarOffset,
+    );
   }
 }

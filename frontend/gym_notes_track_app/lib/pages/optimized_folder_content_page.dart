@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../l10n/app_localizations.dart';
 import '../bloc/optimized_folder/optimized_folder_bloc.dart';
 import '../bloc/optimized_folder/optimized_folder_event.dart';
@@ -18,6 +22,7 @@ import '../widgets/infinite_scroll_list.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/gradient_app_bar.dart';
 import '../utils/bloc_helpers.dart';
+import '../utils/custom_snackbar.dart';
 import 'optimized_note_editor_page.dart';
 import 'search_page.dart';
 
@@ -981,6 +986,9 @@ class _NoteCard extends StatelessWidget {
                     case 'rename':
                       _showRenameDialog(context);
                       break;
+                    case 'share':
+                      _showExportFormatDialog(context);
+                      break;
                     case 'delete':
                       _confirmDelete(context);
                       break;
@@ -994,6 +1002,16 @@ class _NoteCard extends StatelessWidget {
                         const Icon(Icons.edit, size: 20),
                         const SizedBox(width: 12),
                         Text(AppLocalizations.of(context)!.rename),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'share',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.share, size: 20),
+                        const SizedBox(width: 12),
+                        Text(AppLocalizations.of(context)!.shareNote),
                       ],
                     ),
                   ),
@@ -1036,9 +1054,192 @@ class _NoteCard extends StatelessWidget {
                   }
                 });
               },
-        onLongPress: isReorderMode ? null : () => _showRenameDialog(context),
+        onLongPress: isReorderMode
+            ? null
+            : () => _showOptionsBottomSheet(context),
       ),
     );
+  }
+
+  void _showOptionsBottomSheet(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                metadata.title.isEmpty
+                    ? AppLocalizations.of(context)!.untitledNote
+                    : metadata.title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.edit_rounded),
+              title: Text(AppLocalizations.of(context)!.rename),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _showRenameDialog(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share_rounded),
+              title: Text(AppLocalizations.of(context)!.shareNote),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _showExportFormatDialog(context);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_rounded, color: colorScheme.error),
+              title: Text(
+                AppLocalizations.of(context)!.delete,
+                style: TextStyle(color: colorScheme.error),
+              ),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _confirmDelete(context);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showExportFormatDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppLocalizations.of(context)!.chooseExportFormat),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.description_rounded),
+              title: Text(AppLocalizations.of(context)!.exportAsMarkdown),
+              onTap: () {
+                Navigator.pop(dialogContext);
+                _exportNote(context, 'md');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.data_object_rounded),
+              title: Text(AppLocalizations.of(context)!.exportAsJson),
+              onTap: () {
+                Navigator.pop(dialogContext);
+                _exportNote(context, 'json');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.text_snippet_rounded),
+              title: Text(AppLocalizations.of(context)!.exportAsText),
+              onTap: () {
+                Navigator.pop(dialogContext);
+                _exportNote(context, 'txt');
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(AppLocalizations.of(context)!.cancel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportNote(BuildContext context, String format) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Text(AppLocalizations.of(dialogContext)!.exportingNote),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final noteRepository = GetIt.I<NoteRepository>();
+      final content = await noteRepository.loadContent(metadata.id);
+
+      String fileContent;
+      String extension;
+
+      switch (format) {
+        case 'md':
+          extension = 'md';
+          final title = metadata.title.isEmpty ? 'Untitled' : metadata.title;
+          fileContent = '# $title\n\n$content';
+          break;
+        case 'json':
+          extension = 'json';
+          final noteJson = {
+            'title': metadata.title,
+            'content': content,
+            'createdAt': metadata.createdAt.toIso8601String(),
+            'updatedAt': metadata.updatedAt.toIso8601String(),
+            'exportedAt': DateTime.now().toIso8601String(),
+          };
+          fileContent = const JsonEncoder.withIndent('  ').convert(noteJson);
+          break;
+        case 'txt':
+        default:
+          extension = 'txt';
+          fileContent = content;
+          break;
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final sanitizedTitle = metadata.title.isEmpty
+          ? 'note_${metadata.id.substring(0, 8)}'
+          : metadata.title.replaceAll(RegExp(r'[^\w\s-]'), '_');
+      final fileName = '$sanitizedTitle.$extension';
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsString(fileContent);
+
+      if (!context.mounted) return;
+      Navigator.pop(context);
+
+      await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.pop(context);
+
+      CustomSnackbar.showError(
+        context,
+        '${AppLocalizations.of(context)!.noteExportError}: $e',
+      );
+    }
   }
 
   void _showRenameDialog(BuildContext context) {
