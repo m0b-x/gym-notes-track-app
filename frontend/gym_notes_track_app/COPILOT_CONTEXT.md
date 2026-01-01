@@ -20,6 +20,7 @@ Gym Notes is a mobile note-taking app designed for gym/workout tracking. It feat
 - NO tests unless asked
 - USE AppLocalizations for ALL user text
 - USE latest Flutter/Dart standards
+- USE modern designs only
 
 ## Stack
 flutter_bloc, drift, sqlite3_flutter_libs, path_provider, flutter_markdown_plus, uuid, equatable, flutter_localizations (EN/DE), get_it
@@ -44,18 +45,19 @@ lib/
 │   ├── database.dart         # AppDatabase singleton (background isolate)
 │   ├── crdt/hlc.dart         # HybridLogicalClock, HlcTimestamp
 │   ├── tables/               # Drift table definitions
-│   └── daos/                 # Data Access Objects
+│   ├── daos/                 # Data Access Objects
+│   └── migrations/           # Schema versions, migrations, indexes
 ├── repositories/             # Cached + reactive data layer
 │   ├── note_repository.dart  # NoteRepository with streams
 │   └── folder_repository.dart
 ├── models/                   # Folder, Note, NoteMetadata, CustomMarkdownShortcut
-├── services/                 # FolderStorage, NoteStorage, Search, AutoSave, Migration
-├── pages/                    # FolderContentPage, NoteEditorPage, SearchPage, MarkdownSettingsPage
+├── services/                 # FolderStorage, NoteStorage, Search, AutoSave, Loading
+├── pages/                    # FolderContentPage, NoteEditorPage, SearchPage, MarkdownSettingsPage, DatabaseSettingsPage
 ├── widgets/                  # MarkdownToolbar, InfiniteScrollList, VirtualScrollingEditor
 ├── l10n/                     # app_en.arb, app_de.arb
 ├── config/                   # default_markdown_shortcuts, available_icons
 ├── handlers/                 # date/default/header_shortcut_handler
-├── utils/                    # compression, text_history, bloc_helpers
+├── utils/                    # compression, text_history, bloc_helpers, lru_cache
 └── main.dart
 ```
 
@@ -132,13 +134,13 @@ class FolderChange { type, folderId, parentId?, folder? }
 ### Tables with CRDT Fields
 All tables include: `hlcTimestamp`, `deviceId`, `version`, `isDeleted`, `deletedAt?`
 
-| Table         | Fields                                                                                                    |
-| ------------- | --------------------------------------------------------------------------------------------------------- |
-| Folders       | id, name, parentId?, createdAt, updatedAt + CRDT fields                                                   |
-| Notes         | id, folderId, title, preview, contentLength, chunkCount, isCompressed, createdAt, updatedAt + CRDT fields |
-| ContentChunks | id, noteId, chunkIndex, content, isCompressed + CRDT fields                                               |
-| SyncMetadata  | key, value, updatedAt                                                                                     |
-| UserSettings  | key (PK), value, updatedAt (for markdown shortcuts, etc.)                                                 |
+| Table         | Fields                                                                                                              |
+| ------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Folders       | id, name, parentId?, position, createdAt, updatedAt + CRDT fields                                                   |
+| Notes         | id, folderId, title, preview, contentLength, chunkCount, isCompressed, position, createdAt, updatedAt + CRDT fields |
+| ContentChunks | id, noteId, chunkIndex, content, isCompressed + CRDT fields                                                         |
+| SyncMetadata  | key, value, updatedAt                                                                                               |
+| UserSettings  | key (PK), value, updatedAt (for markdown shortcuts, etc.)                                                           |
 
 ### Storage Architecture
 | Data               | Storage               | Notes                      |
@@ -211,12 +213,30 @@ AppConstants.cacheExpiry               // 5 minutes
 AppConstants.defaultChunkSize          // 10KB
 AppConstants.compressionThreshold      // 5KB
 AppConstants.previewMaxLength          // 200
-AppConstants.virtualScrollingThreshold // 5000
+AppConstants.virtualScrollingThreshold // 3000
 
 // Timing
 AppConstants.autoSaveInterval          // 30s
 AppConstants.autoSaveDelay             // 5s
 AppConstants.debounceDelay             // 500ms
+
+// UI
+AppConstants.edgeScrollThreshold       // 80.0
+AppConstants.autoScrollSpeed           // 10.0
+```
+
+## Database Migrations (DatabaseSchema)
+```dart
+// Schema version constants
+DatabaseSchema.currentVersion               // 4
+DatabaseSchema.v1Initial                    // 1
+DatabaseSchema.v2UserSettings               // 2
+DatabaseSchema.v3ContentChunksIsDeleted     // 3
+DatabaseSchema.v4ManualOrdering             // 4
+
+// Migration classes
+DatabaseMigrations(db).runMigrations(m, from, to);
+DatabaseIndexes(db).createAllIndexes();
 ```
 
 ## Sealed BLoC States
@@ -325,6 +345,9 @@ getIt<NoteRepository>().noteChanges.listen((change) {
 
 ## Key Classes
 - **AppDatabase**: Drift database singleton with HLC clock (background isolate)
+- **DatabaseSchema**: Schema version constants (currentVersion, v1-v4)
+- **DatabaseMigrations**: Migration step runner for schema upgrades
+- **DatabaseIndexes**: Index and FTS table creation
 - **NoteRepository**: Cached note access with reactive streams
 - **FolderRepository**: Cached folder access with reactive streams
 - **Result<T>**: Sealed type for Success/Failure
@@ -335,7 +358,7 @@ getIt<NoteRepository>().noteChanges.listen((change) {
 - **PaginatedNotes**: notes list + pagination info (hasMore, currentPage, totalCount)
 - **PaginatedFolders**: folders list + pagination info
 - **SearchResult**: metadata + matches + relevanceScore
-- **MigrationService**: One-time SharedPrefs → SQLite migration
+- **LoadingService**: Global loading state for database operations
 - **AutoSaveService**: 5s debounced saves
 - **TextHistoryObserver**: undo/redo tracking
 

@@ -17,6 +17,7 @@ import 'daos/sync_dao.dart';
 import 'daos/user_settings_dao.dart';
 import 'crdt/hlc.dart';
 import 'loading_interceptor.dart';
+import 'migrations/migrations.dart';
 
 part 'database.g.dart';
 
@@ -78,91 +79,18 @@ class AppDatabase extends _$AppDatabase {
   String get deviceId => _deviceId;
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => DatabaseSchema.currentVersion;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (Migrator m) async {
         await m.createAll();
-        await _createIndexes(m);
+        await DatabaseIndexes(this).createAllIndexes();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        if (from < 2) {
-          await m.createTable(userSettings);
-        }
-        if (from < 3) {
-          // Add isDeleted column to content_chunks for CRDT consistency
-          await m.addColumn(contentChunks, contentChunks.isDeleted);
-          // Add new indexes
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created_at DESC) WHERE is_deleted = 0',
-          );
-          // Drop redundant index if exists
-          await customStatement('DROP INDEX IF EXISTS idx_chunks_note');
-        }
-        if (from < 4) {
-          // Add position column for manual ordering
-          await m.addColumn(folders, folders.position);
-          await m.addColumn(notes, notes.position);
-          // Initialize positions based on creation date
-          await customStatement('''
-            UPDATE folders SET position = (
-              SELECT COUNT(*) FROM folders f2 
-              WHERE f2.created_at < folders.created_at 
-              AND COALESCE(f2.parent_id, '') = COALESCE(folders.parent_id, '')
-              AND f2.is_deleted = 0
-            ) WHERE is_deleted = 0
-          ''');
-          await customStatement('''
-            UPDATE notes SET position = (
-              SELECT COUNT(*) FROM notes n2 
-              WHERE n2.created_at < notes.created_at 
-              AND n2.folder_id = notes.folder_id
-              AND n2.is_deleted = 0
-            ) WHERE is_deleted = 0
-          ''');
-          // Add position indexes
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS idx_folders_position ON folders(parent_id, position) WHERE is_deleted = 0',
-          );
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS idx_notes_position ON notes(folder_id, position) WHERE is_deleted = 0',
-          );
-        }
+        await DatabaseMigrations(this).runMigrations(m, from, to);
       },
-    );
-  }
-
-  Future<void> _createIndexes(Migrator m) async {
-    // Folder indexes
-    await customStatement(
-      'CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id) WHERE is_deleted = 0',
-    );
-    await customStatement(
-      'CREATE INDEX IF NOT EXISTS idx_folders_hlc ON folders(hlc_timestamp)',
-    );
-
-    // Note indexes - covering common query patterns
-    await customStatement(
-      'CREATE INDEX IF NOT EXISTS idx_notes_folder ON notes(folder_id) WHERE is_deleted = 0',
-    );
-    await customStatement(
-      'CREATE INDEX IF NOT EXISTS idx_notes_hlc ON notes(hlc_timestamp)',
-    );
-    await customStatement(
-      'CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated_at DESC) WHERE is_deleted = 0',
-    );
-    await customStatement(
-      'CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created_at DESC) WHERE is_deleted = 0',
-    );
-
-    // Chunk indexes - composite only (single column index is redundant)
-    await customStatement(
-      'CREATE INDEX IF NOT EXISTS idx_chunks_note_index ON content_chunks(note_id, chunk_index) WHERE is_deleted = 0',
-    );
-    await customStatement(
-      'CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(title, preview, content=notes, content_rowid=rowid)',
     );
   }
 
