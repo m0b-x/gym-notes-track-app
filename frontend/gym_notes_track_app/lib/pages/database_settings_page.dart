@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../database/database.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/gradient_app_bar.dart';
 
 /// Database settings page for managing database location and operations
 class DatabaseSettingsPage extends StatefulWidget {
@@ -78,9 +79,9 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: GradientAppBar(
         title: Text(AppLocalizations.of(context)!.databaseSettings),
-        centerTitle: true,
+        gradientStyle: GradientStyle.drawer,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

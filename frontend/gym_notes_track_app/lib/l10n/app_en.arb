@@ -783,5 +783,106 @@
   "moveDown": "Move Down",
   "@moveDown": {
     "description": "Move item down action"
+  },
+  "controlsSettings": "Controls",
+  "@controlsSettings": {
+    "description": "Controls settings menu item"
+  },
+  "controlsSettingsDesc": "Gestures, haptics and interactions",
+  "@controlsSettingsDesc": {
+    "description": "Controls settings description"
+  },
+  "gesturesSection": "Gestures",
+  "@gesturesSection": {
+    "description": "Gestures section title"
+  },
+  "folderSwipeGesture": "Swipe to open menu in folders",
+  "@folderSwipeGesture": {
+    "description": "Folder swipe gesture setting"
+  },
+  "folderSwipeGestureDesc": "Swipe from left edge to open the navigation menu when browsing folders",
+  "@folderSwipeGestureDesc": {
+    "description": "Folder swipe gesture description"
+  },
+  "noteSwipeGesture": "Swipe to open menu in notes",
+  "@noteSwipeGesture": {
+    "description": "Note swipe gesture setting"
+  },
+  "noteSwipeGestureDesc": "Swipe from left edge to open the navigation menu when editing notes",
+  "@noteSwipeGestureDesc": {
+    "description": "Note swipe gesture description"
+  },
+  "feedbackSection": "Feedback",
+  "@feedbackSection": {
+    "description": "Feedback section title"
+  },
+  "hapticFeedback": "Haptic feedback",
+  "@hapticFeedback": {
+    "description": "Haptic feedback setting"
+  },
+  "hapticFeedbackDesc": "Vibrate on interactions like toggling switches",
+  "@hapticFeedbackDesc": {
+    "description": "Haptic feedback description"
+  },
+  "confirmDelete": "Confirm before delete",
+  "@confirmDelete": {
+    "description": "Confirm delete setting"
+  },
+  "confirmDeleteDesc": "Show confirmation dialog before deleting notes or folders",
+  "@confirmDeleteDesc": {
+    "description": "Confirm delete description"
+  },
+  "autoSaveSection": "Auto-save",
+  "@autoSaveSection": {
+    "description": "Auto-save section title"
+  },
+  "autoSave": "Auto-save notes",
+  "@autoSave": {
+    "description": "Auto-save setting"
+  },
+  "autoSaveDesc": "Automatically save notes while editing",
+  "@autoSaveDesc": {
+    "description": "Auto-save description"
+  },
+  "autoSaveInterval": "Auto-save interval",
+  "@autoSaveInterval": {
+    "description": "Auto-save interval setting"
+  },
+  "autoSaveIntervalDesc": "Save every {seconds} seconds",
+  "@autoSaveIntervalDesc": {
+    "description": "Auto-save interval description",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "displaySection": "Display",
+  "@displaySection": {
+    "description": "Display section title"
+  },
+  "showNotePreview": "Show note preview",
+  "@showNotePreview": {
+    "description": "Show note preview setting"
+  },
+  "showNotePreviewDesc": "Display a preview of note content in the list",
+  "@showNotePreviewDesc": {
+    "description": "Show note preview description"
+  },
+  "resetToDefaults": "Reset to defaults",
+  "@resetToDefaults": {
+    "description": "Reset to defaults button"
+  },
+  "resetToDefaultsConfirm": "Are you sure you want to reset all settings to their default values?",
+  "@resetToDefaultsConfirm": {
+    "description": "Reset to defaults confirmation"
+  },
+  "reset": "Reset",
+  "@reset": {
+    "description": "Reset button text"
+  },
+  "settingsReset": "Settings have been reset to defaults",
+  "@settingsReset": {
+    "description": "Settings reset confirmation message"
   }
 }

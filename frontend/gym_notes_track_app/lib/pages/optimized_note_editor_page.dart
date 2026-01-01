@@ -11,6 +11,7 @@ import '../bloc/optimized_note/optimized_note_state.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/note_metadata.dart';
 import '../services/auto_save_service.dart';
+import '../services/settings_service.dart';
 import '../utils/text_history_observer.dart';
 import '../widgets/markdown_toolbar.dart';
 import '../widgets/efficient_markdown.dart';
@@ -18,6 +19,7 @@ import '../widgets/interactive_markdown.dart';
 import '../widgets/scroll_progress_indicator.dart';
 import '../widgets/note_search_bar.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/gradient_app_bar.dart';
 import '../utils/note_search_controller.dart';
 import '../config/default_markdown_shortcuts.dart';
 import '../database/database.dart';
@@ -51,6 +53,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _hasChanges = false;
   bool _isPreviewMode = false;
   bool _isLoading = true;
+  bool _noteSwipeEnabled = true;
 
   TextHistoryObserver? _textHistory;
   AutoSaveService? _autoSaveService;
@@ -67,6 +70,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   @override
   void initState() {
     super.initState();
+    _loadSwipeSetting();
 
     _titleController = TextEditingController(
       text: widget.metadata?.title ?? '',
@@ -101,6 +105,15 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   void _setupTextHistory() {
     _textHistory?.dispose();
     _textHistory = TextHistoryObserver(_contentController);
+  }
+
+  Future<void> _loadSwipeSetting() async {
+    final settings = await SettingsService.getInstance();
+    if (mounted) {
+      setState(() {
+        _noteSwipeEnabled = settings.noteSwipeEnabled;
+      });
+    }
   }
 
   void _initializeAutoSave() {
@@ -381,8 +394,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         },
         child: Scaffold(
           drawer: const AppDrawer(),
-          appBar: AppBar(
+          drawerEnableOpenDragGesture: _noteSwipeEnabled,
+          appBar: GradientAppBar(
             automaticallyImplyLeading: false,
+            purpleAlpha: 0.7,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () => Navigator.of(context).maybePop(),
@@ -413,9 +428,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                 ],
               ),
             ),
-            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             actions: [
-              // Search button
               IconButton(
                 icon: Icon(
                   _searchController.isSearching

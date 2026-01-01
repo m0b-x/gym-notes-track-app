@@ -634,5 +634,106 @@
   "tapPlusToCreate": "Tippe auf + um zu beginnen",
   "@tapPlusToCreate": {
     "description": "Hinweis auf den Plus-Button"
+  },
+  "controlsSettings": "Steuerung",
+  "@controlsSettings": {
+    "description": "Controls settings menu item"
+  },
+  "controlsSettingsDesc": "Gesten, Haptik und Interaktionen",
+  "@controlsSettingsDesc": {
+    "description": "Controls settings description"
+  },
+  "gesturesSection": "Gesten",
+  "@gesturesSection": {
+    "description": "Gestures section title"
+  },
+  "folderSwipeGesture": "Wischen zum Öffnen des Menüs in Ordnern",
+  "@folderSwipeGesture": {
+    "description": "Folder swipe gesture setting"
+  },
+  "folderSwipeGestureDesc": "Vom linken Rand wischen, um das Navigationsmenü beim Durchsuchen von Ordnern zu öffnen",
+  "@folderSwipeGestureDesc": {
+    "description": "Folder swipe gesture description"
+  },
+  "noteSwipeGesture": "Wischen zum Öffnen des Menüs in Notizen",
+  "@noteSwipeGesture": {
+    "description": "Note swipe gesture setting"
+  },
+  "noteSwipeGestureDesc": "Vom linken Rand wischen, um das Navigationsmenü beim Bearbeiten von Notizen zu öffnen",
+  "@noteSwipeGestureDesc": {
+    "description": "Note swipe gesture description"
+  },
+  "feedbackSection": "Feedback",
+  "@feedbackSection": {
+    "description": "Feedback section title"
+  },
+  "hapticFeedback": "Haptisches Feedback",
+  "@hapticFeedback": {
+    "description": "Haptic feedback setting"
+  },
+  "hapticFeedbackDesc": "Vibration bei Interaktionen wie dem Umschalten von Schaltern",
+  "@hapticFeedbackDesc": {
+    "description": "Haptic feedback description"
+  },
+  "confirmDelete": "Vor dem Löschen bestätigen",
+  "@confirmDelete": {
+    "description": "Confirm delete setting"
+  },
+  "confirmDeleteDesc": "Bestätigungsdialog vor dem Löschen von Notizen oder Ordnern anzeigen",
+  "@confirmDeleteDesc": {
+    "description": "Confirm delete description"
+  },
+  "autoSaveSection": "Automatisches Speichern",
+  "@autoSaveSection": {
+    "description": "Auto-save section title"
+  },
+  "autoSave": "Notizen automatisch speichern",
+  "@autoSave": {
+    "description": "Auto-save setting"
+  },
+  "autoSaveDesc": "Notizen beim Bearbeiten automatisch speichern",
+  "@autoSaveDesc": {
+    "description": "Auto-save description"
+  },
+  "autoSaveInterval": "Speicherintervall",
+  "@autoSaveInterval": {
+    "description": "Auto-save interval setting"
+  },
+  "autoSaveIntervalDesc": "Alle {seconds} Sekunden speichern",
+  "@autoSaveIntervalDesc": {
+    "description": "Auto-save interval description",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "displaySection": "Anzeige",
+  "@displaySection": {
+    "description": "Display section title"
+  },
+  "showNotePreview": "Notizvorschau anzeigen",
+  "@showNotePreview": {
+    "description": "Show note preview setting"
+  },
+  "showNotePreviewDesc": "Eine Vorschau des Notizinhalts in der Liste anzeigen",
+  "@showNotePreviewDesc": {
+    "description": "Show note preview description"
+  },
+  "resetToDefaults": "Auf Standard zurücksetzen",
+  "@resetToDefaults": {
+    "description": "Reset to defaults button"
+  },
+  "resetToDefaultsConfirm": "Möchten Sie wirklich alle Einstellungen auf ihre Standardwerte zurücksetzen?",
+  "@resetToDefaultsConfirm": {
+    "description": "Reset to defaults confirmation"
+  },
+  "reset": "Zurücksetzen",
+  "@reset": {
+    "description": "Reset button text"
+  },
+  "settingsReset": "Einstellungen wurden auf Standard zurückgesetzt",
+  "@settingsReset": {
+    "description": "Settings reset confirmation message"
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../pages/database_settings_page.dart';
+import '../pages/controls_settings_page.dart';
 
 /// Global navigation drawer for app-wide settings
 class AppDrawer extends StatelessWidget {
@@ -36,6 +37,23 @@ class AppDrawer extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const DatabaseSettingsPage(),
+                      ),
+                    );
+                  },
+                ),
+
+                // Controls settings
+                _buildMenuItem(
+                  context: context,
+                  icon: Icons.touch_app_rounded,
+                  title: AppLocalizations.of(context)!.controlsSettings,
+                  subtitle: AppLocalizations.of(context)!.controlsSettingsDesc,
+                  onTap: () {
+                    Navigator.pop(context); // Close drawer
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ControlsSettingsPage(),
                       ),
                     );
                   },
@@ -80,7 +98,7 @@ class AppDrawer extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             colorScheme.primaryContainer,
-            colorScheme.primary.withValues(alpha: 0.3),
+            colorScheme.primary.withValues(alpha: 0.5),
           ],
         ),
       ),

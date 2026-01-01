@@ -1177,6 +1177,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Move Down'**
   String get moveDown;
+
+  /// Controls settings menu item
+  ///
+  /// In en, this message translates to:
+  /// **'Controls'**
+  String get controlsSettings;
+
+  /// Controls settings description
+  ///
+  /// In en, this message translates to:
+  /// **'Gestures, haptics and interactions'**
+  String get controlsSettingsDesc;
+
+  /// Gestures section title
+  ///
+  /// In en, this message translates to:
+  /// **'Gestures'**
+  String get gesturesSection;
+
+  /// Folder swipe gesture setting
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe to open menu in folders'**
+  String get folderSwipeGesture;
+
+  /// Folder swipe gesture description
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe from left edge to open the navigation menu when browsing folders'**
+  String get folderSwipeGestureDesc;
+
+  /// Note swipe gesture setting
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe to open menu in notes'**
+  String get noteSwipeGesture;
+
+  /// Note swipe gesture description
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe from left edge to open the navigation menu when editing notes'**
+  String get noteSwipeGestureDesc;
+
+  /// Feedback section title
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback'**
+  String get feedbackSection;
+
+  /// Haptic feedback setting
+  ///
+  /// In en, this message translates to:
+  /// **'Haptic feedback'**
+  String get hapticFeedback;
+
+  /// Haptic feedback description
+  ///
+  /// In en, this message translates to:
+  /// **'Vibrate on interactions like toggling switches'**
+  String get hapticFeedbackDesc;
+
+  /// Confirm delete setting
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm before delete'**
+  String get confirmDelete;
+
+  /// Confirm delete description
+  ///
+  /// In en, this message translates to:
+  /// **'Show confirmation dialog before deleting notes or folders'**
+  String get confirmDeleteDesc;
+
+  /// Auto-save section title
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-save'**
+  String get autoSaveSection;
+
+  /// Auto-save setting
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-save notes'**
+  String get autoSave;
+
+  /// Auto-save description
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically save notes while editing'**
+  String get autoSaveDesc;
+
+  /// Auto-save interval setting
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-save interval'**
+  String get autoSaveInterval;
+
+  /// Auto-save interval description
+  ///
+  /// In en, this message translates to:
+  /// **'Save every {seconds} seconds'**
+  String autoSaveIntervalDesc(int seconds);
+
+  /// Display section title
+  ///
+  /// In en, this message translates to:
+  /// **'Display'**
+  String get displaySection;
+
+  /// Show note preview setting
+  ///
+  /// In en, this message translates to:
+  /// **'Show note preview'**
+  String get showNotePreview;
+
+  /// Show note preview description
+  ///
+  /// In en, this message translates to:
+  /// **'Display a preview of note content in the list'**
+  String get showNotePreviewDesc;
+
+  /// Reset to defaults button
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to defaults'**
+  String get resetToDefaults;
+
+  /// Reset to defaults confirmation
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to reset all settings to their default values?'**
+  String get resetToDefaultsConfirm;
+
+  /// Settings reset confirmation message
+  ///
+  /// In en, this message translates to:
+  /// **'Settings have been reset to defaults'**
+  String get settingsReset;
 }
 
 class _AppLocalizationsDelegate

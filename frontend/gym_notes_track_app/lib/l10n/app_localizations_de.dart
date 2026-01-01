@@ -584,4 +584,81 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get moveDown => 'Move Down';
+
+  @override
+  String get controlsSettings => 'Steuerung';
+
+  @override
+  String get controlsSettingsDesc => 'Gesten, Haptik und Interaktionen';
+
+  @override
+  String get gesturesSection => 'Gesten';
+
+  @override
+  String get folderSwipeGesture => 'Wischen zum Öffnen des Menüs in Ordnern';
+
+  @override
+  String get folderSwipeGestureDesc =>
+      'Vom linken Rand wischen, um das Navigationsmenü beim Durchsuchen von Ordnern zu öffnen';
+
+  @override
+  String get noteSwipeGesture => 'Wischen zum Öffnen des Menüs in Notizen';
+
+  @override
+  String get noteSwipeGestureDesc =>
+      'Vom linken Rand wischen, um das Navigationsmenü beim Bearbeiten von Notizen zu öffnen';
+
+  @override
+  String get feedbackSection => 'Feedback';
+
+  @override
+  String get hapticFeedback => 'Haptisches Feedback';
+
+  @override
+  String get hapticFeedbackDesc =>
+      'Vibration bei Interaktionen wie dem Umschalten von Schaltern';
+
+  @override
+  String get confirmDelete => 'Vor dem Löschen bestätigen';
+
+  @override
+  String get confirmDeleteDesc =>
+      'Bestätigungsdialog vor dem Löschen von Notizen oder Ordnern anzeigen';
+
+  @override
+  String get autoSaveSection => 'Automatisches Speichern';
+
+  @override
+  String get autoSave => 'Notizen automatisch speichern';
+
+  @override
+  String get autoSaveDesc => 'Notizen beim Bearbeiten automatisch speichern';
+
+  @override
+  String get autoSaveInterval => 'Speicherintervall';
+
+  @override
+  String autoSaveIntervalDesc(int seconds) {
+    return 'Alle $seconds Sekunden speichern';
+  }
+
+  @override
+  String get displaySection => 'Anzeige';
+
+  @override
+  String get showNotePreview => 'Notizvorschau anzeigen';
+
+  @override
+  String get showNotePreviewDesc =>
+      'Eine Vorschau des Notizinhalts in der Liste anzeigen';
+
+  @override
+  String get resetToDefaults => 'Auf Standard zurücksetzen';
+
+  @override
+  String get resetToDefaultsConfirm =>
+      'Möchten Sie wirklich alle Einstellungen auf ihre Standardwerte zurücksetzen?';
+
+  @override
+  String get settingsReset => 'Einstellungen wurden auf Standard zurückgesetzt';
 }

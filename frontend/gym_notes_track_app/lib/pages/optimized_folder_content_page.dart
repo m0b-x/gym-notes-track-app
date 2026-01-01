@@ -13,8 +13,10 @@ import '../models/note_metadata.dart';
 import '../repositories/note_repository.dart';
 import '../services/folder_storage_service.dart';
 import '../services/note_storage_service.dart';
+import '../services/settings_service.dart';
 import '../widgets/infinite_scroll_list.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/gradient_app_bar.dart';
 import '../utils/bloc_helpers.dart';
 import 'optimized_note_editor_page.dart';
 import 'search_page.dart';
@@ -40,13 +42,31 @@ class _OptimizedFolderContentPageState
   NotesSortOrder _notesSortOrder = NotesSortOrder.updatedDesc;
   final FoldersSortOrder _foldersSortOrder = FoldersSortOrder.nameAsc;
   bool _isReorderMode = false;
+  bool _folderSwipeEnabled = true;
 
   NoteRepository get _noteRepository => GetIt.I<NoteRepository>();
 
   @override
   void initState() {
     super.initState();
+    _loadSettings();
     _loadData();
+  }
+
+  Future<void> _loadSettings() async {
+    final settings = await SettingsService.getInstance();
+    if (mounted) {
+      setState(() {
+        _folderSwipeEnabled = settings.folderSwipeEnabled;
+      });
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reload settings when returning from settings page
+    _loadSettings();
   }
 
   @override
@@ -96,22 +116,27 @@ class _OptimizedFolderContentPageState
   Widget build(BuildContext context) {
     final isRootPage = widget.folderId == null;
 
-    return Scaffold(
+    final scaffold = Scaffold(
       drawer: const AppDrawer(),
-      appBar: AppBar(
-        automaticallyImplyLeading:
-            isRootPage, // Shows hamburger menu on root page
+      drawerEnableOpenDragGesture: _folderSwipeEnabled,
+      appBar: GradientAppBar(
+        automaticallyImplyLeading: false,
+        purpleAlpha: 0.7,
         leading: !isRootPage
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => Navigator.of(context).pop(),
               )
-            : null,
+            : Builder(
+                builder: (context) => IconButton(
+                  icon: const Icon(Icons.menu),
+                  onPressed: () => Scaffold.of(context).openDrawer(),
+                ),
+              ),
         title: Text(
           widget.title,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           // Reorder mode toggle
           IconButton(
@@ -215,6 +240,22 @@ class _OptimizedFolderContentPageState
         child: const Icon(Icons.add),
       ),
     );
+
+    // Wrap with PopScope to disable iOS swipe-back gesture in subfolders
+    // so that drawer swipe gesture works instead
+    if (!isRootPage && _folderSwipeEnabled) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) {
+            Navigator.of(context).pop();
+          }
+        },
+        child: scaffold,
+      );
+    }
+
+    return scaffold;
   }
 
   Widget _buildNotesSortMenuItem(

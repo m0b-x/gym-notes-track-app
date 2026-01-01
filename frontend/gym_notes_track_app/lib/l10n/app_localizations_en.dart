@@ -579,4 +579,81 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get moveDown => 'Move Down';
+
+  @override
+  String get controlsSettings => 'Controls';
+
+  @override
+  String get controlsSettingsDesc => 'Gestures, haptics and interactions';
+
+  @override
+  String get gesturesSection => 'Gestures';
+
+  @override
+  String get folderSwipeGesture => 'Swipe to open menu in folders';
+
+  @override
+  String get folderSwipeGestureDesc =>
+      'Swipe from left edge to open the navigation menu when browsing folders';
+
+  @override
+  String get noteSwipeGesture => 'Swipe to open menu in notes';
+
+  @override
+  String get noteSwipeGestureDesc =>
+      'Swipe from left edge to open the navigation menu when editing notes';
+
+  @override
+  String get feedbackSection => 'Feedback';
+
+  @override
+  String get hapticFeedback => 'Haptic feedback';
+
+  @override
+  String get hapticFeedbackDesc =>
+      'Vibrate on interactions like toggling switches';
+
+  @override
+  String get confirmDelete => 'Confirm before delete';
+
+  @override
+  String get confirmDeleteDesc =>
+      'Show confirmation dialog before deleting notes or folders';
+
+  @override
+  String get autoSaveSection => 'Auto-save';
+
+  @override
+  String get autoSave => 'Auto-save notes';
+
+  @override
+  String get autoSaveDesc => 'Automatically save notes while editing';
+
+  @override
+  String get autoSaveInterval => 'Auto-save interval';
+
+  @override
+  String autoSaveIntervalDesc(int seconds) {
+    return 'Save every $seconds seconds';
+  }
+
+  @override
+  String get displaySection => 'Display';
+
+  @override
+  String get showNotePreview => 'Show note preview';
+
+  @override
+  String get showNotePreviewDesc =>
+      'Display a preview of note content in the list';
+
+  @override
+  String get resetToDefaults => 'Reset to defaults';
+
+  @override
+  String get resetToDefaultsConfirm =>
+      'Are you sure you want to reset all settings to their default values?';
+
+  @override
+  String get settingsReset => 'Settings have been reset to defaults';
 }
