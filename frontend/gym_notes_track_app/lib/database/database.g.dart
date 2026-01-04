@@ -75,6 +75,28 @@ class $FoldersTable extends Folders with TableInfo<$FoldersTable, Folder> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _noteSortOrderMeta = const VerificationMeta(
+    'noteSortOrder',
+  );
+  @override
+  late final GeneratedColumn<String> noteSortOrder = GeneratedColumn<String>(
+    'note_sort_order',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _subfolderSortOrderMeta =
+      const VerificationMeta('subfolderSortOrder');
+  @override
+  late final GeneratedColumn<String> subfolderSortOrder =
+      GeneratedColumn<String>(
+        'subfolder_sort_order',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _hlcTimestampMeta = const VerificationMeta(
     'hlcTimestamp',
   );
@@ -143,6 +165,8 @@ class $FoldersTable extends Folders with TableInfo<$FoldersTable, Folder> {
     position,
     createdAt,
     updatedAt,
+    noteSortOrder,
+    subfolderSortOrder,
     hlcTimestamp,
     deviceId,
     version,
@@ -201,6 +225,24 @@ class $FoldersTable extends Folders with TableInfo<$FoldersTable, Folder> {
       );
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('note_sort_order')) {
+      context.handle(
+        _noteSortOrderMeta,
+        noteSortOrder.isAcceptableOrUnknown(
+          data['note_sort_order']!,
+          _noteSortOrderMeta,
+        ),
+      );
+    }
+    if (data.containsKey('subfolder_sort_order')) {
+      context.handle(
+        _subfolderSortOrderMeta,
+        subfolderSortOrder.isAcceptableOrUnknown(
+          data['subfolder_sort_order']!,
+          _subfolderSortOrderMeta,
+        ),
+      );
     }
     if (data.containsKey('hlc_timestamp')) {
       context.handle(
@@ -272,6 +314,14 @@ class $FoldersTable extends Folders with TableInfo<$FoldersTable, Folder> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      noteSortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note_sort_order'],
+      ),
+      subfolderSortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}subfolder_sort_order'],
+      ),
       hlcTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}hlc_timestamp'],
@@ -308,6 +358,8 @@ class Folder extends DataClass implements Insertable<Folder> {
   final int position;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? noteSortOrder;
+  final String? subfolderSortOrder;
   final String hlcTimestamp;
   final String deviceId;
   final int version;
@@ -320,6 +372,8 @@ class Folder extends DataClass implements Insertable<Folder> {
     required this.position,
     required this.createdAt,
     required this.updatedAt,
+    this.noteSortOrder,
+    this.subfolderSortOrder,
     required this.hlcTimestamp,
     required this.deviceId,
     required this.version,
@@ -337,6 +391,12 @@ class Folder extends DataClass implements Insertable<Folder> {
     map['position'] = Variable<int>(position);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || noteSortOrder != null) {
+      map['note_sort_order'] = Variable<String>(noteSortOrder);
+    }
+    if (!nullToAbsent || subfolderSortOrder != null) {
+      map['subfolder_sort_order'] = Variable<String>(subfolderSortOrder);
+    }
     map['hlc_timestamp'] = Variable<String>(hlcTimestamp);
     map['device_id'] = Variable<String>(deviceId);
     map['version'] = Variable<int>(version);
@@ -357,6 +417,12 @@ class Folder extends DataClass implements Insertable<Folder> {
       position: Value(position),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      noteSortOrder: noteSortOrder == null && nullToAbsent
+          ? const Value.absent()
+          : Value(noteSortOrder),
+      subfolderSortOrder: subfolderSortOrder == null && nullToAbsent
+          ? const Value.absent()
+          : Value(subfolderSortOrder),
       hlcTimestamp: Value(hlcTimestamp),
       deviceId: Value(deviceId),
       version: Value(version),
@@ -379,6 +445,10 @@ class Folder extends DataClass implements Insertable<Folder> {
       position: serializer.fromJson<int>(json['position']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      noteSortOrder: serializer.fromJson<String?>(json['noteSortOrder']),
+      subfolderSortOrder: serializer.fromJson<String?>(
+        json['subfolderSortOrder'],
+      ),
       hlcTimestamp: serializer.fromJson<String>(json['hlcTimestamp']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
       version: serializer.fromJson<int>(json['version']),
@@ -396,6 +466,8 @@ class Folder extends DataClass implements Insertable<Folder> {
       'position': serializer.toJson<int>(position),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'noteSortOrder': serializer.toJson<String?>(noteSortOrder),
+      'subfolderSortOrder': serializer.toJson<String?>(subfolderSortOrder),
       'hlcTimestamp': serializer.toJson<String>(hlcTimestamp),
       'deviceId': serializer.toJson<String>(deviceId),
       'version': serializer.toJson<int>(version),
@@ -411,6 +483,8 @@ class Folder extends DataClass implements Insertable<Folder> {
     int? position,
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<String?> noteSortOrder = const Value.absent(),
+    Value<String?> subfolderSortOrder = const Value.absent(),
     String? hlcTimestamp,
     String? deviceId,
     int? version,
@@ -423,6 +497,12 @@ class Folder extends DataClass implements Insertable<Folder> {
     position: position ?? this.position,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    noteSortOrder: noteSortOrder.present
+        ? noteSortOrder.value
+        : this.noteSortOrder,
+    subfolderSortOrder: subfolderSortOrder.present
+        ? subfolderSortOrder.value
+        : this.subfolderSortOrder,
     hlcTimestamp: hlcTimestamp ?? this.hlcTimestamp,
     deviceId: deviceId ?? this.deviceId,
     version: version ?? this.version,
@@ -437,6 +517,12 @@ class Folder extends DataClass implements Insertable<Folder> {
       position: data.position.present ? data.position.value : this.position,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      noteSortOrder: data.noteSortOrder.present
+          ? data.noteSortOrder.value
+          : this.noteSortOrder,
+      subfolderSortOrder: data.subfolderSortOrder.present
+          ? data.subfolderSortOrder.value
+          : this.subfolderSortOrder,
       hlcTimestamp: data.hlcTimestamp.present
           ? data.hlcTimestamp.value
           : this.hlcTimestamp,
@@ -456,6 +542,8 @@ class Folder extends DataClass implements Insertable<Folder> {
           ..write('position: $position, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('noteSortOrder: $noteSortOrder, ')
+          ..write('subfolderSortOrder: $subfolderSortOrder, ')
           ..write('hlcTimestamp: $hlcTimestamp, ')
           ..write('deviceId: $deviceId, ')
           ..write('version: $version, ')
@@ -473,6 +561,8 @@ class Folder extends DataClass implements Insertable<Folder> {
     position,
     createdAt,
     updatedAt,
+    noteSortOrder,
+    subfolderSortOrder,
     hlcTimestamp,
     deviceId,
     version,
@@ -489,6 +579,8 @@ class Folder extends DataClass implements Insertable<Folder> {
           other.position == this.position &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
+          other.noteSortOrder == this.noteSortOrder &&
+          other.subfolderSortOrder == this.subfolderSortOrder &&
           other.hlcTimestamp == this.hlcTimestamp &&
           other.deviceId == this.deviceId &&
           other.version == this.version &&
@@ -503,6 +595,8 @@ class FoldersCompanion extends UpdateCompanion<Folder> {
   final Value<int> position;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String?> noteSortOrder;
+  final Value<String?> subfolderSortOrder;
   final Value<String> hlcTimestamp;
   final Value<String> deviceId;
   final Value<int> version;
@@ -516,6 +610,8 @@ class FoldersCompanion extends UpdateCompanion<Folder> {
     this.position = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.noteSortOrder = const Value.absent(),
+    this.subfolderSortOrder = const Value.absent(),
     this.hlcTimestamp = const Value.absent(),
     this.deviceId = const Value.absent(),
     this.version = const Value.absent(),
@@ -530,6 +626,8 @@ class FoldersCompanion extends UpdateCompanion<Folder> {
     this.position = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.noteSortOrder = const Value.absent(),
+    this.subfolderSortOrder = const Value.absent(),
     required String hlcTimestamp,
     required String deviceId,
     this.version = const Value.absent(),
@@ -549,6 +647,8 @@ class FoldersCompanion extends UpdateCompanion<Folder> {
     Expression<int>? position,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? noteSortOrder,
+    Expression<String>? subfolderSortOrder,
     Expression<String>? hlcTimestamp,
     Expression<String>? deviceId,
     Expression<int>? version,
@@ -563,6 +663,9 @@ class FoldersCompanion extends UpdateCompanion<Folder> {
       if (position != null) 'position': position,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (noteSortOrder != null) 'note_sort_order': noteSortOrder,
+      if (subfolderSortOrder != null)
+        'subfolder_sort_order': subfolderSortOrder,
       if (hlcTimestamp != null) 'hlc_timestamp': hlcTimestamp,
       if (deviceId != null) 'device_id': deviceId,
       if (version != null) 'version': version,
@@ -579,6 +682,8 @@ class FoldersCompanion extends UpdateCompanion<Folder> {
     Value<int>? position,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<String?>? noteSortOrder,
+    Value<String?>? subfolderSortOrder,
     Value<String>? hlcTimestamp,
     Value<String>? deviceId,
     Value<int>? version,
@@ -593,6 +698,8 @@ class FoldersCompanion extends UpdateCompanion<Folder> {
       position: position ?? this.position,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      noteSortOrder: noteSortOrder ?? this.noteSortOrder,
+      subfolderSortOrder: subfolderSortOrder ?? this.subfolderSortOrder,
       hlcTimestamp: hlcTimestamp ?? this.hlcTimestamp,
       deviceId: deviceId ?? this.deviceId,
       version: version ?? this.version,
@@ -622,6 +729,12 @@ class FoldersCompanion extends UpdateCompanion<Folder> {
     }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (noteSortOrder.present) {
+      map['note_sort_order'] = Variable<String>(noteSortOrder.value);
+    }
+    if (subfolderSortOrder.present) {
+      map['subfolder_sort_order'] = Variable<String>(subfolderSortOrder.value);
     }
     if (hlcTimestamp.present) {
       map['hlc_timestamp'] = Variable<String>(hlcTimestamp.value);
@@ -653,6 +766,8 @@ class FoldersCompanion extends UpdateCompanion<Folder> {
           ..write('position: $position, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('noteSortOrder: $noteSortOrder, ')
+          ..write('subfolderSortOrder: $subfolderSortOrder, ')
           ..write('hlcTimestamp: $hlcTimestamp, ')
           ..write('deviceId: $deviceId, ')
           ..write('version: $version, ')
@@ -2659,6 +2774,8 @@ typedef $$FoldersTableCreateCompanionBuilder =
       Value<int> position,
       required DateTime createdAt,
       required DateTime updatedAt,
+      Value<String?> noteSortOrder,
+      Value<String?> subfolderSortOrder,
       required String hlcTimestamp,
       required String deviceId,
       Value<int> version,
@@ -2674,6 +2791,8 @@ typedef $$FoldersTableUpdateCompanionBuilder =
       Value<int> position,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String?> noteSortOrder,
+      Value<String?> subfolderSortOrder,
       Value<String> hlcTimestamp,
       Value<String> deviceId,
       Value<int> version,
@@ -2718,6 +2837,16 @@ class $$FoldersTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get noteSortOrder => $composableBuilder(
+    column: $table.noteSortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get subfolderSortOrder => $composableBuilder(
+    column: $table.subfolderSortOrder,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2786,6 +2915,16 @@ class $$FoldersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get noteSortOrder => $composableBuilder(
+    column: $table.noteSortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get subfolderSortOrder => $composableBuilder(
+    column: $table.subfolderSortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get hlcTimestamp => $composableBuilder(
     column: $table.hlcTimestamp,
     builder: (column) => ColumnOrderings(column),
@@ -2839,6 +2978,16 @@ class $$FoldersTableAnnotationComposer
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
+  GeneratedColumn<String> get noteSortOrder => $composableBuilder(
+    column: $table.noteSortOrder,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get subfolderSortOrder => $composableBuilder(
+    column: $table.subfolderSortOrder,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get hlcTimestamp => $composableBuilder(
     column: $table.hlcTimestamp,
     builder: (column) => column,
@@ -2891,6 +3040,8 @@ class $$FoldersTableTableManager
                 Value<int> position = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String?> noteSortOrder = const Value.absent(),
+                Value<String?> subfolderSortOrder = const Value.absent(),
                 Value<String> hlcTimestamp = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
                 Value<int> version = const Value.absent(),
@@ -2904,6 +3055,8 @@ class $$FoldersTableTableManager
                 position: position,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                noteSortOrder: noteSortOrder,
+                subfolderSortOrder: subfolderSortOrder,
                 hlcTimestamp: hlcTimestamp,
                 deviceId: deviceId,
                 version: version,
@@ -2919,6 +3072,8 @@ class $$FoldersTableTableManager
                 Value<int> position = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
+                Value<String?> noteSortOrder = const Value.absent(),
+                Value<String?> subfolderSortOrder = const Value.absent(),
                 required String hlcTimestamp,
                 required String deviceId,
                 Value<int> version = const Value.absent(),
@@ -2932,6 +3087,8 @@ class $$FoldersTableTableManager
                 position: position,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                noteSortOrder: noteSortOrder,
+                subfolderSortOrder: subfolderSortOrder,
                 hlcTimestamp: hlcTimestamp,
                 deviceId: deviceId,
                 version: version,

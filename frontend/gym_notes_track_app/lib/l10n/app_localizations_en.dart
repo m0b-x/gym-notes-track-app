@@ -71,6 +71,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String deleteFolderWithNotesConfirm(String name, int count) {
+    return 'Are you sure you want to delete \"$name\"? This will also delete $count note(s).';
+  }
+
+  @override
   String get rename => 'Rename';
 
   @override
@@ -589,6 +594,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sortByCustom => 'Custom Order';
+
+  @override
+  String get quickSort => 'Quick Sort';
+
+  @override
+  String get sortItems => 'Sort Items';
+
+  @override
+  String get sortFolders => 'Sort Folders';
+
+  @override
+  String get sortNotes => 'Sort Notes';
+
+  @override
+  String get sortByName => 'By Name';
 
   @override
   String get moveUp => 'Move Up';

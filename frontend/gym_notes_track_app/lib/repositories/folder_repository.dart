@@ -243,6 +243,11 @@ class FolderRepository {
     }
   }
 
+  /// Get the total note count that would be deleted with this folder
+  Future<int> getNoteCountForDeletion(String folderId) async {
+    return _folderDao.getNoteCountWithDescendants(folderId);
+  }
+
   /// Reorder folders within a parent
   Future<void> reorderFolders({
     String? parentId,
@@ -265,6 +270,40 @@ class FolderRepository {
         );
       }
     }
+  }
+
+  /// Update sort preferences for a folder
+  Future<Folder?> updateFolderSortPreferences({
+    required String id,
+    String? noteSortOrder,
+    String? subfolderSortOrder,
+    bool clearNoteSortOrder = false,
+    bool clearSubfolderSortOrder = false,
+  }) async {
+    final folder = await _folderDao.updateFolderSortPreferences(
+      id: id,
+      noteSortOrder: noteSortOrder,
+      subfolderSortOrder: subfolderSortOrder,
+      clearNoteSortOrder: clearNoteSortOrder,
+      clearSubfolderSortOrder: clearSubfolderSortOrder,
+    );
+
+    if (folder != null) {
+      _folderCache[id] = folder;
+      _invalidateParentCache(folder.parentId);
+
+      // Emit change event for reactive updates
+      _folderChangesController.add(
+        FolderChange(
+          type: FolderChangeType.updated,
+          folderId: id,
+          parentId: folder.parentId,
+          folder: folder,
+        ),
+      );
+    }
+
+    return folder;
   }
 
   Future<List<String>> getAllDescendantIds(String folderId) {

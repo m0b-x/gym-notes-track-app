@@ -54,6 +54,26 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
     return result.read(countExp) ?? 0;
   }
 
+  /// Get note count across multiple folders (used for cascade delete preview)
+  Future<int> getNoteCountInFolders(
+    List<String> folderIds, {
+    bool includeDeleted = false,
+  }) async {
+    if (folderIds.isEmpty) return 0;
+
+    final countExp = notes.id.count();
+    final query = selectOnly(notes)..addColumns([countExp]);
+
+    query.where(notes.folderId.isIn(folderIds));
+
+    if (!includeDeleted) {
+      query.where(notes.isDeleted.equals(false));
+    }
+
+    final result = await query.getSingle();
+    return result.read(countExp) ?? 0;
+  }
+
   Future<List<Note>> getNotesPaginated({
     String? folderId,
     required int limit,

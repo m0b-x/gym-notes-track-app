@@ -8,6 +8,10 @@ class Folders extends Table {
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
+  // Sort preferences for this folder's contents
+  TextColumn get noteSortOrder => text().nullable()();
+  TextColumn get subfolderSortOrder => text().nullable()();
+
   TextColumn get hlcTimestamp => text()();
   TextColumn get deviceId => text()();
   IntColumn get version => integer().withDefault(const Constant(1))();

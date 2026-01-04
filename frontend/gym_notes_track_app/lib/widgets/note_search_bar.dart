@@ -124,13 +124,13 @@ class _NoteSearchBarState extends State<NoteSearchBar>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SlideTransition(
-      position: Tween<Offset>(
-        begin: const Offset(0, -1),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(
-        parent: _animController,
-        curve: Curves.easeOutCubic,
-      )),
+      position: Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero)
+          .animate(
+            CurvedAnimation(
+              parent: _animController,
+              curve: Curves.easeOutCubic,
+            ),
+          ),
       child: ListenableBuilder(
         listenable: _search,
         builder: (context, _) => Container(
@@ -167,7 +167,8 @@ class _NoteSearchBarState extends State<NoteSearchBar>
                     onToggleCase: _search.toggleCaseSensitive,
                     onToggleWholeWord: _search.toggleWholeWord,
                     onToggleRegex: _search.toggleRegex,
-                    onToggleReplace: () => setState(() => _showReplace = !_showReplace),
+                    onToggleReplace: () =>
+                        setState(() => _showReplace = !_showReplace),
                   ),
                 ),
                 if (_showReplace && widget.showReplaceField)
@@ -260,7 +261,11 @@ class _SearchRow extends StatelessWidget {
     );
   }
 
-  Widget _buildSearchField(BuildContext context, ColorScheme colors, AppLocalizations l10n) {
+  Widget _buildSearchField(
+    BuildContext context,
+    ColorScheme colors,
+    AppLocalizations l10n,
+  ) {
     return KeyboardListener(
       focusNode: FocusNode(),
       onKeyEvent: (event) {
@@ -437,7 +442,10 @@ class _SearchField extends StatelessWidget {
             padding: const EdgeInsets.only(left: 12, right: 8),
             child: Icon(icon, size: 20, color: colors.onSurfaceVariant),
           ),
-          prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 40,
+            minHeight: 40,
+          ),
           suffixIcon: hasText && icon == Icons.search_rounded
               ? GestureDetector(
                   onTap: () {
@@ -446,11 +454,18 @@ class _SearchField extends StatelessWidget {
                   },
                   child: Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: Icon(Icons.close_rounded, size: 18, color: colors.onSurfaceVariant),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: colors.onSurfaceVariant,
+                    ),
                   ),
                 )
               : null,
-          suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 32,
+            minHeight: 32,
+          ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 10),
         ),
@@ -511,7 +526,9 @@ class _Divider extends StatelessWidget {
       height: 24,
       width: 1,
       margin: const EdgeInsets.symmetric(horizontal: 4),
-      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+      color: Theme.of(
+        context,
+      ).colorScheme.outlineVariant.withValues(alpha: 0.3),
     );
   }
 }
@@ -566,10 +583,34 @@ class _OptionsMenu extends StatelessWidget {
       },
       itemBuilder: (context) => [
         if (options.showReplaceOption)
-          _menuItem('replace', l10n.findAndReplace, Icons.find_replace_rounded, options.showReplace, colors),
-        _menuItem('case', l10n.matchCase, Icons.text_fields_rounded, options.caseSensitive, colors),
-        _menuItem('whole', l10n.wholeWord, Icons.abc_rounded, options.wholeWord, colors),
-        _menuItem('regex', l10n.useRegex, Icons.code_rounded, options.useRegex, colors),
+          _menuItem(
+            'replace',
+            l10n.findAndReplace,
+            Icons.find_replace_rounded,
+            options.showReplace,
+            colors,
+          ),
+        _menuItem(
+          'case',
+          l10n.matchCase,
+          Icons.text_fields_rounded,
+          options.caseSensitive,
+          colors,
+        ),
+        _menuItem(
+          'whole',
+          l10n.wholeWord,
+          Icons.abc_rounded,
+          options.wholeWord,
+          colors,
+        ),
+        _menuItem(
+          'regex',
+          l10n.useRegex,
+          Icons.code_rounded,
+          options.useRegex,
+          colors,
+        ),
       ],
     );
   }
@@ -585,7 +626,11 @@ class _OptionsMenu extends StatelessWidget {
       value: value,
       child: Row(
         children: [
-          Icon(icon, size: 20, color: active ? colors.primary : colors.onSurfaceVariant),
+          Icon(
+            icon,
+            size: 20,
+            color: active ? colors.primary : colors.onSurfaceVariant,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -596,7 +641,8 @@ class _OptionsMenu extends StatelessWidget {
               ),
             ),
           ),
-          if (active) Icon(Icons.check_rounded, size: 18, color: colors.primary),
+          if (active)
+            Icon(Icons.check_rounded, size: 18, color: colors.primary),
         ],
       ),
     );
@@ -631,7 +677,9 @@ class _ActionButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: !isPrimary
                 ? Border.all(
-                    color: colors.outline.withValues(alpha: enabled ? 0.3 : 0.1),
+                    color: colors.outline.withValues(
+                      alpha: enabled ? 0.3 : 0.1,
+                    ),
                   )
                 : null,
           ),
@@ -671,7 +719,11 @@ class _SuccessMessage extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.check_circle_outline_rounded, size: 16, color: colors.primary),
+            Icon(
+              Icons.check_circle_outline_rounded,
+              size: 16,
+              color: colors.primary,
+            ),
             const SizedBox(width: 6),
             Text(
               message,

@@ -144,6 +144,12 @@ class FolderStorageService {
     await _repository.deleteFolder(folderId);
   }
 
+  /// Get the total note count that would be deleted with this folder
+  Future<int> getNoteCountForDeletion(String folderId) async {
+    await initialize();
+    return _repository.getNoteCountForDeletion(folderId);
+  }
+
   /// Reorder folders within a parent
   Future<void> reorderFolders({
     String? parentId,
@@ -156,12 +162,33 @@ class FolderStorageService {
     );
   }
 
+  /// Update sort preferences for a folder
+  Future<model.Folder?> updateFolderSortPreferences({
+    required String folderId,
+    String? noteSortOrder,
+    String? subfolderSortOrder,
+    bool clearNoteSortOrder = false,
+    bool clearSubfolderSortOrder = false,
+  }) async {
+    await initialize();
+    final folder = await _repository.updateFolderSortPreferences(
+      id: folderId,
+      noteSortOrder: noteSortOrder,
+      subfolderSortOrder: subfolderSortOrder,
+      clearNoteSortOrder: clearNoteSortOrder,
+      clearSubfolderSortOrder: clearSubfolderSortOrder,
+    );
+    return folder != null ? _folderToModel(folder) : null;
+  }
+
   model.Folder _folderToModel(Folder folder) {
     return model.Folder(
       id: folder.id,
       name: folder.name,
       parentId: folder.parentId,
       createdAt: folder.createdAt,
+      noteSortOrder: folder.noteSortOrder,
+      subfolderSortOrder: folder.subfolderSortOrder,
     );
   }
 

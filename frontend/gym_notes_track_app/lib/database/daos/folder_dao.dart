@@ -238,6 +238,41 @@ class FolderDao extends DatabaseAccessor<AppDatabase> with _$FolderDaoMixin {
     });
   }
 
+  /// Update sort preferences for a folder
+  Future<Folder?> updateFolderSortPreferences({
+    required String id,
+    String? noteSortOrder,
+    String? subfolderSortOrder,
+    bool clearNoteSortOrder = false,
+    bool clearSubfolderSortOrder = false,
+  }) async {
+    final existing = await getFolderById(id);
+    if (existing == null) return null;
+
+    final now = DateTime.now();
+    final hlc = db.generateHlc();
+
+    await (update(folders)..where((f) => f.id.equals(id))).write(
+      FoldersCompanion(
+        noteSortOrder: clearNoteSortOrder
+            ? const Value(null)
+            : (noteSortOrder != null
+                  ? Value(noteSortOrder)
+                  : const Value.absent()),
+        subfolderSortOrder: clearSubfolderSortOrder
+            ? const Value(null)
+            : (subfolderSortOrder != null
+                  ? Value(subfolderSortOrder)
+                  : const Value.absent()),
+        updatedAt: Value(now),
+        hlcTimestamp: Value(hlc),
+        deviceId: Value(db.deviceId),
+        version: Value(existing.version + 1),
+      ),
+    );
+    return getFolderById(id);
+  }
+
   Future<List<String>> getAllDescendantIds(String folderId) async {
     final descendants = <String>[];
     final directChildren = await getFoldersByParent(folderId);
@@ -254,9 +289,26 @@ class FolderDao extends DatabaseAccessor<AppDatabase> with _$FolderDaoMixin {
     final descendantIds = await getAllDescendantIds(folderId);
     descendantIds.add(folderId);
 
-    for (final id in descendantIds) {
-      await softDeleteFolder(id);
-    }
+    // Use transaction to ensure all deletes happen atomically
+    await transaction(() async {
+      // Cascade delete: soft-delete all notes in these folders first
+      for (final id in descendantIds) {
+        await db.noteDao.deleteNotesInFolder(id);
+      }
+
+      // Then soft-delete the folders
+      for (final id in descendantIds) {
+        await softDeleteFolder(id);
+      }
+    });
+  }
+
+  /// Get total note count for a folder and all its descendants (for delete preview)
+  Future<int> getNoteCountWithDescendants(String folderId) async {
+    final descendantIds = await getAllDescendantIds(folderId);
+    descendantIds.add(folderId);
+
+    return db.noteDao.getNoteCountInFolders(descendantIds);
   }
 
   Future<List<Folder>> getFoldersSince(String hlcTimestamp) {
@@ -281,6 +333,8 @@ class FolderDao extends DatabaseAccessor<AppDatabase> with _$FolderDaoMixin {
           version: Value(remote.version),
           isDeleted: Value(remote.isDeleted),
           deletedAt: Value(remote.deletedAt),
+          noteSortOrder: Value(remote.noteSortOrder),
+          subfolderSortOrder: Value(remote.subfolderSortOrder),
         ),
       );
       return;
@@ -300,6 +354,8 @@ class FolderDao extends DatabaseAccessor<AppDatabase> with _$FolderDaoMixin {
           version: Value(remote.version),
           isDeleted: Value(remote.isDeleted),
           deletedAt: Value(remote.deletedAt),
+          noteSortOrder: Value(remote.noteSortOrder),
+          subfolderSortOrder: Value(remote.subfolderSortOrder),
         ),
       );
       db.hlc.update(remoteHlc);

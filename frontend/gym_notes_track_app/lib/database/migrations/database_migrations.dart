@@ -23,6 +23,11 @@ class DatabaseMigrations {
       toVersion: DatabaseSchema.v4ManualOrdering,
       migrate: _migrateV3ToV4,
     ),
+    Migration(
+      fromVersion: DatabaseSchema.v4ManualOrdering,
+      toVersion: DatabaseSchema.v5FolderSortPreferences,
+      migrate: _migrateV4ToV5,
+    ),
   ];
 
   Future<void> runMigrations(Migrator m, int from, int to) async {
@@ -83,5 +88,11 @@ class DatabaseMigrations {
     await _db.customStatement(
       'CREATE INDEX IF NOT EXISTS idx_notes_position ON notes(folder_id, position) WHERE is_deleted = 0',
     );
+  }
+
+  Future<void> _migrateV4ToV5(Migrator m, GeneratedDatabase db) async {
+    // Add sort preference columns to folders table
+    await m.addColumn(_db.folders, _db.folders.noteSortOrder);
+    await m.addColumn(_db.folders, _db.folders.subfolderSortOrder);
   }
 }

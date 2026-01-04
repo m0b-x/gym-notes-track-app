@@ -206,6 +206,12 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to delete \"{name}\"?'**
   String deleteFolderConfirm(String name);
 
+  /// Delete folder confirmation message when folder contains notes
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete \"{name}\"? This will also delete {count} note(s).'**
+  String deleteFolderWithNotesConfirm(String name, int count);
+
   /// Rename button text
   ///
   /// In en, this message translates to:
@@ -1195,6 +1201,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Custom Order'**
   String get sortByCustom;
+
+  /// Quick sort button label
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Sort'**
+  String get quickSort;
+
+  /// Sort items dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Sort Items'**
+  String get sortItems;
+
+  /// Sort folders option
+  ///
+  /// In en, this message translates to:
+  /// **'Sort Folders'**
+  String get sortFolders;
+
+  /// Sort notes option
+  ///
+  /// In en, this message translates to:
+  /// **'Sort Notes'**
+  String get sortNotes;
+
+  /// Sort by name option
+  ///
+  /// In en, this message translates to:
+  /// **'By Name'**
+  String get sortByName;
 
   /// Move item up action
   ///

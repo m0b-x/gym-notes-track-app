@@ -91,6 +91,18 @@
       }
     }
   },
+  "deleteFolderWithNotesConfirm": "Are you sure you want to delete \"{name}\"? This will also delete {count} note(s).",
+  "@deleteFolderWithNotesConfirm": {
+    "description": "Delete folder confirmation message when folder contains notes",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "rename": "Rename",
   "@rename": {
     "description": "Rename button text"
@@ -795,6 +807,26 @@
   "sortByCustom": "Custom Order",
   "@sortByCustom": {
     "description": "Custom sort order option"
+  },
+  "quickSort": "Quick Sort",
+  "@quickSort": {
+    "description": "Quick sort button label"
+  },
+  "sortItems": "Sort Items",
+  "@sortItems": {
+    "description": "Sort items dialog title"
+  },
+  "sortFolders": "Sort Folders",
+  "@sortFolders": {
+    "description": "Sort folders option"
+  },
+  "sortNotes": "Sort Notes",
+  "@sortNotes": {
+    "description": "Sort notes option"
+  },
+  "sortByName": "By Name",
+  "@sortByName": {
+    "description": "Sort by name option"
   },
   "moveUp": "Move Up",
   "@moveUp": {

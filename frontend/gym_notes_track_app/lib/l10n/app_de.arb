@@ -91,6 +91,18 @@
       }
     }
   },
+  "deleteFolderWithNotesConfirm": "Möchten Sie \"{name}\" wirklich löschen? Dies löscht auch {count} Notiz(en).",
+  "@deleteFolderWithNotesConfirm": {
+    "description": "Delete folder confirmation message when folder contains notes",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "rename": "Umbenennen",
   "@rename": {
     "description": "Rename button text"
@@ -799,6 +811,26 @@
   "notSupportedOnPlatform": "Auf dieser Plattform nicht unterstützt",
   "@notSupportedOnPlatform": {
     "description": "Platform not supported message"
+  },
+  "quickSort": "Schnellsortierung",
+  "@quickSort": {
+    "description": "Quick sort button label"
+  },
+  "sortItems": "Elemente sortieren",
+  "@sortItems": {
+    "description": "Sort items dialog title"
+  },
+  "sortFolders": "Ordner sortieren",
+  "@sortFolders": {
+    "description": "Sort folders option"
+  },
+  "sortNotes": "Notizen sortieren",
+  "@sortNotes": {
+    "description": "Sort notes option"
+  },
+  "sortByName": "Nach Name",
+  "@sortByName": {
+    "description": "Sort by name option"
   },
   "errorOpeningFolder": "Fehler beim Öffnen des Ordners",
   "@errorOpeningFolder": {

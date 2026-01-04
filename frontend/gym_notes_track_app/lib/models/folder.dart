@@ -6,12 +6,16 @@ class Folder extends Equatable {
   final String name;
   final String? parentId;
   final DateTime createdAt;
+  final String? noteSortOrder;
+  final String? subfolderSortOrder;
 
   const Folder({
     required this.id,
     required this.name,
     this.parentId,
     required this.createdAt,
+    this.noteSortOrder,
+    this.subfolderSortOrder,
   });
 
   Folder copyWith({
@@ -19,12 +23,16 @@ class Folder extends Equatable {
     String? name,
     String? parentId,
     DateTime? createdAt,
+    String? noteSortOrder,
+    String? subfolderSortOrder,
   }) {
     return Folder(
       id: id ?? this.id,
       name: name ?? this.name,
       parentId: parentId ?? this.parentId,
       createdAt: createdAt ?? this.createdAt,
+      noteSortOrder: noteSortOrder ?? this.noteSortOrder,
+      subfolderSortOrder: subfolderSortOrder ?? this.subfolderSortOrder,
     );
   }
 
@@ -34,6 +42,8 @@ class Folder extends Equatable {
       'name': name,
       'parentId': parentId,
       'createdAt': createdAt.toIso8601String(),
+      'noteSortOrder': noteSortOrder,
+      'subfolderSortOrder': subfolderSortOrder,
     };
   }
 
@@ -43,9 +53,18 @@ class Folder extends Equatable {
       name: json['name'] as String,
       parentId: json['parentId'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      noteSortOrder: json['noteSortOrder'] as String?,
+      subfolderSortOrder: json['subfolderSortOrder'] as String?,
     );
   }
 
   @override
-  List<Object?> get props => [id, name, parentId, createdAt];
+  List<Object?> get props => [
+    id,
+    name,
+    parentId,
+    createdAt,
+    noteSortOrder,
+    subfolderSortOrder,
+  ];
 }

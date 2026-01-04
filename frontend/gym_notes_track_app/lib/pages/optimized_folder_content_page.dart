@@ -45,17 +45,52 @@ class _OptimizedFolderContentPageState
     extends State<OptimizedFolderContentPage> {
   final ScrollController _scrollController = ScrollController();
   NotesSortOrder _notesSortOrder = NotesSortOrder.updatedDesc;
-  final FoldersSortOrder _foldersSortOrder = FoldersSortOrder.nameAsc;
+  FoldersSortOrder _foldersSortOrder = FoldersSortOrder.nameAsc;
   bool _isReorderMode = false;
   bool _folderSwipeEnabled = true;
+  bool _isSortSheetOpen = false;
 
   NoteRepository get _noteRepository => GetIt.I<NoteRepository>();
+  FolderStorageService get _folderStorageService =>
+      GetIt.I<FolderStorageService>();
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _loadSortPreferencesAndData();
+  }
+
+  Future<void> _loadSortPreferencesAndData() async {
+    // Load sort preferences from DB for this folder
+    if (widget.folderId != null) {
+      final folder = await _folderStorageService.getFolderById(
+        widget.folderId!,
+      );
+      if (folder != null && mounted) {
+        setState(() {
+          _notesSortOrder = _parseNotesSortOrder(folder.noteSortOrder);
+          _foldersSortOrder = _parseFoldersSortOrder(folder.subfolderSortOrder);
+        });
+      }
+    }
     _loadData();
+  }
+
+  NotesSortOrder _parseNotesSortOrder(String? value) {
+    if (value == null) return NotesSortOrder.updatedDesc;
+    return NotesSortOrder.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => NotesSortOrder.updatedDesc,
+    );
+  }
+
+  FoldersSortOrder _parseFoldersSortOrder(String? value) {
+    if (value == null) return FoldersSortOrder.nameAsc;
+    return FoldersSortOrder.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => FoldersSortOrder.nameAsc,
+    );
   }
 
   Future<void> _loadSettings() async {
@@ -107,16 +142,6 @@ class _OptimizedFolderContentPageState
     }
   }
 
-  void _onNotesSortChanged(NotesSortOrder? newOrder) {
-    if (newOrder == null) return;
-    setState(() {
-      _notesSortOrder = newOrder;
-    });
-    context.read<OptimizedNoteBloc>().add(
-      LoadNotesPaginated(folderId: widget.folderId, sortOrder: newOrder),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final isRootPage = widget.folderId == null;
@@ -163,68 +188,12 @@ class _OptimizedFolderContentPageState
               );
             },
           ),
-          if (widget.folderId != null && !_isReorderMode)
-            PopupMenuButton<NotesSortOrder>(
-              icon: const Icon(Icons.sort),
-              tooltip: AppLocalizations.of(context)!.sortBy,
-              onSelected: _onNotesSortChanged,
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: NotesSortOrder.updatedDesc,
-                  child: _buildNotesSortMenuItem(
-                    context,
-                    AppLocalizations.of(context)!.sortByUpdated,
-                    AppLocalizations.of(context)!.descending,
-                    NotesSortOrder.updatedDesc,
-                  ),
-                ),
-                PopupMenuItem(
-                  value: NotesSortOrder.updatedAsc,
-                  child: _buildNotesSortMenuItem(
-                    context,
-                    AppLocalizations.of(context)!.sortByUpdated,
-                    AppLocalizations.of(context)!.ascending,
-                    NotesSortOrder.updatedAsc,
-                  ),
-                ),
-                PopupMenuItem(
-                  value: NotesSortOrder.createdDesc,
-                  child: _buildNotesSortMenuItem(
-                    context,
-                    AppLocalizations.of(context)!.sortByCreated,
-                    AppLocalizations.of(context)!.descending,
-                    NotesSortOrder.createdDesc,
-                  ),
-                ),
-                PopupMenuItem(
-                  value: NotesSortOrder.createdAsc,
-                  child: _buildNotesSortMenuItem(
-                    context,
-                    AppLocalizations.of(context)!.sortByCreated,
-                    AppLocalizations.of(context)!.ascending,
-                    NotesSortOrder.createdAsc,
-                  ),
-                ),
-                PopupMenuItem(
-                  value: NotesSortOrder.titleAsc,
-                  child: _buildNotesSortMenuItem(
-                    context,
-                    AppLocalizations.of(context)!.sortByTitle,
-                    AppLocalizations.of(context)!.ascending,
-                    NotesSortOrder.titleAsc,
-                  ),
-                ),
-                PopupMenuItem(
-                  value: NotesSortOrder.titleDesc,
-                  child: _buildNotesSortMenuItem(
-                    context,
-                    AppLocalizations.of(context)!.sortByTitle,
-                    AppLocalizations.of(context)!.descending,
-                    NotesSortOrder.titleDesc,
-                  ),
-                ),
-              ],
-            ),
+          // Sort button - shows bottom sheet with folder/note sort options
+          IconButton(
+            icon: const Icon(Icons.sort),
+            tooltip: AppLocalizations.of(context)!.sortBy,
+            onPressed: _showQuickSortOptions,
+          ),
         ],
       ),
       body: RefreshIndicator(
@@ -240,9 +209,14 @@ class _OptimizedFolderContentPageState
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateOptions,
-        child: const Icon(Icons.add),
+      bottomNavigationBar: _isReorderMode ? _buildReorderModeBar() : null,
+      floatingActionButton: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: EdgeInsets.only(bottom: _isSortSheetOpen ? 280 : 0),
+        child: FloatingActionButton(
+          onPressed: _showCreateOptions,
+          child: const Icon(Icons.add),
+        ),
       ),
     );
 
@@ -263,27 +237,284 @@ class _OptimizedFolderContentPageState
     return scaffold;
   }
 
-  Widget _buildNotesSortMenuItem(
-    BuildContext context,
-    String label,
-    String order,
-    NotesSortOrder value,
-  ) {
-    final isSelected = _notesSortOrder == value;
-    return Row(
-      children: [
-        if (isSelected)
-          Icon(
-            Icons.check,
-            size: 18,
-            color: Theme.of(context).colorScheme.primary,
-          )
-        else
-          const SizedBox(width: 18),
-        const SizedBox(width: 8),
-        Text('$label ($order)'),
-      ],
+  Widget _buildReorderModeBar() {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Icon(Icons.drag_handle, color: colorScheme.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                l10n.dragToReorder,
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: _showQuickSortOptions,
+              icon: const Icon(Icons.sort, size: 18),
+              label: Text(l10n.quickSort),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  void _showQuickSortOptions() {
+    setState(() => _isSortSheetOpen = true);
+    final l10n = AppLocalizations.of(context)!;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.folder_outlined),
+              title: Text(l10n.sortFolders),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pop(context);
+                _showFolderSortOptions();
+              },
+            ),
+            if (widget.folderId != null)
+              ListTile(
+                leading: const Icon(Icons.note_outlined),
+                title: Text(l10n.sortNotes),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showNoteSortOptions();
+                },
+              ),
+          ],
+        ),
+      ),
+    ).whenComplete(() {
+      if (mounted) setState(() => _isSortSheetOpen = false);
+    });
+  }
+
+  void _showFolderSortOptions() {
+    setState(() => _isSortSheetOpen = true);
+    final l10n = AppLocalizations.of(context)!;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Icon(Icons.folder_outlined),
+                  const SizedBox(width: 12),
+                  Text(
+                    l10n.sortFolders,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ],
+              ),
+            ),
+            _buildSortOption(
+              icon: Icons.sort_by_alpha,
+              title: '${l10n.sortByName} (A-Z)',
+              isSelected: _foldersSortOrder == FoldersSortOrder.nameAsc,
+              onTap: () {
+                Navigator.pop(context);
+                _sortFoldersBy(FoldersSortOrder.nameAsc);
+              },
+            ),
+            _buildSortOption(
+              icon: Icons.sort_by_alpha,
+              title: '${l10n.sortByName} (Z-A)',
+              isSelected: _foldersSortOrder == FoldersSortOrder.nameDesc,
+              onTap: () {
+                Navigator.pop(context);
+                _sortFoldersBy(FoldersSortOrder.nameDesc);
+              },
+            ),
+            _buildSortOption(
+              icon: Icons.calendar_today,
+              title: '${l10n.sortByCreated} (${l10n.descending})',
+              isSelected: _foldersSortOrder == FoldersSortOrder.createdDesc,
+              onTap: () {
+                Navigator.pop(context);
+                _sortFoldersBy(FoldersSortOrder.createdDesc);
+              },
+            ),
+            _buildSortOption(
+              icon: Icons.calendar_today,
+              title: '${l10n.sortByCreated} (${l10n.ascending})',
+              isSelected: _foldersSortOrder == FoldersSortOrder.createdAsc,
+              onTap: () {
+                Navigator.pop(context);
+                _sortFoldersBy(FoldersSortOrder.createdAsc);
+              },
+            ),
+          ],
+        ),
+      ),
+    ).whenComplete(() {
+      if (mounted) setState(() => _isSortSheetOpen = false);
+    });
+  }
+
+  void _showNoteSortOptions() {
+    setState(() => _isSortSheetOpen = true);
+    final l10n = AppLocalizations.of(context)!;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Icon(Icons.note_outlined),
+                  const SizedBox(width: 12),
+                  Text(
+                    l10n.sortNotes,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ],
+              ),
+            ),
+            _buildSortOption(
+              icon: Icons.sort_by_alpha,
+              title: '${l10n.sortByTitle} (A-Z)',
+              isSelected: _notesSortOrder == NotesSortOrder.titleAsc,
+              onTap: () {
+                Navigator.pop(context);
+                _sortNotesBy(NotesSortOrder.titleAsc);
+              },
+            ),
+            _buildSortOption(
+              icon: Icons.sort_by_alpha,
+              title: '${l10n.sortByTitle} (Z-A)',
+              isSelected: _notesSortOrder == NotesSortOrder.titleDesc,
+              onTap: () {
+                Navigator.pop(context);
+                _sortNotesBy(NotesSortOrder.titleDesc);
+              },
+            ),
+            _buildSortOption(
+              icon: Icons.update,
+              title: '${l10n.sortByUpdated} (${l10n.descending})',
+              isSelected: _notesSortOrder == NotesSortOrder.updatedDesc,
+              onTap: () {
+                Navigator.pop(context);
+                _sortNotesBy(NotesSortOrder.updatedDesc);
+              },
+            ),
+            _buildSortOption(
+              icon: Icons.update,
+              title: '${l10n.sortByUpdated} (${l10n.ascending})',
+              isSelected: _notesSortOrder == NotesSortOrder.updatedAsc,
+              onTap: () {
+                Navigator.pop(context);
+                _sortNotesBy(NotesSortOrder.updatedAsc);
+              },
+            ),
+            _buildSortOption(
+              icon: Icons.calendar_today,
+              title: '${l10n.sortByCreated} (${l10n.descending})',
+              isSelected: _notesSortOrder == NotesSortOrder.createdDesc,
+              onTap: () {
+                Navigator.pop(context);
+                _sortNotesBy(NotesSortOrder.createdDesc);
+              },
+            ),
+            _buildSortOption(
+              icon: Icons.calendar_today,
+              title: '${l10n.sortByCreated} (${l10n.ascending})',
+              isSelected: _notesSortOrder == NotesSortOrder.createdAsc,
+              onTap: () {
+                Navigator.pop(context);
+                _sortNotesBy(NotesSortOrder.createdAsc);
+              },
+            ),
+          ],
+        ),
+      ),
+    ).whenComplete(() {
+      if (mounted) setState(() => _isSortSheetOpen = false);
+    });
+  }
+
+  Widget _buildSortOption({
+    required IconData icon,
+    required String title,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return ListTile(
+      leading: Icon(icon, color: isSelected ? colorScheme.primary : null),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isSelected ? colorScheme.primary : null,
+          fontWeight: isSelected ? FontWeight.bold : null,
+        ),
+      ),
+      trailing: isSelected
+          ? Icon(Icons.check, color: colorScheme.primary)
+          : null,
+      onTap: onTap,
+    );
+  }
+
+  void _sortFoldersBy(FoldersSortOrder order) {
+    setState(() => _foldersSortOrder = order);
+    context.read<OptimizedFolderBloc>().add(
+      LoadFoldersPaginated(parentId: widget.folderId, sortOrder: order),
+    );
+    // Persist sort preference
+    if (widget.folderId != null) {
+      _folderStorageService.updateFolderSortPreferences(
+        folderId: widget.folderId!,
+        subfolderSortOrder: order.name,
+      );
+    }
+  }
+
+  void _sortNotesBy(NotesSortOrder order) {
+    setState(() {
+      _notesSortOrder = order;
+    });
+    context.read<OptimizedNoteBloc>().add(
+      LoadNotesPaginated(folderId: widget.folderId, sortOrder: order),
+    );
+    // Persist sort preference
+    if (widget.folderId != null) {
+      _folderStorageService.updateFolderSortPreferences(
+        folderId: widget.folderId!,
+        noteSortOrder: order.name,
+      );
+    }
   }
 
   Widget _buildFoldersSection() {
@@ -866,13 +1097,33 @@ class _FolderCard extends StatelessWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context) {
+  void _confirmDelete(BuildContext context) async {
+    // Show loading indicator while fetching note count
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    // Fetch note count for this folder and descendants
+    final folderService = GetIt.I<FolderStorageService>();
+    final noteCount = await folderService.getNoteCountForDeletion(folder.id);
+
+    // ignore: use_build_context_synchronously
+    if (!context.mounted) return;
+    Navigator.pop(context); // Close loading dialog
+
+    // Show confirmation dialog with note count
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(AppLocalizations.of(context)!.deleteFolder),
         content: Text(
-          AppLocalizations.of(context)!.deleteFolderConfirm(folder.name),
+          noteCount > 0
+              ? AppLocalizations.of(
+                  context,
+                )!.deleteFolderWithNotesConfirm(folder.name, noteCount)
+              : AppLocalizations.of(context)!.deleteFolderConfirm(folder.name),
         ),
         actions: [
           TextButton(
