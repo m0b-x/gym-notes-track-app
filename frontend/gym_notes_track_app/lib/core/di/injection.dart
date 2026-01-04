@@ -4,7 +4,7 @@ import '../../repositories/note_repository.dart';
 import '../../repositories/folder_repository.dart';
 import '../../services/folder_storage_service.dart';
 import '../../services/note_storage_service.dart';
-import '../../services/search_service.dart';
+import '../../services/folder_search_service.dart';
 import '../../bloc/optimized_folder/optimized_folder_bloc.dart';
 import '../../bloc/optimized_note/optimized_note_bloc.dart';
 
@@ -43,9 +43,11 @@ Future<void> _registerServices() async {
   await noteStorageService.initialize();
   getIt.registerSingleton<NoteStorageService>(noteStorageService);
 
-  final searchService = SearchService(storageService: noteStorageService);
-  await searchService.initialize();
-  getIt.registerSingleton<SearchService>(searchService);
+  final folderSearchService = FolderSearchService(
+    storageService: noteStorageService,
+  );
+  await folderSearchService.initialize();
+  getIt.registerSingleton<FolderSearchService>(folderSearchService);
 }
 
 void _registerBlocs() {
@@ -56,7 +58,7 @@ void _registerBlocs() {
   getIt.registerFactory<OptimizedNoteBloc>(
     () => OptimizedNoteBloc(
       storageService: getIt<NoteStorageService>(),
-      searchService: getIt<SearchService>(),
+      searchService: getIt<FolderSearchService>(),
     ),
   );
 }

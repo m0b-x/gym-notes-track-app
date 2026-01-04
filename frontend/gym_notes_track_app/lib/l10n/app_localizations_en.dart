@@ -551,7 +551,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get restartRequired =>
-      'All data has been deleted. Please restart the app to continue.';
+      'Please restart the app to use the new database.';
 
   @override
   String get exitApp => 'Exit App';
@@ -696,4 +696,124 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exportAsText => 'Plain Text (.txt)';
+
+  @override
+  String get activeDatabaseSection => 'Active Database';
+
+  @override
+  String get activeDatabaseDesc =>
+      'Select which database to use. Creating or switching databases will restart the app.';
+
+  @override
+  String get selectDatabase => 'Select Database';
+
+  @override
+  String currentDatabase(String name) {
+    return 'Current: $name';
+  }
+
+  @override
+  String get createNewDatabase => 'Create New Database';
+
+  @override
+  String get newDatabaseName => 'Database Name';
+
+  @override
+  String get enterDatabaseName => 'Enter database name';
+
+  @override
+  String get invalidDatabaseName =>
+      'Invalid name. Use only letters, numbers, underscores, and hyphens (max 50 characters).';
+
+  @override
+  String get databaseExists => 'A database with this name already exists.';
+
+  @override
+  String get creatingDatabase => 'Creating database...';
+
+  @override
+  String get databaseCreated => 'Database created successfully';
+
+  @override
+  String get renameDatabase => 'Rename Database';
+
+  @override
+  String get renamingDatabase => 'Renaming database...';
+
+  @override
+  String get databaseRenamed => 'Database renamed successfully';
+
+  @override
+  String get switchingDatabase => 'Switching database...';
+
+  @override
+  String get availableDatabases => 'Available Databases';
+
+  @override
+  String get noDatabases => 'No databases found';
+
+  @override
+  String get databaseOptions => 'Database Options';
+
+  @override
+  String get switchTo => 'Switch to this database';
+
+  @override
+  String deleteDatabaseConfirm(String name) {
+    return 'Are you sure you want to delete the database \"$name\"? This action cannot be undone.';
+  }
+
+  @override
+  String get cannotDeleteActive =>
+      'Cannot delete the currently active database. Please switch to another database first.';
+
+  @override
+  String get databaseDeleted => 'Database deleted';
+
+  @override
+  String get findInNote => 'Find in note';
+
+  @override
+  String get replaceWith => 'Replace with';
+
+  @override
+  String get replaceOne => 'Replace';
+
+  @override
+  String get replaceAll => 'All';
+
+  @override
+  String replacedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Replaced $count matches',
+      one: 'Replaced 1 match',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get matchCase => 'Match case';
+
+  @override
+  String get wholeWord => 'Whole word';
+
+  @override
+  String get useRegex => 'Use regex';
+
+  @override
+  String get findAndReplace => 'Find & Replace';
+
+  @override
+  String get options => 'Options';
+
+  @override
+  String get previous => 'Previous';
+
+  @override
+  String get next => 'Next';
+
+  @override
+  String get close => 'Close';
 }

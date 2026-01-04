@@ -895,5 +895,164 @@
   "exportAsText": "Nur Text (.txt)",
   "@exportAsText": {
     "description": "Export as plain text option"
+  },
+  "activeDatabaseSection": "Aktive Datenbank",
+  "@activeDatabaseSection": {
+    "description": "Section title for active database selection"
+  },
+  "activeDatabaseDesc": "Wählen Sie aus, welche Datenbank verwendet werden soll. Das Erstellen oder Wechseln der Datenbank startet die App neu.",
+  "@activeDatabaseDesc": {
+    "description": "Description for active database section"
+  },
+  "selectDatabase": "Datenbank auswählen",
+  "@selectDatabase": {
+    "description": "Label for database selector"
+  },
+  "currentDatabase": "Aktuell: {name}",
+  "@currentDatabase": {
+    "description": "Shows current active database",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "createNewDatabase": "Neue Datenbank erstellen",
+  "@createNewDatabase": {
+    "description": "Button to create new database"
+  },
+  "newDatabaseName": "Datenbankname",
+  "@newDatabaseName": {
+    "description": "Label for new database name input"
+  },
+  "enterDatabaseName": "Datenbanknamen eingeben",
+  "@enterDatabaseName": {
+    "description": "Hint for database name input"
+  },
+  "invalidDatabaseName": "Ungültiger Name. Verwenden Sie nur Buchstaben, Zahlen, Unterstriche und Bindestriche (max. 50 Zeichen).",
+  "@invalidDatabaseName": {
+    "description": "Error for invalid database name"
+  },
+  "databaseExists": "Eine Datenbank mit diesem Namen existiert bereits.",
+  "@databaseExists": {
+    "description": "Error when database already exists"
+  },
+  "creatingDatabase": "Datenbank wird erstellt...",
+  "@creatingDatabase": {
+    "description": "Message while creating database"
+  },
+  "databaseCreated": "Datenbank erfolgreich erstellt",
+  "@databaseCreated": {
+    "description": "Success message after creating database"
+  },
+  "renameDatabase": "Datenbank umbenennen",
+  "@renameDatabase": {
+    "description": "Dialog title for renaming database"
+  },
+  "renamingDatabase": "Datenbank wird umbenannt...",
+  "@renamingDatabase": {
+    "description": "Message while renaming database"
+  },
+  "databaseRenamed": "Datenbank erfolgreich umbenannt",
+  "@databaseRenamed": {
+    "description": "Success message after renaming database"
+  },
+  "switchingDatabase": "Datenbank wird gewechselt...",
+  "@switchingDatabase": {
+    "description": "Message while switching database"
+  },
+  "availableDatabases": "Verfügbare Datenbanken",
+  "@availableDatabases": {
+    "description": "Section title for database list"
+  },
+  "noDatabases": "Keine Datenbanken gefunden",
+  "@noDatabases": {
+    "description": "Message when no databases exist"
+  },
+  "databaseOptions": "Datenbankoptionen",
+  "@databaseOptions": {
+    "description": "Title for database options menu"
+  },
+  "switchTo": "Zu dieser Datenbank wechseln",
+  "@switchTo": {
+    "description": "Option to switch to a database"
+  },
+  "deleteDatabaseConfirm": "Möchten Sie die Datenbank \"{name}\" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+  "@deleteDatabaseConfirm": {
+    "description": "Confirmation message for database deletion",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cannotDeleteActive": "Die aktuell aktive Datenbank kann nicht gelöscht werden. Bitte wechseln Sie zuerst zu einer anderen Datenbank.",
+  "@cannotDeleteActive": {
+    "description": "Error when trying to delete active database"
+  },
+  "databaseDeleted": "Datenbank gelöscht",
+  "@databaseDeleted": {
+    "description": "Success message after deleting database"
+  },
+  "restartRequired": "Bitte starten Sie die App neu, um die neue Datenbank zu verwenden.",
+  "@restartRequired": {
+    "description": "Message indicating app restart needed"
+  },
+  "findInNote": "In Notiz suchen",
+  "@findInNote": {
+    "description": "Placeholder for note search field"
+  },
+  "replaceWith": "Ersetzen durch",
+  "@replaceWith": {
+    "description": "Placeholder for replace field"
+  },
+  "replaceOne": "Ersetzen",
+  "@replaceOne": {
+    "description": "Button to replace current match"
+  },
+  "replaceAll": "Alle",
+  "@replaceAll": {
+    "description": "Button to replace all matches"
+  },
+  "replacedCount": "{count, plural, =1{1 Treffer ersetzt} other{{count} Treffer ersetzt}}",
+  "@replacedCount": {
+    "description": "Message showing how many matches were replaced",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "matchCase": "Groß-/Kleinschreibung",
+  "@matchCase": {
+    "description": "Option to enable case-sensitive search"
+  },
+  "wholeWord": "Ganzes Wort",
+  "@wholeWord": {
+    "description": "Option to match whole words only"
+  },
+  "useRegex": "Regex verwenden",
+  "@useRegex": {
+    "description": "Option to enable regex search"
+  },
+  "findAndReplace": "Suchen & Ersetzen",
+  "@findAndReplace": {
+    "description": "Option to show replace field"
+  },
+  "options": "Optionen",
+  "@options": {
+    "description": "Search options button tooltip"
+  },
+  "previous": "Zurück",
+  "@previous": {
+    "description": "Previous match button tooltip"
+  },
+  "next": "Weiter",
+  "@next": {
+    "description": "Next match button tooltip"
+  },
+  "close": "Schließen",
+  "@close": {
+    "description": "Close button tooltip"
   }
 }

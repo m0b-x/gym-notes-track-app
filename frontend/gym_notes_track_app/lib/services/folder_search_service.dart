@@ -1,8 +1,86 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:gym_notes_track_app/constants/search_constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/note_metadata.dart';
 import 'note_storage_service.dart';
+
+/// Top-level function for isolate processing (required by compute())
+Map<String, dynamic> _buildIndexInIsolate(List<Map<String, String>> notesData) {
+  final wordToNoteIds = <String, Set<String>>{};
+  final termFrequency = <String, Map<String, int>>{};
+
+  final regex = RegExp(r'\b\w{2,}\b');
+
+  for (final noteData in notesData) {
+    final noteId = noteData['id']!;
+    final text = '${noteData['title']} ${noteData['content']}'.toLowerCase();
+
+    // Normalize and tokenize
+    final normalizedText = _removeDiacriticsIsolate(text);
+    final matches = regex.allMatches(normalizedText);
+    final words = matches.map((m) => m.group(0)!).toSet();
+
+    termFrequency[noteId] = {};
+
+    for (final word in words) {
+      wordToNoteIds.putIfAbsent(word, () => {});
+      wordToNoteIds[word]!.add(noteId);
+
+      termFrequency[noteId]!.putIfAbsent(word, () => 0);
+      termFrequency[noteId]![word] = termFrequency[noteId]![word]! + 1;
+    }
+  }
+
+  return {
+    'wordToNoteIds': wordToNoteIds.map((k, v) => MapEntry(k, v.toList())),
+    'termFrequency': termFrequency,
+  };
+}
+
+/// Diacritics removal for isolate (can't access SearchConstants)
+String _removeDiacriticsIsolate(String text) {
+  const diacriticsMap = {
+    'à': 'a',
+    'á': 'a',
+    'â': 'a',
+    'ã': 'a',
+    'ä': 'a',
+    'å': 'a',
+    'æ': 'ae',
+    'ç': 'c',
+    'è': 'e',
+    'é': 'e',
+    'ê': 'e',
+    'ë': 'e',
+    'ì': 'i',
+    'í': 'i',
+    'î': 'i',
+    'ï': 'i',
+    'ñ': 'n',
+    'ò': 'o',
+    'ó': 'o',
+    'ô': 'o',
+    'õ': 'o',
+    'ö': 'o',
+    'ø': 'o',
+    'ù': 'u',
+    'ú': 'u',
+    'û': 'u',
+    'ü': 'u',
+    'ý': 'y',
+    'ÿ': 'y',
+    'ß': 'ss',
+    'œ': 'oe',
+  };
+
+  final buffer = StringBuffer();
+  for (int i = 0; i < text.length; i++) {
+    final char = text[i];
+    buffer.write(diacriticsMap[char] ?? char);
+  }
+  return buffer.toString();
+}
 
 String removeDiacritics(String text) {
   final buffer = StringBuffer();
@@ -94,8 +172,10 @@ class SearchFilter {
 }
 
 class SearchIndex {
-  final Map<String, Set<String>> _wordToNoteIds = {};
-  final Map<String, Map<String, int>> _termFrequency = {};
+  Map<String, Set<String>> _wordToNoteIds = {};
+  Map<String, Map<String, int>> _termFrequency = {};
+  // Sorted list of unique words for binary search prefix matching
+  List<String> _sortedWords = [];
   bool _isBuilt = false;
 
   bool get isBuilt => _isBuilt;
@@ -123,8 +203,11 @@ class SearchIndex {
     }
 
     _wordToNoteIds.removeWhere((_, noteIds) => noteIds.isEmpty);
+    // Invalidate sorted words cache
+    _sortedWords = [];
   }
 
+  /// Optimized search using binary search for prefix matching
   Set<String> search(String query, {bool caseSensitive = false}) {
     final normalizedQuery = normalizeForSearch(
       query,
@@ -134,25 +217,83 @@ class SearchIndex {
 
     if (queryWords.isEmpty) return {};
 
+    // Ensure sorted words cache is built
+    if (_sortedWords.isEmpty && _wordToNoteIds.isNotEmpty) {
+      _sortedWords = _wordToNoteIds.keys.toList()..sort();
+    }
+
     Set<String>? result;
 
     for (final word in queryWords) {
-      final matchingIds = <String>{};
-
-      for (final entry in _wordToNoteIds.entries) {
-        if (entry.key.contains(word)) {
-          matchingIds.addAll(entry.value);
-        }
-      }
+      final matchingIds = _findMatchingNoteIds(word);
 
       if (result == null) {
         result = matchingIds;
       } else {
         result = result.intersection(matchingIds);
       }
+
+      // Early exit if no matches
+      if (result.isEmpty) return {};
     }
 
     return result ?? {};
+  }
+
+  /// Find note IDs matching a word using binary search for prefix matches
+  Set<String> _findMatchingNoteIds(String word) {
+    final matchingIds = <String>{};
+
+    // Exact match first (most common case)
+    final exactMatch = _wordToNoteIds[word];
+    if (exactMatch != null) {
+      matchingIds.addAll(exactMatch);
+    }
+
+    // Binary search for prefix matches
+    if (_sortedWords.isNotEmpty) {
+      final startIdx = _lowerBound(_sortedWords, word);
+
+      // Check words that start with our query word
+      for (int i = startIdx; i < _sortedWords.length; i++) {
+        final indexedWord = _sortedWords[i];
+        if (!indexedWord.startsWith(word)) break;
+
+        final noteIds = _wordToNoteIds[indexedWord];
+        if (noteIds != null) {
+          matchingIds.addAll(noteIds);
+        }
+      }
+
+      // Also check for words that contain our query (substring match)
+      // Only do this for longer query words to avoid too many matches
+      if (word.length >= 3) {
+        for (final entry in _wordToNoteIds.entries) {
+          if (entry.key.contains(word) && !entry.key.startsWith(word)) {
+            matchingIds.addAll(entry.value);
+          }
+        }
+      }
+    }
+
+    return matchingIds;
+  }
+
+  /// Binary search to find the first index where word >= target
+  int _lowerBound(List<String> sorted, String target) {
+    int lo = 0;
+    int hi = sorted.length;
+
+    while (lo < hi) {
+      final mid = lo + (hi - lo) ~/ 2;
+      if (sorted[mid].compareTo(target) < 0) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+
+    return lo;
   }
 
   double getRelevanceScore(
@@ -173,16 +314,26 @@ class SearchIndex {
     int matchCount = 0;
 
     for (final word in queryWords) {
+      // Exact match bonus
+      if (noteTerms.containsKey(word)) {
+        score += noteTerms[word]! * 2.0;
+        matchCount++;
+        continue;
+      }
+
+      // Prefix/substring match
       for (final entry in noteTerms.entries) {
         if (entry.key.contains(word)) {
           score += entry.value;
           matchCount++;
+          break; // Only count once per query word
         }
       }
     }
 
     if (matchCount == 0) return 0.0;
 
+    // Boost score based on how many query words matched
     return score * (matchCount / queryWords.length);
   }
 
@@ -196,16 +347,37 @@ class SearchIndex {
 
   void markBuilt() {
     _isBuilt = true;
+    // Pre-build sorted words cache
+    _sortedWords = _wordToNoteIds.keys.toList()..sort();
   }
 
   void clear() {
     _wordToNoteIds.clear();
     _termFrequency.clear();
+    _sortedWords = [];
     _isBuilt = false;
+  }
+
+  /// Export index data for isolate processing
+  Map<String, dynamic> toJson() => {
+    'wordToNoteIds': _wordToNoteIds.map((k, v) => MapEntry(k, v.toList())),
+    'termFrequency': _termFrequency,
+  };
+
+  /// Import index data from isolate
+  void fromJson(Map<String, dynamic> json) {
+    _wordToNoteIds = (json['wordToNoteIds'] as Map<String, dynamic>).map(
+      (k, v) => MapEntry(k, (v as List).cast<String>().toSet()),
+    );
+    _termFrequency = (json['termFrequency'] as Map<String, dynamic>).map(
+      (k, v) => MapEntry(k, (v as Map<String, dynamic>).cast<String, int>()),
+    );
+    _sortedWords = _wordToNoteIds.keys.toList()..sort();
+    _isBuilt = true;
   }
 }
 
-class SearchService {
+class FolderSearchService {
   static const int _maxRecentSearches = 10;
   static const String _recentSearchesKey = 'recent_searches';
 
@@ -214,8 +386,9 @@ class SearchService {
 
   List<String> _recentSearches = [];
   bool _isInitialized = false;
+  bool _isIndexing = false;
 
-  SearchService({required NoteStorageService storageService})
+  FolderSearchService({required NoteStorageService storageService})
     : _storageService = storageService;
 
   Future<void> initialize() async {
@@ -225,21 +398,49 @@ class SearchService {
     _isInitialized = true;
   }
 
+  /// Build search index using isolate for heavy processing
   Future<void> buildIndex() async {
+    if (_isIndexing) return; // Prevent concurrent indexing
+
     await initialize();
+    _isIndexing = true;
 
-    _searchIndex.clear();
+    try {
+      _searchIndex.clear();
 
-    final paginatedNotes = await _storageService.loadNotesPaginated(
-      pageSize: 1000,
-    );
+      final paginatedNotes = await _storageService.loadNotesPaginated(
+        pageSize: 1000,
+      );
 
-    for (final metadata in paginatedNotes.notes) {
-      final content = await _storageService.loadNoteContent(metadata.id);
-      _searchIndex.addNote(metadata.id, metadata.title, content);
+      // Collect all note data first
+      final notesData = <Map<String, String>>[];
+      for (final metadata in paginatedNotes.notes) {
+        final content = await _storageService.loadNoteContent(metadata.id);
+        notesData.add({
+          'id': metadata.id,
+          'title': metadata.title,
+          'content': content,
+        });
+      }
+
+      // Build index in isolate for large datasets (>50 notes)
+      if (notesData.length > 50) {
+        final indexData = await compute(_buildIndexInIsolate, notesData);
+        _searchIndex.fromJson(indexData);
+      } else {
+        // For small datasets, build directly (isolate overhead not worth it)
+        for (final noteData in notesData) {
+          _searchIndex.addNote(
+            noteData['id']!,
+            noteData['title']!,
+            noteData['content']!,
+          );
+        }
+        _searchIndex.markBuilt();
+      }
+    } finally {
+      _isIndexing = false;
     }
-
-    _searchIndex.markBuilt();
   }
 
   Future<void> updateIndex(String noteId, String title, String content) async {
@@ -274,22 +475,26 @@ class SearchService {
       query,
       caseSensitive: effectiveCaseSensitive,
     );
+
+    if (matchingIds.isEmpty) return [];
+
+    // Load all notes ONCE, not inside the loop
+    final paginatedNotes = await _storageService.loadNotesPaginated(
+      pageSize: 1000,
+    );
+
+    // Create a lookup map for O(1) access
+    final notesMap = {for (final n in paginatedNotes.notes) n.id: n};
+
     final results = <SearchResult>[];
 
-    for (final noteId in matchingIds) {
-      final paginatedNotes = await _storageService.loadNotesPaginated(
-        pageSize: 1000,
-      );
-
-      NoteMetadata? metadata;
-      try {
-        metadata = paginatedNotes.notes.firstWhere((m) => m.id == noteId);
-      } catch (_) {
-        continue;
-      }
+    // Process matches in parallel for better performance
+    final futures = matchingIds.map((noteId) async {
+      final metadata = notesMap[noteId];
+      if (metadata == null) return null;
 
       if (filter != null && !filter.matches(metadata)) {
-        continue;
+        return null;
       }
 
       final content = await _storageService.loadNoteContent(noteId);
@@ -305,14 +510,15 @@ class SearchService {
         caseSensitive: effectiveCaseSensitive,
       );
 
-      results.add(
-        SearchResult(
-          metadata: metadata,
-          matches: matches,
-          relevanceScore: relevanceScore,
-        ),
+      return SearchResult(
+        metadata: metadata,
+        matches: matches,
+        relevanceScore: relevanceScore,
       );
-    }
+    });
+
+    final searchResults = await Future.wait(futures);
+    results.addAll(searchResults.whereType<SearchResult>());
 
     results.sort((a, b) => b.relevanceScore.compareTo(a.relevanceScore));
 

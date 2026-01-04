@@ -1118,10 +1118,10 @@ abstract class AppLocalizations {
   /// **'Data Deleted'**
   String get dataDeleted;
 
-  /// Message after data deletion requiring restart
+  /// Message indicating app restart needed
   ///
   /// In en, this message translates to:
-  /// **'All data has been deleted. Please restart the app to continue.'**
+  /// **'Please restart the app to use the new database.'**
   String get restartRequired;
 
   /// Button to exit the app
@@ -1393,6 +1393,216 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Plain Text (.txt)'**
   String get exportAsText;
+
+  /// Section title for active database selection
+  ///
+  /// In en, this message translates to:
+  /// **'Active Database'**
+  String get activeDatabaseSection;
+
+  /// Description for active database section
+  ///
+  /// In en, this message translates to:
+  /// **'Select which database to use. Creating or switching databases will restart the app.'**
+  String get activeDatabaseDesc;
+
+  /// Label for database selector
+  ///
+  /// In en, this message translates to:
+  /// **'Select Database'**
+  String get selectDatabase;
+
+  /// Shows current active database
+  ///
+  /// In en, this message translates to:
+  /// **'Current: {name}'**
+  String currentDatabase(String name);
+
+  /// Button to create new database
+  ///
+  /// In en, this message translates to:
+  /// **'Create New Database'**
+  String get createNewDatabase;
+
+  /// Label for new database name input
+  ///
+  /// In en, this message translates to:
+  /// **'Database Name'**
+  String get newDatabaseName;
+
+  /// Hint for database name input
+  ///
+  /// In en, this message translates to:
+  /// **'Enter database name'**
+  String get enterDatabaseName;
+
+  /// Error for invalid database name
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid name. Use only letters, numbers, underscores, and hyphens (max 50 characters).'**
+  String get invalidDatabaseName;
+
+  /// Error when database already exists
+  ///
+  /// In en, this message translates to:
+  /// **'A database with this name already exists.'**
+  String get databaseExists;
+
+  /// Message while creating database
+  ///
+  /// In en, this message translates to:
+  /// **'Creating database...'**
+  String get creatingDatabase;
+
+  /// Success message after creating database
+  ///
+  /// In en, this message translates to:
+  /// **'Database created successfully'**
+  String get databaseCreated;
+
+  /// Dialog title for renaming database
+  ///
+  /// In en, this message translates to:
+  /// **'Rename Database'**
+  String get renameDatabase;
+
+  /// Message while renaming database
+  ///
+  /// In en, this message translates to:
+  /// **'Renaming database...'**
+  String get renamingDatabase;
+
+  /// Success message after renaming database
+  ///
+  /// In en, this message translates to:
+  /// **'Database renamed successfully'**
+  String get databaseRenamed;
+
+  /// Message while switching database
+  ///
+  /// In en, this message translates to:
+  /// **'Switching database...'**
+  String get switchingDatabase;
+
+  /// Section title for database list
+  ///
+  /// In en, this message translates to:
+  /// **'Available Databases'**
+  String get availableDatabases;
+
+  /// Message when no databases exist
+  ///
+  /// In en, this message translates to:
+  /// **'No databases found'**
+  String get noDatabases;
+
+  /// Title for database options menu
+  ///
+  /// In en, this message translates to:
+  /// **'Database Options'**
+  String get databaseOptions;
+
+  /// Option to switch to a database
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to this database'**
+  String get switchTo;
+
+  /// Confirmation message for database deletion
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete the database \"{name}\"? This action cannot be undone.'**
+  String deleteDatabaseConfirm(String name);
+
+  /// Error when trying to delete active database
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot delete the currently active database. Please switch to another database first.'**
+  String get cannotDeleteActive;
+
+  /// Success message after deleting database
+  ///
+  /// In en, this message translates to:
+  /// **'Database deleted'**
+  String get databaseDeleted;
+
+  /// Placeholder for note search field
+  ///
+  /// In en, this message translates to:
+  /// **'Find in note'**
+  String get findInNote;
+
+  /// Placeholder for replace field
+  ///
+  /// In en, this message translates to:
+  /// **'Replace with'**
+  String get replaceWith;
+
+  /// Button to replace current match
+  ///
+  /// In en, this message translates to:
+  /// **'Replace'**
+  String get replaceOne;
+
+  /// Button to replace all matches
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get replaceAll;
+
+  /// Message showing how many matches were replaced
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Replaced 1 match} other{Replaced {count} matches}}'**
+  String replacedCount(int count);
+
+  /// Option to enable case-sensitive search
+  ///
+  /// In en, this message translates to:
+  /// **'Match case'**
+  String get matchCase;
+
+  /// Option to match whole words only
+  ///
+  /// In en, this message translates to:
+  /// **'Whole word'**
+  String get wholeWord;
+
+  /// Option to enable regex search
+  ///
+  /// In en, this message translates to:
+  /// **'Use regex'**
+  String get useRegex;
+
+  /// Option to show replace field
+  ///
+  /// In en, this message translates to:
+  /// **'Find & Replace'**
+  String get findAndReplace;
+
+  /// Search options button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Options'**
+  String get options;
+
+  /// Previous match button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get previous;
+
+  /// Next match button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get next;
+
+  /// Close button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
 }
 
 class _AppLocalizationsDelegate

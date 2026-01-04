@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/app_localizations.dart';
 import '../utils/note_search_controller.dart';
 
-/// A modern, integrated search bar widget for searching within note content
 class NoteSearchBar extends StatefulWidget {
   final NoteSearchController searchController;
   final VoidCallback? onClose;
@@ -25,342 +25,460 @@ class NoteSearchBar extends StatefulWidget {
 
 class _NoteSearchBarState extends State<NoteSearchBar>
     with SingleTickerProviderStateMixin {
-  late TextEditingController _searchFieldController;
-  late TextEditingController _replaceFieldController;
-  late FocusNode _searchFocusNode;
-  late AnimationController _animationController;
-  late Animation<double> _slideAnimation;
+  late final TextEditingController _searchController;
+  late final TextEditingController _replaceController;
+  late final FocusNode _searchFocus;
+  late final FocusNode _replaceFocus;
+  late final AnimationController _animController;
+
   bool _showReplace = false;
+  String? _message;
+
+  NoteSearchController get _search => widget.searchController;
 
   @override
   void initState() {
     super.initState();
-    _searchFieldController = TextEditingController(
-      text: widget.searchController.query,
-    );
-    _replaceFieldController = TextEditingController();
-    _searchFocusNode = FocusNode();
-
-    // Slide-in animation
-    _animationController = AnimationController(
+    _searchController = TextEditingController(text: _search.query);
+    _replaceController = TextEditingController();
+    _searchFocus = FocusNode();
+    _replaceFocus = FocusNode();
+    _animController = AnimationController(
       duration: const Duration(milliseconds: 200),
       vsync: this,
-    );
-    _slideAnimation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    );
-    _animationController.forward();
+    )..forward();
 
-    // Focus the search field when opened
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _searchFocusNode.requestFocus();
+      _searchFocus.requestFocus();
     });
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
-    _searchFieldController.dispose();
-    _replaceFieldController.dispose();
-    _searchFocusNode.dispose();
+    _animController.dispose();
+    _searchController.dispose();
+    _replaceController.dispose();
+    _searchFocus.dispose();
+    _replaceFocus.dispose();
     super.dispose();
   }
 
-  void _onSearchChanged(String value) {
-    widget.searchController.search(value);
+  void _onSearch(String value) {
+    _search.search(value);
+    _clearMessage();
   }
 
-  void _navigateToCurrentMatch() {
-    final match = widget.searchController.currentMatch;
-    if (match != null && widget.onNavigateToMatch != null) {
-      widget.onNavigateToMatch!(match.start);
-    }
+  void _navigateToCurrent() {
+    final match = _search.currentMatch;
+    if (match != null) widget.onNavigateToMatch?.call(match.start);
   }
 
-  void _goToNextMatch() {
-    widget.searchController.nextMatch();
-    _navigateToCurrentMatch();
+  void _next() {
+    _search.nextMatch();
+    _navigateToCurrent();
   }
 
-  void _goToPreviousMatch() {
-    widget.searchController.previousMatch();
-    _navigateToCurrentMatch();
+  void _previous() {
+    _search.previousMatch();
+    _navigateToCurrent();
   }
 
-  void _handleClose() async {
-    await _animationController.reverse();
-    widget.searchController.closeSearch();
+  Future<void> _close() async {
+    await _animController.reverse();
+    _search.closeSearch();
     widget.onClose?.call();
   }
 
+  void _clearMessage() {
+    if (_message != null) setState(() => _message = null);
+  }
+
+  void _showMessage(String msg) {
+    setState(() => _message = msg);
+    Future.delayed(const Duration(seconds: 2), _clearMessage);
+  }
+
   void _replaceCurrent() {
-    final result = widget.searchController.replaceCurrentMatch(
-      _replaceFieldController.text,
-    );
-    if (result != null && widget.onReplace != null) {
-      widget.onReplace!('', result);
+    _search.updateReplacement(_replaceController.text);
+    final result = _search.replaceCurrent();
+    if (result is ReplaceSuccessState) {
+      widget.onReplace?.call('', result.newContent);
+      _showMessage(AppLocalizations.of(context)!.replacedCount(1));
     }
   }
 
   void _replaceAll() {
-    if (!widget.searchController.hasMatches) return;
-
-    final result = widget.searchController.replaceAllMatches(
-      _replaceFieldController.text,
-    );
-    widget.onReplace?.call(_replaceFieldController.text, result);
+    if (!_search.hasMatches) return;
+    final count = _search.matchCount;
+    _search.updateReplacement(_replaceController.text);
+    final result = _search.replaceAll();
+    if (result is ReplaceSuccessState) {
+      widget.onReplace?.call('', result.newContent);
+      _showMessage(AppLocalizations.of(context)!.replacedCount(count));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
+    final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SlideTransition(
       position: Tween<Offset>(
         begin: const Offset(0, -1),
         end: Offset.zero,
-      ).animate(_slideAnimation),
+      ).animate(CurvedAnimation(
+        parent: _animController,
+        curve: Curves.easeOutCubic,
+      )),
       child: ListenableBuilder(
-        listenable: widget.searchController,
-        builder: (context, _) {
-          final matchCount = widget.searchController.matchCount;
-          final currentIndex = widget.searchController.currentMatchIndex;
-          final hasMatches = widget.searchController.hasMatches;
-          final hasQuery = _searchFieldController.text.isNotEmpty;
-
-          return Container(
-            decoration: BoxDecoration(
-              color: isDark
-                  ? colorScheme.surfaceContainerHighest
-                  : colorScheme.surface,
-              border: Border(
-                bottom: BorderSide(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                  width: 1,
+        listenable: _search,
+        builder: (context, _) => Container(
+          decoration: BoxDecoration(
+            color: isDark ? colors.surfaceContainerHighest : colors.surface,
+            border: Border(
+              bottom: BorderSide(
+                color: colors.outlineVariant.withValues(alpha: 0.5),
+              ),
+            ),
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _SearchRow(
+                  controller: _searchController,
+                  focusNode: _searchFocus,
+                  onChanged: _onSearch,
+                  onNext: _next,
+                  onPrevious: _previous,
+                  onClose: _close,
+                  hasQuery: _searchController.text.isNotEmpty,
+                  hasMatches: _search.hasMatches,
+                  currentIndex: _search.currentMatchIndex,
+                  matchCount: _search.matchCount,
+                  options: _SearchOptions(
+                    caseSensitive: _search.caseSensitive,
+                    wholeWord: _search.wholeWord,
+                    useRegex: _search.useRegex,
+                    showReplace: _showReplace,
+                    showReplaceOption: widget.showReplaceField,
+                    onToggleCase: _search.toggleCaseSensitive,
+                    onToggleWholeWord: _search.toggleWholeWord,
+                    onToggleRegex: _search.toggleRegex,
+                    onToggleReplace: () => setState(() => _showReplace = !_showReplace),
+                  ),
                 ),
-              ),
-            ),
-            child: SafeArea(
-              bottom: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Main search row
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-                    child: Row(
-                      children: [
-                        // Search input
-                        Expanded(
-                          child: _buildSearchField(
-                            colorScheme,
-                            hasQuery,
-                            hasMatches,
-                          ),
-                        ),
-
-                        const SizedBox(width: 8),
-
-                        // Match counter badge
-                        if (hasQuery)
-                          _buildMatchCounter(
-                            colorScheme,
-                            hasMatches,
-                            currentIndex,
-                            matchCount,
-                          ),
-
-                        // Navigation & action buttons
-                        _buildActionButtons(colorScheme, hasMatches),
-                      ],
-                    ),
+                if (_showReplace && widget.showReplaceField)
+                  _ReplaceRow(
+                    controller: _replaceController,
+                    focusNode: _replaceFocus,
+                    hasMatches: _search.hasMatches,
+                    onReplaceCurrent: _replaceCurrent,
+                    onReplaceAll: _replaceAll,
+                    onChanged: (_) => _clearMessage(),
+                    message: _message,
                   ),
-
-                  // Replace row (expandable)
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeInOut,
-                    child: _showReplace && widget.showReplaceField
-                        ? _buildReplaceRow(colorScheme, hasMatches)
-                        : const SizedBox.shrink(),
-                  ),
-                ],
-              ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchOptions {
+  final bool caseSensitive;
+  final bool wholeWord;
+  final bool useRegex;
+  final bool showReplace;
+  final bool showReplaceOption;
+  final VoidCallback onToggleCase;
+  final VoidCallback onToggleWholeWord;
+  final VoidCallback onToggleRegex;
+  final VoidCallback onToggleReplace;
+
+  const _SearchOptions({
+    required this.caseSensitive,
+    required this.wholeWord,
+    required this.useRegex,
+    required this.showReplace,
+    required this.showReplaceOption,
+    required this.onToggleCase,
+    required this.onToggleWholeWord,
+    required this.onToggleRegex,
+    required this.onToggleReplace,
+  });
+
+  bool get hasActive => caseSensitive || wholeWord || useRegex || showReplace;
+}
+
+class _SearchRow extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onNext;
+  final VoidCallback onPrevious;
+  final VoidCallback onClose;
+  final bool hasQuery;
+  final bool hasMatches;
+  final int currentIndex;
+  final int matchCount;
+  final _SearchOptions options;
+
+  const _SearchRow({
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+    required this.onNext,
+    required this.onPrevious,
+    required this.onClose,
+    required this.hasQuery,
+    required this.hasMatches,
+    required this.currentIndex,
+    required this.matchCount,
+    required this.options,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      child: Row(
+        children: [
+          Expanded(child: _buildSearchField(context, colors, l10n)),
+          const SizedBox(width: 8),
+          if (hasQuery) _buildCounter(colors, l10n),
+          _buildActions(colors, l10n),
+        ],
       ),
     );
   }
 
-  Widget _buildSearchField(
-    ColorScheme colorScheme,
-    bool hasQuery,
-    bool hasMatches,
-  ) {
+  Widget _buildSearchField(BuildContext context, ColorScheme colors, AppLocalizations l10n) {
     return KeyboardListener(
       focusNode: FocusNode(),
       onKeyEvent: (event) {
-        if (event is KeyDownEvent) {
-          if (event.logicalKey == LogicalKeyboardKey.escape) {
-            _handleClose();
-          } else if (event.logicalKey == LogicalKeyboardKey.enter) {
-            if (HardwareKeyboard.instance.isShiftPressed) {
-              _goToPreviousMatch();
-            } else {
-              _goToNextMatch();
-            }
-          }
+        if (event is! KeyDownEvent) return;
+        if (event.logicalKey == LogicalKeyboardKey.escape) {
+          onClose();
+        } else if (event.logicalKey == LogicalKeyboardKey.enter) {
+          HardwareKeyboard.instance.isShiftPressed ? onPrevious() : onNext();
         }
       },
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: hasQuery && !hasMatches
-                ? colorScheme.error.withValues(alpha: 0.5)
-                : colorScheme.outline.withValues(alpha: 0.2),
-            width: 1,
-          ),
-        ),
-        child: TextField(
-          controller: _searchFieldController,
-          focusNode: _searchFocusNode,
-          decoration: InputDecoration(
-            hintText: 'Find in note',
-            hintStyle: TextStyle(
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-              fontSize: 14,
-            ),
-            prefixIcon: Padding(
-              padding: const EdgeInsets.only(left: 12, right: 8),
-              child: Icon(
-                Icons.search_rounded,
-                size: 20,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-            prefixIconConstraints: const BoxConstraints(
-              minWidth: 40,
-              minHeight: 40,
-            ),
-            suffixIcon: hasQuery
-                ? GestureDetector(
-                    onTap: () {
-                      _searchFieldController.clear();
-                      widget.searchController.search('');
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: 18,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  )
-                : null,
-            suffixIconConstraints: const BoxConstraints(
-              minWidth: 32,
-              minHeight: 32,
-            ),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 0,
-              vertical: 10,
-            ),
-          ),
-          style: TextStyle(fontSize: 14, color: colorScheme.onSurface),
-          onChanged: _onSearchChanged,
-          textInputAction: TextInputAction.search,
-          onSubmitted: (_) => _goToNextMatch(),
-        ),
+      child: _SearchField(
+        controller: controller,
+        focusNode: focusNode,
+        hint: l10n.findInNote,
+        hasError: hasQuery && !hasMatches,
+        onChanged: onChanged,
+        onSubmitted: (_) => onNext(),
       ),
     );
   }
 
-  Widget _buildMatchCounter(
-    ColorScheme colorScheme,
-    bool hasMatches,
-    int currentIndex,
-    int matchCount,
-  ) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
+  Widget _buildCounter(ColorScheme colors, AppLocalizations l10n) {
+    final isError = !hasMatches;
+    return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: hasMatches
-            ? colorScheme.primaryContainer.withValues(alpha: 0.7)
-            : colorScheme.errorContainer.withValues(alpha: 0.7),
+        color: (isError ? colors.errorContainer : colors.primaryContainer)
+            .withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        hasMatches ? '${currentIndex + 1}/$matchCount' : 'No results',
+        hasMatches ? '${currentIndex + 1}/$matchCount' : l10n.noSearchResults,
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: hasMatches
-              ? colorScheme.onPrimaryContainer
-              : colorScheme.onErrorContainer,
+          color: isError ? colors.onErrorContainer : colors.onPrimaryContainer,
         ),
       ),
     );
   }
 
-  Widget _buildActionButtons(ColorScheme colorScheme, bool hasMatches) {
+  Widget _buildActions(ColorScheme colors, AppLocalizations l10n) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Navigation buttons
-        _buildIconButton(
+        _IconBtn(
           icon: Icons.expand_less_rounded,
-          onPressed: hasMatches ? _goToPreviousMatch : null,
-          tooltip: 'Previous',
-          colorScheme: colorScheme,
+          tooltip: l10n.previous,
+          onPressed: hasMatches ? onPrevious : null,
         ),
-        _buildIconButton(
+        _IconBtn(
           icon: Icons.expand_more_rounded,
-          onPressed: hasMatches ? _goToNextMatch : null,
-          tooltip: 'Next',
-          colorScheme: colorScheme,
+          tooltip: l10n.next,
+          onPressed: hasMatches ? onNext : null,
         ),
-
-        // Divider
-        Container(
-          height: 24,
-          width: 1,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
-
-        // Options button
-        _buildOptionsButton(colorScheme),
-
-        // Close button
-        _buildIconButton(
+        _Divider(),
+        _OptionsMenu(options: options),
+        _IconBtn(
           icon: Icons.close_rounded,
-          onPressed: _handleClose,
-          tooltip: 'Close',
-          colorScheme: colorScheme,
+          tooltip: l10n.close,
+          onPressed: onClose,
           isClose: true,
         ),
       ],
     );
   }
+}
 
-  Widget _buildIconButton({
-    required IconData icon,
-    required VoidCallback? onPressed,
-    required String tooltip,
-    required ColorScheme colorScheme,
-    bool isClose = false,
-  }) {
-    final isEnabled = onPressed != null;
+class _ReplaceRow extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool hasMatches;
+  final VoidCallback onReplaceCurrent;
+  final VoidCallback onReplaceAll;
+  final ValueChanged<String> onChanged;
+  final String? message;
+
+  const _ReplaceRow({
+    required this.controller,
+    required this.focusNode,
+    required this.hasMatches,
+    required this.onReplaceCurrent,
+    required this.onReplaceAll,
+    required this.onChanged,
+    this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _SearchField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  hint: l10n.replaceWith,
+                  icon: Icons.find_replace_rounded,
+                  onChanged: onChanged,
+                ),
+              ),
+              const SizedBox(width: 8),
+              _ActionButton(
+                label: l10n.replaceOne,
+                onPressed: hasMatches ? onReplaceCurrent : null,
+              ),
+              const SizedBox(width: 4),
+              _ActionButton(
+                label: l10n.replaceAll,
+                onPressed: hasMatches ? onReplaceAll : null,
+                isPrimary: true,
+              ),
+            ],
+          ),
+          if (message != null) _SuccessMessage(message: message!),
+        ],
+      ),
+    );
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final String hint;
+  final IconData icon;
+  final bool hasError;
+  final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
+
+  const _SearchField({
+    required this.controller,
+    required this.focusNode,
+    required this.hint,
+    this.icon = Icons.search_rounded,
+    this.hasError = false,
+    this.onChanged,
+    this.onSubmitted,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final hasText = controller.text.isNotEmpty;
+
+    return Container(
+      height: 40,
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: hasError
+              ? colors.error.withValues(alpha: 0.5)
+              : colors.outline.withValues(alpha: 0.2),
+        ),
+      ),
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        style: TextStyle(fontSize: 14, color: colors.onSurface),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(
+            color: colors.onSurfaceVariant.withValues(alpha: 0.6),
+            fontSize: 14,
+          ),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 12, right: 8),
+            child: Icon(icon, size: 20, color: colors.onSurfaceVariant),
+          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          suffixIcon: hasText && icon == Icons.search_rounded
+              ? GestureDetector(
+                  onTap: () {
+                    controller.clear();
+                    onChanged?.call('');
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Icon(Icons.close_rounded, size: 18, color: colors.onSurfaceVariant),
+                  ),
+                )
+              : null,
+          suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+        ),
+        onChanged: onChanged,
+        onSubmitted: onSubmitted,
+        textInputAction: TextInputAction.search,
+      ),
+    );
+  }
+}
+
+class _IconBtn extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final bool isClose;
+
+  const _IconBtn({
+    required this.icon,
+    required this.tooltip,
+    this.onPressed,
+    this.isClose = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final enabled = onPressed != null;
 
     return Tooltip(
       message: tooltip,
@@ -369,29 +487,44 @@ class _NoteSearchBarState extends State<NoteSearchBar>
         child: InkWell(
           onTap: onPressed,
           borderRadius: BorderRadius.circular(8),
-          child: Container(
+          child: SizedBox(
             width: 36,
             height: 36,
-            alignment: Alignment.center,
             child: Icon(
               icon,
               size: 22,
-              color: isEnabled
-                  ? (isClose
-                        ? colorScheme.onSurfaceVariant
-                        : colorScheme.primary)
-                  : colorScheme.onSurface.withValues(alpha: 0.3),
+              color: enabled
+                  ? (isClose ? colors.onSurfaceVariant : colors.primary)
+                  : colors.onSurface.withValues(alpha: 0.3),
             ),
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildOptionsButton(ColorScheme colorScheme) {
-    final caseSensitive = widget.searchController.caseSensitive;
-    final useRegex = widget.searchController.useRegex;
-    final hasActiveOption = caseSensitive || useRegex || _showReplace;
+class _Divider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 24,
+      width: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+    );
+  }
+}
+
+class _OptionsMenu extends StatelessWidget {
+  final _SearchOptions options;
+
+  const _OptionsMenu({required this.options});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return PopupMenuButton<String>(
       icon: Stack(
@@ -399,11 +532,9 @@ class _NoteSearchBarState extends State<NoteSearchBar>
           Icon(
             Icons.tune_rounded,
             size: 20,
-            color: hasActiveOption
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant,
+            color: options.hasActive ? colors.primary : colors.onSurfaceVariant,
           ),
-          if (hasActiveOption)
+          if (options.hasActive)
             Positioned(
               right: 0,
               top: 0,
@@ -411,197 +542,146 @@ class _NoteSearchBarState extends State<NoteSearchBar>
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: colorScheme.primary,
+                  color: colors.primary,
                   shape: BoxShape.circle,
                 ),
               ),
             ),
         ],
       ),
-      tooltip: 'Options',
+      tooltip: l10n.options,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       position: PopupMenuPosition.under,
       onSelected: (value) {
         switch (value) {
-          case 'case':
-            widget.searchController.toggleCaseSensitive();
-            break;
-          case 'regex':
-            widget.searchController.toggleRegex();
-            break;
           case 'replace':
-            setState(() => _showReplace = !_showReplace);
-            break;
+            options.onToggleReplace();
+          case 'case':
+            options.onToggleCase();
+          case 'whole':
+            options.onToggleWholeWord();
+          case 'regex':
+            options.onToggleRegex();
         }
       },
       itemBuilder: (context) => [
-        _buildPopupMenuItem(
-          'case',
-          'Match case',
-          Icons.text_fields_rounded,
-          caseSensitive,
-          colorScheme,
-        ),
-        _buildPopupMenuItem(
-          'regex',
-          'Use regex',
-          Icons.code_rounded,
-          useRegex,
-          colorScheme,
-        ),
-        if (widget.showReplaceField)
-          _buildPopupMenuItem(
-            'replace',
-            'Find & Replace',
-            Icons.find_replace_rounded,
-            _showReplace,
-            colorScheme,
-          ),
+        if (options.showReplaceOption)
+          _menuItem('replace', l10n.findAndReplace, Icons.find_replace_rounded, options.showReplace, colors),
+        _menuItem('case', l10n.matchCase, Icons.text_fields_rounded, options.caseSensitive, colors),
+        _menuItem('whole', l10n.wholeWord, Icons.abc_rounded, options.wholeWord, colors),
+        _menuItem('regex', l10n.useRegex, Icons.code_rounded, options.useRegex, colors),
       ],
     );
   }
 
-  PopupMenuItem<String> _buildPopupMenuItem(
+  PopupMenuItem<String> _menuItem(
     String value,
     String label,
     IconData icon,
-    bool isActive,
-    ColorScheme colorScheme,
+    bool active,
+    ColorScheme colors,
   ) {
-    return PopupMenuItem<String>(
+    return PopupMenuItem(
       value: value,
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: isActive
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant,
-          ),
+          Icon(icon, size: 20, color: active ? colors.primary : colors.onSurfaceVariant),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               label,
               style: TextStyle(
-                color: isActive ? colorScheme.primary : colorScheme.onSurface,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                color: active ? colors.primary : colors.onSurface,
+                fontWeight: active ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
           ),
-          if (isActive)
-            Icon(Icons.check_rounded, size: 18, color: colorScheme.primary),
+          if (active) Icon(Icons.check_rounded, size: 18, color: colors.primary),
         ],
       ),
     );
   }
+}
 
-  Widget _buildReplaceRow(ColorScheme colorScheme, bool hasMatches) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      child: Row(
-        children: [
-          // Replace input
-          Expanded(
-            child: Container(
-              height: 40,
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: colorScheme.outline.withValues(alpha: 0.2),
-                  width: 1,
-                ),
-              ),
-              child: TextField(
-                controller: _replaceFieldController,
-                decoration: InputDecoration(
-                  hintText: 'Replace with',
-                  hintStyle: TextStyle(
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                    fontSize: 14,
-                  ),
-                  prefixIcon: Padding(
-                    padding: const EdgeInsets.only(left: 12, right: 8),
-                    child: Icon(
-                      Icons.find_replace_rounded,
-                      size: 20,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  prefixIconConstraints: const BoxConstraints(
-                    minWidth: 40,
-                    minHeight: 40,
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 0,
-                    vertical: 10,
-                  ),
-                ),
-                style: TextStyle(fontSize: 14, color: colorScheme.onSurface),
-              ),
-            ),
-          ),
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  final bool isPrimary;
 
-          const SizedBox(width: 8),
+  const _ActionButton({
+    required this.label,
+    this.onPressed,
+    this.isPrimary = false,
+  });
 
-          // Replace buttons
-          _buildReplaceButton(
-            label: 'Replace',
-            onPressed: hasMatches ? _replaceCurrent : null,
-            colorScheme: colorScheme,
-          ),
-          const SizedBox(width: 4),
-          _buildReplaceButton(
-            label: 'All',
-            onPressed: hasMatches ? _replaceAll : null,
-            colorScheme: colorScheme,
-            isPrimary: true,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReplaceButton({
-    required String label,
-    required VoidCallback? onPressed,
-    required ColorScheme colorScheme,
-    bool isPrimary = false,
-  }) {
-    final isEnabled = onPressed != null;
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final enabled = onPressed != null;
 
     return Material(
-      color: isPrimary && isEnabled ? colorScheme.primary : Colors.transparent,
+      color: isPrimary && enabled ? colors.primary : Colors.transparent,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: !isPrimary
                 ? Border.all(
-                    color: isEnabled
-                        ? colorScheme.outline.withValues(alpha: 0.3)
-                        : colorScheme.outline.withValues(alpha: 0.1),
+                    color: colors.outline.withValues(alpha: enabled ? 0.3 : 0.1),
                   )
                 : null,
           ),
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: isPrimary && isEnabled
-                  ? colorScheme.onPrimary
-                  : (isEnabled
-                        ? colorScheme.onSurface
-                        : colorScheme.onSurface.withValues(alpha: 0.4)),
+              color: isPrimary && enabled
+                  ? colors.onPrimary
+                  : colors.onSurface.withValues(alpha: enabled ? 1.0 : 0.4),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SuccessMessage extends StatelessWidget {
+  final String message;
+
+  const _SuccessMessage({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: colors.primaryContainer.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_circle_outline_rounded, size: 16, color: colors.primary),
+            const SizedBox(width: 6),
+            Text(
+              message,
+              style: TextStyle(
+                fontSize: 12,
+                color: colors.onPrimaryContainer,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );

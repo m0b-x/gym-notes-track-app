@@ -4,7 +4,8 @@ import '../bloc/optimized_note/optimized_note_bloc.dart';
 import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
 import '../l10n/app_localizations.dart';
-import '../services/search_service.dart';
+import '../models/note_metadata.dart';
+import '../services/folder_search_service.dart';
 import 'optimized_note_editor_page.dart';
 
 class SearchPage extends StatefulWidget {
@@ -23,9 +24,16 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void initState() {
     super.initState();
+    _loadAllNotes();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
+  }
+
+  void _loadAllNotes() {
+    context.read<OptimizedNoteBloc>().add(
+      LoadNotesPaginated(folderId: widget.folderId),
+    );
   }
 
   @override
@@ -37,7 +45,7 @@ class _SearchPageState extends State<SearchPage> {
 
   void _onSearchChanged(String query) {
     if (query.trim().isEmpty) {
-      context.read<OptimizedNoteBloc>().add(const ClearSearch());
+      _loadAllNotes();
       return;
     }
 
@@ -127,6 +135,45 @@ class _SearchPageState extends State<SearchPage> {
                 );
               },
             );
+          }
+
+          if (state is OptimizedNoteLoaded) {
+            final notes = state.paginatedNotes.notes;
+
+            if (notes.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.note_outlined,
+                      size: 64,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      AppLocalizations.of(context)!.emptyNotesHint,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.builder(
+              itemCount: notes.length,
+              itemBuilder: (context, index) {
+                final note = notes[index];
+                return _NoteCard(metadata: note, folderId: widget.folderId);
+              },
+            );
+          }
+
+          if (state is OptimizedNoteLoading) {
+            return const Center(child: CircularProgressIndicator());
           }
 
           return Center(
@@ -302,6 +349,73 @@ class _SearchResultCard extends StatelessWidget {
           folderId: folderId ?? result.metadata.folderId,
           noteId: result.metadata.id,
           metadata: result.metadata,
+        ),
+      ),
+    );
+  }
+}
+
+class _NoteCard extends StatelessWidget {
+  final NoteMetadata metadata;
+  final String? folderId;
+
+  const _NoteCard({required this.metadata, this.folderId});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ListTile(
+        leading: const Icon(Icons.note, size: 40, color: Colors.blue),
+        title: Text(
+          metadata.title.isEmpty ? l10n.untitledNote : metadata.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (metadata.preview.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                metadata.preview,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            const SizedBox(height: 4),
+            Text(
+              _formatDate(metadata.updatedAt),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+          ],
+        ),
+        onTap: () => _navigateToNote(context),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  void _navigateToNote(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OptimizedNoteEditorPage(
+          folderId: folderId ?? metadata.folderId,
+          noteId: metadata.id,
+          metadata: metadata,
         ),
       ),
     );

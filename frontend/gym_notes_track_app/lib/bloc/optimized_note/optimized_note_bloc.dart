@@ -1,14 +1,20 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:stream_transform/stream_transform.dart';
 import '../../models/note_metadata.dart';
 import '../../services/note_storage_service.dart';
-import '../../services/search_service.dart';
+import '../../services/folder_search_service.dart';
 import 'optimized_note_event.dart';
 import 'optimized_note_state.dart';
 
+/// Debounce transformer for search events - waits for user to stop typing
+EventTransformer<T> debounce<T>(Duration duration) {
+  return (events, mapper) => events.debounce(duration).switchMap(mapper);
+}
+
 class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
   final NoteStorageService _storageService;
-  final SearchService _searchService;
+  final FolderSearchService _searchService;
 
   String? _currentFolderId;
   int _currentPage = 1;
@@ -17,7 +23,7 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
 
   OptimizedNoteBloc({
     required NoteStorageService storageService,
-    required SearchService searchService,
+    required FolderSearchService searchService,
   }) : _storageService = storageService,
        _searchService = searchService,
        super(OptimizedNoteInitial()) {
@@ -28,7 +34,11 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
     on<UpdateOptimizedNote>(_onUpdateNote);
     on<DeleteOptimizedNote>(_onDeleteNote);
     on<SearchNotes>(_onSearchNotes);
-    on<QuickSearchNotes>(_onQuickSearchNotes);
+    // QuickSearch is debounced - waits 300ms after user stops typing
+    on<QuickSearchNotes>(
+      _onQuickSearchNotes,
+      transformer: debounce(const Duration(milliseconds: 300)),
+    );
     on<ClearSearch>(_onClearSearch);
     on<RefreshNotes>(_onRefreshNotes);
     on<ReorderNotes>(_onReorderNotes);

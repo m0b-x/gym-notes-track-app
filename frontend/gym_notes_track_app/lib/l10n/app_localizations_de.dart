@@ -556,7 +556,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get restartRequired =>
-      'Alle Daten wurden gelöscht. Bitte starten Sie die App neu, um fortzufahren.';
+      'Bitte starten Sie die App neu, um die neue Datenbank zu verwenden.';
 
   @override
   String get exitApp => 'App beenden';
@@ -701,4 +701,125 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get exportAsText => 'Nur Text (.txt)';
+
+  @override
+  String get activeDatabaseSection => 'Aktive Datenbank';
+
+  @override
+  String get activeDatabaseDesc =>
+      'Wählen Sie aus, welche Datenbank verwendet werden soll. Das Erstellen oder Wechseln der Datenbank startet die App neu.';
+
+  @override
+  String get selectDatabase => 'Datenbank auswählen';
+
+  @override
+  String currentDatabase(String name) {
+    return 'Aktuell: $name';
+  }
+
+  @override
+  String get createNewDatabase => 'Neue Datenbank erstellen';
+
+  @override
+  String get newDatabaseName => 'Datenbankname';
+
+  @override
+  String get enterDatabaseName => 'Datenbanknamen eingeben';
+
+  @override
+  String get invalidDatabaseName =>
+      'Ungültiger Name. Verwenden Sie nur Buchstaben, Zahlen, Unterstriche und Bindestriche (max. 50 Zeichen).';
+
+  @override
+  String get databaseExists =>
+      'Eine Datenbank mit diesem Namen existiert bereits.';
+
+  @override
+  String get creatingDatabase => 'Datenbank wird erstellt...';
+
+  @override
+  String get databaseCreated => 'Datenbank erfolgreich erstellt';
+
+  @override
+  String get renameDatabase => 'Datenbank umbenennen';
+
+  @override
+  String get renamingDatabase => 'Datenbank wird umbenannt...';
+
+  @override
+  String get databaseRenamed => 'Datenbank erfolgreich umbenannt';
+
+  @override
+  String get switchingDatabase => 'Datenbank wird gewechselt...';
+
+  @override
+  String get availableDatabases => 'Verfügbare Datenbanken';
+
+  @override
+  String get noDatabases => 'Keine Datenbanken gefunden';
+
+  @override
+  String get databaseOptions => 'Datenbankoptionen';
+
+  @override
+  String get switchTo => 'Zu dieser Datenbank wechseln';
+
+  @override
+  String deleteDatabaseConfirm(String name) {
+    return 'Möchten Sie die Datenbank \"$name\" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.';
+  }
+
+  @override
+  String get cannotDeleteActive =>
+      'Die aktuell aktive Datenbank kann nicht gelöscht werden. Bitte wechseln Sie zuerst zu einer anderen Datenbank.';
+
+  @override
+  String get databaseDeleted => 'Datenbank gelöscht';
+
+  @override
+  String get findInNote => 'In Notiz suchen';
+
+  @override
+  String get replaceWith => 'Ersetzen durch';
+
+  @override
+  String get replaceOne => 'Ersetzen';
+
+  @override
+  String get replaceAll => 'Alle';
+
+  @override
+  String replacedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Treffer ersetzt',
+      one: '1 Treffer ersetzt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get matchCase => 'Groß-/Kleinschreibung';
+
+  @override
+  String get wholeWord => 'Ganzes Wort';
+
+  @override
+  String get useRegex => 'Regex verwenden';
+
+  @override
+  String get findAndReplace => 'Suchen & Ersetzen';
+
+  @override
+  String get options => 'Optionen';
+
+  @override
+  String get previous => 'Zurück';
+
+  @override
+  String get next => 'Weiter';
+
+  @override
+  String get close => 'Schließen';
 }

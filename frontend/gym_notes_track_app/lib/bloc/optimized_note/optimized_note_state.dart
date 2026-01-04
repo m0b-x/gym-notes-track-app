@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../models/note_metadata.dart';
-import '../../services/search_service.dart';
+import '../../services/folder_search_service.dart';
 
 /// Sealed state class for OptimizedNoteBloc with exhaustiveness checking
 sealed class OptimizedNoteState extends Equatable {

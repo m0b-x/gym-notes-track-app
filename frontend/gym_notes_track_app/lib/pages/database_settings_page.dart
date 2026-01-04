@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 import '../database/database.dart';
+import '../services/database_manager.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/custom_snackbar.dart';
 import '../widgets/gradient_app_bar.dart';
@@ -23,6 +23,10 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
   DateTime? _lastModified;
   bool _isLoading = true;
 
+  // Database management
+  String _activeDatabaseName = '';
+  List<DatabaseInfo> _availableDatabases = [];
+
   @override
   void initState() {
     super.initState();
@@ -33,8 +37,11 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
     setState(() => _isLoading = true);
 
     try {
-      final dbFolder = await getApplicationDocumentsDirectory();
-      final dbPath = p.join(dbFolder.path, 'gym_notes', 'gym_notes.db');
+      final dbManager = await DatabaseManager.getInstance();
+      _activeDatabaseName = dbManager.getActiveDatabaseName();
+      _availableDatabases = await dbManager.listDatabases();
+
+      final dbPath = await dbManager.getDatabasePath(_activeDatabaseName);
       final dbFile = File(dbPath);
 
       if (await dbFile.exists()) {
@@ -92,160 +99,18 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  // Database location card
-                  _buildInfoCard(
-                    context: context,
-                    colorScheme: colorScheme,
-                    icon: Icons.folder_rounded,
-                    title: AppLocalizations.of(context)!.databaseLocation,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: SelectableText(
-                            _databasePath ?? 'Unknown',
-                            style: TextStyle(
-                              fontFamily: 'monospace',
-                              fontSize: 12,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: FilledButton.tonalIcon(
-                                onPressed: () => _copyPath(context),
-                                icon: const Icon(Icons.copy_rounded, size: 18),
-                                label: Text(
-                                  AppLocalizations.of(context)!.copyPath,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: FilledButton.tonalIcon(
-                                onPressed: () => _openInFinder(context),
-                                icon: const Icon(
-                                  Icons.folder_open_rounded,
-                                  size: 18,
-                                ),
-                                label: Text(
-                                  AppLocalizations.of(context)!.openInFinder,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                  // Database Selection (combines active + available)
+                  _buildDatabaseSelectionCard(context, colorScheme),
 
                   const SizedBox(height: 16),
 
-                  // Database stats card
-                  _buildInfoCard(
-                    context: context,
-                    colorScheme: colorScheme,
-                    icon: Icons.analytics_rounded,
-                    title: AppLocalizations.of(context)!.databaseStats,
-                    child: Column(
-                      children: [
-                        _buildStatRow(
-                          context: context,
-                          colorScheme: colorScheme,
-                          icon: Icons.storage_rounded,
-                          label: AppLocalizations.of(context)!.size,
-                          value: _databaseSizeBytes != null
-                              ? _formatFileSize(_databaseSizeBytes!)
-                              : 'N/A',
-                        ),
-                        const Divider(height: 24),
-                        _buildStatRow(
-                          context: context,
-                          colorScheme: colorScheme,
-                          icon: Icons.update_rounded,
-                          label: AppLocalizations.of(context)!.lastModified,
-                          value: _lastModified != null
-                              ? _formatDate(_lastModified!)
-                              : 'N/A',
-                        ),
-                      ],
-                    ),
-                  ),
+                  // Database Details (location + stats combined)
+                  _buildDatabaseDetailsCard(context, colorScheme),
 
                   const SizedBox(height: 16),
 
-                  // Maintenance card
-                  _buildInfoCard(
-                    context: context,
-                    colorScheme: colorScheme,
-                    icon: Icons.build_rounded,
-                    title: AppLocalizations.of(context)!.maintenance,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          AppLocalizations.of(context)!.maintenanceDesc,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: () => _optimizeDatabase(context),
-                            icon: const Icon(Icons.speed_rounded, size: 18),
-                            label: Text(
-                              AppLocalizations.of(context)!.optimizeDatabase,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Share database card
-                  _buildInfoCard(
-                    context: context,
-                    colorScheme: colorScheme,
-                    icon: Icons.share_rounded,
-                    title: AppLocalizations.of(context)!.shareDatabase,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          AppLocalizations.of(context)!.shareDatabaseDesc,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.tonalIcon(
-                            onPressed: () => _shareDatabase(context),
-                            icon: const Icon(Icons.share_rounded, size: 18),
-                            label: Text(
-                              AppLocalizations.of(context)!.shareDatabase,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  // Actions section (Maintenance + Share)
+                  _buildActionsCard(context, colorScheme),
 
                   const SizedBox(height: 16),
 
@@ -257,13 +122,111 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
     );
   }
 
-  Widget _buildInfoCard({
-    required BuildContext context,
-    required ColorScheme colorScheme,
-    required IconData icon,
-    required String title,
-    required Widget child,
-  }) {
+  Widget _buildDatabaseSelectionCard(
+    BuildContext context,
+    ColorScheme colorScheme,
+  ) {
+    return Card(
+      elevation: 0,
+      color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.3)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.storage_rounded,
+                    size: 20,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    AppLocalizations.of(context)!.availableDatabases,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              AppLocalizations.of(context)!.activeDatabaseDesc,
+              style: TextStyle(
+                fontSize: 13,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Database list (scrollable, max 3 visible)
+            if (_availableDatabases.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Text(
+                    AppLocalizations.of(context)!.noDatabases,
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxHeight: 240, // ~3 items (80px each with margin)
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _availableDatabases.length,
+                  itemBuilder: (context, index) => _buildDatabaseItem(
+                    context,
+                    colorScheme,
+                    _availableDatabases[index],
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 8),
+
+            // Create new database button
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: () => _showCreateDatabaseDialog(context),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: Text(AppLocalizations.of(context)!.createNewDatabase),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDatabaseDetailsCard(
+    BuildContext context,
+    ColorScheme colorScheme,
+  ) {
     return Card(
       elevation: 0,
       color: colorScheme.surfaceContainer,
@@ -273,6 +236,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header
             Row(
               children: [
                 Container(
@@ -281,11 +245,15 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
                     color: colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, size: 20, color: colorScheme.primary),
+                  child: Icon(
+                    Icons.info_outline_rounded,
+                    size: 20,
+                    color: colorScheme.primary,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  title,
+                  AppLocalizations.of(context)!.databaseStats,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -295,11 +263,553 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
               ],
             ),
             const SizedBox(height: 16),
-            child,
+
+            // Stats rows
+            _buildStatRow(
+              context: context,
+              colorScheme: colorScheme,
+              icon: Icons.storage_rounded,
+              label: AppLocalizations.of(context)!.size,
+              value: _databaseSizeBytes != null
+                  ? _formatFileSize(_databaseSizeBytes!)
+                  : 'N/A',
+            ),
+            const Divider(height: 24),
+            _buildStatRow(
+              context: context,
+              colorScheme: colorScheme,
+              icon: Icons.update_rounded,
+              label: AppLocalizations.of(context)!.lastModified,
+              value: _lastModified != null
+                  ? _formatDate(_lastModified!)
+                  : 'N/A',
+            ),
+            const Divider(height: 24),
+
+            // Location
+            Text(
+              AppLocalizations.of(context)!.databaseLocation,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: SelectableText(
+                _databasePath ?? 'Unknown',
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: () => _copyPath(context),
+                    icon: const Icon(Icons.copy_rounded, size: 18),
+                    label: Text(AppLocalizations.of(context)!.copyPath),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: () => _openInFinder(context),
+                    icon: const Icon(Icons.folder_open_rounded, size: 18),
+                    label: Text(AppLocalizations.of(context)!.openInFinder),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildActionsCard(BuildContext context, ColorScheme colorScheme) {
+    return Card(
+      elevation: 0,
+      color: colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.build_rounded,
+                    size: 20,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  AppLocalizations.of(context)!.maintenance,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              AppLocalizations.of(context)!.maintenanceDesc,
+              style: TextStyle(
+                fontSize: 13,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Optimize button
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _optimizeDatabase(context),
+                icon: const Icon(Icons.speed_rounded, size: 18),
+                label: Text(AppLocalizations.of(context)!.optimizeDatabase),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Share button
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: () => _shareDatabase(context),
+                icon: const Icon(Icons.share_rounded, size: 18),
+                label: Text(AppLocalizations.of(context)!.shareDatabase),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDatabaseItem(
+    BuildContext context,
+    ColorScheme colorScheme,
+    DatabaseInfo db,
+  ) {
+    final isActive = db.name == _activeDatabaseName;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isActive
+            ? colorScheme.primaryContainer.withValues(alpha: 0.3)
+            : colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: isActive
+            ? Border.all(color: colorScheme.primary.withValues(alpha: 0.5))
+            : null,
+      ),
+      child: ListTile(
+        leading: Icon(
+          isActive ? Icons.dataset_rounded : Icons.dataset_outlined,
+          color: isActive ? colorScheme.primary : colorScheme.onSurfaceVariant,
+        ),
+        title: Text(
+          db.name,
+          style: TextStyle(
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+            color: isActive ? colorScheme.primary : colorScheme.onSurface,
+          ),
+        ),
+        subtitle: Text(
+          '${_formatFileSize(db.size)} • ${_formatDate(db.lastModified)}',
+          style: TextStyle(fontSize: 12),
+        ),
+        trailing: PopupMenuButton<String>(
+          icon: Icon(Icons.more_vert, size: 20),
+          onSelected: (value) {
+            switch (value) {
+              case 'switch':
+                if (!isActive) _switchDatabase(context, db.name);
+                break;
+              case 'rename':
+                _showRenameDatabaseDialog(context, db.name);
+                break;
+              case 'delete':
+                if (isActive) {
+                  CustomSnackbar.showError(
+                    context,
+                    AppLocalizations.of(context)!.cannotDeleteActive,
+                  );
+                } else {
+                  _showDeleteDatabaseDialog(context, db.name);
+                }
+                break;
+            }
+          },
+          itemBuilder: (context) => [
+            if (!isActive)
+              PopupMenuItem(
+                value: 'switch',
+                child: Row(
+                  children: [
+                    Icon(Icons.swap_horiz_rounded, size: 20),
+                    SizedBox(width: 12),
+                    Text(AppLocalizations.of(context)!.switchTo),
+                  ],
+                ),
+              ),
+            PopupMenuItem(
+              value: 'rename',
+              child: Row(
+                children: [
+                  Icon(Icons.edit_rounded, size: 20),
+                  SizedBox(width: 12),
+                  Text(AppLocalizations.of(context)!.rename),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'delete',
+              enabled: !isActive,
+              child: Row(
+                children: [
+                  Icon(Icons.delete_rounded, size: 20),
+                  SizedBox(width: 12),
+                  Text(AppLocalizations.of(context)!.delete),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCreateDatabaseDialog(BuildContext context) {
+    final controller = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppLocalizations.of(context)!.createNewDatabase),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.newDatabaseName,
+            hintText: AppLocalizations.of(context)!.enterDatabaseName,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(AppLocalizations.of(context)!.cancel),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final name = controller.text.trim();
+              Navigator.pop(dialogContext);
+              await _createDatabase(context, name);
+            },
+            child: Text(AppLocalizations.of(context)!.create),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _createDatabase(BuildContext context, String name) async {
+    final dbManager = await DatabaseManager.getInstance();
+
+    if (!dbManager.isValidDatabaseName(name)) {
+      if (!mounted) return;
+      CustomSnackbar.showError(
+        this.context,
+        AppLocalizations.of(this.context)!.invalidDatabaseName,
+      );
+      return;
+    }
+
+    if (await dbManager.databaseExists(name)) {
+      if (!mounted) return;
+      CustomSnackbar.showError(
+        this.context,
+        AppLocalizations.of(this.context)!.databaseExists,
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    showDialog(
+      context: this.context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Text(AppLocalizations.of(dialogContext)!.creatingDatabase),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      await dbManager.createDatabase(name);
+
+      if (!mounted) return;
+      Navigator.pop(this.context);
+
+      await _loadDatabaseInfo();
+
+      if (!mounted) return;
+      CustomSnackbar.showSuccess(
+        this.context,
+        AppLocalizations.of(this.context)!.databaseCreated,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(this.context);
+
+      CustomSnackbar.showError(
+        this.context,
+        '${AppLocalizations.of(this.context)!.error}: $e',
+      );
+    }
+  }
+
+  void _showRenameDatabaseDialog(BuildContext context, String oldName) {
+    final controller = TextEditingController(text: oldName);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppLocalizations.of(context)!.renameDatabase),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.newDatabaseName,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(AppLocalizations.of(context)!.cancel),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final newName = controller.text.trim();
+              Navigator.pop(dialogContext);
+              await _renameDatabase(context, oldName, newName);
+            },
+            child: Text(AppLocalizations.of(context)!.rename),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _renameDatabase(
+    BuildContext context,
+    String oldName,
+    String newName,
+  ) async {
+    if (oldName == newName) return;
+
+    final dbManager = await DatabaseManager.getInstance();
+
+    if (!dbManager.isValidDatabaseName(newName)) {
+      if (!mounted) return;
+      CustomSnackbar.showError(
+        this.context,
+        AppLocalizations.of(this.context)!.invalidDatabaseName,
+      );
+      return;
+    }
+
+    if (await dbManager.databaseExists(newName)) {
+      if (!mounted) return;
+      CustomSnackbar.showError(
+        this.context,
+        AppLocalizations.of(this.context)!.databaseExists,
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    showDialog(
+      context: this.context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Text(AppLocalizations.of(dialogContext)!.renamingDatabase),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      await dbManager.renameDatabase(oldName, newName);
+
+      if (!mounted) return;
+      Navigator.pop(this.context);
+
+      await _loadDatabaseInfo();
+
+      if (!mounted) return;
+      CustomSnackbar.showSuccess(
+        this.context,
+        AppLocalizations.of(this.context)!.databaseRenamed,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(this.context);
+
+      CustomSnackbar.showError(
+        this.context,
+        '${AppLocalizations.of(this.context)!.error}: $e',
+      );
+    }
+  }
+
+  void _showDeleteDatabaseDialog(BuildContext context, String name) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: Icon(
+          Icons.warning_rounded,
+          size: 48,
+          color: Theme.of(dialogContext).colorScheme.error,
+        ),
+        title: Text(AppLocalizations.of(context)!.delete),
+        content: Text(
+          AppLocalizations.of(context)!.deleteDatabaseConfirm(name),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(AppLocalizations.of(context)!.cancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await _deleteDatabase(context, name);
+            },
+            child: Text(AppLocalizations.of(context)!.delete),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteDatabase(BuildContext context, String name) async {
+    final dbManager = await DatabaseManager.getInstance();
+
+    try {
+      await dbManager.deleteDatabase(name);
+
+      if (!mounted) return;
+      await _loadDatabaseInfo();
+
+      if (!mounted) return;
+      CustomSnackbar.showSuccess(
+        this.context,
+        AppLocalizations.of(this.context)!.databaseDeleted,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackbar.showError(
+        this.context,
+        '${AppLocalizations.of(this.context)!.error}: $e',
+      );
+    }
+  }
+
+  Future<void> _switchDatabase(
+    BuildContext context,
+    String databaseName,
+  ) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Text(AppLocalizations.of(dialogContext)!.switchingDatabase),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final dbManager = await DatabaseManager.getInstance();
+      await dbManager.setActiveDatabaseName(databaseName);
+
+      if (!mounted) return;
+      Navigator.pop(this.context);
+
+      // Show restart dialog
+      await showDialog(
+        context: this.context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          icon: Icon(
+            Icons.restart_alt_rounded,
+            size: 48,
+            color: Theme.of(dialogContext).colorScheme.primary,
+          ),
+          title: Text(AppLocalizations.of(dialogContext)!.restartRequired),
+          content: Text(AppLocalizations.of(dialogContext)!.restartRequired),
+          actions: [
+            FilledButton(
+              onPressed: () {
+                SystemNavigator.pop();
+              },
+              child: Text(AppLocalizations.of(dialogContext)!.exitApp),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(this.context);
+
+      CustomSnackbar.showError(
+        this.context,
+        '${AppLocalizations.of(this.context)!.error}: $e',
+      );
+    }
   }
 
   Widget _buildStatRow({

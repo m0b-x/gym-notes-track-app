@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
+import '../services/database_manager.dart';
 
 import 'tables/folders_table.dart';
 import 'tables/notes_table.dart';
@@ -27,6 +28,7 @@ part 'database.g.dart';
 )
 class AppDatabase extends _$AppDatabase {
   static AppDatabase? _instance;
+  static String? _currentDatabaseName;
 
   final String _deviceId;
   late final HybridLogicalClock hlc;
@@ -35,11 +37,22 @@ class AppDatabase extends _$AppDatabase {
     hlc = HybridLogicalClock(nodeId: _deviceId);
   }
 
-  static Future<AppDatabase> getInstance() async {
+  static Future<AppDatabase> getInstance({String? databaseName}) async {
+    final dbManager = await DatabaseManager.getInstance();
+    final activeName = databaseName ?? dbManager.getActiveDatabaseName();
+
+    // If instance exists and we're requesting a different database, close current one
+    if (_instance != null && _currentDatabaseName != activeName) {
+      await _instance!.close();
+      _instance = null;
+      _currentDatabaseName = null;
+    }
+
     if (_instance != null) return _instance!;
 
     final deviceId = await _getOrCreateDeviceId();
-    _instance = AppDatabase._internal(_openConnection(), deviceId);
+    _instance = AppDatabase._internal(_openConnection(activeName), deviceId);
+    _currentDatabaseName = activeName;
     return _instance!;
   }
 
@@ -111,10 +124,11 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
-LazyDatabase _openConnection() {
+LazyDatabase _openConnection(String databaseName) {
   return LazyDatabase(() async {
-    final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'gym_notes', 'gym_notes.db'));
+    final dbManager = await DatabaseManager.getInstance();
+    final dbPath = await dbManager.getDatabasePath(databaseName);
+    final file = File(dbPath);
     await file.parent.create(recursive: true);
     return NativeDatabase.createInBackground(
       file,

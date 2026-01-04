@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
+import '../services/note_search_service.dart';
 
-/// Represents a single search match in the text
 class SearchMatch {
   final int start;
   final int end;
@@ -15,221 +15,216 @@ class SearchMatch {
   int get length => end - start;
 }
 
-/// Efficient search controller for note content
-/// Supports case-insensitive search, match navigation, and regex
-class NoteSearchController extends ChangeNotifier {
-  String _query = '';
-  String _content = '';
-  List<SearchMatch> _matches = [];
-  int _currentMatchIndex = -1;
-  bool _caseSensitive = false;
-  bool _useRegex = false;
-  bool _isSearching = false;
+sealed class ReplaceResultState {
+  const ReplaceResultState();
+}
 
-  // Getters
-  String get query => _query;
-  List<SearchMatch> get matches => _matches;
+final class ReplaceSuccessState extends ReplaceResultState {
+  final String newContent;
+  final int replacementCount;
+  final int cursorPosition;
+
+  const ReplaceSuccessState({
+    required this.newContent,
+    required this.replacementCount,
+    required this.cursorPosition,
+  });
+}
+
+final class ReplaceFailureState extends ReplaceResultState {
+  final String reason;
+
+  const ReplaceFailureState(this.reason);
+}
+
+class NoteSearchController extends ChangeNotifier {
+  final NoteSearchService _searchService = NoteSearchService();
+
+  String _replacement = '';
+  int _currentMatchIndex = -1;
+  bool _isSearching = false;
+  bool _showReplace = false;
+  int _lastReplacementCount = 0;
+
+  String get query => _searchService.query;
+  String get replacement => _replacement;
+  List<SearchMatch> get matches => _searchService.matches
+      .map(
+        (m) =>
+            SearchMatch(start: m.start, end: m.end, lineNumber: m.lineNumber),
+      )
+      .toList();
   int get currentMatchIndex => _currentMatchIndex;
-  int get matchCount => _matches.length;
-  bool get hasMatches => _matches.isNotEmpty;
-  bool get caseSensitive => _caseSensitive;
-  bool get useRegex => _useRegex;
+  int get matchCount => _searchService.matchCount;
+  bool get hasMatches => _searchService.hasMatches;
+  bool get caseSensitive => _searchService.caseSensitive;
+  bool get useRegex => _searchService.useRegex;
+  bool get wholeWord => _searchService.wholeWord;
   bool get isSearching => _isSearching;
+  bool get showReplace => _showReplace;
+  int get lastReplacementCount => _lastReplacementCount;
 
   SearchMatch? get currentMatch {
-    if (_currentMatchIndex >= 0 && _currentMatchIndex < _matches.length) {
-      return _matches[_currentMatchIndex];
+    if (_currentMatchIndex >= 0 && _currentMatchIndex < matchCount) {
+      final m = _searchService.getMatchAt(_currentMatchIndex);
+      if (m != null) {
+        return SearchMatch(
+          start: m.start,
+          end: m.end,
+          lineNumber: m.lineNumber,
+        );
+      }
     }
     return null;
   }
 
-  /// Updates the content to search in
   void updateContent(String content) {
-    if (_content != content) {
-      _content = content;
-      if (_query.isNotEmpty) {
-        _performSearch();
-      }
-    }
+    _searchService.updateContent(content);
+    _adjustCurrentMatchIndex();
+    notifyListeners();
   }
 
-  /// Sets the search query and performs search
   void search(String query) {
-    _query = query;
-    _performSearch();
+    _searchService.updateQuery(query);
+    _currentMatchIndex = _searchService.hasMatches ? 0 : -1;
+    notifyListeners();
   }
 
-  /// Toggles case sensitivity
+  void updateReplacement(String replacement) {
+    _replacement = replacement;
+  }
+
   void toggleCaseSensitive() {
-    _caseSensitive = !_caseSensitive;
-    if (_query.isNotEmpty) {
-      _performSearch();
-    }
+    _searchService.setCaseSensitive(!_searchService.caseSensitive);
+    _adjustCurrentMatchIndex();
     notifyListeners();
   }
 
-  /// Toggles regex mode
   void toggleRegex() {
-    _useRegex = !_useRegex;
-    if (_query.isNotEmpty) {
-      _performSearch();
-    }
+    _searchService.setUseRegex(!_searchService.useRegex);
+    _adjustCurrentMatchIndex();
     notifyListeners();
   }
 
-  /// Opens the search UI
+  void toggleWholeWord() {
+    _searchService.setWholeWord(!_searchService.wholeWord);
+    _adjustCurrentMatchIndex();
+    notifyListeners();
+  }
+
+  void toggleShowReplace() {
+    _showReplace = !_showReplace;
+    notifyListeners();
+  }
+
   void openSearch() {
     _isSearching = true;
+    _lastReplacementCount = 0;
     notifyListeners();
   }
 
-  /// Closes the search UI and clears results
   void closeSearch() {
     _isSearching = false;
-    _query = '';
-    _matches = [];
+    _showReplace = false;
+    _replacement = '';
     _currentMatchIndex = -1;
+    _lastReplacementCount = 0;
+    _searchService.clearMatches();
     notifyListeners();
   }
 
-  /// Navigates to the next match
   void nextMatch() {
-    if (_matches.isEmpty) return;
-
-    _currentMatchIndex = (_currentMatchIndex + 1) % _matches.length;
+    if (!hasMatches) return;
+    _currentMatchIndex = (_currentMatchIndex + 1) % matchCount;
     notifyListeners();
   }
 
-  /// Navigates to the previous match
   void previousMatch() {
-    if (_matches.isEmpty) return;
-
-    _currentMatchIndex =
-        (_currentMatchIndex - 1 + _matches.length) % _matches.length;
+    if (!hasMatches) return;
+    _currentMatchIndex = (_currentMatchIndex - 1 + matchCount) % matchCount;
     notifyListeners();
   }
 
-  /// Jumps to a specific match by index
   void goToMatch(int index) {
-    if (index >= 0 && index < _matches.length) {
+    if (index >= 0 && index < matchCount) {
       _currentMatchIndex = index;
       notifyListeners();
     }
   }
 
-  /// Performs the actual search
-  void _performSearch() {
-    _matches = [];
-    _currentMatchIndex = -1;
-
-    if (_query.isEmpty || _content.isEmpty) {
-      notifyListeners();
-      return;
-    }
-
-    try {
-      final Pattern pattern;
-      if (_useRegex) {
-        pattern = RegExp(
-          _query,
-          caseSensitive: _caseSensitive,
-          multiLine: true,
-        );
-      } else {
-        // Escape special regex characters for literal search
-        final escaped = RegExp.escape(_query);
-        pattern = RegExp(escaped, caseSensitive: _caseSensitive);
-      }
-
-      // Pre-calculate line starts for efficient line number lookup
-      final lineStarts = <int>[0];
-      for (int i = 0; i < _content.length; i++) {
-        if (_content[i] == '\n') {
-          lineStarts.add(i + 1);
-        }
-      }
-
-      // Find all matches
-      final regexMatches = pattern.allMatches(_content);
-
-      for (final match in regexMatches) {
-        // Binary search for line number
-        final lineNumber = _findLineNumber(lineStarts, match.start);
-
-        _matches.add(
-          SearchMatch(
-            start: match.start,
-            end: match.end,
-            lineNumber: lineNumber,
-          ),
-        );
-      }
-
-      // Auto-select first match if any found
-      if (_matches.isNotEmpty) {
+  void _adjustCurrentMatchIndex() {
+    if (_searchService.hasMatches) {
+      if (_currentMatchIndex < 0 || _currentMatchIndex >= matchCount) {
         _currentMatchIndex = 0;
       }
-    } catch (e) {
-      // Invalid regex - clear matches
-      _matches = [];
+    } else {
       _currentMatchIndex = -1;
     }
-
-    notifyListeners();
   }
 
-  /// Binary search to find line number for a given offset
-  int _findLineNumber(List<int> lineStarts, int offset) {
-    int low = 0;
-    int high = lineStarts.length - 1;
-
-    while (low < high) {
-      final mid = (low + high + 1) ~/ 2;
-      if (lineStarts[mid] <= offset) {
-        low = mid;
-      } else {
-        high = mid - 1;
-      }
+  ReplaceResultState replaceCurrent() {
+    if (!hasMatches || _currentMatchIndex < 0) {
+      return const ReplaceFailureState('No match selected');
     }
 
-    return low;
+    _searchService.updateReplacement(_replacement);
+    final result = _searchService.replaceSingle(_currentMatchIndex);
+
+    switch (result) {
+      case ReplaceSuccess(:final newContent, :final cursorPosition):
+        _lastReplacementCount = 1;
+        return ReplaceSuccessState(
+          newContent: newContent,
+          replacementCount: 1,
+          cursorPosition: cursorPosition,
+        );
+      case ReplaceFailure(:final reason):
+        return ReplaceFailureState(reason);
+    }
   }
 
-  /// Replace current match with replacement text
-  /// Returns the new content if successful, null otherwise
+  ReplaceResultState replaceAll() {
+    if (!hasMatches) {
+      return const ReplaceFailureState('No matches to replace');
+    }
+
+    _searchService.updateReplacement(_replacement);
+    final result = _searchService.replaceAll();
+
+    switch (result) {
+      case ReplaceSuccess(:final newContent, :final replacementCount):
+        _lastReplacementCount = replacementCount;
+        return ReplaceSuccessState(
+          newContent: newContent,
+          replacementCount: replacementCount,
+          cursorPosition: 0,
+        );
+      case ReplaceFailure(:final reason):
+        return ReplaceFailureState(reason);
+    }
+  }
+
   String? replaceCurrentMatch(String replacement) {
-    final match = currentMatch;
-    if (match == null) return null;
-
-    final newContent =
-        _content.substring(0, match.start) +
-        replacement +
-        _content.substring(match.end);
-
-    return newContent;
+    _replacement = replacement;
+    final result = replaceCurrent();
+    if (result is ReplaceSuccessState) {
+      return result.newContent;
+    }
+    return null;
   }
 
-  /// Replace all matches with replacement text
-  /// Returns the new content
   String replaceAllMatches(String replacement) {
-    if (_matches.isEmpty) return _content;
-
-    final buffer = StringBuffer();
-    int lastEnd = 0;
-
-    for (final match in _matches) {
-      buffer.write(_content.substring(lastEnd, match.start));
-      buffer.write(replacement);
-      lastEnd = match.end;
+    _replacement = replacement;
+    final result = replaceAll();
+    if (result is ReplaceSuccessState) {
+      return result.newContent;
     }
-
-    buffer.write(_content.substring(lastEnd));
-    return buffer.toString();
+    return _searchService.content;
   }
 
   @override
   void dispose() {
-    _matches = [];
+    _searchService.clear();
     super.dispose();
   }
 }
