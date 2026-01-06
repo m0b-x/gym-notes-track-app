@@ -92,13 +92,15 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
         title: Text(AppLocalizations.of(context)!.databaseSettings),
         gradientStyle: GradientStyle.drawer,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadDatabaseInfo,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
+      body: SafeArea(
+        top: false,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: _loadDatabaseInfo,
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
                   // Database Selection (combines active + available)
                   _buildDatabaseSelectionCard(context, colorScheme),
 
@@ -119,6 +121,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
                 ],
               ),
             ),
+      ),
     );
   }
 

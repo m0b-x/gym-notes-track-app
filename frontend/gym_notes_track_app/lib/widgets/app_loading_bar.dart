@@ -67,11 +67,14 @@ class LoadingScaffold extends StatelessWidget {
       drawer: drawer,
       extendBodyBehindAppBar: extendBodyBehindAppBar,
       resizeToAvoidBottomInset: resizeToAvoidBottomInset,
-      body: Column(
-        children: [
-          const AppLoadingBar(),
-          Expanded(child: body),
-        ],
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            const AppLoadingBar(),
+            Expanded(child: body),
+          ],
+        ),
       ),
     );
   }

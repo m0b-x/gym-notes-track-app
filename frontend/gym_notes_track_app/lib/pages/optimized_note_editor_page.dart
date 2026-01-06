@@ -504,33 +504,41 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                       ),
                     ),
                     RepaintBoundary(
-                      child: MarkdownToolbar(
-                        shortcuts: _allShortcuts,
-                        isPreviewMode: _isPreviewMode,
-                        canUndo: _textHistory?.canUndo ?? false,
-                        canRedo: _textHistory?.canRedo ?? false,
-                        previewFontSize: _previewFontSize,
-                        onUndo: () => _textHistory?.undo(),
-                        onRedo: () => _textHistory?.redo(),
-                        onDecreaseFontSize: () {
-                          setState(() {
-                            _previewFontSize = (_previewFontSize - 2).clamp(
-                              10.0,
-                              30.0,
-                            );
-                          });
-                        },
-                        onIncreaseFontSize: () {
-                          setState(() {
-                            _previewFontSize = (_previewFontSize + 2).clamp(
-                              10.0,
-                              30.0,
-                            );
-                          });
-                        },
-                        onSettings: _openMarkdownSettings,
-                        onShortcutPressed: _handleShortcut,
-                        onReorderComplete: _handleReorderComplete,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          MarkdownToolbar(
+                            shortcuts: _allShortcuts,
+                            isPreviewMode: _isPreviewMode,
+                            canUndo: _textHistory?.canUndo ?? false,
+                            canRedo: _textHistory?.canRedo ?? false,
+                            previewFontSize: _previewFontSize,
+                            onUndo: () => _textHistory?.undo(),
+                            onRedo: () => _textHistory?.redo(),
+                            onDecreaseFontSize: () {
+                              setState(() {
+                                _previewFontSize = (_previewFontSize - 2).clamp(
+                                  10.0,
+                                  30.0,
+                                );
+                              });
+                            },
+                            onIncreaseFontSize: () {
+                              setState(() {
+                                _previewFontSize = (_previewFontSize + 2).clamp(
+                                  10.0,
+                                  30.0,
+                                );
+                              });
+                            },
+                            onSettings: _openMarkdownSettings,
+                            onShortcutPressed: _handleShortcut,
+                            onReorderComplete: _handleReorderComplete,
+                          ),
+                          SizedBox(
+                            height: MediaQuery.of(context).padding.bottom,
+                          ),
+                        ],
                       ),
                     ),
                   ],

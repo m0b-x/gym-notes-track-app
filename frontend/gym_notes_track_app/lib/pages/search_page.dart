@@ -94,7 +94,9 @@ class _SearchPageState extends State<SearchPage> {
             ),
         ],
       ),
-      body: BlocBuilder<OptimizedNoteBloc, OptimizedNoteState>(
+      body: SafeArea(
+        top: false,
+        child: BlocBuilder<OptimizedNoteBloc, OptimizedNoteState>(
         builder: (context, state) {
           if (state is OptimizedNoteSearchResults) {
             if (state.isSearching) {
@@ -197,6 +199,7 @@ class _SearchPageState extends State<SearchPage> {
             ),
           );
         },
+      ),
       ),
     );
   }

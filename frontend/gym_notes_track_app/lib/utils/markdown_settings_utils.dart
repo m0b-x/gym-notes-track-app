@@ -176,10 +176,18 @@ class MarkdownSettingsUtils {
       case 'header':
         return AppLocalizations.of(context)!.opensHeaderMenu;
       default:
-        return AppLocalizations.of(
-          context,
-        )!.beforeAfterText(shortcut.beforeText, shortcut.afterText);
+        final before = _truncateText(shortcut.beforeText, 15);
+        final after = _truncateText(shortcut.afterText, 15);
+        return AppLocalizations.of(context)!.beforeAfterText(before, after);
     }
+  }
+
+  static String _truncateText(String text, int maxLength) {
+    final escaped = text.replaceAll('\n', '↵').replaceAll('\t', '→');
+    if (escaped.length <= maxLength) {
+      return escaped;
+    }
+    return '${escaped.substring(0, maxLength)}…';
   }
 
   static Future<List<CustomMarkdownShortcut>> loadShortcuts() async {

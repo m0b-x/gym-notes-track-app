@@ -64,11 +64,13 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
         title: Text(l10n.controlsSettings),
         gradientStyle: GradientStyle.drawer,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
+      body: SafeArea(
+        top: false,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
                 // Gestures section
                 _buildSectionCard(
                   context: context,
@@ -216,6 +218,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
                 ),
               ],
             ),
+      ),
     );
   }
 
