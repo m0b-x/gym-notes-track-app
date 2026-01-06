@@ -10,6 +10,7 @@ class CustomMarkdownShortcut extends Equatable {
   final bool isDefault;
   final bool isVisible;
   final String insertType;
+  final String? dateFormat;
 
   const CustomMarkdownShortcut({
     required this.id,
@@ -21,6 +22,7 @@ class CustomMarkdownShortcut extends Equatable {
     this.isDefault = false,
     this.isVisible = true,
     this.insertType = 'wrap',
+    this.dateFormat,
   });
 
   Map<String, dynamic> toJson() {
@@ -34,6 +36,7 @@ class CustomMarkdownShortcut extends Equatable {
       'isDefault': isDefault,
       'isVisible': isVisible,
       'insertType': insertType,
+      if (dateFormat != null) 'dateFormat': dateFormat,
     };
   }
 
@@ -48,6 +51,7 @@ class CustomMarkdownShortcut extends Equatable {
       isDefault: json['isDefault'] as bool? ?? false,
       isVisible: json['isVisible'] as bool? ?? true,
       insertType: json['insertType'] as String? ?? 'wrap',
+      dateFormat: json['dateFormat'] as String?,
     );
   }
 
@@ -61,6 +65,7 @@ class CustomMarkdownShortcut extends Equatable {
     bool? isDefault,
     bool? isVisible,
     String? insertType,
+    String? dateFormat,
   }) {
     return CustomMarkdownShortcut(
       id: id ?? this.id,
@@ -72,6 +77,7 @@ class CustomMarkdownShortcut extends Equatable {
       isDefault: isDefault ?? this.isDefault,
       isVisible: isVisible ?? this.isVisible,
       insertType: insertType ?? this.insertType,
+      dateFormat: dateFormat ?? this.dateFormat,
     );
   }
 
@@ -86,5 +92,6 @@ class CustomMarkdownShortcut extends Equatable {
     isDefault,
     isVisible,
     insertType,
+    dateFormat,
   ];
 }

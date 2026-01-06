@@ -153,6 +153,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get markdownShortcuts => 'Markdown Shortcuts';
 
   @override
+  String get markdownShortcutsDesc => 'Customize toolbar buttons and actions';
+
+  @override
   String get resetToDefault => 'Reset to Default';
 
   @override
@@ -555,8 +558,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dataDeleted => 'Data Deleted';
 
   @override
-  String get restartRequired =>
-      'Please restart the app to use the new database.';
+  String get restartRequired => 'Restart may be required for full effect';
 
   @override
   String get exitApp => 'Exit App';
@@ -836,4 +838,52 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get close => 'Close';
+
+  @override
+  String get dateFormatSettings => 'Date Format';
+
+  @override
+  String get selectDateFormat => 'Choose how dates will be displayed:';
+
+  @override
+  String get longPressToChangeFormat => 'Long press to change format';
+
+  @override
+  String get languageSettings => 'Language';
+
+  @override
+  String get languageSettingsDesc => 'Change app display language';
+
+  @override
+  String get selectLanguage => 'Select Language';
+
+  @override
+  String get english => 'English';
+
+  @override
+  String get german => 'German';
+
+  @override
+  String get romanian => 'Romanian';
+
+  @override
+  String get systemDefault => 'System Default';
+
+  @override
+  String get themeSettings => 'Appearance';
+
+  @override
+  String get themeSettingsDesc => 'Dark mode, colors and display';
+
+  @override
+  String get selectTheme => 'Select Theme';
+
+  @override
+  String get lightTheme => 'Light';
+
+  @override
+  String get darkTheme => 'Dark';
+
+  @override
+  String get systemTheme => 'System';
 }

@@ -7,6 +7,7 @@ import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_de.dart';
 import 'app_localizations_en.dart';
+import 'app_localizations_ro.dart';
 
 // ignore_for_file: type=lint
 
@@ -96,6 +97,7 @@ abstract class AppLocalizations {
   static const List<Locale> supportedLocales = <Locale>[
     Locale('de'),
     Locale('en'),
+    Locale('ro'),
   ];
 
   /// The title of the application
@@ -361,6 +363,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Markdown Shortcuts'**
   String get markdownShortcuts;
+
+  /// Markdown shortcuts settings description
+  ///
+  /// In en, this message translates to:
+  /// **'Customize toolbar buttons and actions'**
+  String get markdownShortcutsDesc;
 
   /// Reset to default button text
   ///
@@ -1124,10 +1132,10 @@ abstract class AppLocalizations {
   /// **'Data Deleted'**
   String get dataDeleted;
 
-  /// Message indicating app restart needed
+  /// Hint that restart may be needed
   ///
   /// In en, this message translates to:
-  /// **'Please restart the app to use the new database.'**
+  /// **'Restart may be required for full effect'**
   String get restartRequired;
 
   /// Button to exit the app
@@ -1639,6 +1647,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Close'**
   String get close;
+
+  /// Date format settings dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Date Format'**
+  String get dateFormatSettings;
+
+  /// Date format selection hint
+  ///
+  /// In en, this message translates to:
+  /// **'Choose how dates will be displayed:'**
+  String get selectDateFormat;
+
+  /// Hint for date button long press
+  ///
+  /// In en, this message translates to:
+  /// **'Long press to change format'**
+  String get longPressToChangeFormat;
+
+  /// Language settings menu item
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get languageSettings;
+
+  /// Language settings description
+  ///
+  /// In en, this message translates to:
+  /// **'Change app display language'**
+  String get languageSettingsDesc;
+
+  /// Language selection dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Select Language'**
+  String get selectLanguage;
+
+  /// English language option
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get english;
+
+  /// German language option
+  ///
+  /// In en, this message translates to:
+  /// **'German'**
+  String get german;
+
+  /// Romanian language option
+  ///
+  /// In en, this message translates to:
+  /// **'Romanian'**
+  String get romanian;
+
+  /// System default language option
+  ///
+  /// In en, this message translates to:
+  /// **'System Default'**
+  String get systemDefault;
+
+  /// Theme settings menu item
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get themeSettings;
+
+  /// Theme settings description
+  ///
+  /// In en, this message translates to:
+  /// **'Dark mode, colors and display'**
+  String get themeSettingsDesc;
+
+  /// Theme selection dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Select Theme'**
+  String get selectTheme;
+
+  /// Light theme option
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get lightTheme;
+
+  /// Dark theme option
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get darkTheme;
+
+  /// System theme option
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get systemTheme;
 }
 
 class _AppLocalizationsDelegate
@@ -1652,7 +1756,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['de', 'en'].contains(locale.languageCode);
+      <String>['de', 'en', 'ro'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -1665,6 +1769,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
       return AppLocalizationsDe();
     case 'en':
       return AppLocalizationsEn();
+    case 'ro':
+      return AppLocalizationsRo();
   }
 
   throw FlutterError(

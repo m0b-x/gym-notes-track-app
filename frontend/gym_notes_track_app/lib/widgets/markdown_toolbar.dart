@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
+import 'package:intl/intl.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../l10n/app_localizations.dart';
+import '../services/settings_service.dart';
+import '../factories/shortcut_handler_factory.dart';
+import '../handlers/date_shortcut_handler.dart';
+import '../database/database.dart';
 
 class MarkdownToolbar extends StatefulWidget {
   final List<CustomMarkdownShortcut> shortcuts;
@@ -140,6 +145,9 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
                       widget.onShortcutPressed(shortcut);
                     }
                   },
+                  onLongPress: shortcut.insertType == 'date'
+                      ? () => _showDateFormatDialog(context)
+                      : null,
                 ),
               ),
               const SizedBox(width: 8),
@@ -239,6 +247,14 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
         widget.onShortcutPressed(selected);
       }
     });
+  }
+
+  void _showDateFormatDialog(BuildContext context) {
+    HapticFeedback.mediumImpact();
+    showDialog(
+      context: context,
+      builder: (context) => const _DateFormatDialog(),
+    );
   }
 
   Widget _buildReorderMode(BuildContext context) {
@@ -661,22 +677,54 @@ class _ReorderableShortcutItem extends StatelessWidget {
 class _ShortcutButton extends StatelessWidget {
   final CustomMarkdownShortcut shortcut;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
-  const _ShortcutButton({required this.shortcut, required this.onTap});
+  const _ShortcutButton({
+    required this.shortcut,
+    required this.onTap,
+    this.onLongPress,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final hasSettings = shortcut.insertType == 'date';
+
     return Tooltip(
-      message: shortcut.label,
+      message: hasSettings
+          ? '${shortcut.label} (${AppLocalizations.of(context)!.longPressToChangeFormat})'
+          : shortcut.label,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
+          onLongPress: onLongPress,
           borderRadius: BorderRadius.circular(10),
           child: Container(
             padding: const EdgeInsets.all(14),
             margin: const EdgeInsets.symmetric(horizontal: 3),
-            child: _buildButtonContent(context),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                _buildButtonContent(context),
+                if (hasSettings)
+                  Positioned(
+                    right: -6,
+                    bottom: -6,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.settings,
+                        size: 10,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -759,6 +807,164 @@ class _ToolbarButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DateFormatDialog extends StatefulWidget {
+  const _DateFormatDialog();
+
+  @override
+  State<_DateFormatDialog> createState() => _DateFormatDialogState();
+}
+
+class _DateFormatDialogState extends State<_DateFormatDialog> {
+  String _selectedFormat = SettingsService.defaultDateFormat;
+  bool _isLoading = true;
+
+  static const List<String> _dateFormats = [
+    'MMMM d, yyyy',
+    'MMM d, yyyy',
+    'd MMMM yyyy',
+    'd MMM yyyy',
+    'yyyy-MM-dd',
+    'dd/MM/yyyy',
+    'MM/dd/yyyy',
+    'dd.MM.yyyy',
+    'EEEE, MMMM d, yyyy',
+    'EEE, MMM d, yyyy',
+    'd/M/yy',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentFormat();
+  }
+
+  Future<void> _loadCurrentFormat() async {
+    final db = await AppDatabase.getInstance();
+    final format = await db.userSettingsDao.getValue(
+      SettingsService.dateFormatKey,
+    );
+    if (mounted) {
+      setState(() {
+        _selectedFormat = format ?? SettingsService.defaultDateFormat;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _saveFormat(String format) async {
+    final db = await AppDatabase.getInstance();
+    await db.userSettingsDao.setValue(SettingsService.dateFormatKey, format);
+    final handler = ShortcutHandlerFactory.getHandler('date');
+    if (handler is DateShortcutHandler) {
+      handler.clearCache();
+    }
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final now = DateTime.now();
+
+    return AlertDialog(
+      title: Row(
+        children: [
+          Icon(Icons.today, color: colorScheme.primary),
+          const SizedBox(width: 12),
+          Text(l10n.dateFormatSettings),
+        ],
+      ),
+      content: _isLoading
+          ? const SizedBox(
+              height: 200,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.selectDateFormat,
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _dateFormats.length,
+                      itemBuilder: (context, index) {
+                        final format = _dateFormats[index];
+                        final isSelected = format == _selectedFormat;
+                        final formattedDate = DateFormat(format).format(now);
+
+                        return ListTile(
+                          dense: true,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          selected: isSelected,
+                          selectedTileColor: colorScheme.primaryContainer
+                              .withValues(alpha: 0.3),
+                          leading: Icon(
+                            isSelected
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_off,
+                            color: isSelected
+                                ? colorScheme.primary
+                                : colorScheme.outline,
+                            size: 20,
+                          ),
+                          title: Text(
+                            formattedDate,
+                            style: TextStyle(
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              color: isSelected
+                                  ? colorScheme.primary
+                                  : colorScheme.onSurface,
+                            ),
+                          ),
+                          subtitle: Text(
+                            format,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _selectedFormat = format);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(
+          onPressed: () => _saveFormat(_selectedFormat),
+          child: Text(l10n.save),
+        ),
+      ],
     );
   }
 }

@@ -11,6 +11,7 @@ import '../widgets/markdown_toolbar.dart';
 import '../utils/markdown_settings_utils.dart';
 import '../widgets/interactive_markdown.dart';
 import '../widgets/app_loading_bar.dart';
+import '../services/settings_service.dart';
 
 class MarkdownSettingsPage extends StatefulWidget {
   final List<CustomMarkdownShortcut> allShortcuts;
@@ -407,6 +408,7 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
   late FocusNode _afterFocusNode;
   late IconData _selectedIcon;
   late String _insertType;
+  late String _selectedDateFormat;
   static const int _maxChars = 250;
   List<CustomMarkdownShortcut> _shortcuts = [];
   TextEditingController? _activeController;
@@ -414,6 +416,20 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
   String _previousBeforeText = '';
   String _previousAfterText = '';
   bool _isProcessingTextChange = false;
+
+  static const List<String> _dateFormats = [
+    'MMMM d, yyyy',
+    'MMM d, yyyy',
+    'd MMMM yyyy',
+    'd MMM yyyy',
+    'yyyy-MM-dd',
+    'dd/MM/yyyy',
+    'MM/dd/yyyy',
+    'dd.MM.yyyy',
+    'EEEE, MMMM d, yyyy',
+    'EEE, MMM d, yyyy',
+    'd/M/yy',
+  ];
 
   @override
   void initState() {
@@ -465,6 +481,8 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
           )
         : Icons.tag;
     _insertType = widget.shortcut?.insertType ?? 'wrap';
+    _selectedDateFormat =
+        widget.shortcut?.dateFormat ?? SettingsService.defaultDateFormat;
     _loadShortcuts();
   }
 
@@ -687,6 +705,7 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
       beforeText: _beforeController.text,
       afterText: _afterController.text,
       insertType: _insertType,
+      dateFormat: _insertType == 'date' ? _selectedDateFormat : null,
     );
 
     widget.onSave(shortcut);
@@ -787,7 +806,6 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                         onChanged: (value) {
                           setState(() {
                             _insertType = value ?? 'wrap';
-                            // Clear before/after text when switching to date
                             if (_insertType == 'date') {
                               _beforeController.text = '';
                               _afterController.text = '';
@@ -795,6 +813,80 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                           });
                         },
                       ),
+                      if (_insertType == 'date') ...[
+                        const SizedBox(height: 16),
+                        Text(AppLocalizations.of(context)!.dateFormatSettings),
+                        const SizedBox(height: 8),
+                        Container(
+                          height: 180,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: ListView.separated(
+                            padding: EdgeInsets.zero,
+                            itemCount: _dateFormats.length,
+                            separatorBuilder: (context, index) => Divider(
+                              height: 1,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
+                            ),
+                            itemBuilder: (context, index) {
+                              final format = _dateFormats[index];
+                              final isSelected = format == _selectedDateFormat;
+                              final formattedDate = DateFormat(
+                                format,
+                              ).format(DateTime.now());
+                              return ListTile(
+                                dense: true,
+                                visualDensity: VisualDensity.compact,
+                                selected: isSelected,
+                                selectedTileColor: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer
+                                    .withValues(alpha: 0.3),
+                                leading: Icon(
+                                  isSelected
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_off,
+                                  color: isSelected
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.outline,
+                                  size: 20,
+                                ),
+                                title: Text(
+                                  formattedDate,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                    color: isSelected
+                                        ? Theme.of(context).colorScheme.primary
+                                        : null,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  format,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _selectedDateFormat = format);
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -935,7 +1027,7 @@ class _ShortcutEditorDialogState extends State<_ShortcutEditorDialog> {
                         ),
                         child: InteractiveMarkdown(
                           data: _insertType == 'date'
-                              ? '${_beforeController.text}${DateFormat('MMMM d, yyyy').format(DateTime.now())}${_afterController.text}'
+                              ? '${_beforeController.text}${DateFormat(_selectedDateFormat).format(DateTime.now())}${_afterController.text}'
                               : '${_beforeController.text}text${_afterController.text}',
                           styleSheet: MarkdownStyleSheet(
                             p: const TextStyle(fontSize: 14),

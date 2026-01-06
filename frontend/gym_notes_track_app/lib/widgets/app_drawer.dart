@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/app_settings/app_settings_bloc.dart';
 import '../l10n/app_localizations.dart';
 import '../pages/database_settings_page.dart';
 import '../pages/controls_settings_page.dart';
+import '../pages/markdown_settings_page.dart';
+import '../utils/markdown_settings_utils.dart';
 
 /// Global navigation drawer for app-wide settings
 class AppDrawer extends StatelessWidget {
@@ -56,6 +60,54 @@ class AppDrawer extends StatelessWidget {
                         builder: (_) => const ControlsSettingsPage(),
                       ),
                     );
+                  },
+                ),
+
+                // Markdown shortcuts
+                _buildMenuItem(
+                  context: context,
+                  icon: Icons.text_format_rounded,
+                  title: AppLocalizations.of(context)!.markdownShortcuts,
+                  subtitle: AppLocalizations.of(context)!.markdownShortcutsDesc,
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final shortcuts =
+                        await MarkdownSettingsUtils.loadShortcuts();
+                    if (context.mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              MarkdownSettingsPage(allShortcuts: shortcuts),
+                        ),
+                      );
+                    }
+                  },
+                ),
+
+                const Divider(indent: 16, endIndent: 16),
+
+                // Language settings
+                _buildMenuItem(
+                  context: context,
+                  icon: Icons.language_rounded,
+                  title: AppLocalizations.of(context)!.languageSettings,
+                  subtitle: AppLocalizations.of(context)!.languageSettingsDesc,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showLanguageDialog(context);
+                  },
+                ),
+
+                // Theme settings
+                _buildMenuItem(
+                  context: context,
+                  icon: Icons.palette_rounded,
+                  title: AppLocalizations.of(context)!.themeSettings,
+                  subtitle: AppLocalizations.of(context)!.themeSettingsDesc,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showThemeDialog(context);
                   },
                 ),
 
@@ -241,6 +293,184 @@ class AppDrawer extends StatelessWidget {
           'A powerful note-taking app designed for gym enthusiasts to track workouts and progress.',
         ),
       ],
+    );
+  }
+
+  void _showLanguageDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final settingsBloc = context.read<AppSettingsBloc>();
+    final currentLocale = settingsBloc.state.localeCode;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                Icons.language_rounded,
+                color: Theme.of(dialogContext).colorScheme.primary,
+              ),
+              const SizedBox(width: 12),
+              Text(l10n.selectLanguage),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildLanguageOption(
+                context: dialogContext,
+                title: l10n.systemDefault,
+                subtitle: null,
+                localeCode: null,
+                currentLocale: currentLocale,
+                settingsBloc: settingsBloc,
+              ),
+              _buildLanguageOption(
+                context: dialogContext,
+                title: l10n.english,
+                subtitle: 'English',
+                localeCode: 'en',
+                currentLocale: currentLocale,
+                settingsBloc: settingsBloc,
+              ),
+              _buildLanguageOption(
+                context: dialogContext,
+                title: l10n.german,
+                subtitle: 'Deutsch',
+                localeCode: 'de',
+                currentLocale: currentLocale,
+                settingsBloc: settingsBloc,
+              ),
+              _buildLanguageOption(
+                context: dialogContext,
+                title: l10n.romanian,
+                subtitle: 'Română',
+                localeCode: 'ro',
+                currentLocale: currentLocale,
+                settingsBloc: settingsBloc,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.close),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildLanguageOption({
+    required BuildContext context,
+    required String title,
+    String? subtitle,
+    required String? localeCode,
+    required String? currentLocale,
+    required AppSettingsBloc settingsBloc,
+  }) {
+    final isSelected = localeCode == currentLocale;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ListTile(
+      leading: Icon(
+        isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+        color: isSelected ? colorScheme.primary : colorScheme.outline,
+      ),
+      title: Text(title),
+      subtitle: subtitle != null ? Text(subtitle) : null,
+      onTap: () {
+        settingsBloc.add(ChangeLocale(localeCode));
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  void _showThemeDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final settingsBloc = context.read<AppSettingsBloc>();
+    final currentTheme = settingsBloc.state.themeMode;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                Icons.palette_rounded,
+                color: Theme.of(dialogContext).colorScheme.primary,
+              ),
+              const SizedBox(width: 12),
+              Text(l10n.selectTheme),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildThemeOption(
+                context: dialogContext,
+                title: l10n.systemTheme,
+                icon: Icons.settings_brightness_rounded,
+                themeMode: ThemeMode.system,
+                currentTheme: currentTheme,
+                settingsBloc: settingsBloc,
+              ),
+              _buildThemeOption(
+                context: dialogContext,
+                title: l10n.lightTheme,
+                icon: Icons.light_mode_rounded,
+                themeMode: ThemeMode.light,
+                currentTheme: currentTheme,
+                settingsBloc: settingsBloc,
+              ),
+              _buildThemeOption(
+                context: dialogContext,
+                title: l10n.darkTheme,
+                icon: Icons.dark_mode_rounded,
+                themeMode: ThemeMode.dark,
+                currentTheme: currentTheme,
+                settingsBloc: settingsBloc,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.close),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildThemeOption({
+    required BuildContext context,
+    required String title,
+    required IconData icon,
+    required ThemeMode themeMode,
+    required ThemeMode currentTheme,
+    required AppSettingsBloc settingsBloc,
+  }) {
+    final isSelected = themeMode == currentTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: isSelected ? colorScheme.primary : colorScheme.outline,
+      ),
+      title: Text(title),
+      trailing: isSelected
+          ? Icon(Icons.check_rounded, color: colorScheme.primary)
+          : null,
+      onTap: () {
+        settingsBloc.add(ChangeThemeMode(themeMode));
+        Navigator.pop(context);
+      },
     );
   }
 }

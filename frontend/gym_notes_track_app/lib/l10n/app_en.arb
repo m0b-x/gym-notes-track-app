@@ -208,6 +208,10 @@
   "@markdownShortcuts": {
     "description": "Markdown shortcuts page title"
   },
+  "markdownShortcutsDesc": "Customize toolbar buttons and actions",
+  "@markdownShortcutsDesc": {
+    "description": "Markdown shortcuts settings description"
+  },
   "resetToDefault": "Reset to Default",
   "@resetToDefault": {
     "description": "Reset to default button text"
@@ -1127,5 +1131,73 @@
   "close": "Close",
   "@close": {
     "description": "Close button tooltip"
+  },
+  "dateFormatSettings": "Date Format",
+  "@dateFormatSettings": {
+    "description": "Date format settings dialog title"
+  },
+  "selectDateFormat": "Choose how dates will be displayed:",
+  "@selectDateFormat": {
+    "description": "Date format selection hint"
+  },
+  "longPressToChangeFormat": "Long press to change format",
+  "@longPressToChangeFormat": {
+    "description": "Hint for date button long press"
+  },
+  "languageSettings": "Language",
+  "@languageSettings": {
+    "description": "Language settings menu item"
+  },
+  "languageSettingsDesc": "Change app display language",
+  "@languageSettingsDesc": {
+    "description": "Language settings description"
+  },
+  "selectLanguage": "Select Language",
+  "@selectLanguage": {
+    "description": "Language selection dialog title"
+  },
+  "english": "English",
+  "@english": {
+    "description": "English language option"
+  },
+  "german": "German",
+  "@german": {
+    "description": "German language option"
+  },
+  "romanian": "Romanian",
+  "@romanian": {
+    "description": "Romanian language option"
+  },
+  "systemDefault": "System Default",
+  "@systemDefault": {
+    "description": "System default language option"
+  },
+  "themeSettings": "Appearance",
+  "@themeSettings": {
+    "description": "Theme settings menu item"
+  },
+  "themeSettingsDesc": "Dark mode, colors and display",
+  "@themeSettingsDesc": {
+    "description": "Theme settings description"
+  },
+  "selectTheme": "Select Theme",
+  "@selectTheme": {
+    "description": "Theme selection dialog title"
+  },
+  "lightTheme": "Light",
+  "@lightTheme": {
+    "description": "Light theme option"
+  },
+  "darkTheme": "Dark",
+  "@darkTheme": {
+    "description": "Dark theme option"
+  },
+  "systemTheme": "System",
+  "@systemTheme": {
+    "description": "System theme option"
+  },
+  "restartRequired": "Restart may be required for full effect",
+  "@restartRequired": {
+    "description": "Hint that restart may be needed"
   }
 }

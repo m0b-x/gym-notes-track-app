@@ -208,6 +208,10 @@
   "@markdownShortcuts": {
     "description": "Markdown shortcuts page title"
   },
+  "markdownShortcutsDesc": "Symbolleisten-Schaltflächen und Aktionen anpassen",
+  "@markdownShortcutsDesc": {
+    "description": "Markdown shortcuts settings description"
+  },
   "resetToDefault": "Auf Standard zurücksetzen",
   "@resetToDefault": {
     "description": "Reset to default button text"
@@ -1086,5 +1090,73 @@
   "close": "Schließen",
   "@close": {
     "description": "Close button tooltip"
+  },
+  "dateFormatSettings": "Datumsformat",
+  "@dateFormatSettings": {
+    "description": "Date format settings dialog title"
+  },
+  "selectDateFormat": "Wählen Sie, wie Daten angezeigt werden:",
+  "@selectDateFormat": {
+    "description": "Date format selection hint"
+  },
+  "longPressToChangeFormat": "Lange drücken zum Ändern des Formats",
+  "@longPressToChangeFormat": {
+    "description": "Hint for date button long press"
+  },
+  "languageSettings": "Sprache",
+  "@languageSettings": {
+    "description": "Language settings menu item"
+  },
+  "languageSettingsDesc": "App-Anzeigesprache ändern",
+  "@languageSettingsDesc": {
+    "description": "Language settings description"
+  },
+  "selectLanguage": "Sprache auswählen",
+  "@selectLanguage": {
+    "description": "Language selection dialog title"
+  },
+  "english": "Englisch",
+  "@english": {
+    "description": "English language option"
+  },
+  "german": "Deutsch",
+  "@german": {
+    "description": "German language option"
+  },
+  "romanian": "Rumänisch",
+  "@romanian": {
+    "description": "Romanian language option"
+  },
+  "systemDefault": "Systemstandard",
+  "@systemDefault": {
+    "description": "System default language option"
+  },
+  "themeSettings": "Erscheinungsbild",
+  "@themeSettings": {
+    "description": "Theme settings menu item"
+  },
+  "themeSettingsDesc": "Dunkelmodus, Farben und Anzeige",
+  "@themeSettingsDesc": {
+    "description": "Theme settings description"
+  },
+  "selectTheme": "Design auswählen",
+  "@selectTheme": {
+    "description": "Theme selection dialog title"
+  },
+  "lightTheme": "Hell",
+  "@lightTheme": {
+    "description": "Light theme option"
+  },
+  "darkTheme": "Dunkel",
+  "@darkTheme": {
+    "description": "Dark theme option"
+  },
+  "systemTheme": "System",
+  "@systemTheme": {
+    "description": "System theme option"
+  },
+  "restartRequired": "Neustart kann für volle Wirkung erforderlich sein",
+  "@restartRequired": {
+    "description": "Hint that restart may be needed"
   }
 }

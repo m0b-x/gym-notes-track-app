@@ -154,6 +154,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get markdownShortcuts => 'Markdown-Verknüpfungen';
 
   @override
+  String get markdownShortcutsDesc =>
+      'Symbolleisten-Schaltflächen und Aktionen anpassen';
+
+  @override
   String get resetToDefault => 'Auf Standard zurücksetzen';
 
   @override
@@ -561,7 +565,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get restartRequired =>
-      'Bitte starten Sie die App neu, um die neue Datenbank zu verwenden.';
+      'Neustart kann für volle Wirkung erforderlich sein';
 
   @override
   String get exitApp => 'App beenden';
@@ -842,4 +846,52 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get close => 'Schließen';
+
+  @override
+  String get dateFormatSettings => 'Datumsformat';
+
+  @override
+  String get selectDateFormat => 'Wählen Sie, wie Daten angezeigt werden:';
+
+  @override
+  String get longPressToChangeFormat => 'Lange drücken zum Ändern des Formats';
+
+  @override
+  String get languageSettings => 'Sprache';
+
+  @override
+  String get languageSettingsDesc => 'App-Anzeigesprache ändern';
+
+  @override
+  String get selectLanguage => 'Sprache auswählen';
+
+  @override
+  String get english => 'Englisch';
+
+  @override
+  String get german => 'Deutsch';
+
+  @override
+  String get romanian => 'Rumänisch';
+
+  @override
+  String get systemDefault => 'Systemstandard';
+
+  @override
+  String get themeSettings => 'Erscheinungsbild';
+
+  @override
+  String get themeSettingsDesc => 'Dunkelmodus, Farben und Anzeige';
+
+  @override
+  String get selectTheme => 'Design auswählen';
+
+  @override
+  String get lightTheme => 'Hell';
+
+  @override
+  String get darkTheme => 'Dunkel';
+
+  @override
+  String get systemTheme => 'System';
 }
