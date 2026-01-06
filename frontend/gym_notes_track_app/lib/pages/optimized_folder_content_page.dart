@@ -215,6 +215,12 @@ class _OptimizedFolderContentPageState
         margin: EdgeInsets.only(bottom: _isSortSheetOpen ? 280 : 0),
         child: FloatingActionButton(
           onPressed: _showCreateOptions,
+          backgroundColor: Theme.of(context).brightness == Brightness.dark
+              ? Theme.of(context).colorScheme.surfaceContainerHigh
+              : null,
+          foregroundColor: Theme.of(context).brightness == Brightness.dark
+              ? Theme.of(context).colorScheme.onSurface
+              : null,
           child: const Icon(Icons.add),
         ),
       ),

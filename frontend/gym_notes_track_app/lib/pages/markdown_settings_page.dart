@@ -11,6 +11,7 @@ import '../widgets/markdown_toolbar.dart';
 import '../utils/markdown_settings_utils.dart';
 import '../widgets/interactive_markdown.dart';
 import '../widgets/app_loading_bar.dart';
+import '../widgets/gradient_app_bar.dart';
 import '../services/settings_service.dart';
 
 class MarkdownSettingsPage extends StatefulWidget {
@@ -193,9 +194,8 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
         }
       },
       child: LoadingScaffold(
-        appBar: AppBar(
+        appBar: GradientAppBar(
           title: Text(AppLocalizations.of(context)!.markdownShortcuts),
-          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           actions: [
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),

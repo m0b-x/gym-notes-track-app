@@ -32,16 +32,26 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final colors = switch (gradientStyle) {
-      GradientStyle.purple => [
-        colorScheme.inversePrimary,
-        colorScheme.inversePrimary.withValues(alpha: purpleAlpha),
-      ],
-      GradientStyle.drawer => [
-        colorScheme.primaryContainer,
-        colorScheme.primary.withValues(alpha: drawerAlpha),
-      ],
+      GradientStyle.purple =>
+        isDark
+            ? [colorScheme.surface, colorScheme.surfaceContainerHighest]
+            : [
+                colorScheme.inversePrimary,
+                colorScheme.inversePrimary.withValues(alpha: purpleAlpha),
+              ],
+      GradientStyle.drawer =>
+        isDark
+            ? [
+                colorScheme.surfaceContainerHigh,
+                colorScheme.surfaceContainerHighest,
+              ]
+            : [
+                colorScheme.primaryContainer,
+                colorScheme.primary.withValues(alpha: drawerAlpha),
+              ],
     };
 
     return Container(
@@ -51,13 +61,15 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
           end: Alignment.bottomRight,
           colors: colors,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: AppBar(
         leading: leading,

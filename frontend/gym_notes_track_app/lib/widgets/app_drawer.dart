@@ -136,6 +136,8 @@ class AppDrawer extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context, ColorScheme colorScheme) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.only(
@@ -148,10 +150,15 @@ class AppDrawer extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            colorScheme.primaryContainer,
-            colorScheme.primary.withValues(alpha: 0.5),
-          ],
+          colors: isDark
+              ? [
+                  colorScheme.surfaceContainerHigh,
+                  colorScheme.surfaceContainerHighest,
+                ]
+              : [
+                  colorScheme.primaryContainer,
+                  colorScheme.primary.withValues(alpha: 0.5),
+                ],
         ),
       ),
       child: Column(
@@ -162,13 +169,15 @@ class AppDrawer extends StatelessWidget {
             decoration: BoxDecoration(
               color: colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              boxShadow: isDark
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
             ),
             child: Icon(
               Icons.fitness_center_rounded,
@@ -182,7 +191,9 @@ class AppDrawer extends StatelessWidget {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: colorScheme.onPrimaryContainer,
+              color: isDark
+                  ? colorScheme.onSurface
+                  : colorScheme.onPrimaryContainer,
             ),
           ),
           const SizedBox(height: 4),
@@ -190,7 +201,9 @@ class AppDrawer extends StatelessWidget {
             AppLocalizations.of(context)!.settings,
             style: TextStyle(
               fontSize: 14,
-              color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
+              color: isDark
+                  ? colorScheme.onSurfaceVariant
+                  : colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
             ),
           ),
         ],
