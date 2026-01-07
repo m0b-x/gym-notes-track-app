@@ -4,9 +4,9 @@ import 'dart:async';
 import 'package:intl/intl.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../l10n/app_localizations.dart';
-import '../services/settings_service.dart';
 import '../factories/shortcut_handler_factory.dart';
 import '../handlers/date_shortcut_handler.dart';
+import '../constants/settings_keys.dart';
 import '../database/database.dart';
 
 class MarkdownToolbar extends StatefulWidget {
@@ -164,19 +164,17 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
               tooltip: AppLocalizations.of(context)!.redo,
               onPressed: widget.canRedo ? widget.onRedo : null,
             ),
-            if (widget.isPreviewMode) ...[
-              const SizedBox(width: 8),
-              _ToolbarButton(
-                icon: Icons.text_decrease,
-                tooltip: AppLocalizations.of(context)!.decreaseFontSize,
-                onPressed: widget.onDecreaseFontSize,
-              ),
-              _ToolbarButton(
-                icon: Icons.text_increase,
-                tooltip: AppLocalizations.of(context)!.increaseFontSize,
-                onPressed: widget.onIncreaseFontSize,
-              ),
-            ],
+            const SizedBox(width: 8),
+            _ToolbarButton(
+              icon: Icons.text_decrease,
+              tooltip: AppLocalizations.of(context)!.decreaseFontSize,
+              onPressed: widget.onDecreaseFontSize,
+            ),
+            _ToolbarButton(
+              icon: Icons.text_increase,
+              tooltip: AppLocalizations.of(context)!.increaseFontSize,
+              onPressed: widget.onIncreaseFontSize,
+            ),
             const SizedBox(width: 16),
             if (widget.showReorder &&
                 !widget.isPreviewMode &&
@@ -819,7 +817,7 @@ class _DateFormatDialog extends StatefulWidget {
 }
 
 class _DateFormatDialogState extends State<_DateFormatDialog> {
-  String _selectedFormat = SettingsService.defaultDateFormat;
+  String _selectedFormat = SettingsKeys.defaultDateFormat;
   bool _isLoading = true;
 
   static const List<String> _dateFormats = [
@@ -844,12 +842,10 @@ class _DateFormatDialogState extends State<_DateFormatDialog> {
 
   Future<void> _loadCurrentFormat() async {
     final db = await AppDatabase.getInstance();
-    final format = await db.userSettingsDao.getValue(
-      SettingsService.dateFormatKey,
-    );
+    final format = await db.userSettingsDao.getValue(SettingsKeys.dateFormat);
     if (mounted) {
       setState(() {
-        _selectedFormat = format ?? SettingsService.defaultDateFormat;
+        _selectedFormat = format ?? SettingsKeys.defaultDateFormat;
         _isLoading = false;
       });
     }
@@ -857,7 +853,7 @@ class _DateFormatDialogState extends State<_DateFormatDialog> {
 
   Future<void> _saveFormat(String format) async {
     final db = await AppDatabase.getInstance();
-    await db.userSettingsDao.setValue(SettingsService.dateFormatKey, format);
+    await db.userSettingsDao.setValue(SettingsKeys.dateFormat, format);
     final handler = ShortcutHandlerFactory.getHandler('date');
     if (handler is DateShortcutHandler) {
       handler.clearCache();

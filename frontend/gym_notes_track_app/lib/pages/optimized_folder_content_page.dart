@@ -23,6 +23,7 @@ import '../widgets/app_drawer.dart';
 import '../widgets/gradient_app_bar.dart';
 import '../utils/bloc_helpers.dart';
 import '../utils/custom_snackbar.dart';
+import '../constants/app_colors.dart';
 import 'optimized_note_editor_page.dart';
 import 'search_page.dart';
 
@@ -215,10 +216,10 @@ class _OptimizedFolderContentPageState
         margin: EdgeInsets.only(bottom: _isSortSheetOpen ? 280 : 0),
         child: FloatingActionButton(
           onPressed: _showCreateOptions,
-          backgroundColor: Theme.of(context).brightness == Brightness.dark
+          backgroundColor: AppColors.isDarkMode(context)
               ? Theme.of(context).colorScheme.surfaceContainerHigh
               : null,
-          foregroundColor: Theme.of(context).brightness == Brightness.dark
+          foregroundColor: AppColors.isDarkMode(context)
               ? Theme.of(context).colorScheme.onSurface
               : null,
           child: const Icon(Icons.add),
@@ -888,7 +889,10 @@ class _OptimizedFolderContentPageState
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.folder, color: Colors.amber),
+                leading: Icon(
+                  Icons.folder,
+                  color: AppColors.folderIcon(context),
+                ),
                 title: Text(AppLocalizations.of(context)!.createFolder),
                 onTap: () {
                   Navigator.pop(bottomSheetContext);
@@ -897,7 +901,7 @@ class _OptimizedFolderContentPageState
               ),
               if (widget.folderId != null)
                 ListTile(
-                  leading: const Icon(Icons.note, color: Colors.blue),
+                  leading: Icon(Icons.note, color: AppColors.noteIcon(context)),
                   title: Text(AppLocalizations.of(context)!.createNote),
                   onTap: () {
                     Navigator.pop(bottomSheetContext);
@@ -990,13 +994,17 @@ class _FolderCard extends StatelessWidget {
                 index: index ?? 0,
                 child: const Icon(Icons.drag_handle, color: Colors.grey),
               )
-            : const Icon(Icons.folder, size: 40, color: Colors.amber),
+            : Icon(
+                Icons.folder,
+                size: 40,
+                color: AppColors.folderIcon(context),
+              ),
         title: Text(
           folder.name,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         trailing: isReorderMode
-            ? const Icon(Icons.folder, size: 24, color: Colors.amber)
+            ? Icon(Icons.folder, size: 24, color: AppColors.folderIcon(context))
             : PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../interfaces/markdown_shortcut_handler.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../l10n/app_localizations.dart';
+import '../constants/font_constants.dart';
 
 class HeaderShortcutHandler implements MarkdownShortcutHandler {
   @override
@@ -34,42 +35,60 @@ class HeaderShortcutHandler implements MarkdownShortcutHandler {
         value: 'h1',
         child: Text(
           AppLocalizations.of(context)!.header1,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontSize: FontConstants.h3,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       PopupMenuItem(
         value: 'h2',
         child: Text(
           AppLocalizations.of(context)!.header2,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontSize: FontConstants.h4,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       PopupMenuItem(
         value: 'h3',
         child: Text(
           AppLocalizations.of(context)!.header3,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontSize: FontConstants.h5,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       PopupMenuItem(
         value: 'h4',
         child: Text(
           AppLocalizations.of(context)!.header4,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontSize: FontConstants.small,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       PopupMenuItem(
         value: 'h5',
         child: Text(
           AppLocalizations.of(context)!.header5,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontSize: FontConstants.h6,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       PopupMenuItem(
         value: 'h6',
         child: Text(
           AppLocalizations.of(context)!.header6,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontSize: FontConstants.small,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     ];

@@ -24,6 +24,8 @@ import '../utils/note_search_controller.dart';
 import '../config/default_markdown_shortcuts.dart';
 import '../database/database.dart';
 import '../constants/app_constants.dart';
+import '../constants/font_constants.dart';
+import '../constants/settings_keys.dart';
 import 'markdown_settings_page.dart';
 
 class OptimizedNoteEditorPage extends StatefulWidget {
@@ -58,7 +60,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   TextHistoryObserver? _textHistory;
   AutoSaveService? _autoSaveService;
 
-  double _previewFontSize = 16.0;
+  double _previewFontSize = FontConstants.defaultFontSize;
+  double _editorFontSize = FontConstants.defaultFontSize;
   List<CustomMarkdownShortcut> _allShortcuts = [];
   String _previousText = '';
   bool _isProcessingTextChange = false;
@@ -94,6 +97,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
     _loadCustomShortcuts();
     _initializeAutoSave();
+    _loadFontSizes();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_isLoading) {
@@ -105,6 +109,41 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   void _setupTextHistory() {
     _textHistory?.dispose();
     _textHistory = TextHistoryObserver(_contentController);
+  }
+
+  Future<void> _loadFontSizes() async {
+    final db = await AppDatabase.getInstance();
+    final previewSize = await db.userSettingsDao.getValue(
+      SettingsKeys.previewFontSize,
+    );
+    final editorSize = await db.userSettingsDao.getValue(
+      SettingsKeys.editorFontSize,
+    );
+
+    if (mounted) {
+      setState(() {
+        if (previewSize != null) {
+          _previewFontSize =
+              double.tryParse(previewSize) ?? FontConstants.defaultFontSize;
+        }
+        if (editorSize != null) {
+          _editorFontSize =
+              double.tryParse(editorSize) ?? FontConstants.defaultFontSize;
+        }
+      });
+    }
+  }
+
+  Future<void> _saveFontSizes() async {
+    final db = await AppDatabase.getInstance();
+    await db.userSettingsDao.setValue(
+      SettingsKeys.previewFontSize,
+      _previewFontSize.toString(),
+    );
+    await db.userSettingsDao.setValue(
+      SettingsKeys.editorFontSize,
+      _editorFontSize.toString(),
+    );
   }
 
   Future<void> _loadSwipeSetting() async {
@@ -512,24 +551,54 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                             isPreviewMode: _isPreviewMode,
                             canUndo: _textHistory?.canUndo ?? false,
                             canRedo: _textHistory?.canRedo ?? false,
-                            previewFontSize: _previewFontSize,
+                            previewFontSize: _isPreviewMode
+                                ? _previewFontSize
+                                : _editorFontSize,
                             onUndo: () => _textHistory?.undo(),
                             onRedo: () => _textHistory?.redo(),
                             onDecreaseFontSize: () {
                               setState(() {
-                                _previewFontSize = (_previewFontSize - 2).clamp(
-                                  10.0,
-                                  30.0,
-                                );
+                                if (_isPreviewMode) {
+                                  _previewFontSize =
+                                      (_previewFontSize -
+                                              FontConstants.fontSizeStep)
+                                          .clamp(
+                                            FontConstants.minFontSize,
+                                            FontConstants.maxFontSize,
+                                          );
+                                } else {
+                                  _editorFontSize =
+                                      (_editorFontSize -
+                                              FontConstants.fontSizeStep)
+                                          .clamp(
+                                            FontConstants.minFontSize,
+                                            FontConstants.maxFontSize,
+                                          );
+                                }
                               });
+                              _saveFontSizes();
                             },
                             onIncreaseFontSize: () {
                               setState(() {
-                                _previewFontSize = (_previewFontSize + 2).clamp(
-                                  10.0,
-                                  30.0,
-                                );
+                                if (_isPreviewMode) {
+                                  _previewFontSize =
+                                      (_previewFontSize +
+                                              FontConstants.fontSizeStep)
+                                          .clamp(
+                                            FontConstants.minFontSize,
+                                            FontConstants.maxFontSize,
+                                          );
+                                } else {
+                                  _editorFontSize =
+                                      (_editorFontSize +
+                                              FontConstants.fontSizeStep)
+                                          .clamp(
+                                            FontConstants.minFontSize,
+                                            FontConstants.maxFontSize,
+                                          );
+                                }
                               });
+                              _saveFontSizes();
                             },
                             onSettings: _openMarkdownSettings,
                             onShortcutPressed: _handleShortcut,
@@ -731,7 +800,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         textAlignVertical: TextAlignVertical.top,
         keyboardType: TextInputType.multiline,
         textInputAction: TextInputAction.newline,
-        style: const TextStyle(fontSize: 16, height: 1.5),
+        style: TextStyle(fontSize: _editorFontSize, height: 1.5),
         onChanged: (_) => _handleTextChange(),
       );
     }
@@ -739,7 +808,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     // With search matches - use highlighted view
     final text = _contentController.text;
     final currentMatchIndex = _searchController.currentMatchIndex;
-    const baseStyle = TextStyle(fontSize: 16, height: 1.5);
+    final baseStyle = TextStyle(fontSize: _editorFontSize, height: 1.5);
 
     // Build spans with highlights
     final spans = <TextSpan>[];

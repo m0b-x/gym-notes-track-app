@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import '../constants/app_spacing.dart';
 
 class CustomSnackbar {
-  static const double _toolbarOffset = 70.0;
-
   static void show(
     BuildContext context,
     String message, {
@@ -14,11 +13,7 @@ class CustomSnackbar {
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          bottom: withToolbarOffset ? _toolbarOffset : 16,
-        ),
+        margin: AppSpacing.snackbarMargin(withToolbarOffset: withToolbarOffset),
         duration: duration,
         showCloseIcon: true,
       ),

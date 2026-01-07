@@ -15,9 +15,6 @@ class SettingsService {
   static const String _keyDefaultNotesSortOrder = 'default_notes_sort_order';
   static const String _keyHapticFeedback = 'haptic_feedback';
 
-  static const String defaultDateFormat = 'MMMM d, yyyy';
-  static const String dateFormatKey = 'date_format';
-
   SettingsService._();
 
   static Future<SettingsService> getInstance() async {

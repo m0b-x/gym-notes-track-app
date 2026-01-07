@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import '../../database/database.dart';
+import '../../constants/settings_keys.dart';
 
 // Events
 abstract class AppSettingsEvent extends Equatable {
@@ -66,9 +67,6 @@ class AppSettingsState extends Equatable {
 
 // BLoC
 class AppSettingsBloc extends Bloc<AppSettingsEvent, AppSettingsState> {
-  static const String _localeKey = 'app_locale';
-  static const String _themeModeKey = 'app_theme_mode';
-
   AppSettingsBloc() : super(const AppSettingsState()) {
     on<LoadAppSettings>(_onLoadSettings);
     on<ChangeLocale>(_onChangeLocale);
@@ -81,8 +79,10 @@ class AppSettingsBloc extends Bloc<AppSettingsEvent, AppSettingsState> {
   ) async {
     try {
       final db = await AppDatabase.getInstance();
-      final localeCode = await db.userSettingsDao.getValue(_localeKey);
-      final themeModeStr = await db.userSettingsDao.getValue(_themeModeKey);
+      final localeCode = await db.userSettingsDao.getValue(SettingsKeys.locale);
+      final themeModeStr = await db.userSettingsDao.getValue(
+        SettingsKeys.themeMode,
+      );
 
       final themeMode = _parseThemeMode(themeModeStr);
 
@@ -108,10 +108,13 @@ class AppSettingsBloc extends Bloc<AppSettingsEvent, AppSettingsState> {
       final db = await AppDatabase.getInstance();
 
       if (event.localeCode == null) {
-        await db.userSettingsDao.deleteValue(_localeKey);
+        await db.userSettingsDao.deleteValue(SettingsKeys.locale);
         emit(state.copyWith(clearLocale: true));
       } else {
-        await db.userSettingsDao.setValue(_localeKey, event.localeCode!);
+        await db.userSettingsDao.setValue(
+          SettingsKeys.locale,
+          event.localeCode!,
+        );
         emit(state.copyWith(localeCode: event.localeCode));
       }
     } catch (e) {
@@ -126,7 +129,7 @@ class AppSettingsBloc extends Bloc<AppSettingsEvent, AppSettingsState> {
     try {
       final db = await AppDatabase.getInstance();
       await db.userSettingsDao.setValue(
-        _themeModeKey,
+        SettingsKeys.themeMode,
         _themeModeToString(event.themeMode),
       );
       emit(state.copyWith(themeMode: event.themeMode));

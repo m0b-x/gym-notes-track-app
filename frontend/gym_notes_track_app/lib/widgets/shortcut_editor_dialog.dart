@@ -9,7 +9,7 @@ import '../config/available_icons.dart';
 import '../widgets/markdown_toolbar.dart';
 import '../utils/markdown_settings_utils.dart';
 import '../widgets/interactive_markdown.dart';
-import '../services/settings_service.dart';
+import '../constants/settings_keys.dart';
 
 class ShortcutEditorDialog extends StatefulWidget {
   final CustomMarkdownShortcut? shortcut;
@@ -103,7 +103,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
         : Icons.tag;
     _insertType = widget.shortcut?.insertType ?? 'wrap';
     _selectedDateFormat =
-        widget.shortcut?.dateFormat ?? SettingsService.defaultDateFormat;
+        widget.shortcut?.dateFormat ?? SettingsKeys.defaultDateFormat;
     _loadShortcuts();
   }
 

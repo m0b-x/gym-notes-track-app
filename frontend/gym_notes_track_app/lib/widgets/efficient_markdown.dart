@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import '../constants/font_constants.dart';
 
 class MarkdownLine {
   final int index;
@@ -449,62 +450,89 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
         return const SizedBox(height: 16);
 
       case MarkdownLineType.heading1:
+        final baseFontSize =
+            widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: _buildSelectableText(
             line.content,
             widget.styleSheet?.h1 ??
-                const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                TextStyle(
+                  fontSize: baseFontSize * 2,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
         );
 
       case MarkdownLineType.heading2:
+        final baseFontSize =
+            widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: _buildSelectableText(
             line.content,
             widget.styleSheet?.h2 ??
-                const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                TextStyle(
+                  fontSize: baseFontSize * 1.5,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
         );
 
       case MarkdownLineType.heading3:
+        final baseFontSize =
+            widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: _buildSelectableText(
             line.content,
             widget.styleSheet?.h3 ??
-                const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                TextStyle(
+                  fontSize: baseFontSize * 1.25,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
         );
 
       case MarkdownLineType.heading4:
+        final baseFontSize =
+            widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: _buildSelectableText(
             line.content,
             widget.styleSheet?.h4 ??
-                const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                TextStyle(
+                  fontSize: baseFontSize * 1.125,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
         );
 
       case MarkdownLineType.heading5:
+        final baseFontSize =
+            widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: _buildSelectableText(
             line.content,
             widget.styleSheet?.h5 ??
-                const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                TextStyle(fontSize: baseFontSize, fontWeight: FontWeight.bold),
           ),
         );
 
       case MarkdownLineType.heading6:
+        final baseFontSize =
+            widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: _buildSelectableText(
             line.content,
             widget.styleSheet?.h6 ??
-                const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                TextStyle(
+                  fontSize: baseFontSize * 0.875,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
         );
 
@@ -512,7 +540,8 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
         return _buildCheckbox(context, line);
 
       case MarkdownLineType.bulletList:
-        final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
+        final baseFontSize =
+            widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
         return Padding(
           padding: EdgeInsets.only(left: 16.0 + line.indentLevel * 16.0),
           child: Row(
@@ -769,7 +798,7 @@ class EfficientMarkdownEditor extends StatefulWidget {
     required this.initialContent,
     this.onChanged,
     this.onCheckboxChanged,
-    this.previewFontSize = 16.0,
+    this.previewFontSize = FontConstants.defaultFontSize,
     this.showLineNumbers = false,
   });
 

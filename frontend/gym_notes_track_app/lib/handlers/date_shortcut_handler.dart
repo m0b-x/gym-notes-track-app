@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import '../interfaces/markdown_shortcut_handler.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../database/database.dart';
-import '../services/settings_service.dart';
+import '../constants/settings_keys.dart';
 
 class DateShortcutHandler implements MarkdownShortcutHandler {
   String? _cachedFormat;
@@ -11,10 +11,8 @@ class DateShortcutHandler implements MarkdownShortcutHandler {
   Future<String> _getDefaultDateFormat() async {
     if (_cachedFormat != null) return _cachedFormat!;
     final db = await AppDatabase.getInstance();
-    final format = await db.userSettingsDao.getValue(
-      SettingsService.dateFormatKey,
-    );
-    _cachedFormat = format ?? SettingsService.defaultDateFormat;
+    final format = await db.userSettingsDao.getValue(SettingsKeys.dateFormat);
+    _cachedFormat = format ?? SettingsKeys.defaultDateFormat;
     return _cachedFormat!;
   }
 
