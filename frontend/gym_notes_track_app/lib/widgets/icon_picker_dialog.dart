@@ -2,24 +2,17 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../config/available_icons.dart';
 
-class IconPickerDialog extends StatefulWidget {
-  final IconData? currentIcon;
+class _IconSearchIndex {
+  static _IconSearchIndex? _instance;
+  static _IconSearchIndex get instance => _instance ??= _IconSearchIndex._();
 
-  const IconPickerDialog({super.key, this.currentIcon});
+  late final Map<String, Set<IconData>> _keywordToIcons;
+  late final List<String> _sortedKeywords;
 
-  @override
-  State<IconPickerDialog> createState() => _IconPickerDialogState();
-}
+  _IconSearchIndex._() {
+    _keywordToIcons = {};
 
-class _IconPickerDialogState extends State<IconPickerDialog> {
-  final TextEditingController _searchController = TextEditingController();
-  List<IconData> _filteredIcons = [];
-  String _searchQuery = '';
-
-  static final Map<IconData, List<String>> _iconKeywords = _buildIconKeywords();
-
-  static Map<IconData, List<String>> _buildIconKeywords() {
-    return {
+    final iconKeywords = <IconData, List<String>>{
       Icons.tag: ['tag', 'label', 'hash'],
       Icons.star: ['star', 'favorite', 'rating', 'important'],
       Icons.star_outline: ['star', 'outline', 'rating'],
@@ -50,7 +43,7 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
       Icons.article: ['article', 'blog', 'post', 'read'],
       Icons.menu_book: ['book', 'menu', 'read', 'library'],
       Icons.auto_stories: ['stories', 'book', 'read', 'pages'],
-      Icons.sticky_note_2: ['sticky', 'note', 'memo', 'post-it'],
+      Icons.sticky_note_2: ['sticky', 'note', 'memo', 'postit'],
       Icons.text_snippet: ['text', 'snippet', 'code', 'content'],
       Icons.subject: ['subject', 'text', 'content', 'lines'],
       Icons.short_text: ['short', 'text', 'brief'],
@@ -180,7 +173,45 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
       Icons.change_history: ['triangle', 'change', 'history', 'shape'],
       Icons.hexagon: ['hexagon', 'shape', 'polygon'],
     };
+
+    for (final entry in iconKeywords.entries) {
+      for (final keyword in entry.value) {
+        (_keywordToIcons[keyword] ??= {}).add(entry.key);
+      }
+    }
+
+    _sortedKeywords = _keywordToIcons.keys.toList()..sort();
   }
+
+  Set<IconData> search(String query) {
+    if (query.isEmpty) return {};
+
+    final results = <IconData>{};
+
+    for (final keyword in _sortedKeywords) {
+      if (keyword.startsWith(query)) {
+        results.addAll(_keywordToIcons[keyword]!);
+      }
+    }
+
+    return results;
+  }
+}
+
+class IconPickerDialog extends StatefulWidget {
+  final IconData? currentIcon;
+
+  const IconPickerDialog({super.key, this.currentIcon});
+
+  @override
+  State<IconPickerDialog> createState() => _IconPickerDialogState();
+}
+
+class _IconPickerDialogState extends State<IconPickerDialog> {
+  final TextEditingController _searchController = TextEditingController();
+  final _searchIndex = _IconSearchIndex.instance;
+  List<IconData> _filteredIcons = [];
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -205,10 +236,10 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
       if (query.isEmpty) {
         _filteredIcons = List.from(AvailableIcons.all);
       } else {
-        _filteredIcons = AvailableIcons.all.where((icon) {
-          final keywords = _iconKeywords[icon] ?? [];
-          return keywords.any((keyword) => keyword.contains(query));
-        }).toList();
+        final matchedIcons = _searchIndex.search(query);
+        _filteredIcons = AvailableIcons.all
+            .where((icon) => matchedIcons.contains(icon))
+            .toList();
       }
     });
   }
