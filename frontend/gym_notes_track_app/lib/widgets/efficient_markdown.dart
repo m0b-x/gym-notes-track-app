@@ -512,18 +512,20 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
         return _buildCheckbox(context, line);
 
       case MarkdownLineType.bulletList:
+        final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
         return Padding(
           padding: EdgeInsets.only(left: 16.0 + line.indentLevel * 16.0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('• ', style: TextStyle(fontSize: 16)),
+              Text('• ', style: TextStyle(fontSize: baseFontSize)),
               Expanded(child: _buildRichText(line.content)),
             ],
           ),
         );
 
       case MarkdownLineType.numberedList:
+        final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
         return Padding(
           padding: EdgeInsets.only(left: 16.0 + line.indentLevel * 16.0),
           child: Row(
@@ -533,7 +535,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
                 width: 24,
                 child: Text(
                   '${line.listNumber}. ',
-                  style: const TextStyle(fontSize: 16),
+                  style: TextStyle(fontSize: baseFontSize),
                 ),
               ),
               Expanded(child: _buildRichText(line.content)),
@@ -594,6 +596,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
   }
 
   Widget _buildCheckbox(BuildContext context, MarkdownLine line) {
+    final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
     return Padding(
       padding: EdgeInsets.only(
         left: line.indentLevel * 16.0,
@@ -613,7 +616,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
                 line.isChecked
                     ? Icons.check_box
                     : Icons.check_box_outline_blank,
-                size: 20,
+                size: baseFontSize * 1.25,
                 color: line.isChecked
                     ? Theme.of(context).colorScheme.primary
                     : Theme.of(
@@ -630,7 +633,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
               child: Text(
                 line.content,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: baseFontSize,
                   decoration: line.isChecked
                       ? TextDecoration.lineThrough
                       : null,
@@ -657,6 +660,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
 
   Widget _buildRichText(String text) {
     final spans = _parseInlineMarkdown(text);
+    final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
 
     if (widget.selectable) {
       return SelectableText.rich(TextSpan(children: spans));
@@ -667,7 +671,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
         children: spans,
         style: TextStyle(
           color: Theme.of(context).colorScheme.onSurface,
-          fontSize: 16,
+          fontSize: baseFontSize,
         ),
       ),
     );
@@ -675,9 +679,10 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
 
   List<TextSpan> _parseInlineMarkdown(String text) {
     final spans = <TextSpan>[];
+    final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
     final defaultStyle = TextStyle(
       color: Theme.of(context).colorScheme.onSurface,
-      fontSize: 16,
+      fontSize: baseFontSize,
     );
 
     final codeStyle = TextStyle(

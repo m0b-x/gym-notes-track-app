@@ -147,6 +147,7 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
   }
 
   Widget _buildBulletItem(BuildContext context, String text, int indent) {
+    final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
     return Padding(
       padding: EdgeInsets.only(
         left: 16.0 + (indent ~/ 2) * 16.0,
@@ -156,11 +157,13 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(right: 8, top: 2),
-            child: Text('•', style: TextStyle(fontSize: 16)),
+          Padding(
+            padding: const EdgeInsets.only(right: 8, top: 2),
+            child: Text('•', style: TextStyle(fontSize: baseFontSize)),
           ),
-          Expanded(child: Text(text, style: const TextStyle(fontSize: 16))),
+          Expanded(
+            child: Text(text, style: TextStyle(fontSize: baseFontSize)),
+          ),
         ],
       ),
     );
@@ -172,6 +175,7 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
     String number,
     int indent,
   ) {
+    final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
     return Padding(
       padding: EdgeInsets.only(
         left: 16.0 + (indent ~/ 2) * 16.0,
@@ -185,10 +189,12 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
             padding: const EdgeInsets.only(right: 8, top: 2),
             child: SizedBox(
               width: 20,
-              child: Text('$number.', style: const TextStyle(fontSize: 16)),
+              child: Text('$number.', style: TextStyle(fontSize: baseFontSize)),
             ),
           ),
-          Expanded(child: Text(text, style: const TextStyle(fontSize: 16))),
+          Expanded(
+            child: Text(text, style: TextStyle(fontSize: baseFontSize)),
+          ),
         ],
       ),
     );
@@ -201,6 +207,7 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
     String text,
     int indent,
   ) {
+    final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
     return Padding(
       padding: EdgeInsets.only(left: indent * 16.0, top: 4, bottom: 4),
       child: Row(
@@ -214,7 +221,7 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
               padding: const EdgeInsets.only(right: 8),
               child: Icon(
                 isChecked ? Icons.check_box : Icons.check_box_outline_blank,
-                size: 20,
+                size: baseFontSize * 1.25,
                 color: isChecked
                     ? Theme.of(context).colorScheme.primary
                     : Theme.of(
@@ -231,7 +238,7 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
               child: Text(
                 text,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: baseFontSize,
                   decoration: isChecked ? TextDecoration.lineThrough : null,
                   decorationColor: isChecked
                       ? Theme.of(
