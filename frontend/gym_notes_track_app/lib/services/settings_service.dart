@@ -1,76 +1,135 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import '../constants/settings_keys.dart';
+import '../database/database.dart';
 
-/// Service for managing app settings using SharedPreferences
+/// Service for managing app settings using SQLite database
 class SettingsService {
   static SettingsService? _instance;
-  late SharedPreferences _prefs;
-
-  // Settings keys
-  static const String _keyFolderSwipeEnabled = 'folder_swipe_enabled';
-  static const String _keyNoteSwipeEnabled = 'note_swipe_enabled';
-  static const String _keyConfirmDelete = 'confirm_delete';
-  static const String _keyAutoSaveEnabled = 'auto_save_enabled';
-  static const String _keyAutoSaveInterval = 'auto_save_interval';
-  static const String _keyShowNotePreview = 'show_note_preview';
-  static const String _keyDefaultNotesSortOrder = 'default_notes_sort_order';
-  static const String _keyHapticFeedback = 'haptic_feedback';
+  late AppDatabase _db;
 
   SettingsService._();
 
   static Future<SettingsService> getInstance() async {
     if (_instance == null) {
       _instance = SettingsService._();
-      _instance!._prefs = await SharedPreferences.getInstance();
+      _instance!._db = await AppDatabase.getInstance();
     }
     return _instance!;
   }
 
+  // Helper methods for type conversion
+  Future<bool> _getBool(String key, bool defaultValue) async {
+    final value = await _db.userSettingsDao.getValue(key);
+    if (value == null) return defaultValue;
+    return value == 'true';
+  }
+
+  Future<void> _setBool(String key, bool value) async {
+    await _db.userSettingsDao.setValue(key, value.toString());
+  }
+
+  Future<int> _getInt(String key, int defaultValue) async {
+    final value = await _db.userSettingsDao.getValue(key);
+    if (value == null) return defaultValue;
+    return int.tryParse(value) ?? defaultValue;
+  }
+
+  Future<void> _setInt(String key, int value) async {
+    await _db.userSettingsDao.setValue(key, value.toString());
+  }
+
   // Folder swipe gesture (to open drawer)
-  bool get folderSwipeEnabled => _prefs.getBool(_keyFolderSwipeEnabled) ?? true;
+  Future<bool> getFolderSwipeEnabled() async {
+    return _getBool(
+      SettingsKeys.folderSwipeEnabled,
+      SettingsKeys.defaultFolderSwipeEnabled,
+    );
+  }
+
   Future<void> setFolderSwipeEnabled(bool value) async {
-    await _prefs.setBool(_keyFolderSwipeEnabled, value);
+    await _setBool(SettingsKeys.folderSwipeEnabled, value);
   }
 
   // Note swipe gesture (to open drawer)
-  bool get noteSwipeEnabled => _prefs.getBool(_keyNoteSwipeEnabled) ?? true;
+  Future<bool> getNoteSwipeEnabled() async {
+    return _getBool(
+      SettingsKeys.noteSwipeEnabled,
+      SettingsKeys.defaultNoteSwipeEnabled,
+    );
+  }
+
   Future<void> setNoteSwipeEnabled(bool value) async {
-    await _prefs.setBool(_keyNoteSwipeEnabled, value);
+    await _setBool(SettingsKeys.noteSwipeEnabled, value);
   }
 
   // Confirm before delete
-  bool get confirmDelete => _prefs.getBool(_keyConfirmDelete) ?? true;
+  Future<bool> getConfirmDelete() async {
+    return _getBool(
+      SettingsKeys.confirmDelete,
+      SettingsKeys.defaultConfirmDelete,
+    );
+  }
+
   Future<void> setConfirmDelete(bool value) async {
-    await _prefs.setBool(_keyConfirmDelete, value);
+    await _setBool(SettingsKeys.confirmDelete, value);
   }
 
   // Auto-save
-  bool get autoSaveEnabled => _prefs.getBool(_keyAutoSaveEnabled) ?? true;
+  Future<bool> getAutoSaveEnabled() async {
+    return _getBool(
+      SettingsKeys.autoSaveEnabled,
+      SettingsKeys.defaultAutoSaveEnabled,
+    );
+  }
+
   Future<void> setAutoSaveEnabled(bool value) async {
-    await _prefs.setBool(_keyAutoSaveEnabled, value);
+    await _setBool(SettingsKeys.autoSaveEnabled, value);
   }
 
   // Auto-save interval in seconds
-  int get autoSaveInterval => _prefs.getInt(_keyAutoSaveInterval) ?? 5;
+  Future<int> getAutoSaveInterval() async {
+    return _getInt(
+      SettingsKeys.autoSaveInterval,
+      SettingsKeys.defaultAutoSaveInterval,
+    );
+  }
+
   Future<void> setAutoSaveInterval(int seconds) async {
-    await _prefs.setInt(_keyAutoSaveInterval, seconds);
+    await _setInt(SettingsKeys.autoSaveInterval, seconds);
   }
 
   // Show note preview in list
-  bool get showNotePreview => _prefs.getBool(_keyShowNotePreview) ?? true;
+  Future<bool> getShowNotePreview() async {
+    return _getBool(
+      SettingsKeys.showNotePreview,
+      SettingsKeys.defaultShowNotePreview,
+    );
+  }
+
   Future<void> setShowNotePreview(bool value) async {
-    await _prefs.setBool(_keyShowNotePreview, value);
+    await _setBool(SettingsKeys.showNotePreview, value);
   }
 
   // Default notes sort order (0 = updatedDesc, 1 = updatedAsc, 2 = titleAsc, 3 = titleDesc, 4 = createdDesc, 5 = createdAsc)
-  int get defaultNotesSortOrder =>
-      _prefs.getInt(_keyDefaultNotesSortOrder) ?? 0;
+  Future<int> getDefaultNotesSortOrder() async {
+    return _getInt(
+      SettingsKeys.defaultNotesSortOrder,
+      SettingsKeys.defaultDefaultNotesSortOrder,
+    );
+  }
+
   Future<void> setDefaultNotesSortOrder(int value) async {
-    await _prefs.setInt(_keyDefaultNotesSortOrder, value);
+    await _setInt(SettingsKeys.defaultNotesSortOrder, value);
   }
 
   // Haptic feedback
-  bool get hapticFeedback => _prefs.getBool(_keyHapticFeedback) ?? true;
+  Future<bool> getHapticFeedback() async {
+    return _getBool(
+      SettingsKeys.hapticFeedback,
+      SettingsKeys.defaultHapticFeedback,
+    );
+  }
+
   Future<void> setHapticFeedback(bool value) async {
-    await _prefs.setBool(_keyHapticFeedback, value);
+    await _setBool(SettingsKeys.hapticFeedback, value);
   }
 }

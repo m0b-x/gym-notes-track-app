@@ -148,9 +148,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
   Future<void> _loadSwipeSetting() async {
     final settings = await SettingsService.getInstance();
+    final noteSwipe = await settings.getNoteSwipeEnabled();
     if (mounted) {
       setState(() {
-        _noteSwipeEnabled = settings.noteSwipeEnabled;
+        _noteSwipeEnabled = noteSwipe;
       });
     }
   }

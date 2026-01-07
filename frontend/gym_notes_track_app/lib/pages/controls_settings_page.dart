@@ -34,15 +34,23 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
 
   Future<void> _loadSettings() async {
     final settings = await SettingsService.getInstance();
+    final folderSwipe = await settings.getFolderSwipeEnabled();
+    final noteSwipe = await settings.getNoteSwipeEnabled();
+    final confirmDel = await settings.getConfirmDelete();
+    final autoSave = await settings.getAutoSaveEnabled();
+    final autoSaveInt = await settings.getAutoSaveInterval();
+    final showPreview = await settings.getShowNotePreview();
+    final haptic = await settings.getHapticFeedback();
+
     setState(() {
       _settings = settings;
-      _folderSwipeEnabled = settings.folderSwipeEnabled;
-      _noteSwipeEnabled = settings.noteSwipeEnabled;
-      _confirmDelete = settings.confirmDelete;
-      _autoSaveEnabled = settings.autoSaveEnabled;
-      _autoSaveInterval = settings.autoSaveInterval;
-      _showNotePreview = settings.showNotePreview;
-      _hapticFeedback = settings.hapticFeedback;
+      _folderSwipeEnabled = folderSwipe;
+      _noteSwipeEnabled = noteSwipe;
+      _confirmDelete = confirmDel;
+      _autoSaveEnabled = autoSave;
+      _autoSaveInterval = autoSaveInt;
+      _showNotePreview = showPreview;
+      _hapticFeedback = haptic;
       _isLoading = false;
     });
   }
@@ -71,153 +79,155 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
             : ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                // Gestures section
-                _buildSectionCard(
-                  context: context,
-                  colorScheme: colorScheme,
-                  icon: Icons.swipe_rounded,
-                  title: l10n.gesturesSection,
-                  children: [
-                    _buildSwitchTile(
-                      context: context,
-                      title: l10n.folderSwipeGesture,
-                      subtitle: l10n.folderSwipeGestureDesc,
-                      value: _folderSwipeEnabled,
-                      onChanged: (value) async {
-                        _onHapticFeedback();
-                        setState(() => _folderSwipeEnabled = value);
-                        await _settings?.setFolderSwipeEnabled(value);
-                      },
-                    ),
-                    const Divider(height: 1),
-                    _buildSwitchTile(
-                      context: context,
-                      title: l10n.noteSwipeGesture,
-                      subtitle: l10n.noteSwipeGestureDesc,
-                      value: _noteSwipeEnabled,
-                      onChanged: (value) async {
-                        _onHapticFeedback();
-                        setState(() => _noteSwipeEnabled = value);
-                        await _settings?.setNoteSwipeEnabled(value);
-                      },
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // Feedback section
-                _buildSectionCard(
-                  context: context,
-                  colorScheme: colorScheme,
-                  icon: Icons.vibration_rounded,
-                  title: l10n.feedbackSection,
-                  children: [
-                    _buildSwitchTile(
-                      context: context,
-                      title: l10n.hapticFeedback,
-                      subtitle: l10n.hapticFeedbackDesc,
-                      value: _hapticFeedback,
-                      onChanged: (value) async {
-                        if (value) HapticFeedback.lightImpact();
-                        setState(() => _hapticFeedback = value);
-                        await _settings?.setHapticFeedback(value);
-                      },
-                    ),
-                    const Divider(height: 1),
-                    _buildSwitchTile(
-                      context: context,
-                      title: l10n.confirmDelete,
-                      subtitle: l10n.confirmDeleteDesc,
-                      value: _confirmDelete,
-                      onChanged: (value) async {
-                        _onHapticFeedback();
-                        setState(() => _confirmDelete = value);
-                        await _settings?.setConfirmDelete(value);
-                      },
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // Auto-save section
-                _buildSectionCard(
-                  context: context,
-                  colorScheme: colorScheme,
-                  icon: Icons.save_rounded,
-                  title: l10n.autoSaveSection,
-                  children: [
-                    _buildSwitchTile(
-                      context: context,
-                      title: l10n.autoSave,
-                      subtitle: l10n.autoSaveDesc,
-                      value: _autoSaveEnabled,
-                      onChanged: (value) async {
-                        _onHapticFeedback();
-                        setState(() => _autoSaveEnabled = value);
-                        await _settings?.setAutoSaveEnabled(value);
-                      },
-                    ),
-                    if (_autoSaveEnabled) ...[
-                      const Divider(height: 1),
-                      _buildSliderTile(
+                  // Gestures section
+                  _buildSectionCard(
+                    context: context,
+                    colorScheme: colorScheme,
+                    icon: Icons.swipe_rounded,
+                    title: l10n.gesturesSection,
+                    children: [
+                      _buildSwitchTile(
                         context: context,
-                        colorScheme: colorScheme,
-                        title: l10n.autoSaveInterval,
-                        subtitle: l10n.autoSaveIntervalDesc(_autoSaveInterval),
-                        value: _autoSaveInterval.toDouble(),
-                        min: 1,
-                        max: 30,
-                        divisions: 29,
+                        title: l10n.folderSwipeGesture,
+                        subtitle: l10n.folderSwipeGestureDesc,
+                        value: _folderSwipeEnabled,
                         onChanged: (value) async {
                           _onHapticFeedback();
-                          setState(() => _autoSaveInterval = value.round());
-                          await _settings?.setAutoSaveInterval(value.round());
+                          setState(() => _folderSwipeEnabled = value);
+                          await _settings?.setFolderSwipeEnabled(value);
+                        },
+                      ),
+                      const Divider(height: 1),
+                      _buildSwitchTile(
+                        context: context,
+                        title: l10n.noteSwipeGesture,
+                        subtitle: l10n.noteSwipeGestureDesc,
+                        value: _noteSwipeEnabled,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _noteSwipeEnabled = value);
+                          await _settings?.setNoteSwipeEnabled(value);
                         },
                       ),
                     ],
-                  ],
-                ),
+                  ),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // Display section
-                _buildSectionCard(
-                  context: context,
-                  colorScheme: colorScheme,
-                  icon: Icons.visibility_rounded,
-                  title: l10n.displaySection,
-                  children: [
-                    _buildSwitchTile(
-                      context: context,
-                      title: l10n.showNotePreview,
-                      subtitle: l10n.showNotePreviewDesc,
-                      value: _showNotePreview,
-                      onChanged: (value) async {
-                        _onHapticFeedback();
-                        setState(() => _showNotePreview = value);
-                        await _settings?.setShowNotePreview(value);
-                      },
-                    ),
-                  ],
-                ),
+                  // Feedback section
+                  _buildSectionCard(
+                    context: context,
+                    colorScheme: colorScheme,
+                    icon: Icons.vibration_rounded,
+                    title: l10n.feedbackSection,
+                    children: [
+                      _buildSwitchTile(
+                        context: context,
+                        title: l10n.hapticFeedback,
+                        subtitle: l10n.hapticFeedbackDesc,
+                        value: _hapticFeedback,
+                        onChanged: (value) async {
+                          if (value) HapticFeedback.lightImpact();
+                          setState(() => _hapticFeedback = value);
+                          await _settings?.setHapticFeedback(value);
+                        },
+                      ),
+                      const Divider(height: 1),
+                      _buildSwitchTile(
+                        context: context,
+                        title: l10n.confirmDelete,
+                        subtitle: l10n.confirmDeleteDesc,
+                        value: _confirmDelete,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _confirmDelete = value);
+                          await _settings?.setConfirmDelete(value);
+                        },
+                      ),
+                    ],
+                  ),
 
-                const SizedBox(height: 32),
+                  const SizedBox(height: 16),
 
-                // Reset button
-                Center(
-                  child: TextButton.icon(
-                    onPressed: _showResetConfirmation,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: Text(l10n.resetToDefaults),
-                    style: TextButton.styleFrom(
-                      foregroundColor: colorScheme.error,
+                  // Auto-save section
+                  _buildSectionCard(
+                    context: context,
+                    colorScheme: colorScheme,
+                    icon: Icons.save_rounded,
+                    title: l10n.autoSaveSection,
+                    children: [
+                      _buildSwitchTile(
+                        context: context,
+                        title: l10n.autoSave,
+                        subtitle: l10n.autoSaveDesc,
+                        value: _autoSaveEnabled,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _autoSaveEnabled = value);
+                          await _settings?.setAutoSaveEnabled(value);
+                        },
+                      ),
+                      if (_autoSaveEnabled) ...[
+                        const Divider(height: 1),
+                        _buildSliderTile(
+                          context: context,
+                          colorScheme: colorScheme,
+                          title: l10n.autoSaveInterval,
+                          subtitle: l10n.autoSaveIntervalDesc(
+                            _autoSaveInterval,
+                          ),
+                          value: _autoSaveInterval.toDouble(),
+                          min: 1,
+                          max: 30,
+                          divisions: 29,
+                          onChanged: (value) async {
+                            _onHapticFeedback();
+                            setState(() => _autoSaveInterval = value.round());
+                            await _settings?.setAutoSaveInterval(value.round());
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Display section
+                  _buildSectionCard(
+                    context: context,
+                    colorScheme: colorScheme,
+                    icon: Icons.visibility_rounded,
+                    title: l10n.displaySection,
+                    children: [
+                      _buildSwitchTile(
+                        context: context,
+                        title: l10n.showNotePreview,
+                        subtitle: l10n.showNotePreviewDesc,
+                        value: _showNotePreview,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _showNotePreview = value);
+                          await _settings?.setShowNotePreview(value);
+                        },
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Reset button
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: _showResetConfirmation,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: Text(l10n.resetToDefaults),
+                      style: TextButton.styleFrom(
+                        foregroundColor: colorScheme.error,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
       ),
     );
   }

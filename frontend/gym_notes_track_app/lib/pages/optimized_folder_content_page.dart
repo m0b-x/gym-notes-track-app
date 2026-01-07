@@ -96,9 +96,10 @@ class _OptimizedFolderContentPageState
 
   Future<void> _loadSettings() async {
     final settings = await SettingsService.getInstance();
+    final folderSwipe = await settings.getFolderSwipeEnabled();
     if (mounted) {
       setState(() {
-        _folderSwipeEnabled = settings.folderSwipeEnabled;
+        _folderSwipeEnabled = folderSwipe;
       });
     }
   }
