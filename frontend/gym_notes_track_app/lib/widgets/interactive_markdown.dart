@@ -204,14 +204,14 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
     return Padding(
       padding: EdgeInsets.only(left: indent * 16.0, top: 4, bottom: 4),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
             onTap: widget.onCheckboxChanged != null
                 ? () => _toggleCheckbox(lineIndex, isChecked)
                 : null,
             child: Padding(
-              padding: const EdgeInsets.only(right: 8, top: 2),
+              padding: const EdgeInsets.only(right: 8),
               child: Icon(
                 isChecked ? Icons.check_box : Icons.check_box_outline_blank,
                 size: 20,
@@ -228,24 +228,21 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
               onTap: widget.onCheckboxChanged != null
                   ? () => _toggleCheckbox(lineIndex, isChecked)
                   : null,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  text,
-                  style: TextStyle(
-                    fontSize: 16,
-                    decoration: isChecked ? TextDecoration.lineThrough : null,
-                    decorationColor: isChecked
-                        ? Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.5)
-                        : null,
-                    color: isChecked
-                        ? Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.5)
-                        : Theme.of(context).colorScheme.onSurface,
-                  ),
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: 16,
+                  decoration: isChecked ? TextDecoration.lineThrough : null,
+                  decorationColor: isChecked
+                      ? Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5)
+                      : null,
+                  color: isChecked
+                      ? Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5)
+                      : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),

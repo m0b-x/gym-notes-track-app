@@ -601,14 +601,14 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
         bottom: 4,
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
             onTap: widget.onCheckboxChanged != null
                 ? () => _toggleCheckbox(line.index)
                 : null,
             child: Padding(
-              padding: const EdgeInsets.only(right: 8, top: 2),
+              padding: const EdgeInsets.only(right: 8),
               child: Icon(
                 line.isChecked
                     ? Icons.check_box

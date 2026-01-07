@@ -138,13 +138,13 @@ class FolderChange { type, folderId, parentId?, folder? }
 ### Tables with CRDT Fields
 All tables include: `hlcTimestamp`, `deviceId`, `version`, `isDeleted`, `deletedAt?`
 
-| Table         | Fields                                                                                                                               |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Folders       | id, name, parentId?, position, createdAt, updatedAt, noteSortOrder?, subfolderSortOrder? + CRDT fields                              |
-| Notes         | id, folderId, title, preview, contentLength, chunkCount, isCompressed, position, createdAt, updatedAt + CRDT fields                 |
-| ContentChunks | id, noteId, chunkIndex, content, isCompressed + CRDT fields                                                                         |
-| SyncMetadata  | key, value, updatedAt (no CRDT)                                                                                                      |
-| UserSettings  | key (PK), value, updatedAt (for markdown shortcuts, etc.) (no CRDT)                                                                  |
+| Table         | Fields                                                                                                              |
+| ------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Folders       | id, name, parentId?, position, createdAt, updatedAt, noteSortOrder?, subfolderSortOrder? + CRDT fields              |
+| Notes         | id, folderId, title, preview, contentLength, chunkCount, isCompressed, position, createdAt, updatedAt + CRDT fields |
+| ContentChunks | id, noteId, chunkIndex, content, isCompressed + CRDT fields                                                         |
+| SyncMetadata  | key, value, updatedAt (no CRDT)                                                                                     |
+| UserSettings  | key (PK), value, updatedAt (for markdown shortcuts, etc.) (no CRDT)                                                 |
 
 ### Storage Architecture
 | Data               | Storage               | Notes                      |
