@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/available_icons.dart';
 
 /// Utility class for icon handling that supports tree-shaking.
 ///
@@ -10,115 +11,113 @@ import 'package:flutter/material.dart';
 class IconUtils {
   IconUtils._();
 
-  /// Map of icon code points to their constant IconData references.
-  /// Add new icons here as needed for the app.
-  static const Map<int, IconData> _iconMap = {
-    // Format icons
-    0xe238: Icons.format_bold, // Bold
-    0xe23f: Icons.format_italic, // Italic
-    0xe257: Icons.strikethrough_s, // Strikethrough
+  static Map<int, IconData>? _cachedIconMap;
 
-    // List icons
-    0xe065: Icons.circle, // Point list (bullet)
-    0xe241: Icons.format_list_bulleted, // Bullet list
-    0xe242: Icons.format_list_numbered, // Numbered list
+  static Map<int, IconData> get _iconMap {
+    _cachedIconMap ??= _buildIconMap();
+    return _cachedIconMap!;
+  }
 
-    // Text icons
-    0xe86f: Icons.tag, // Tag (used for headers, code)
-    0xe834: Icons.check_box_outline_blank, // Checkbox
-    0xe244: Icons.format_quote, // Quote
+  static Map<int, IconData> _buildIconMap() {
+    final map = <int, IconData>{
+      // Format icons
+      Icons.format_bold.codePoint: Icons.format_bold,
+      Icons.format_italic.codePoint: Icons.format_italic,
+      Icons.strikethrough_s.codePoint: Icons.strikethrough_s,
+      Icons.title.codePoint: Icons.title,
 
-    // Other icons
-    0xe157: Icons.link, // Link
-    0xe916: Icons.today, // Date
+      // List icons
+      Icons.circle.codePoint: Icons.circle,
+      Icons.fiber_manual_record.codePoint: Icons.fiber_manual_record,
+      Icons.format_list_bulleted.codePoint: Icons.format_list_bulleted,
+      Icons.format_list_numbered.codePoint: Icons.format_list_numbered,
 
-    // Icons from AvailableIcons (icon picker)
-    0xe8e8: Icons.star,
-    0xe87c: Icons.favorite,
-    0xe1f6: Icons.lightbulb,
-    0xe002: Icons.warning,
-    0xe889: Icons.info,
-    0xe86c: Icons.check_circle,
-    0xe22a: Icons.highlight,
-    0xe40a: Icons.palette,
-    0xe043: Icons.bookmark,
-    0xe892: Icons.label,
-    0xe14d: Icons.flag,
-    0xe6df: Icons.push_pin,
-    0xe838: Icons.note,
-    0xe80c: Icons.description,
-    0xe866: Icons.article,
-    0xf1b7: Icons.menu_book,
-    0xe02e: Icons.attachment,
-    0xe54a: Icons.local_offer,
-    0xe8de: Icons.style,
-    0xeb43: Icons.fitness_center,
+      // Text icons
+      Icons.tag.codePoint: Icons.tag,
+      Icons.check_box_outline_blank.codePoint: Icons.check_box_outline_blank,
+      Icons.check_box.codePoint: Icons.check_box,
+      Icons.format_quote.codePoint: Icons.format_quote,
 
-    // Common picker icons
-    0xe0c9: Icons.email,
-    0xe0cd: Icons.phone,
-    0xe55f: Icons.location_on,
-    0xe8b8: Icons.schedule,
-    0xe7fd: Icons.person,
-    0xe8dc: Icons.settings,
-    0xe88a: Icons.home,
-    0xe3e4: Icons.image,
-    0xe02c: Icons.music_note,
-    0xe04b: Icons.videocam,
-    0xe873: Icons.edit,
-    0xe872: Icons.delete,
-    0xe5cd: Icons.close,
-    0xe5ca: Icons.check,
-    0xe145: Icons.add,
-    0xe15b: Icons.remove,
-    0xe8b6: Icons.search,
-    0xe5d2: Icons.menu,
-    0xe5c4: Icons.arrow_back,
-    0xe5c8: Icons.arrow_forward,
-    0xe5db: Icons.arrow_upward,
-    0xe5c5: Icons.arrow_downward,
-    0xe5d0: Icons.refresh,
-    0xe161: Icons.save,
-    0xe2c4: Icons.share,
-    0xe14f: Icons.content_copy,
-    0xe14e: Icons.content_cut,
-    0xe876: Icons.help,
-    0xe5ce: Icons.expand_more,
-    0xe5cf: Icons.expand_less,
-    0xe8f4: Icons.visibility,
-    0xe8f5: Icons.visibility_off,
-    0xe897: Icons.lock,
-    0xe898: Icons.lock_open,
-    0xe7f5: Icons.chat,
-    0xe63e: Icons.comment,
-    0xe2c7: Icons.folder,
-    0xe24d: Icons.insert_drive_file,
-    0xe2bc: Icons.cloud,
-    0xe2c0: Icons.cloud_download,
-    0xe2c3: Icons.cloud_upload,
-    0xef42: Icons.download,
-    0xf090: Icons.upload,
-    0xe3af: Icons.camera_alt,
-    0xe3f4: Icons.photo,
-    0xe417: Icons.play_arrow,
-    0xe034: Icons.pause,
-    0xe047: Icons.stop,
-    0xe8b1: Icons.fast_forward,
-    0xe020: Icons.fast_rewind,
-    0xe037: Icons.skip_next,
-    0xe045: Icons.skip_previous,
-    0xe04d: Icons.volume_up,
-    0xe04e: Icons.volume_off,
-    0xe63f: Icons.brightness_high,
-    0xe3ac: Icons.brightness_low,
-    0xe1a4: Icons.wifi,
-    0xe1ba: Icons.bluetooth,
-    0xe325: Icons.battery_full,
-    0xe0df: Icons.signal_cellular_4_bar,
-    0xefd3: Icons.dark_mode,
-    0xe518: Icons.light_mode,
-    0xe000: Icons.error,
-  };
+      // Other icons
+      Icons.link.codePoint: Icons.link,
+      Icons.today.codePoint: Icons.today,
+      Icons.code.codePoint: Icons.code,
+      Icons.integration_instructions.codePoint: Icons.integration_instructions,
+      Icons.table_chart.codePoint: Icons.table_chart,
+      Icons.horizontal_rule.codePoint: Icons.horizontal_rule,
+
+      // Common picker icons
+      Icons.email.codePoint: Icons.email,
+      Icons.phone.codePoint: Icons.phone,
+      Icons.location_on.codePoint: Icons.location_on,
+      Icons.schedule.codePoint: Icons.schedule,
+      Icons.person.codePoint: Icons.person,
+      Icons.settings.codePoint: Icons.settings,
+      Icons.home.codePoint: Icons.home,
+      Icons.image.codePoint: Icons.image,
+      Icons.music_note.codePoint: Icons.music_note,
+      Icons.videocam.codePoint: Icons.videocam,
+      Icons.edit.codePoint: Icons.edit,
+      Icons.delete.codePoint: Icons.delete,
+      Icons.close.codePoint: Icons.close,
+      Icons.check.codePoint: Icons.check,
+      Icons.add.codePoint: Icons.add,
+      Icons.remove.codePoint: Icons.remove,
+      Icons.search.codePoint: Icons.search,
+      Icons.menu.codePoint: Icons.menu,
+      Icons.arrow_back.codePoint: Icons.arrow_back,
+      Icons.arrow_forward.codePoint: Icons.arrow_forward,
+      Icons.arrow_upward.codePoint: Icons.arrow_upward,
+      Icons.arrow_downward.codePoint: Icons.arrow_downward,
+      Icons.refresh.codePoint: Icons.refresh,
+      Icons.save.codePoint: Icons.save,
+      Icons.share.codePoint: Icons.share,
+      Icons.content_copy.codePoint: Icons.content_copy,
+      Icons.content_cut.codePoint: Icons.content_cut,
+      Icons.help.codePoint: Icons.help,
+      Icons.expand_more.codePoint: Icons.expand_more,
+      Icons.expand_less.codePoint: Icons.expand_less,
+      Icons.visibility.codePoint: Icons.visibility,
+      Icons.visibility_off.codePoint: Icons.visibility_off,
+      Icons.lock.codePoint: Icons.lock,
+      Icons.lock_open.codePoint: Icons.lock_open,
+      Icons.chat.codePoint: Icons.chat,
+      Icons.comment.codePoint: Icons.comment,
+      Icons.folder.codePoint: Icons.folder,
+      Icons.insert_drive_file.codePoint: Icons.insert_drive_file,
+      Icons.cloud.codePoint: Icons.cloud,
+      Icons.cloud_download.codePoint: Icons.cloud_download,
+      Icons.cloud_upload.codePoint: Icons.cloud_upload,
+      Icons.download.codePoint: Icons.download,
+      Icons.upload.codePoint: Icons.upload,
+      Icons.camera_alt.codePoint: Icons.camera_alt,
+      Icons.photo.codePoint: Icons.photo,
+      Icons.play_arrow.codePoint: Icons.play_arrow,
+      Icons.pause.codePoint: Icons.pause,
+      Icons.stop.codePoint: Icons.stop,
+      Icons.fast_forward.codePoint: Icons.fast_forward,
+      Icons.fast_rewind.codePoint: Icons.fast_rewind,
+      Icons.skip_next.codePoint: Icons.skip_next,
+      Icons.skip_previous.codePoint: Icons.skip_previous,
+      Icons.volume_up.codePoint: Icons.volume_up,
+      Icons.volume_off.codePoint: Icons.volume_off,
+      Icons.brightness_high.codePoint: Icons.brightness_high,
+      Icons.brightness_low.codePoint: Icons.brightness_low,
+      Icons.wifi.codePoint: Icons.wifi,
+      Icons.bluetooth.codePoint: Icons.bluetooth,
+      Icons.battery_full.codePoint: Icons.battery_full,
+      Icons.signal_cellular_4_bar.codePoint: Icons.signal_cellular_4_bar,
+      Icons.dark_mode.codePoint: Icons.dark_mode,
+      Icons.light_mode.codePoint: Icons.light_mode,
+      Icons.error.codePoint: Icons.error,
+    };
+
+    for (final icon in AvailableIcons.all) {
+      map[icon.codePoint] = icon;
+    }
+
+    return map;
+  }
 
   /// Gets an IconData from a code point.
   /// If the code point is not in the map, returns a fallback icon.

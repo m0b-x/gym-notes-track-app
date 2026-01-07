@@ -320,6 +320,14 @@
   "@selectIcon": {
     "description": "Select icon dialog title"
   },
+  "searchIcons": "Symbole suchen...",
+  "@searchIcons": {
+    "description": "Placeholder for icon search input"
+  },
+  "noIconsFound": "Keine Symbole gefunden",
+  "@noIconsFound": {
+    "description": "Message when no icons match search"
+  },
   "label": "Beschriftung",
   "@label": {
     "description": "Label input field"

@@ -312,6 +312,14 @@
   "@selectIcon": {
     "description": "Select icon dialog title"
   },
+  "searchIcons": "Search icons...",
+  "@searchIcons": {
+    "description": "Placeholder for icon search input"
+  },
+  "noIconsFound": "No icons found",
+  "@noIconsFound": {
+    "description": "Message when no icons match search"
+  },
   "label": "Label",
   "@label": {
     "description": "Label input field"

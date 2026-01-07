@@ -5,12 +5,12 @@ import 'package:intl/intl.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import '../l10n/app_localizations.dart';
 import '../models/custom_markdown_shortcut.dart';
-import '../config/available_icons.dart';
 import '../widgets/markdown_toolbar.dart';
 import '../utils/markdown_settings_utils.dart';
 import '../widgets/interactive_markdown.dart';
 import '../constants/settings_keys.dart';
 import '../utils/icon_utils.dart';
+import '../widgets/icon_picker_dialog.dart';
 
 class ShortcutEditorDialog extends StatefulWidget {
   final CustomMarkdownShortcut? shortcut;
@@ -118,54 +118,22 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     super.dispose();
   }
 
-  void _showIconPicker() {
-    showDialog(
+  void _showIconPicker() async {
+    final selectedIcon = await showDialog<IconData>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.selectIcon),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 300,
-          child: GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-            ),
-            itemCount: AvailableIcons.all.length,
-            itemBuilder: (context, index) {
-              final icon = AvailableIcons.all[index];
-              return InkWell(
-                onTap: () {
-                  setState(() {
-                    _selectedIcon = icon;
-                  });
-                  Navigator.pop(context);
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: _selectedIcon == icon
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.2),
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, size: 32),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
+      builder: (context) => IconPickerDialog(currentIcon: _selectedIcon),
     );
+
+    if (selectedIcon != null && mounted) {
+      setState(() {
+        _selectedIcon = selectedIcon;
+      });
+    }
   }
 
   Future<void> _loadShortcuts() async {
     final loaded = await MarkdownSettingsUtils.loadShortcuts();
+    if (!mounted) return;
     setState(() {
       _shortcuts = loaded;
     });
@@ -353,6 +321,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
       afterText: _afterController.text,
       insertType: _insertType,
       dateFormat: _insertType == 'date' ? _selectedDateFormat : null,
+      isVisible: widget.shortcut?.isVisible ?? true,
     );
 
     widget.onSave(shortcut);
@@ -402,6 +371,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                   _afterFocusNode.unfocus();
                 },
                 child: SingleChildScrollView(
+                  clipBehavior: Clip.hardEdge,
                   padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

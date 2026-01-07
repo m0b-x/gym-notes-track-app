@@ -20,119 +20,119 @@ class MarkdownSettingsUtils {
 
   static List<CustomMarkdownShortcut> getDefaultShortcuts() {
     return [
-      const CustomMarkdownShortcut(
+      CustomMarkdownShortcut(
         id: 'default_bold',
         label: 'Bold',
-        iconCodePoint: 0xe238,
+        iconCodePoint: Icons.format_bold.codePoint,
         iconFontFamily: 'MaterialIcons',
         beforeText: '**',
         afterText: '**',
         isDefault: true,
       ),
-      const CustomMarkdownShortcut(
+      CustomMarkdownShortcut(
         id: 'default_italic',
         label: 'Italic',
-        iconCodePoint: 0xe23f,
+        iconCodePoint: Icons.format_italic.codePoint,
         iconFontFamily: 'MaterialIcons',
         beforeText: '_',
         afterText: '_',
         isDefault: true,
       ),
-      const CustomMarkdownShortcut(
+      CustomMarkdownShortcut(
         id: 'default_header',
         label: 'Headers',
-        iconCodePoint: 0xe86f,
+        iconCodePoint: Icons.tag.codePoint,
         iconFontFamily: 'MaterialIcons',
         beforeText: '# ',
         afterText: '',
         isDefault: true,
         insertType: 'header',
       ),
-      const CustomMarkdownShortcut(
+      CustomMarkdownShortcut(
         id: 'default_point_list',
         label: 'Point List',
-        iconCodePoint: 0xe065,
+        iconCodePoint: Icons.circle.codePoint,
         iconFontFamily: 'MaterialIcons',
         beforeText: '• ',
         afterText: '',
         isDefault: true,
       ),
-      const CustomMarkdownShortcut(
+      CustomMarkdownShortcut(
         id: 'default_strikethrough',
         label: 'Strikethrough',
-        iconCodePoint: 0xe257,
+        iconCodePoint: Icons.strikethrough_s.codePoint,
         iconFontFamily: 'MaterialIcons',
         beforeText: '~~',
         afterText: '~~',
         isDefault: true,
       ),
-      const CustomMarkdownShortcut(
+      CustomMarkdownShortcut(
         id: 'default_bullet_list',
         label: 'Bullet List',
-        iconCodePoint: 0xe241,
+        iconCodePoint: Icons.format_list_bulleted.codePoint,
         iconFontFamily: 'MaterialIcons',
         beforeText: '- ',
         afterText: '',
         isDefault: true,
       ),
-      const CustomMarkdownShortcut(
+      CustomMarkdownShortcut(
         id: 'default_numbered_list',
         label: 'Numbered List',
-        iconCodePoint: 0xe242,
+        iconCodePoint: Icons.format_list_numbered.codePoint,
         iconFontFamily: 'MaterialIcons',
         beforeText: '1. ',
         afterText: '',
         isDefault: true,
       ),
-      const CustomMarkdownShortcut(
+      CustomMarkdownShortcut(
         id: 'default_checkbox',
         label: 'Checkbox',
-        iconCodePoint: 0xe834,
+        iconCodePoint: Icons.check_box_outline_blank.codePoint,
         iconFontFamily: 'MaterialIcons',
         beforeText: '- [ ] ',
         afterText: '',
         isDefault: true,
       ),
-      const CustomMarkdownShortcut(
+      CustomMarkdownShortcut(
         id: 'default_quote',
         label: 'Quote',
-        iconCodePoint: 0xe244,
+        iconCodePoint: Icons.format_quote.codePoint,
         iconFontFamily: 'MaterialIcons',
         beforeText: '> ',
         afterText: '',
         isDefault: true,
       ),
-      const CustomMarkdownShortcut(
+      CustomMarkdownShortcut(
         id: 'default_inline_code',
         label: 'Inline Code',
-        iconCodePoint: 0xe86f,
+        iconCodePoint: Icons.code.codePoint,
         iconFontFamily: 'MaterialIcons',
         beforeText: '`',
         afterText: '`',
         isDefault: true,
       ),
-      const CustomMarkdownShortcut(
+      CustomMarkdownShortcut(
         id: 'default_code_block',
         label: 'Code Block',
-        iconCodePoint: 0xe86f,
+        iconCodePoint: Icons.code.codePoint,
         iconFontFamily: 'MaterialIcons',
         beforeText: '```\n',
         afterText: '\n```',
         isDefault: true,
       ),
-      const CustomMarkdownShortcut(
+      CustomMarkdownShortcut(
         id: 'default_link',
         label: 'Link',
-        iconCodePoint: 0xe157,
+        iconCodePoint: Icons.link.codePoint,
         iconFontFamily: 'MaterialIcons',
         beforeText: '[',
         afterText: '](url)',
         isDefault: true,
       ),
-      const CustomMarkdownShortcut(
+      CustomMarkdownShortcut(
         id: 'default_date',
         label: 'Current Date',
-        iconCodePoint: 0xe916,
+        iconCodePoint: Icons.today.codePoint,
         iconFontFamily: 'MaterialIcons',
         beforeText: '',
         afterText: '',
@@ -196,12 +196,26 @@ class MarkdownSettingsUtils {
     final shortcutsJson = await db.userSettingsDao.getValue(_shortcutsKey);
 
     final defaults = getDefaultShortcuts();
+    final defaultsMap = {for (var d in defaults) d.id: d};
 
     if (shortcutsJson != null) {
       final List<dynamic> decoded = jsonDecode(shortcutsJson);
-      return decoded
+      final loaded = decoded
           .map((json) => CustomMarkdownShortcut.fromJson(json))
           .toList();
+
+      final migrated = loaded.map((shortcut) {
+        if (shortcut.isDefault && defaultsMap.containsKey(shortcut.id)) {
+          final defaultShortcut = defaultsMap[shortcut.id]!;
+          return shortcut.copyWith(
+            iconCodePoint: defaultShortcut.iconCodePoint,
+            iconFontFamily: defaultShortcut.iconFontFamily,
+          );
+        }
+        return shortcut;
+      }).toList();
+
+      return migrated;
     }
 
     return defaults;

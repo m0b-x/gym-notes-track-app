@@ -926,6 +926,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     );
 
     final defaults = DefaultMarkdownShortcuts.shortcuts;
+    final defaultsMap = {for (var d in defaults) d.id: d};
 
     if (shortcutsJson != null) {
       final List<dynamic> decoded = jsonDecode(shortcutsJson);
@@ -933,13 +934,21 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           .map((json) => CustomMarkdownShortcut.fromJson(json))
           .toList();
 
-      // Create a set of loaded shortcut IDs to track what we have
       final loadedIds = loaded.map((s) => s.id).toSet();
 
-      // Start with loaded shortcuts in their saved order
-      final mergedShortcuts = List<CustomMarkdownShortcut>.from(loaded);
+      final migrated = loaded.map((shortcut) {
+        if (shortcut.isDefault && defaultsMap.containsKey(shortcut.id)) {
+          final defaultShortcut = defaultsMap[shortcut.id]!;
+          return shortcut.copyWith(
+            iconCodePoint: defaultShortcut.iconCodePoint,
+            iconFontFamily: defaultShortcut.iconFontFamily,
+          );
+        }
+        return shortcut;
+      }).toList();
 
-      // Add any new default shortcuts that weren't in the saved data
+      final mergedShortcuts = List<CustomMarkdownShortcut>.from(migrated);
+
       for (var defaultShortcut in defaults) {
         if (!loadedIds.contains(defaultShortcut.id)) {
           mergedShortcuts.add(defaultShortcut);

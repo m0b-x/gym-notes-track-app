@@ -232,6 +232,12 @@ class AppLocalizationsRo extends AppLocalizations {
   String get selectIcon => 'Selectează Pictograma';
 
   @override
+  String get searchIcons => 'Caută pictograme...';
+
+  @override
+  String get noIconsFound => 'Nicio pictogramă găsită';
+
+  @override
   String get label => 'Etichetă';
 
   @override

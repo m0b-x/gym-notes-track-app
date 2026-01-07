@@ -67,6 +67,8 @@
   "icon": "Pictogramă",
   "tapToChangeIcon": "Apasă pentru a schimba pictograma",
   "selectIcon": "Selectează Pictograma",
+  "searchIcons": "Caută pictograme...",
+  "noIconsFound": "Nicio pictogramă găsită",
   "label": "Etichetă",
   "labelHint": "ex., Evidențiere",
   "insertType": "Tip Inserare",

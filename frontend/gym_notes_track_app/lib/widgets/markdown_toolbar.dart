@@ -198,7 +198,7 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
       return CustomMarkdownShortcut(
         id: 'header_level_$level',
         label: 'H$level',
-        iconCodePoint: 0xe86f,
+        iconCodePoint: Icons.tag.codePoint,
         iconFontFamily: 'MaterialIcons',
         beforeText: '${'#' * level} ',
         afterText: '',

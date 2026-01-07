@@ -234,6 +234,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get selectIcon => 'Symbol auswählen';
 
   @override
+  String get searchIcons => 'Symbole suchen...';
+
+  @override
+  String get noIconsFound => 'Keine Symbole gefunden';
+
+  @override
   String get label => 'Beschriftung';
 
   @override

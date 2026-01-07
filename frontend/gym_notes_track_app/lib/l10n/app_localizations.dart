@@ -508,6 +508,18 @@ abstract class AppLocalizations {
   /// **'Select Icon'**
   String get selectIcon;
 
+  /// Placeholder for icon search input
+  ///
+  /// In en, this message translates to:
+  /// **'Search icons...'**
+  String get searchIcons;
+
+  /// Message when no icons match search
+  ///
+  /// In en, this message translates to:
+  /// **'No icons found'**
+  String get noIconsFound;
+
   /// Label input field
   ///
   /// In en, this message translates to:

@@ -1,156 +1,157 @@
+import 'package:flutter/material.dart';
 import '../models/custom_markdown_shortcut.dart';
 
 class DefaultMarkdownShortcuts {
   static List<CustomMarkdownShortcut> get shortcuts => [
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_bold',
       label: 'Bold',
-      iconCodePoint: 0xe238, // Icons.format_bold
+      iconCodePoint: Icons.format_bold.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '**',
       afterText: '**',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_italic',
       label: 'Italic',
-      iconCodePoint: 0xe23f, // Icons.format_italic
+      iconCodePoint: Icons.format_italic.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '_',
       afterText: '_',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_header',
       label: 'Headers',
-      iconCodePoint: 0xe264, // Icons.title
+      iconCodePoint: Icons.title.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '# ',
       afterText: '',
       isDefault: true,
       insertType: 'header',
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_point_list',
       label: 'Point List',
-      iconCodePoint: 0xe061, // Icons.fiber_manual_record (bullet point)
+      iconCodePoint: Icons.fiber_manual_record.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '• ',
       afterText: '',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_strikethrough',
       label: 'Strikethrough',
-      iconCodePoint: 0xe246, // Icons.format_strikethrough
+      iconCodePoint: Icons.strikethrough_s.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '~~',
       afterText: '~~',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_bullet_list',
       label: 'Bullet List',
-      iconCodePoint: 0xe241, // Icons.format_list_bulleted
+      iconCodePoint: Icons.format_list_bulleted.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '- ',
       afterText: '',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_numbered_list',
       label: 'Numbered List',
-      iconCodePoint: 0xe242, // Icons.format_list_numbered
+      iconCodePoint: Icons.format_list_numbered.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '1. ',
       afterText: '',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_checkbox',
       label: 'Checkbox',
-      iconCodePoint: 0xe834, // Icons.check_box_outline_blank
+      iconCodePoint: Icons.check_box_outline_blank.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '- [ ] ',
       afterText: '',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_quote',
       label: 'Quote',
-      iconCodePoint: 0xe244, // Icons.format_quote
+      iconCodePoint: Icons.format_quote.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '> ',
       afterText: '',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_inline_code',
       label: 'Inline Code',
-      iconCodePoint: 0xe86f, // Icons.code
+      iconCodePoint: Icons.code.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '`',
       afterText: '`',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_code_block',
       label: 'Code Block',
-      iconCodePoint: 0xf054, // Icons.integration_instructions (code file)
+      iconCodePoint: Icons.integration_instructions.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '```\n',
       afterText: '\n```',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_link',
       label: 'Link',
-      iconCodePoint: 0xe157, // Icons.insert_link
+      iconCodePoint: Icons.link.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '[',
       afterText: '](url)',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_checked_checkbox',
       label: 'Checked Checkbox',
-      iconCodePoint: 0xe834, // Icons.check_box
+      iconCodePoint: Icons.check_box.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '- [x] ',
       afterText: '',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_table',
       label: 'Table',
-      iconCodePoint: 0xe8ef, // Icons.table_chart
+      iconCodePoint: Icons.table_chart.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '| Header | Header |\n| --- | --- |\n| ',
       afterText: ' |',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_horizontal_rule',
       label: 'Horizontal Rule',
-      iconCodePoint: 0xf108, // Icons.horizontal_rule
+      iconCodePoint: Icons.horizontal_rule.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '\n---\n',
       afterText: '',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_image',
       label: 'Image',
-      iconCodePoint: 0xe3f4, // Icons.image
+      iconCodePoint: Icons.image.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '![',
       afterText: '](url)',
       isDefault: true,
     ),
-    const CustomMarkdownShortcut(
+    CustomMarkdownShortcut(
       id: 'default_date',
       label: 'Current Date',
-      iconCodePoint: 0xe916, // Icons.today
+      iconCodePoint: Icons.today.codePoint,
       iconFontFamily: 'MaterialIcons',
       beforeText: '',
       afterText: '',

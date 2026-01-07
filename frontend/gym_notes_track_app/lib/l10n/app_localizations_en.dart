@@ -230,6 +230,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectIcon => 'Select Icon';
 
   @override
+  String get searchIcons => 'Search icons...';
+
+  @override
+  String get noIconsFound => 'No icons found';
+
+  @override
   String get label => 'Label';
 
   @override
