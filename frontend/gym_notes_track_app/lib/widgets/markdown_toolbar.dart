@@ -1,13 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:async';
-import 'package:intl/intl.dart';
-import '../models/custom_markdown_shortcut.dart';
+
 import '../l10n/app_localizations.dart';
-import '../factories/shortcut_handler_factory.dart';
-import '../handlers/date_shortcut_handler.dart';
-import '../constants/settings_keys.dart';
-import '../database/database.dart';
+import '../models/custom_markdown_shortcut.dart';
 import '../utils/icon_utils.dart';
 
 class MarkdownToolbar extends StatefulWidget {
@@ -146,9 +143,6 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
                       widget.onShortcutPressed(shortcut);
                     }
                   },
-                  onLongPress: shortcut.insertType == 'date'
-                      ? () => _showDateFormatDialog(context)
-                      : null,
                 ),
               ),
               const SizedBox(width: 8),
@@ -246,14 +240,6 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
         widget.onShortcutPressed(selected);
       }
     });
-  }
-
-  void _showDateFormatDialog(BuildContext context) {
-    HapticFeedback.mediumImpact();
-    showDialog(
-      context: context,
-      builder: (context) => const _DateFormatDialog(),
-    );
   }
 
   Widget _buildReorderMode(BuildContext context) {
@@ -430,30 +416,35 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
     double deltaY = 0;
 
     // Check horizontal scrolling - use both local bounds and screen edges
-    if (localPosition.dx < _edgeScrollThreshold || 
+    if (localPosition.dx < _edgeScrollThreshold ||
         globalPosition.dx < _edgeScrollThreshold) {
       // Calculate scroll speed based on how close to edge (faster when closer)
-      final distanceFromEdge = localPosition.dx < _edgeScrollThreshold 
-          ? localPosition.dx 
+      final distanceFromEdge = localPosition.dx < _edgeScrollThreshold
+          ? localPosition.dx
           : globalPosition.dx;
-      final speedMultiplier = 1.0 - (distanceFromEdge / _edgeScrollThreshold).clamp(0.0, 1.0);
+      final speedMultiplier =
+          1.0 - (distanceFromEdge / _edgeScrollThreshold).clamp(0.0, 1.0);
       deltaX = -_autoScrollSpeed * (0.5 + speedMultiplier * 0.5);
-    } else if (localPosition.dx > size.width - _edgeScrollThreshold || 
-               globalPosition.dx > screenSize.width - _edgeScrollThreshold) {
-      final distanceFromEdge = localPosition.dx > size.width - _edgeScrollThreshold
+    } else if (localPosition.dx > size.width - _edgeScrollThreshold ||
+        globalPosition.dx > screenSize.width - _edgeScrollThreshold) {
+      final distanceFromEdge =
+          localPosition.dx > size.width - _edgeScrollThreshold
           ? size.width - localPosition.dx
           : screenSize.width - globalPosition.dx;
-      final speedMultiplier = 1.0 - (distanceFromEdge / _edgeScrollThreshold).clamp(0.0, 1.0);
+      final speedMultiplier =
+          1.0 - (distanceFromEdge / _edgeScrollThreshold).clamp(0.0, 1.0);
       deltaX = _autoScrollSpeed * (0.5 + speedMultiplier * 0.5);
     }
 
     // Check vertical scrolling
     if (localPosition.dy < _edgeScrollThreshold) {
-      final speedMultiplier = 1.0 - (localPosition.dy / _edgeScrollThreshold).clamp(0.0, 1.0);
+      final speedMultiplier =
+          1.0 - (localPosition.dy / _edgeScrollThreshold).clamp(0.0, 1.0);
       deltaY = -_autoScrollSpeed * (0.5 + speedMultiplier * 0.5);
     } else if (localPosition.dy > size.height - _edgeScrollThreshold) {
       final distanceFromEdge = size.height - localPosition.dy;
-      final speedMultiplier = 1.0 - (distanceFromEdge / _edgeScrollThreshold).clamp(0.0, 1.0);
+      final speedMultiplier =
+          1.0 - (distanceFromEdge / _edgeScrollThreshold).clamp(0.0, 1.0);
       deltaY = _autoScrollSpeed * (0.5 + speedMultiplier * 0.5);
     }
 
@@ -468,7 +459,7 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
     _autoScrollTimer?.cancel();
     _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
       bool scrolled = false;
-      
+
       if (deltaX != 0 && _horizontalScrollController.hasClients) {
         final currentX = _horizontalScrollController.offset;
         final newX = (currentX + deltaX).clamp(
@@ -492,7 +483,7 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
           scrolled = true;
         }
       }
-      
+
       // Update target index while scrolling to keep the drop indicator accurate
       if (scrolled && _lastDragPosition != null && mounted) {
         _updateTargetIndex(_lastDragPosition!);
@@ -694,7 +685,10 @@ class _ReorderableShortcutItem extends StatelessWidget {
       );
     }
     return Icon(
-      IconUtils.getIconFromData(shortcut.iconCodePoint, shortcut.iconFontFamily),
+      IconUtils.getIconFromData(
+        shortcut.iconCodePoint,
+        shortcut.iconFontFamily,
+      ),
       size: 18,
       color: Theme.of(context).colorScheme.onSurface,
     );
@@ -704,54 +698,26 @@ class _ReorderableShortcutItem extends StatelessWidget {
 class _ShortcutButton extends StatelessWidget {
   final CustomMarkdownShortcut shortcut;
   final VoidCallback onTap;
-  final VoidCallback? onLongPress;
 
   const _ShortcutButton({
     required this.shortcut,
     required this.onTap,
-    this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
-    final hasSettings = shortcut.insertType == 'date';
-
     return Tooltip(
-      message: hasSettings
-          ? '${shortcut.label} (${AppLocalizations.of(context)!.longPressToChangeFormat})'
-          : shortcut.label,
+      message: shortcut.label,
+      preferBelow: false,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          onLongPress: onLongPress,
           borderRadius: BorderRadius.circular(10),
           child: Container(
             padding: const EdgeInsets.all(14),
             margin: const EdgeInsets.symmetric(horizontal: 3),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                _buildButtonContent(context),
-                if (hasSettings)
-                  Positioned(
-                    right: -6,
-                    bottom: -6,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.settings,
-                        size: 10,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+            child: _buildButtonContent(context),
           ),
         ),
       ),
@@ -790,7 +756,10 @@ class _ShortcutButton extends StatelessWidget {
       );
     }
     return Icon(
-      IconUtils.getIconFromData(shortcut.iconCodePoint, shortcut.iconFontFamily),
+      IconUtils.getIconFromData(
+        shortcut.iconCodePoint,
+        shortcut.iconFontFamily,
+      ),
       size: 24,
       color: Theme.of(context).iconTheme.color,
     );
@@ -812,6 +781,7 @@ class _ToolbarButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
+      preferBelow: false,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3),
         child: Material(
@@ -834,162 +804,6 @@ class _ToolbarButton extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _DateFormatDialog extends StatefulWidget {
-  const _DateFormatDialog();
-
-  @override
-  State<_DateFormatDialog> createState() => _DateFormatDialogState();
-}
-
-class _DateFormatDialogState extends State<_DateFormatDialog> {
-  String _selectedFormat = SettingsKeys.defaultDateFormat;
-  bool _isLoading = true;
-
-  static const List<String> _dateFormats = [
-    'MMMM d, yyyy',
-    'MMM d, yyyy',
-    'd MMMM yyyy',
-    'd MMM yyyy',
-    'yyyy-MM-dd',
-    'dd/MM/yyyy',
-    'MM/dd/yyyy',
-    'dd.MM.yyyy',
-    'EEEE, MMMM d, yyyy',
-    'EEE, MMM d, yyyy',
-    'd/M/yy',
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCurrentFormat();
-  }
-
-  Future<void> _loadCurrentFormat() async {
-    final db = await AppDatabase.getInstance();
-    final format = await db.userSettingsDao.getValue(SettingsKeys.dateFormat);
-    if (mounted) {
-      setState(() {
-        _selectedFormat = format ?? SettingsKeys.defaultDateFormat;
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _saveFormat(String format) async {
-    final db = await AppDatabase.getInstance();
-    await db.userSettingsDao.setValue(SettingsKeys.dateFormat, format);
-    final handler = ShortcutHandlerFactory.getHandler('date');
-    if (handler is DateShortcutHandler) {
-      handler.clearCache();
-    }
-    if (mounted) {
-      Navigator.of(context).pop();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
-    final now = DateTime.now();
-
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.today, color: colorScheme.primary),
-          const SizedBox(width: 12),
-          Text(l10n.dateFormatSettings),
-        ],
-      ),
-      content: _isLoading
-          ? const SizedBox(
-              height: 200,
-              child: Center(child: CircularProgressIndicator()),
-            )
-          : SizedBox(
-              width: double.maxFinite,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.selectDateFormat,
-                    style: TextStyle(
-                      color: colorScheme.onSurfaceVariant,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: _dateFormats.length,
-                      itemBuilder: (context, index) {
-                        final format = _dateFormats[index];
-                        final isSelected = format == _selectedFormat;
-                        final formattedDate = DateFormat(format).format(now);
-
-                        return ListTile(
-                          dense: true,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          selected: isSelected,
-                          selectedTileColor: colorScheme.primaryContainer
-                              .withValues(alpha: 0.3),
-                          leading: Icon(
-                            isSelected
-                                ? Icons.radio_button_checked
-                                : Icons.radio_button_off,
-                            color: isSelected
-                                ? colorScheme.primary
-                                : colorScheme.outline,
-                            size: 20,
-                          ),
-                          title: Text(
-                            formattedDate,
-                            style: TextStyle(
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                              color: isSelected
-                                  ? colorScheme.primary
-                                  : colorScheme.onSurface,
-                            ),
-                          ),
-                          subtitle: Text(
-                            format,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            setState(() => _selectedFormat = format);
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.cancel),
-        ),
-        FilledButton(
-          onPressed: () => _saveFormat(_selectedFormat),
-          child: Text(l10n.save),
-        ),
-      ],
     );
   }
 }
