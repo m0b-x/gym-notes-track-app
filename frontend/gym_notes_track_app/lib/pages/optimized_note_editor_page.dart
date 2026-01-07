@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-import 'dart:convert';
+
 import '../l10n/app_localizations.dart';
+import '../widgets/scroll_zone_mixin.dart';
 import '../bloc/optimized_note/optimized_note_bloc.dart';
 import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
@@ -752,137 +755,13 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   Widget _buildEditor() {
-    // Always use standard TextField - it works reliably
-    return Stack(
-      children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              controller: _editorScrollController,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: ListenableBuilder(
-                  listenable: _searchController,
-                  builder: (context, _) {
-                    return _buildTextFieldWithHighlights(context);
-                  },
-                ),
-              ),
-            );
-          },
-        ),
-        Positioned(
-          top: 8,
-          bottom: 8,
-          right: 0,
-          child: ScrollProgressIndicator(
-            scrollController: _editorScrollController,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTextFieldWithHighlights(BuildContext context) {
-    final matches = _searchController.matches;
-    final hasMatches = matches.isNotEmpty && _searchController.isSearching;
-
-    if (!hasMatches) {
-      // No search or no matches - use regular TextField
-      return TextField(
-        controller: _contentController,
-        focusNode: _contentFocusNode,
-        decoration: InputDecoration(
-          hintText: AppLocalizations.of(context)!.startWriting,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.all(0),
-        ),
-        maxLines: null,
-        textAlignVertical: TextAlignVertical.top,
-        keyboardType: TextInputType.multiline,
-        textInputAction: TextInputAction.newline,
-        style: TextStyle(fontSize: _editorFontSize, height: 1.5),
-        onChanged: (_) => _handleTextChange(),
-      );
-    }
-
-    // With search matches - use highlighted view
-    final text = _contentController.text;
-    final currentMatchIndex = _searchController.currentMatchIndex;
-    final baseStyle = TextStyle(fontSize: _editorFontSize, height: 1.5);
-
-    // Build spans with highlights
-    final spans = <TextSpan>[];
-    int lastEnd = 0;
-
-    for (int i = 0; i < matches.length; i++) {
-      final match = matches[i];
-      if (match.start > text.length || match.end > text.length) continue;
-
-      // Text before match
-      if (match.start > lastEnd) {
-        spans.add(
-          TextSpan(
-            text: text.substring(lastEnd, match.start),
-            style: baseStyle,
-          ),
-        );
-      }
-
-      // Highlighted match
-      final isCurrentMatch = i == currentMatchIndex;
-      spans.add(
-        TextSpan(
-          text: text.substring(match.start, match.end),
-          style: baseStyle.copyWith(
-            backgroundColor: isCurrentMatch
-                ? Colors.orange.withValues(alpha: 0.6)
-                : Colors.yellow.withValues(alpha: 0.4),
-          ),
-        ),
-      );
-
-      lastEnd = match.end;
-    }
-
-    // Remaining text
-    if (lastEnd < text.length) {
-      spans.add(TextSpan(text: text.substring(lastEnd), style: baseStyle));
-    }
-
-    // Use Stack with RichText behind and transparent TextField on top
-    return Stack(
-      children: [
-        // Highlighted text (visual only)
-        Padding(
-          padding: const EdgeInsets.only(top: 12), // Match TextField padding
-          child: RichText(
-            text: TextSpan(
-              style: baseStyle.copyWith(
-                color: Theme.of(context).textTheme.bodyLarge?.color,
-              ),
-              children: spans,
-            ),
-          ),
-        ),
-        // Actual editable TextField (with transparent text)
-        TextField(
-          controller: _contentController,
-          focusNode: _contentFocusNode,
-          decoration: InputDecoration(
-            hintText: AppLocalizations.of(context)!.startWriting,
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.all(0),
-          ),
-          maxLines: null,
-          textAlignVertical: TextAlignVertical.top,
-          keyboardType: TextInputType.multiline,
-          textInputAction: TextInputAction.newline,
-          style: baseStyle.copyWith(color: Colors.transparent),
-          cursorColor: Theme.of(context).colorScheme.primary,
-          onChanged: (_) => _handleTextChange(),
-        ),
-      ],
+    return _ModernEditorWrapper(
+      controller: _contentController,
+      focusNode: _contentFocusNode,
+      scrollController: _editorScrollController,
+      searchController: _searchController,
+      editorFontSize: _editorFontSize,
+      onTextChanged: _handleTextChange,
     );
   }
 
@@ -1119,5 +998,225 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         jsonEncode(shortcutsJson),
       );
     }
+  }
+}
+
+class _ModernEditorWrapper extends StatefulWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ScrollController scrollController;
+  final NoteSearchController searchController;
+  final double editorFontSize;
+  final VoidCallback onTextChanged;
+
+  const _ModernEditorWrapper({
+    required this.controller,
+    required this.focusNode,
+    required this.scrollController,
+    required this.searchController,
+    required this.editorFontSize,
+    required this.onTextChanged,
+  });
+
+  @override
+  State<_ModernEditorWrapper> createState() => _ModernEditorWrapperState();
+}
+
+class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
+    with SingleTickerProviderStateMixin, ScrollZoneMixin {
+  static const double _scrollZoneWidth = 80.0;
+
+  @override
+  void initState() {
+    super.initState();
+    initScrollZone();
+  }
+
+  @override
+  void dispose() {
+    disposeScrollZone();
+    super.dispose();
+  }
+
+  @override
+  ScrollController getScrollController() => widget.scrollController;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                controller: widget.scrollController,
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: ListenableBuilder(
+                    listenable: widget.searchController,
+                    builder: (context, _) => _buildEditorContent(context),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        buildScrollZone(width: _scrollZoneWidth),
+        Positioned(
+          top: 8,
+          bottom: 8,
+          right: 0,
+          child: ScrollProgressIndicator(
+            scrollController: widget.scrollController,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditorContent(BuildContext context) {
+    final hasMatches =
+        widget.searchController.matches.isNotEmpty &&
+        widget.searchController.isSearching;
+
+    return hasMatches
+        ? _buildHighlightedEditor(context)
+        : _buildPlainEditor(context);
+  }
+
+  TextStyle _getBaseStyle(BuildContext context) {
+    final theme = Theme.of(context);
+    return TextStyle(
+      fontSize: widget.editorFontSize,
+      height: 1.5,
+      color: theme.textTheme.bodyLarge?.color,
+    );
+  }
+
+  InputDecoration _getInputDecoration(
+    BuildContext context,
+    TextStyle style, {
+    bool showHint = true,
+  }) {
+    final theme = Theme.of(context);
+    return InputDecoration(
+      hintText: showHint ? AppLocalizations.of(context)!.startWriting : null,
+      hintStyle: TextStyle(
+        color: theme.hintColor.withValues(alpha: 0.5),
+        fontSize: widget.editorFontSize,
+        height: 1.5,
+        fontStyle: FontStyle.italic,
+      ),
+      border: InputBorder.none,
+      contentPadding: EdgeInsets.zero,
+      filled: false,
+    );
+  }
+
+  Widget _buildPlainEditor(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = _getBaseStyle(context);
+
+    return TextField(
+      controller: widget.controller,
+      focusNode: widget.focusNode,
+      maxLines: null,
+      textAlignVertical: TextAlignVertical.top,
+      keyboardType: TextInputType.multiline,
+      textInputAction: TextInputAction.newline,
+      style: style,
+      cursorColor: theme.colorScheme.primary,
+      cursorWidth: 2.5,
+      cursorRadius: const Radius.circular(2),
+      decoration: _getInputDecoration(context, style),
+      onChanged: (_) => widget.onTextChanged(),
+    );
+  }
+
+  Widget _buildHighlightedEditor(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = _getBaseStyle(context);
+    final highlightSpans = _buildHighlightSpans(context, style);
+
+    return Stack(
+      children: [
+        // Highlight layer
+        Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: RichText(
+            text: TextSpan(
+              style: style.copyWith(color: theme.textTheme.bodyLarge?.color),
+              children: highlightSpans,
+            ),
+          ),
+        ),
+        // Transparent text field for editing
+        TextField(
+          controller: widget.controller,
+          focusNode: widget.focusNode,
+          maxLines: null,
+          textAlignVertical: TextAlignVertical.top,
+          keyboardType: TextInputType.multiline,
+          textInputAction: TextInputAction.newline,
+          style: style.copyWith(color: Colors.transparent),
+          cursorColor: theme.colorScheme.primary,
+          cursorWidth: 2.5,
+          cursorRadius: const Radius.circular(2),
+          decoration: _getInputDecoration(context, style, showHint: true),
+          onChanged: (_) => widget.onTextChanged(),
+        ),
+      ],
+    );
+  }
+
+  List<TextSpan> _buildHighlightSpans(BuildContext context, TextStyle style) {
+    final text = widget.controller.text;
+    final matches = widget.searchController.matches;
+    final currentMatchIndex = widget.searchController.currentMatchIndex;
+    final spans = <TextSpan>[];
+    int lastEnd = 0;
+
+    for (int i = 0; i < matches.length; i++) {
+      final match = matches[i];
+      if (match.start > text.length || match.end > text.length) continue;
+
+      // Add text before match
+      if (match.start > lastEnd) {
+        spans.add(
+          TextSpan(text: text.substring(lastEnd, match.start), style: style),
+        );
+      }
+
+      // Add highlighted match
+      final isCurrentMatch = i == currentMatchIndex;
+      spans.add(
+        TextSpan(
+          text: text.substring(match.start, match.end),
+          style: style.copyWith(
+            backgroundColor: isCurrentMatch
+                ? Colors.orange.withValues(alpha: 0.6)
+                : Colors.yellow.withValues(alpha: 0.4),
+          ),
+        ),
+      );
+
+      lastEnd = match.end;
+    }
+
+    // Add remaining text
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(lastEnd), style: style));
+    }
+
+    return spans;
   }
 }
