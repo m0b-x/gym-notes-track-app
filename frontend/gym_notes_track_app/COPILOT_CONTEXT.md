@@ -2,12 +2,14 @@
 
 ## App Description
 Gym Notes is a mobile note-taking app designed for gym/workout tracking. It features:
-- **Folders**: Organize notes into folders with nested subfolders
-- **Rich Markdown Notes**: Full markdown support with custom shortcuts toolbar
+- **Folders**: Organize notes into folders with nested subfolders + manual reordering
+- **Rich Markdown Notes**: Full markdown support with custom shortcuts toolbar (reorderable)
 - **Virtual Scrolling**: Efficient editing of very large notes (10k+ lines)
-- **Auto-save**: Debounced saves to prevent data loss
+- **Auto-save**: Debounced saves to prevent data loss (5s debounce + 30s interval)
 - **Offline-first**: SQLite with CRDT for future sync support
-- **Search**: Full-text search across all notes with FTS5
+- **Search**: Full-text search across all notes with FTS5 + in-note search/replace
+- **Multi-database**: Create/switch between multiple databases
+- **Localization**: English, German, Romanian
 
 ## Current Work / TODO
 - **VirtualScrollingEditor tap handling**: Need to improve cursor positioning when tapping outside text (left edge → start of line, right edge → end of line)
@@ -23,7 +25,7 @@ Gym Notes is a mobile note-taking app designed for gym/workout tracking. It feat
 - USE modern designs only
 
 ## Stack
-flutter_bloc, drift, sqlite3_flutter_libs, path_provider, flutter_markdown_plus, uuid, equatable, flutter_localizations (EN/DE), get_it
+flutter_bloc, drift, sqlite3_flutter_libs, path_provider, flutter_markdown_plus, uuid, equatable, flutter_localizations (EN/DE/RO), get_it, share_plus, shared_preferences, stream_transform
 
 ## Architecture
 ```
@@ -35,6 +37,7 @@ BLoC → Service → Repository (cached + reactive) → DAO → Database (isolat
 lib/
 ├── bloc/optimized_folder/    # FolderBloc, events, sealed states
 ├── bloc/optimized_note/      # NoteBloc, events, sealed states
+├── bloc/app_settings/        # AppSettingsBloc (theme, locale)
 ├── core/
 │   ├── di/injection.dart     # get_it DI setup
 │   └── types/result.dart     # Sealed Result<T> type
@@ -51,13 +54,14 @@ lib/
 │   ├── note_repository.dart  # NoteRepository with streams
 │   └── folder_repository.dart
 ├── models/                   # Folder, Note, NoteMetadata, CustomMarkdownShortcut
-├── services/                 # FolderStorage, NoteStorage, Search, AutoSave, Loading
-├── pages/                    # FolderContentPage, NoteEditorPage, SearchPage, MarkdownSettingsPage, DatabaseSettingsPage
-├── widgets/                  # MarkdownToolbar, InfiniteScrollList, VirtualScrollingEditor
-├── l10n/                     # app_en.arb, app_de.arb
+├── services/                 # FolderStorage, NoteStorage, Search, AutoSave, Loading, Settings, DatabaseManager
+├── pages/                    # FolderContentPage, NoteEditorPage, SearchPage, MarkdownSettingsPage, DatabaseSettingsPage, ControlsSettingsPage
+├── widgets/                  # MarkdownToolbar, InfiniteScrollList, VirtualScrollingEditor, AppDrawer, GradientAppBar, etc.
+├── l10n/                     # app_en.arb, app_de.arb, app_ro.arb
 ├── config/                   # default_markdown_shortcuts, available_icons
 ├── handlers/                 # date/default/header_shortcut_handler
-├── utils/                    # compression, text_history, bloc_helpers, lru_cache
+├── utils/                    # compression, text_history, bloc_helpers, lru_cache, note_search_controller, markdown_settings_utils
+├── factories/                # shortcut_handler_factory
 └── main.dart
 ```
 
@@ -134,13 +138,13 @@ class FolderChange { type, folderId, parentId?, folder? }
 ### Tables with CRDT Fields
 All tables include: `hlcTimestamp`, `deviceId`, `version`, `isDeleted`, `deletedAt?`
 
-| Table         | Fields                                                                                                              |
-| ------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Folders       | id, name, parentId?, position, createdAt, updatedAt + CRDT fields                                                   |
-| Notes         | id, folderId, title, preview, contentLength, chunkCount, isCompressed, position, createdAt, updatedAt + CRDT fields |
-| ContentChunks | id, noteId, chunkIndex, content, isCompressed + CRDT fields                                                         |
-| SyncMetadata  | key, value, updatedAt                                                                                               |
-| UserSettings  | key (PK), value, updatedAt (for markdown shortcuts, etc.)                                                           |
+| Table         | Fields                                                                                                                               |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Folders       | id, name, parentId?, position, createdAt, updatedAt, noteSortOrder?, subfolderSortOrder? + CRDT fields                              |
+| Notes         | id, folderId, title, preview, contentLength, chunkCount, isCompressed, position, createdAt, updatedAt + CRDT fields                 |
+| ContentChunks | id, noteId, chunkIndex, content, isCompressed + CRDT fields                                                                         |
+| SyncMetadata  | key, value, updatedAt (no CRDT)                                                                                                      |
+| UserSettings  | key (PK), value, updatedAt (for markdown shortcuts, etc.) (no CRDT)                                                                  |
 
 ### Storage Architecture
 | Data               | Storage               | Notes                      |
@@ -228,11 +232,12 @@ AppConstants.autoScrollSpeed           // 10.0
 ## Database Migrations (DatabaseSchema)
 ```dart
 // Schema version constants
-DatabaseSchema.currentVersion               // 4
+DatabaseSchema.currentVersion               // 5
 DatabaseSchema.v1Initial                    // 1
 DatabaseSchema.v2UserSettings               // 2
 DatabaseSchema.v3ContentChunksIsDeleted     // 3
 DatabaseSchema.v4ManualOrdering             // 4
+DatabaseSchema.v5FolderSortPreferences      // 5
 
 // Migration classes
 DatabaseMigrations(db).runMigrations(m, from, to);
@@ -293,16 +298,17 @@ final class OptimizedFolderError extends OptimizedFolderState {
 | UpdateOptimizedFolder(folderId, name?)                     | UpdateOptimizedNote(noteId, title?, content?)            |
 | DeleteOptimizedFolder(folderId, parentId?)                 | DeleteOptimizedNote(noteId)                              |
 | RefreshFolders(parentId?)                                  | RefreshNotes(folderId?)                                  |
+| ReorderFolders(parentId?, orderedIds)                      | ReorderNotes(folderId, orderedIds)                       |
 |                                                            | LoadNoteContent(noteId)                                  |
 |                                                            | SearchNotes(query, folderId?)                            |
 |                                                            | QuickSearchNotes(query, folderId?)                       |
 |                                                            | ClearSearch                                              |
 
 ## Sort Enums
-- **NotesSortOrder**: updatedDesc, updatedAsc, createdDesc, createdAsc, titleAsc, titleDesc
-- **FoldersSortOrder**: nameAsc, nameDesc, createdAsc, createdDesc
-- **NoteSortField** (DAO): title, createdAt, updatedAt
-- **FolderSortField** (DAO): name, createdAt, updatedAt
+- **NotesSortOrder**: updatedDesc, updatedAsc, createdDesc, createdAsc, titleAsc, titleDesc, positionAsc, positionDesc
+- **FoldersSortOrder**: nameAsc, nameDesc, createdAsc, createdDesc, positionAsc, positionDesc
+- **NoteSortField** (DAO): title, createdAt, updatedAt, position
+- **FolderSortField** (DAO): name, createdAt, updatedAt, position
 
 ## Code Patterns
 
@@ -345,7 +351,8 @@ getIt<NoteRepository>().noteChanges.listen((change) {
 
 ## Key Classes
 - **AppDatabase**: Drift database singleton with HLC clock (background isolate)
-- **DatabaseSchema**: Schema version constants (currentVersion, v1-v4)
+- **DatabaseSchema**: Schema version constants (currentVersion=5, v1-v5)
+- **DatabaseManager**: Manages multiple databases (create, switch, delete, rename)
 - **DatabaseMigrations**: Migration step runner for schema upgrades
 - **DatabaseIndexes**: Index and FTS table creation
 - **NoteRepository**: Cached note access with reactive streams
@@ -359,8 +366,13 @@ getIt<NoteRepository>().noteChanges.listen((change) {
 - **PaginatedFolders**: folders list + pagination info
 - **SearchResult**: metadata + matches + relevanceScore
 - **LoadingService**: Global loading state for database operations
-- **AutoSaveService**: 5s debounced saves
+- **AutoSaveService**: 5s debounced saves + 30s interval
 - **TextHistoryObserver**: undo/redo tracking
+- **NoteSearchController**: In-note search/replace with regex support
+- **FolderSearchService**: Cross-note full-text search with indexing
+- **SettingsService**: User preferences (swipe gestures, haptic feedback, auto-save, preview, theme, locale)
+- **CustomMarkdownShortcut**: User-configurable markdown toolbar shortcuts
+- **VirtualScrollingEditor**: High-performance editor for large documents (50k+ chars)
 
 ## Sync (Future)
 ```dart
@@ -377,3 +389,149 @@ await db.contentChunkDao.mergeChunk(remoteChunk);
 // Update sync cursor
 await db.syncDao.setLastSyncTimestamp(newHlc);
 ```
+
+## Multi-Database Management
+```dart
+// Get database manager
+final dbManager = await DatabaseManager.getInstance();
+
+// List available databases
+final databases = await dbManager.listDatabases();
+
+// Create new database
+await dbManager.createDatabase('workout-logs');
+
+// Switch to different database
+await dbManager.switchToDatabase('workout-logs');
+context.read<OptimizedFolderBloc>().add(RefreshFolders());
+context.read<OptimizedNoteBloc>().add(RefreshNotes());
+
+// Rename database
+await dbManager.renameDatabase('old-name', 'new-name');
+
+// Delete database
+await dbManager.deleteDatabase('old-db');
+
+// Get active database name
+final activeName = dbManager.getActiveDatabaseName();
+```
+
+## User Settings (SettingsService)
+```dart
+final settings = await SettingsService.getInstance();
+
+// Gesture controls
+settings.folderSwipeEnabled;  // Swipe to open drawer on folder page
+settings.noteSwipeEnabled;    // Swipe to open drawer on note editor
+await settings.setFolderSwipeEnabled(true);
+
+// Behavior
+settings.confirmDelete;       // Show confirmation before deleting
+settings.autoSaveEnabled;     // Enable/disable auto-save
+settings.autoSaveInterval;    // Auto-save interval in seconds
+await settings.setConfirmDelete(true);
+
+// UI preferences
+settings.showNotePreview;     // Show note preview in lists
+settings.hapticFeedback;      // Haptic feedback on interactions
+await settings.setShowNotePreview(true);
+```
+
+## In-Note Search (NoteSearchController)
+```dart
+final searchController = NoteSearchController();
+
+// Update content to search
+searchController.updateContent(_contentController.text);
+
+// Perform search with options
+searchController.updateQuery('text to find');
+searchController.setCaseSensitive(true);
+searchController.setUseRegex(true);
+searchController.setWholeWord(true);
+
+// Navigate matches
+searchController.nextMatch();
+searchController.previousMatch();
+searchController.currentMatchIndex; // 1-based
+searchController.matchCount;
+
+// Replace functionality
+searchController.replaceCurrent('replacement');
+searchController.replaceAll('replacement');
+
+// State
+if (searchController.isSearching) {
+  // Show search UI
+}
+```
+
+## Markdown Shortcuts
+```dart
+// Load shortcuts
+final shortcuts = await MarkdownSettingsUtils.loadShortcuts();
+
+// Shortcuts include:
+// - Default: bold, italic, strikethrough, code, link, quote, list, header, date
+// - Custom: user-created shortcuts with custom icons and text
+
+// Shortcut properties
+shortcut.id;              // Unique identifier
+shortcut.label;           // Display text
+shortcut.beforeText;      // Text before selection
+shortcut.afterText;       // Text after selection
+shortcut.insertType;      // 'default', 'header', 'date'
+shortcut.isVisible;       // Show in toolbar
+shortcut.isDefault;       // Can't be deleted
+
+// Toolbar features:
+// - Reorderable (drag to rearrange)
+// - Visibility toggle per shortcut
+// - Custom date formats (configurable)
+// - Header levels (H1-H6)
+```
+
+## Widget Highlights
+```dart
+// VirtualScrollingEditor - for large documents (50k+ chars)
+VirtualScrollingEditor(
+  initialContent: text,
+  onChanged: (newText) => {},
+  lineHeight: 24.0,
+  textStyle: TextStyle(fontSize: 16),
+);
+
+// MarkdownToolbar - customizable toolbar
+MarkdownToolbar(
+  shortcuts: shortcuts,
+  isPreviewMode: false,
+  canUndo: true,
+  canRedo: false,
+  onShortcutPressed: (shortcut) => _handleShortcut(shortcut),
+  onReorderComplete: (reordered) => _saveOrder(reordered),
+);
+
+// InteractiveMarkdown - markdown preview with checkbox support
+InteractiveMarkdown(
+  data: markdownContent,
+  selectable: true,
+  onCheckboxChanged: (updatedContent) => {},
+  styleSheet: MarkdownStyleSheet(...),
+);
+
+// GradientAppBar - styled app bar with gradients
+GradientAppBar(
+  title: Text('Title'),
+  gradientStyle: GradientStyle.folder,  // folder, note, drawer
+);
+
+// InfiniteScrollList - paginated scrolling with loading
+InfiniteScrollList<Item>(
+  items: items,
+  hasMore: true,
+  onLoadMore: () async => loadMore(),
+  itemBuilder: (item) => ItemWidget(item),
+);
+```
+
+## Sync (Future)
