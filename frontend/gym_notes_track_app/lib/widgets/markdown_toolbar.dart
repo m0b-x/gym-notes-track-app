@@ -8,6 +8,7 @@ import '../factories/shortcut_handler_factory.dart';
 import '../handlers/date_shortcut_handler.dart';
 import '../constants/settings_keys.dart';
 import '../database/database.dart';
+import '../utils/icon_utils.dart';
 
 class MarkdownToolbar extends StatefulWidget {
   final List<CustomMarkdownShortcut> shortcuts;
@@ -353,9 +354,10 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
   Timer? _autoScrollTimer;
   int? _draggingIndex;
   int? _targetIndex;
+  Offset? _lastDragPosition;
 
-  static const double _edgeScrollThreshold = 50.0;
-  static const double _autoScrollSpeed = 8.0;
+  static const double _edgeScrollThreshold = 60.0;
+  static const double _autoScrollSpeed = 12.0;
 
   @override
   void dispose() {
@@ -366,6 +368,7 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
   }
 
   void _onDragUpdate(DragUpdateDetails details) {
+    _lastDragPosition = details.globalPosition;
     _updateTargetIndex(details.globalPosition);
     _handleAutoScroll(details.globalPosition);
   }
@@ -421,20 +424,37 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
 
     final localPosition = renderBox.globalToLocal(globalPosition);
     final size = renderBox.size;
+    final screenSize = MediaQuery.of(context).size;
 
     double deltaX = 0;
     double deltaY = 0;
 
-    if (localPosition.dx < _edgeScrollThreshold) {
-      deltaX = -_autoScrollSpeed;
-    } else if (localPosition.dx > size.width - _edgeScrollThreshold) {
-      deltaX = _autoScrollSpeed;
+    // Check horizontal scrolling - use both local bounds and screen edges
+    if (localPosition.dx < _edgeScrollThreshold || 
+        globalPosition.dx < _edgeScrollThreshold) {
+      // Calculate scroll speed based on how close to edge (faster when closer)
+      final distanceFromEdge = localPosition.dx < _edgeScrollThreshold 
+          ? localPosition.dx 
+          : globalPosition.dx;
+      final speedMultiplier = 1.0 - (distanceFromEdge / _edgeScrollThreshold).clamp(0.0, 1.0);
+      deltaX = -_autoScrollSpeed * (0.5 + speedMultiplier * 0.5);
+    } else if (localPosition.dx > size.width - _edgeScrollThreshold || 
+               globalPosition.dx > screenSize.width - _edgeScrollThreshold) {
+      final distanceFromEdge = localPosition.dx > size.width - _edgeScrollThreshold
+          ? size.width - localPosition.dx
+          : screenSize.width - globalPosition.dx;
+      final speedMultiplier = 1.0 - (distanceFromEdge / _edgeScrollThreshold).clamp(0.0, 1.0);
+      deltaX = _autoScrollSpeed * (0.5 + speedMultiplier * 0.5);
     }
 
+    // Check vertical scrolling
     if (localPosition.dy < _edgeScrollThreshold) {
-      deltaY = -_autoScrollSpeed;
+      final speedMultiplier = 1.0 - (localPosition.dy / _edgeScrollThreshold).clamp(0.0, 1.0);
+      deltaY = -_autoScrollSpeed * (0.5 + speedMultiplier * 0.5);
     } else if (localPosition.dy > size.height - _edgeScrollThreshold) {
-      deltaY = _autoScrollSpeed;
+      final distanceFromEdge = size.height - localPosition.dy;
+      final speedMultiplier = 1.0 - (distanceFromEdge / _edgeScrollThreshold).clamp(0.0, 1.0);
+      deltaY = _autoScrollSpeed * (0.5 + speedMultiplier * 0.5);
     }
 
     if (deltaX != 0 || deltaY != 0) {
@@ -447,6 +467,8 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
   void _startAutoScroll(double deltaX, double deltaY) {
     _autoScrollTimer?.cancel();
     _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      bool scrolled = false;
+      
       if (deltaX != 0 && _horizontalScrollController.hasClients) {
         final currentX = _horizontalScrollController.offset;
         final newX = (currentX + deltaX).clamp(
@@ -455,6 +477,7 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
         );
         if (newX != currentX) {
           _horizontalScrollController.jumpTo(newX);
+          scrolled = true;
         }
       }
 
@@ -466,7 +489,13 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
         );
         if (newY != currentY) {
           _verticalScrollController.jumpTo(newY);
+          scrolled = true;
         }
+      }
+      
+      // Update target index while scrolling to keep the drop indicator accurate
+      if (scrolled && _lastDragPosition != null && mounted) {
+        _updateTargetIndex(_lastDragPosition!);
       }
     });
   }
@@ -665,7 +694,7 @@ class _ReorderableShortcutItem extends StatelessWidget {
       );
     }
     return Icon(
-      IconData(shortcut.iconCodePoint, fontFamily: shortcut.iconFontFamily),
+      IconUtils.getIconFromData(shortcut.iconCodePoint, shortcut.iconFontFamily),
       size: 18,
       color: Theme.of(context).colorScheme.onSurface,
     );
@@ -761,7 +790,7 @@ class _ShortcutButton extends StatelessWidget {
       );
     }
     return Icon(
-      IconData(shortcut.iconCodePoint, fontFamily: shortcut.iconFontFamily),
+      IconUtils.getIconFromData(shortcut.iconCodePoint, shortcut.iconFontFamily),
       size: 24,
       color: Theme.of(context).iconTheme.color,
     );

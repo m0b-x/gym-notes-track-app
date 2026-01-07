@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../models/custom_markdown_shortcut.dart';
 import '../database/database.dart';
 import '../l10n/app_localizations.dart';
+import 'icon_utils.dart';
 
 class MarkdownSettingsUtils {
   static const String _shortcutsKey = 'markdown_shortcuts';
@@ -162,7 +163,7 @@ class MarkdownSettingsUtils {
     }
 
     return Icon(
-      IconData(shortcut.iconCodePoint, fontFamily: shortcut.iconFontFamily),
+      IconUtils.getIconFromData(shortcut.iconCodePoint, shortcut.iconFontFamily),
     );
   }
 

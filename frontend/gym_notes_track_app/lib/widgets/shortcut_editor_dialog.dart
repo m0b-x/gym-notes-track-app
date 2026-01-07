@@ -10,6 +10,7 @@ import '../widgets/markdown_toolbar.dart';
 import '../utils/markdown_settings_utils.dart';
 import '../widgets/interactive_markdown.dart';
 import '../constants/settings_keys.dart';
+import '../utils/icon_utils.dart';
 
 class ShortcutEditorDialog extends StatefulWidget {
   final CustomMarkdownShortcut? shortcut;
@@ -96,9 +97,9 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     });
 
     _selectedIcon = widget.shortcut != null
-        ? IconData(
+        ? IconUtils.getIconFromData(
             widget.shortcut!.iconCodePoint,
-            fontFamily: widget.shortcut!.iconFontFamily,
+            widget.shortcut!.iconFontFamily,
           )
         : Icons.tag;
     _insertType = widget.shortcut?.insertType ?? 'wrap';
