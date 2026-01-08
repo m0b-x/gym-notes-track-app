@@ -699,6 +699,13 @@ class AppLocalizationsDe extends AppLocalizations {
       'Eine Vorschau des Notizinhalts in der Liste anzeigen';
 
   @override
+  String get showStatsBar => 'Statistikleiste anzeigen';
+
+  @override
+  String get showStatsBarDesc =>
+      'Zeichenanzahl und Zeilenanzahl im Editor anzeigen';
+
+  @override
   String get resetToDefaults => 'Auf Standard zurücksetzen';
 
   @override

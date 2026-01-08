@@ -698,6 +698,13 @@ class AppLocalizationsRo extends AppLocalizations {
       'Afișează o previzualizare a conținutului notiței în listă';
 
   @override
+  String get showStatsBar => 'Arată bara de statistici';
+
+  @override
+  String get showStatsBarDesc =>
+      'Afișează numărul de caractere și linii în editor';
+
+  @override
   String get resetToDefaults => 'Resetează la valorile implicite';
 
   @override

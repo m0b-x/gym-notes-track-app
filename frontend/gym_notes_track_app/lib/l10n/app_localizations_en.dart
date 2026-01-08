@@ -692,6 +692,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Display a preview of note content in the list';
 
   @override
+  String get showStatsBar => 'Show stats bar';
+
+  @override
+  String get showStatsBarDesc =>
+      'Display character count and line count in note editor';
+
+  @override
   String get resetToDefaults => 'Reset to defaults';
 
   @override

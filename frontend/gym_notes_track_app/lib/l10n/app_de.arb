@@ -744,6 +744,14 @@
   "@showNotePreviewDesc": {
     "description": "Show note preview description"
   },
+  "showStatsBar": "Statistikleiste anzeigen",
+  "@showStatsBar": {
+    "description": "Show stats bar setting"
+  },
+  "showStatsBarDesc": "Zeichenanzahl und Zeilenanzahl im Editor anzeigen",
+  "@showStatsBarDesc": {
+    "description": "Show stats bar description"
+  },
   "resetToDefaults": "Auf Standard zurücksetzen",
   "@resetToDefaults": {
     "description": "Reset to defaults button"

@@ -2,13 +2,28 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+class _HistoryEntry {
+  final String text;
+  final TextSelection selection;
+
+  _HistoryEntry({required this.text, required this.selection});
+
+  _HistoryEntry.full(TextEditingValue value)
+    : text = value.text,
+      selection = value.selection;
+
+  TextEditingValue toValue() =>
+      TextEditingValue(text: text, selection: selection);
+}
+
 class TextHistoryObserver {
   final TextEditingController controller;
   final int maxHistoryLength;
   final Duration debounceDuration;
   final int largePasteThreshold;
+  final int diffThreshold;
 
-  final List<TextEditingValue> _history = [];
+  final List<_HistoryEntry> _history = [];
   int _currentIndex = -1;
   bool _isUndoRedoing = false;
   Timer? _debounceTimer;
@@ -20,8 +35,9 @@ class TextHistoryObserver {
     this.maxHistoryLength = 100,
     this.debounceDuration = const Duration(milliseconds: 400),
     this.largePasteThreshold = 20,
+    this.diffThreshold = 10000,
   }) {
-    _history.add(controller.value);
+    _history.add(_HistoryEntry.full(controller.value));
     _currentIndex = 0;
     controller.addListener(_onTextChanged);
   }
@@ -76,7 +92,7 @@ class TextHistoryObserver {
       _history.removeRange(_currentIndex + 1, _history.length);
     }
 
-    _history.add(value);
+    _history.add(_HistoryEntry.full(value));
     _currentIndex = _history.length - 1;
 
     _trimHistory();
@@ -106,7 +122,8 @@ class TextHistoryObserver {
     _isUndoRedoing = true;
     _currentIndex--;
 
-    final targetValue = _history[_currentIndex];
+    final entry = _history[_currentIndex];
+    final targetValue = entry.toValue();
     controller.value = targetValue.copyWith(
       selection: _clampSelection(targetValue.selection, targetValue.text),
     );
@@ -121,7 +138,8 @@ class TextHistoryObserver {
     _isUndoRedoing = true;
     _currentIndex++;
 
-    final targetValue = _history[_currentIndex];
+    final entry = _history[_currentIndex];
+    final targetValue = entry.toValue();
     controller.value = targetValue.copyWith(
       selection: _clampSelection(targetValue.selection, targetValue.text),
     );
@@ -142,7 +160,7 @@ class TextHistoryObserver {
     _debounceTimer = null;
     _pendingValue = null;
     _history.clear();
-    _history.add(controller.value);
+    _history.add(_HistoryEntry.full(controller.value));
     _currentIndex = 0;
   }
 

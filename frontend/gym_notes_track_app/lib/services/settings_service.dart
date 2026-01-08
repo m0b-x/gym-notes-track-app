@@ -109,6 +109,18 @@ class SettingsService {
     await _setBool(SettingsKeys.showNotePreview, value);
   }
 
+  // Show stats bar in note editor
+  Future<bool> getShowStatsBar() async {
+    return _getBool(
+      SettingsKeys.showStatsBar,
+      SettingsKeys.defaultShowStatsBar,
+    );
+  }
+
+  Future<void> setShowStatsBar(bool value) async {
+    await _setBool(SettingsKeys.showStatsBar, value);
+  }
+
   // Default notes sort order (0 = updatedDesc, 1 = updatedAsc, 2 = titleAsc, 3 = titleDesc, 4 = createdDesc, 5 = createdAsc)
   Future<int> getDefaultNotesSortOrder() async {
     return _getInt(

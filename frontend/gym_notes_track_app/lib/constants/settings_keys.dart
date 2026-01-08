@@ -23,6 +23,7 @@ class SettingsKeys {
   static const String autoSaveEnabled = 'auto_save_enabled';
   static const String autoSaveInterval = 'auto_save_interval';
   static const String showNotePreview = 'show_note_preview';
+  static const String showStatsBar = 'show_stats_bar';
   static const String defaultNotesSortOrder = 'default_notes_sort_order';
   static const String hapticFeedback = 'haptic_feedback';
   static const String searchCursorBehavior = 'search_cursor_behavior';
@@ -34,6 +35,7 @@ class SettingsKeys {
   static const bool defaultAutoSaveEnabled = true;
   static const int defaultAutoSaveInterval = 5;
   static const bool defaultShowNotePreview = true;
+  static const bool defaultShowStatsBar = true;
   static const int defaultDefaultNotesSortOrder = 0;
   static const bool defaultHapticFeedback = true;
   static const int defaultSearchCursorBehavior = SearchCursorBehavior.end;

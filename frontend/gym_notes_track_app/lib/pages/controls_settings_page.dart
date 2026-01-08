@@ -24,6 +24,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
   bool _autoSaveEnabled = true;
   int _autoSaveInterval = 5;
   bool _showNotePreview = true;
+  bool _showStatsBar = true;
   bool _hapticFeedback = true;
   int _searchCursorBehavior = 1; // 0=start, 1=end, 2=selection
 
@@ -41,6 +42,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     final autoSave = await settings.getAutoSaveEnabled();
     final autoSaveInt = await settings.getAutoSaveInterval();
     final showPreview = await settings.getShowNotePreview();
+    final showStats = await settings.getShowStatsBar();
     final haptic = await settings.getHapticFeedback();
     final searchCursor = await settings.getSearchCursorBehavior();
 
@@ -52,6 +54,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _autoSaveEnabled = autoSave;
       _autoSaveInterval = autoSaveInt;
       _showNotePreview = showPreview;
+      _showStatsBar = showStats;
       _hapticFeedback = haptic;
       _searchCursorBehavior = searchCursor;
       _isLoading = false;
@@ -211,6 +214,18 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
                           _onHapticFeedback();
                           setState(() => _showNotePreview = value);
                           await _settings?.setShowNotePreview(value);
+                        },
+                      ),
+                      const Divider(height: 1),
+                      _buildSwitchTile(
+                        context: context,
+                        title: l10n.showStatsBar,
+                        subtitle: l10n.showStatsBarDesc,
+                        value: _showStatsBar,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _showStatsBar = value);
+                          await _settings?.setShowStatsBar(value);
                         },
                       ),
                     ],
@@ -455,8 +470,9 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     await _settings?.setAutoSaveEnabled(true);
     await _settings?.setAutoSaveInterval(5);
     await _settings?.setShowNotePreview(true);
+    await _settings?.setShowStatsBar(true);
     await _settings?.setHapticFeedback(true);
-    await _settings?.setSearchCursorBehavior(1); // Default: cursor at end
+    await _settings?.setSearchCursorBehavior(1);
 
     setState(() {
       _folderSwipeEnabled = true;
@@ -465,6 +481,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _autoSaveEnabled = true;
       _autoSaveInterval = 5;
       _showNotePreview = true;
+      _showStatsBar = true;
       _hapticFeedback = true;
       _searchCursorBehavior = 1;
     });

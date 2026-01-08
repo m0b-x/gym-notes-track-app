@@ -58,6 +58,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _isPreviewMode = false;
   bool _isLoading = true;
   bool _noteSwipeEnabled = true;
+  bool _showStatsBar = true;
   int _searchCursorBehavior = SearchCursorBehavior.end;
 
   TextHistoryObserver? _textHistory;
@@ -69,6 +70,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   String _previousText = '';
   bool _isProcessingTextChange = false;
   int _cachedLineCount = 1;
+  int _cachedCharCount = 0;
+
+  Timer? _lineCountDebounceTimer;
+  Timer? _searchContentDebounceTimer;
+  int _lastLineCountTextLength = 0;
 
   /// Only use virtual scrolling for PREVIEW mode with large content
   bool get _useVirtualPreview => _contentController.text.length > 5000;
@@ -89,7 +95,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
     _titleController.addListener(_onTextChanged);
     _contentController.addListener(_onTextChanged);
-    _contentController.addListener(_updateSearchContent);
 
     if (widget.noteId != null) {
       _loadNoteContent();
@@ -153,10 +158,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final settings = await SettingsService.getInstance();
     final noteSwipe = await settings.getNoteSwipeEnabled();
     final searchCursor = await settings.getSearchCursorBehavior();
+    final showStats = await settings.getShowStatsBar();
     if (mounted) {
       setState(() {
         _noteSwipeEnabled = noteSwipe;
         _searchCursorBehavior = searchCursor;
+        _showStatsBar = showStats;
       });
     }
   }
@@ -203,7 +210,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       });
     }
 
-    _updateCachedLineCount();
+    _debouncedLineCountUpdate();
+    _throttledSearchContentUpdate();
 
     if (widget.noteId != null) {
       _autoSaveService?.onContentChanged(
@@ -214,19 +222,62 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     }
   }
 
+  void _debouncedLineCountUpdate() {
+    final currentLength = _contentController.text.length;
+    final lengthDelta = (currentLength - _lastLineCountTextLength).abs();
+
+    if (lengthDelta > 500) {
+      _lineCountDebounceTimer?.cancel();
+      _updateCachedStats();
+      _lastLineCountTextLength = currentLength;
+      return;
+    }
+
+    _lineCountDebounceTimer?.cancel();
+    _lineCountDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _updateCachedStats();
+      _lastLineCountTextLength = _contentController.text.length;
+    });
+  }
+
+  void _throttledSearchContentUpdate() {
+    if (!_searchController.isSearching) return;
+
+    _searchContentDebounceTimer?.cancel();
+    _searchContentDebounceTimer = Timer(const Duration(milliseconds: 200), () {
+      _searchController.updateContent(_contentController.text);
+    });
+  }
+
   /// Gets the current content
   String _getCurrentContent() {
     return _contentController.text;
   }
 
-  void _updateCachedLineCount() {
+  void _updateCachedStats() {
     final content = _contentController.text;
-    final newCount = '\n'.allMatches(content).length + 1;
-    if (newCount != _cachedLineCount) {
+    final newCharCount = content.length;
+    int newLineCount;
+    if (content.length > 50000) {
+      newLineCount = _fastLineCount(content);
+    } else {
+      newLineCount = '\n'.allMatches(content).length + 1;
+    }
+    if (newLineCount != _cachedLineCount || newCharCount != _cachedCharCount) {
       setState(() {
-        _cachedLineCount = newCount;
+        _cachedLineCount = newLineCount;
+        _cachedCharCount = newCharCount;
       });
     }
+  }
+
+  int _fastLineCount(String text) {
+    int count = 1;
+    final length = text.length;
+    for (int i = 0; i < length; i++) {
+      if (text.codeUnitAt(i) == 10) count++;
+    }
+    return count;
   }
 
   int _getCurrentLineFromScroll() {
@@ -280,6 +331,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
   @override
   void dispose() {
+    _lineCountDebounceTimer?.cancel();
+    _searchContentDebounceTimer?.cancel();
     _autoSaveService?.stopTracking(widget.noteId ?? '');
     _autoSaveService?.dispose();
     _titleController.dispose();
@@ -291,12 +344,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     super.dispose();
   }
 
-  void _updateSearchContent() {
-    _searchController.updateContent(_contentController.text);
-  }
-
   void _toggleSearch() {
     if (_searchController.isSearching) {
+      _searchContentDebounceTimer?.cancel();
       _searchController.closeSearch();
     } else {
       _searchController.openSearch();
@@ -330,9 +380,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
             );
         }
       } else {
-        _contentController.selection = TextSelection.collapsed(
-          offset: offset,
-        );
+        _contentController.selection = TextSelection.collapsed(offset: offset);
       }
       _contentFocusNode.requestFocus();
       _scrollToCursor(match?.start ?? offset, _contentController.text);
@@ -472,6 +520,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
             _contentController.text = content;
             _previousText = content;
             _cachedLineCount = '\n'.allMatches(content).length + 1;
+            _cachedCharCount = content.length;
             _isLoading = false;
           });
           _setupTextHistory();
@@ -549,7 +598,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           body: _isLoading
               ? Column(
                   children: [
-                    if (widget.metadata != null)
+                    if (_showStatsBar)
                       RepaintBoundary(child: _buildNoteStats(context)),
                     Expanded(
                       child: Padding(
@@ -589,7 +638,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                         showReplaceField: !_isPreviewMode,
                         onReplace: _handleSearchReplace,
                       ),
-                    if (widget.metadata != null)
+                    if (_showStatsBar)
                       RepaintBoundary(child: _buildNoteStats(context)),
                     Expanded(
                       child: Padding(
@@ -675,22 +724,24 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   Widget _buildNoteStats(BuildContext context) {
-    final metadata = widget.metadata!;
+    final metadata = widget.metadata;
+    final charCount = _cachedCharCount > 0
+        ? _cachedCharCount
+        : (metadata?.contentLength ?? 0);
+    final chunkCount = metadata?.chunkCount ?? 1;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Row(
         children: [
           Text(
-            AppLocalizations.of(
-              context,
-            )!.noteStats(metadata.contentLength, metadata.chunkCount),
+            AppLocalizations.of(context)!.noteStats(charCount, chunkCount),
             style: TextStyle(
               fontSize: 11,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
-          if (metadata.isCompressed) ...[
+          if (metadata?.isCompressed ?? false) ...[
             const SizedBox(width: 8),
             Icon(
               Icons.compress,
@@ -931,14 +982,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       final maxScroll = _editorScrollController.position.maxScrollExtent;
       if (maxScroll <= 0) return;
 
-      // Estimate cursor position based on line number
-      final textBeforeCursor = text.substring(0, cursorOffset);
-      final lineNumber = '\n'.allMatches(textBeforeCursor).length;
-      final totalLines = '\n'.allMatches(text).length + 1;
-
+      final totalLines = _cachedLineCount;
       if (totalLines <= 1) return;
 
-      // Calculate approximate scroll position
+      final lineNumber = _fastLineCountUpTo(text, cursorOffset);
+
       final lineRatio = lineNumber / totalLines;
       final viewportHeight = _editorScrollController.position.viewportDimension;
       final targetScroll =
@@ -947,9 +995,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
             maxScroll,
           );
 
-      // Only scroll if cursor is likely outside the viewport
       final currentScroll = _editorScrollController.offset;
-      final buffer = viewportHeight * 0.2; // 20% buffer zone
+      final buffer = viewportHeight * 0.2;
 
       if (targetScroll > currentScroll + viewportHeight - buffer ||
           targetScroll < currentScroll + buffer) {
@@ -960,6 +1007,15 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         );
       }
     });
+  }
+
+  int _fastLineCountUpTo(String text, int offset) {
+    int count = 0;
+    final end = offset.clamp(0, text.length);
+    for (int i = 0; i < end; i++) {
+      if (text.codeUnitAt(i) == 10) count++;
+    }
+    return count;
   }
 
   Future<void> _loadCustomShortcuts() async {
@@ -1220,47 +1276,5 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
         onChanged: (_) => widget.onTextChanged(),
       ),
     );
-  }
-
-  List<TextSpan> _buildHighlightSpans(BuildContext context, TextStyle style) {
-    final text = widget.controller.text;
-    final matches = widget.searchController.matches;
-    final currentMatchIndex = widget.searchController.currentMatchIndex;
-    final spans = <TextSpan>[];
-    int lastEnd = 0;
-
-    for (int i = 0; i < matches.length; i++) {
-      final match = matches[i];
-      if (match.start > text.length || match.end > text.length) continue;
-
-      // Add text before match
-      if (match.start > lastEnd) {
-        spans.add(
-          TextSpan(text: text.substring(lastEnd, match.start), style: style),
-        );
-      }
-
-      // Add highlighted match
-      final isCurrentMatch = i == currentMatchIndex;
-      spans.add(
-        TextSpan(
-          text: text.substring(match.start, match.end),
-          style: style.copyWith(
-            backgroundColor: isCurrentMatch
-                ? Colors.orange.withValues(alpha: 0.6)
-                : Colors.yellow.withValues(alpha: 0.4),
-          ),
-        ),
-      );
-
-      lastEnd = match.end;
-    }
-
-    // Add remaining text
-    if (lastEnd < text.length) {
-      spans.add(TextSpan(text: text.substring(lastEnd), style: style));
-    }
-
-    return spans;
   }
 }

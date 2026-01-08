@@ -933,6 +933,14 @@
   "@showNotePreviewDesc": {
     "description": "Show note preview description"
   },
+  "showStatsBar": "Show stats bar",
+  "@showStatsBar": {
+    "description": "Show stats bar setting"
+  },
+  "showStatsBarDesc": "Display character count and line count in note editor",
+  "@showStatsBarDesc": {
+    "description": "Show stats bar description"
+  },
   "resetToDefaults": "Reset to defaults",
   "@resetToDefaults": {
     "description": "Reset to defaults button"

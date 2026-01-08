@@ -210,6 +210,8 @@
   "displaySection": "Afișare",
   "showNotePreview": "Arată previzualizarea notiței",
   "showNotePreviewDesc": "Afișează o previzualizare a conținutului notiței în listă",
+  "showStatsBar": "Arată bara de statistici",
+  "showStatsBarDesc": "Afișează numărul de caractere și linii în editor",
   "resetToDefaults": "Resetează la valorile implicite",
   "resetToDefaultsConfirm": "Ești sigur că vrei să resetezi toate setările la valorile implicite?",
   "settingsReset": "Setările au fost resetate la valorile implicite",

@@ -1384,6 +1384,18 @@ abstract class AppLocalizations {
   /// **'Display a preview of note content in the list'**
   String get showNotePreviewDesc;
 
+  /// Show stats bar setting
+  ///
+  /// In en, this message translates to:
+  /// **'Show stats bar'**
+  String get showStatsBar;
+
+  /// Show stats bar description
+  ///
+  /// In en, this message translates to:
+  /// **'Display character count and line count in note editor'**
+  String get showStatsBarDesc;
+
   /// Reset to defaults button
   ///
   /// In en, this message translates to:
