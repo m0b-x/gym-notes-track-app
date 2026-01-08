@@ -1064,11 +1064,14 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
             builder: (context, constraints) {
               return SingleChildScrollView(
                 controller: widget.scrollController,
-                physics: const BouncingScrollPhysics(
+                physics: const ClampingScrollPhysics(
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
+                    maxHeight: double.infinity,
+                  ),
                   child: ListenableBuilder(
                     listenable: widget.searchController,
                     builder: (context, _) => _buildEditorContent(context),
@@ -1134,19 +1137,22 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
     final theme = Theme.of(context);
     final style = _getBaseStyle(context);
 
-    return TextField(
-      controller: widget.controller,
-      focusNode: widget.focusNode,
-      maxLines: null,
-      textAlignVertical: TextAlignVertical.top,
-      keyboardType: TextInputType.multiline,
-      textInputAction: TextInputAction.newline,
-      style: style,
-      cursorColor: theme.colorScheme.primary,
-      cursorWidth: 2.5,
-      cursorRadius: const Radius.circular(2),
-      decoration: _getInputDecoration(context, style),
-      onChanged: (_) => widget.onTextChanged(),
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: TextField(
+        controller: widget.controller,
+        focusNode: widget.focusNode,
+        maxLines: null,
+        textAlignVertical: TextAlignVertical.top,
+        keyboardType: TextInputType.multiline,
+        textInputAction: TextInputAction.newline,
+        style: style,
+        cursorColor: theme.colorScheme.primary,
+        cursorWidth: 2.5,
+        cursorRadius: const Radius.circular(2),
+        decoration: _getInputDecoration(context, style),
+        onChanged: (_) => widget.onTextChanged(),
+      ),
     );
   }
 
@@ -1155,34 +1161,37 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
     final style = _getBaseStyle(context);
     final highlightSpans = _buildHighlightSpans(context, style);
 
-    return Stack(
-      children: [
-        // Highlight layer
-        Padding(
-          padding: const EdgeInsets.only(top: 12),
-          child: RichText(
-            text: TextSpan(
-              style: style.copyWith(color: theme.textTheme.bodyLarge?.color),
-              children: highlightSpans,
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Stack(
+        children: [
+          // Highlight layer
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: RichText(
+              text: TextSpan(
+                style: style.copyWith(color: theme.textTheme.bodyLarge?.color),
+                children: highlightSpans,
+              ),
             ),
           ),
-        ),
-        // Transparent text field for editing
-        TextField(
-          controller: widget.controller,
-          focusNode: widget.focusNode,
-          maxLines: null,
-          textAlignVertical: TextAlignVertical.top,
-          keyboardType: TextInputType.multiline,
-          textInputAction: TextInputAction.newline,
-          style: style.copyWith(color: Colors.transparent),
-          cursorColor: theme.colorScheme.primary,
-          cursorWidth: 2.5,
-          cursorRadius: const Radius.circular(2),
-          decoration: _getInputDecoration(context, style, showHint: true),
-          onChanged: (_) => widget.onTextChanged(),
-        ),
-      ],
+          // Transparent text field for editing
+          TextField(
+            controller: widget.controller,
+            focusNode: widget.focusNode,
+            maxLines: null,
+            textAlignVertical: TextAlignVertical.top,
+            keyboardType: TextInputType.multiline,
+            textInputAction: TextInputAction.newline,
+            style: style.copyWith(color: Colors.transparent),
+            cursorColor: theme.colorScheme.primary,
+            cursorWidth: 2.5,
+            cursorRadius: const Radius.circular(2),
+            decoration: _getInputDecoration(context, style, showHint: true),
+            onChanged: (_) => widget.onTextChanged(),
+          ),
+        ],
+      ),
     );
   }
 
