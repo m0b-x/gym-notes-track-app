@@ -4,7 +4,6 @@
 Gym Notes is a mobile note-taking app designed for gym/workout tracking. It features:
 - **Folders**: Organize notes into folders with nested subfolders + manual reordering
 - **Rich Markdown Notes**: Full markdown support with custom shortcuts toolbar (reorderable)
-- **Virtual Scrolling**: Efficient editing of very large notes (10k+ lines)
 - **Auto-save**: Debounced saves to prevent data loss (5s debounce + 30s interval)
 - **Offline-first**: SQLite with CRDT for future sync support
 - **Search**: Full-text search across all notes with FTS5 + in-note search/replace
@@ -12,9 +11,7 @@ Gym Notes is a mobile note-taking app designed for gym/workout tracking. It feat
 - **Localization**: English, German, Romanian
 
 ## Current Work / TODO
-- **VirtualScrollingEditor tap handling**: Need to improve cursor positioning when tapping outside text (left edge → start of line, right edge → end of line)
 - **Scroll position**: Auto-scroll follows cursor when typing at bottom
-- **Markdown shortcuts**: Work in both regular and virtual scrolling modes
 
 ## Rules
 - NO code comments
@@ -56,7 +53,7 @@ lib/
 ├── models/                   # Folder, Note, NoteMetadata, CustomMarkdownShortcut
 ├── services/                 # FolderStorage, NoteStorage, Search, AutoSave, Loading, Settings, DatabaseManager
 ├── pages/                    # FolderContentPage, NoteEditorPage, SearchPage, MarkdownSettingsPage, DatabaseSettingsPage, ControlsSettingsPage
-├── widgets/                  # MarkdownToolbar, InfiniteScrollList, VirtualScrollingEditor, AppDrawer, GradientAppBar, etc.
+├── widgets/                  # MarkdownToolbar, InfiniteScrollList, AppDrawer, GradientAppBar, etc.
 ├── l10n/                     # app_en.arb, app_de.arb, app_ro.arb
 ├── config/                   # default_markdown_shortcuts, available_icons
 ├── handlers/                 # date/default/header_shortcut_handler
@@ -217,7 +214,6 @@ AppConstants.cacheExpiry               // 5 minutes
 AppConstants.defaultChunkSize          // 10KB
 AppConstants.compressionThreshold      // 5KB
 AppConstants.previewMaxLength          // 200
-AppConstants.virtualScrollingThreshold // 3000
 
 // Timing
 AppConstants.autoSaveInterval          // 30s
@@ -372,7 +368,6 @@ getIt<NoteRepository>().noteChanges.listen((change) {
 - **FolderSearchService**: Cross-note full-text search with indexing
 - **SettingsService**: User preferences (swipe gestures, haptic feedback, auto-save, preview, theme, locale)
 - **CustomMarkdownShortcut**: User-configurable markdown toolbar shortcuts
-- **VirtualScrollingEditor**: High-performance editor for large documents (50k+ chars)
 
 ## Sync (Future)
 ```dart
@@ -493,14 +488,6 @@ shortcut.isDefault;       // Can't be deleted
 
 ## Widget Highlights
 ```dart
-// VirtualScrollingEditor - for large documents (50k+ chars)
-VirtualScrollingEditor(
-  initialContent: text,
-  onChanged: (newText) => {},
-  lineHeight: 24.0,
-  textStyle: TextStyle(fontSize: 16),
-);
-
 // MarkdownToolbar - customizable toolbar
 MarkdownToolbar(
   shortcuts: shortcuts,
