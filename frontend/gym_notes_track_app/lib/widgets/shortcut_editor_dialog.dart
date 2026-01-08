@@ -465,10 +465,14 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                             ),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: ListView.separated(
-                            padding: EdgeInsets.zero,
-                            itemCount: _dateFormats.length,
-                            separatorBuilder: (context, index) => Divider(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: ListView.separated(
+                                padding: EdgeInsets.zero,
+                                itemCount: _dateFormats.length,
+                                separatorBuilder: (context, index) => Divider(
                               height: 1,
                               color: Theme.of(
                                 context,
@@ -524,6 +528,8 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                                 },
                               );
                             },
+                          ),
+                            ),
                           ),
                         ),
                       ],
