@@ -1166,5 +1166,33 @@
   "restartRequired": "Neustart kann für volle Wirkung erforderlich sein",
   "@restartRequired": {
     "description": "Hint that restart may be needed"
+  },
+  "searchSection": "Suche",
+  "@searchSection": {
+    "description": "Search settings section title"
+  },
+  "searchCursorBehavior": "Suchnavigation",
+  "@searchCursorBehavior": {
+    "description": "Setting for cursor behavior when navigating search matches"
+  },
+  "searchCursorBehaviorDesc": "Wo der Cursor beim Springen zu einem Suchergebnis platziert werden soll",
+  "@searchCursorBehaviorDesc": {
+    "description": "Description for search cursor behavior setting"
+  },
+  "cursorAtStart": "Davor",
+  "@cursorAtStart": {
+    "description": "Place cursor before the match"
+  },
+  "cursorAtEnd": "Danach",
+  "@cursorAtEnd": {
+    "description": "Place cursor after the match"
+  },
+  "selectMatch": "Auswählen",
+  "@selectMatch": {
+    "description": "Select the entire match"
+  },
+  "searching": "Suche...",
+  "@searching": {
+    "description": "Shown while search is in progress"
   }
 }

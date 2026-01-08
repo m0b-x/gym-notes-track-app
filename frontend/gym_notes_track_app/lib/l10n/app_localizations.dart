@@ -1755,6 +1755,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'System'**
   String get systemTheme;
+
+  /// Search settings section title
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get searchSection;
+
+  /// Setting for cursor behavior when navigating search matches
+  ///
+  /// In en, this message translates to:
+  /// **'Search Navigation'**
+  String get searchCursorBehavior;
+
+  /// Description for search cursor behavior setting
+  ///
+  /// In en, this message translates to:
+  /// **'Where to place the cursor when jumping to a search match'**
+  String get searchCursorBehaviorDesc;
+
+  /// Place cursor before the match
+  ///
+  /// In en, this message translates to:
+  /// **'Before'**
+  String get cursorAtStart;
+
+  /// Place cursor after the match
+  ///
+  /// In en, this message translates to:
+  /// **'After'**
+  String get cursorAtEnd;
+
+  /// Select the entire match
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get selectMatch;
+
+  /// Shown while search is in progress
+  ///
+  /// In en, this message translates to:
+  /// **'Searching...'**
+  String get searching;
 }
 
 class _AppLocalizationsDelegate

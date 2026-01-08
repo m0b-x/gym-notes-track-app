@@ -1207,5 +1207,33 @@
   "restartRequired": "Restart may be required for full effect",
   "@restartRequired": {
     "description": "Hint that restart may be needed"
+  },
+  "searchSection": "Search",
+  "@searchSection": {
+    "description": "Search settings section title"
+  },
+  "searchCursorBehavior": "Search Navigation",
+  "@searchCursorBehavior": {
+    "description": "Setting for cursor behavior when navigating search matches"
+  },
+  "searchCursorBehaviorDesc": "Where to place the cursor when jumping to a search match",
+  "@searchCursorBehaviorDesc": {
+    "description": "Description for search cursor behavior setting"
+  },
+  "cursorAtStart": "Before",
+  "@cursorAtStart": {
+    "description": "Place cursor before the match"
+  },
+  "cursorAtEnd": "After",
+  "@cursorAtEnd": {
+    "description": "Place cursor after the match"
+  },
+  "selectMatch": "Select",
+  "@selectMatch": {
+    "description": "Select the entire match"
+  },
+  "searching": "Searching...",
+  "@searching": {
+    "description": "Shown while search is in progress"
   }
 }

@@ -156,6 +156,8 @@ class _NoteSearchBarState extends State<NoteSearchBar>
                   onClose: _close,
                   hasQuery: _searchController.text.isNotEmpty,
                   hasMatches: _search.hasMatches,
+                  hasMoreMatches: _search.hasMoreMatches,
+                  isSearchPending: _search.isSearchPending,
                   currentIndex: _search.currentMatchIndex,
                   matchCount: _search.matchCount,
                   options: _SearchOptions(
@@ -225,6 +227,8 @@ class _SearchRow extends StatelessWidget {
   final VoidCallback onClose;
   final bool hasQuery;
   final bool hasMatches;
+  final bool hasMoreMatches;
+  final bool isSearchPending;
   final int currentIndex;
   final int matchCount;
   final _SearchOptions options;
@@ -238,6 +242,8 @@ class _SearchRow extends StatelessWidget {
     required this.onClose,
     required this.hasQuery,
     required this.hasMatches,
+    required this.hasMoreMatches,
+    required this.isSearchPending,
     required this.currentIndex,
     required this.matchCount,
     required this.options,
@@ -288,20 +294,39 @@ class _SearchRow extends StatelessWidget {
   }
 
   Widget _buildCounter(ColorScheme colors, AppLocalizations l10n) {
-    final isError = !hasMatches;
+    final isError = !hasMatches && !isSearchPending;
+    final countText = hasMoreMatches ? '$matchCount+' : '$matchCount';
+
+    String displayText;
+    if (isSearchPending) {
+      displayText = l10n.searching;
+    } else if (hasMatches) {
+      displayText = '${currentIndex + 1}/$countText';
+    } else {
+      displayText = l10n.noSearchResults;
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: (isError ? colors.errorContainer : colors.primaryContainer)
+        color: (isSearchPending
+                ? colors.secondaryContainer
+                : isError
+                    ? colors.errorContainer
+                    : colors.primaryContainer)
             .withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        hasMatches ? '${currentIndex + 1}/$matchCount' : l10n.noSearchResults,
+        displayText,
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: isError ? colors.onErrorContainer : colors.onPrimaryContainer,
+          color: isSearchPending
+              ? colors.onSecondaryContainer
+              : isError
+                  ? colors.onErrorContainer
+                  : colors.onPrimaryContainer,
         ),
       ),
     );

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import '../services/note_search_service.dart';
 
@@ -46,6 +48,14 @@ class NoteSearchController extends ChangeNotifier {
   bool _showReplace = false;
   int _lastReplacementCount = 0;
 
+  // Debounce timer for search
+  Timer? _debounceTimer;
+  static const Duration _debounceDuration = Duration(milliseconds: 150);
+
+  // Pending search query (for debounce)
+  String _pendingQuery = '';
+  bool _isSearchPending = false;
+
   String get query => _searchService.query;
   String get replacement => _replacement;
   List<SearchMatch> get matches => _searchService.matches
@@ -57,6 +67,7 @@ class NoteSearchController extends ChangeNotifier {
   int get currentMatchIndex => _currentMatchIndex;
   int get matchCount => _searchService.matchCount;
   bool get hasMatches => _searchService.hasMatches;
+  bool get hasMoreMatches => _searchService.hasMoreMatches;
   bool get caseSensitive => _searchService.caseSensitive;
   bool get useRegex => _searchService.useRegex;
   bool get wholeWord => _searchService.wholeWord;
@@ -78,13 +89,48 @@ class NoteSearchController extends ChangeNotifier {
     return null;
   }
 
+  /// Whether a search is currently being debounced
+  bool get isSearchPending => _isSearchPending;
+
   void updateContent(String content) {
     _searchService.updateContent(content);
     _adjustCurrentMatchIndex();
     notifyListeners();
   }
 
+  /// Search with debounce - prevents excessive searches on fast typing
   void search(String query) {
+    _pendingQuery = query;
+
+    // Cancel previous debounce timer
+    _debounceTimer?.cancel();
+
+    // For empty query, execute immediately
+    if (query.isEmpty) {
+      _isSearchPending = false;
+      _executeSearch(query);
+      return;
+    }
+
+    // Debounce the search
+    _isSearchPending = true;
+    notifyListeners(); // Notify that search is pending
+
+    _debounceTimer = Timer(_debounceDuration, () {
+      _isSearchPending = false;
+      _executeSearch(_pendingQuery);
+    });
+  }
+
+  /// Execute search immediately without debounce (for navigation, toggles)
+  void searchImmediate(String query) {
+    _debounceTimer?.cancel();
+    _isSearchPending = false;
+    _pendingQuery = query;
+    _executeSearch(query);
+  }
+
+  void _executeSearch(String query) {
     _searchService.updateQuery(query);
     _currentMatchIndex = _searchService.hasMatches ? 0 : -1;
     notifyListeners();
@@ -224,6 +270,7 @@ class NoteSearchController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchService.clear();
     super.dispose();
   }

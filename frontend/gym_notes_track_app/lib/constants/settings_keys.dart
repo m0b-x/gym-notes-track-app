@@ -25,6 +25,7 @@ class SettingsKeys {
   static const String showNotePreview = 'show_note_preview';
   static const String defaultNotesSortOrder = 'default_notes_sort_order';
   static const String hapticFeedback = 'haptic_feedback';
+  static const String searchCursorBehavior = 'search_cursor_behavior';
 
   // Default values for control settings
   static const bool defaultFolderSwipeEnabled = true;
@@ -35,4 +36,14 @@ class SettingsKeys {
   static const bool defaultShowNotePreview = true;
   static const int defaultDefaultNotesSortOrder = 0;
   static const bool defaultHapticFeedback = true;
+  static const int defaultSearchCursorBehavior = SearchCursorBehavior.end;
+}
+
+/// Constants for search cursor behavior options
+class SearchCursorBehavior {
+  static const int start = 0;
+  static const int end = 1;
+  static const int selection = 2;
+
+  SearchCursorBehavior._();
 }

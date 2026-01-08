@@ -892,4 +892,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get systemTheme => 'System';
+
+  @override
+  String get searchSection => 'Search';
+
+  @override
+  String get searchCursorBehavior => 'Search Navigation';
+
+  @override
+  String get searchCursorBehaviorDesc =>
+      'Where to place the cursor when jumping to a search match';
+
+  @override
+  String get cursorAtStart => 'Before';
+
+  @override
+  String get cursorAtEnd => 'After';
+
+  @override
+  String get selectMatch => 'Select';
+
+  @override
+  String get searching => 'Searching...';
 }

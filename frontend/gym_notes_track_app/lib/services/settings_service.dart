@@ -132,4 +132,16 @@ class SettingsService {
   Future<void> setHapticFeedback(bool value) async {
     await _setBool(SettingsKeys.hapticFeedback, value);
   }
+
+  // Search cursor behavior (0=start, 1=end, 2=selection)
+  Future<int> getSearchCursorBehavior() async {
+    return _getInt(
+      SettingsKeys.searchCursorBehavior,
+      SettingsKeys.defaultSearchCursorBehavior,
+    );
+  }
+
+  Future<void> setSearchCursorBehavior(int value) async {
+    await _setInt(SettingsKeys.searchCursorBehavior, value);
+  }
 }

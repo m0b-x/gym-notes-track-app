@@ -273,5 +273,12 @@
   "lightTheme": "Luminos",
   "darkTheme": "Întunecat",
   "systemTheme": "Sistem",
-  "exitApp": "Închide Aplicația"
+  "exitApp": "Închide Aplicația",
+  "searchSection": "Căutare",
+  "searchCursorBehavior": "Navigare căutare",
+  "searchCursorBehaviorDesc": "Unde să poziționeze cursorul când navighezi la o potrivire",
+  "cursorAtStart": "Înainte",
+  "cursorAtEnd": "După",
+  "selectMatch": "Selectează",
+  "searching": "Se caută..."
 }

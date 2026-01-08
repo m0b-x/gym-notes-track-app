@@ -58,6 +58,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _isPreviewMode = false;
   bool _isLoading = true;
   bool _noteSwipeEnabled = true;
+  int _searchCursorBehavior = SearchCursorBehavior.end;
 
   TextHistoryObserver? _textHistory;
   AutoSaveService? _autoSaveService;
@@ -151,9 +152,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   Future<void> _loadSwipeSetting() async {
     final settings = await SettingsService.getInstance();
     final noteSwipe = await settings.getNoteSwipeEnabled();
+    final searchCursor = await settings.getSearchCursorBehavior();
     if (mounted) {
       setState(() {
         _noteSwipeEnabled = noteSwipe;
+        _searchCursorBehavior = searchCursor;
       });
     }
   }
@@ -304,14 +307,62 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
   void _navigateToSearchMatch(int offset) {
     final match = _searchController.currentMatch;
-    final cursorOffset = match?.end ?? offset;
 
-    _contentController.selection = TextSelection.collapsed(
-      offset: cursorOffset,
+    if (_isPreviewMode) {
+      // In preview mode, estimate scroll position based on character offset
+      _scrollToOffsetInPreview(match?.start ?? offset);
+    } else {
+      // In editor mode, use the search cursor behavior setting
+      if (match != null) {
+        switch (_searchCursorBehavior) {
+          case SearchCursorBehavior.start:
+            _contentController.selection = TextSelection.collapsed(
+              offset: match.start,
+            );
+          case SearchCursorBehavior.end:
+            _contentController.selection = TextSelection.collapsed(
+              offset: match.end,
+            );
+          case SearchCursorBehavior.selection:
+            _contentController.selection = TextSelection(
+              baseOffset: match.start,
+              extentOffset: match.end,
+            );
+        }
+      } else {
+        _contentController.selection = TextSelection.collapsed(
+          offset: offset,
+        );
+      }
+      _contentFocusNode.requestFocus();
+      _scrollToCursor(match?.start ?? offset, _contentController.text);
+    }
+  }
+
+  void _scrollToOffsetInPreview(int charOffset) {
+    final text = _contentController.text;
+    if (text.isEmpty) return;
+
+    // Calculate line number for the offset
+    int lineNumber = 0;
+    for (int i = 0; i < charOffset && i < text.length; i++) {
+      if (text[i] == '\n') lineNumber++;
+    }
+
+    // Estimate scroll position based on line number and font size
+    // Using approximate line height (font size * 1.5 for line spacing)
+    final estimatedLineHeight = _previewFontSize * 1.5;
+    final targetScroll = lineNumber * estimatedLineHeight;
+
+    // Get max scroll extent
+    final maxScroll = _editorScrollController.position.maxScrollExtent;
+    final clampedScroll = targetScroll.clamp(0.0, maxScroll);
+
+    _editorScrollController.animateTo(
+      clampedScroll,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
     );
-    _contentFocusNode.requestFocus();
-
-    _scrollToCursor(cursorOffset, _contentController.text);
   }
 
   void _handleSearchReplace(String _, String newContent) {
@@ -669,11 +720,16 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   Widget _buildPreview() {
-    final content = _contentController.text.isEmpty
+    var content = _contentController.text.isEmpty
         ? AppLocalizations.of(context)!.noContentYet
         : _contentController.text;
 
-    // Use efficient virtualized markdown for large content
+    if (_searchController.isSearching && _searchController.hasMatches) {
+      content = _highlightSearchInMarkdown(content);
+    }
+
+    final isSearchActive = _searchController.isSearching && _searchController.hasMatches;
+
     if (_useVirtualPreview) {
       return Stack(
         children: [
@@ -681,21 +737,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
             data: content,
             selectable: true,
             scrollController: _editorScrollController,
-            styleSheet: MarkdownStyleSheet(
-              p: TextStyle(fontSize: _previewFontSize),
-              h1: TextStyle(
-                fontSize: _previewFontSize * 2,
-                fontWeight: FontWeight.bold,
-              ),
-              h2: TextStyle(
-                fontSize: _previewFontSize * 1.5,
-                fontWeight: FontWeight.bold,
-              ),
-              h3: TextStyle(
-                fontSize: _previewFontSize * 1.25,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            styleSheet: _getPreviewStyleSheet(highlightStrong: isSearchActive),
             onCheckboxChanged: (updatedContent) {
               setState(() {
                 _contentController.text = updatedContent;
@@ -722,21 +764,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           selectable: true,
           scrollController: _editorScrollController,
           padding: const EdgeInsets.all(16),
-          styleSheet: MarkdownStyleSheet(
-            p: TextStyle(fontSize: _previewFontSize),
-            h1: TextStyle(
-              fontSize: _previewFontSize * 2,
-              fontWeight: FontWeight.bold,
-            ),
-            h2: TextStyle(
-              fontSize: _previewFontSize * 1.5,
-              fontWeight: FontWeight.bold,
-            ),
-            h3: TextStyle(
-              fontSize: _previewFontSize * 1.25,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          styleSheet: _getPreviewStyleSheet(highlightStrong: isSearchActive),
           onCheckboxChanged: (updatedContent) {
             setState(() {
               _contentController.text = updatedContent;
@@ -754,6 +782,69 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         ),
       ],
     );
+  }
+
+  MarkdownStyleSheet _getPreviewStyleSheet({bool highlightStrong = false}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Use theme selection color for highlight
+    final highlightColor = isDark
+        ? theme.colorScheme.primary.withValues(alpha: 0.4)
+        : theme.colorScheme.primary.withValues(alpha: 0.3);
+
+    return MarkdownStyleSheet(
+      p: TextStyle(fontSize: _previewFontSize),
+      h1: TextStyle(
+        fontSize: _previewFontSize * 2,
+        fontWeight: FontWeight.bold,
+      ),
+      h2: TextStyle(
+        fontSize: _previewFontSize * 1.5,
+        fontWeight: FontWeight.bold,
+      ),
+      h3: TextStyle(
+        fontSize: _previewFontSize * 1.25,
+        fontWeight: FontWeight.bold,
+      ),
+      strong: highlightStrong
+          ? TextStyle(
+              fontWeight: FontWeight.bold,
+              backgroundColor: highlightColor,
+            )
+          : null,
+    );
+  }
+
+  String _highlightSearchInMarkdown(String content) {
+    final matches = _searchController.matches;
+    if (matches.isEmpty) return content;
+
+    // Limit highlights for performance
+    final matchesToHighlight = matches.length > AppConstants.maxHighlightMatches
+        ? matches.take(AppConstants.maxHighlightMatches).toList()
+        : matches;
+
+    final buffer = StringBuffer();
+    int lastEnd = 0;
+
+    for (int i = 0; i < matchesToHighlight.length; i++) {
+      final match = matchesToHighlight[i];
+      if (match.start > content.length || match.end > content.length) continue;
+
+      buffer.write(content.substring(lastEnd, match.start));
+
+      final matchText = content.substring(match.start, match.end);
+      buffer.write('**$matchText**');
+
+      lastEnd = match.end;
+    }
+
+    if (lastEnd < content.length) {
+      buffer.write(content.substring(lastEnd));
+    }
+
+    return buffer.toString();
   }
 
   Widget _buildEditor() {

@@ -898,4 +898,26 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get systemTheme => 'Sistem';
+
+  @override
+  String get searchSection => 'Căutare';
+
+  @override
+  String get searchCursorBehavior => 'Navigare căutare';
+
+  @override
+  String get searchCursorBehaviorDesc =>
+      'Unde să poziționeze cursorul când navighezi la o potrivire';
+
+  @override
+  String get cursorAtStart => 'Înainte';
+
+  @override
+  String get cursorAtEnd => 'După';
+
+  @override
+  String get selectMatch => 'Selectează';
+
+  @override
+  String get searching => 'Se caută...';
 }

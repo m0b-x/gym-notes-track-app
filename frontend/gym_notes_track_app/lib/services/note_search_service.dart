@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../constants/app_constants.dart';
 
 sealed class ReplaceResult {
   const ReplaceResult();
@@ -113,8 +114,14 @@ class NoteSearchService {
     }
   }
 
+  bool _hasMoreMatches = false;
+
+  /// Whether there are more matches beyond the limit
+  bool get hasMoreMatches => _hasMoreMatches;
+
   void performSearch() {
     _matches = [];
+    _hasMoreMatches = false;
 
     if (_query.isEmpty || _content.isEmpty) {
       return;
@@ -124,7 +131,13 @@ class NoteSearchService {
       final Pattern pattern = _buildPattern();
       final regexMatches = pattern.allMatches(_content);
 
+      int count = 0;
       for (final match in regexMatches) {
+        if (count >= AppConstants.maxSearchMatches) {
+          _hasMoreMatches = true;
+          break;
+        }
+
         final lineNumber = _findLineNumber(match.start);
         _matches.add(
           NoteSearchMatch(
@@ -134,6 +147,7 @@ class NoteSearchService {
             matchedText: match.group(0) ?? '',
           ),
         );
+        count++;
       }
     } catch (e) {
       debugPrint('Search error: $e');
