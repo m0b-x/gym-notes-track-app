@@ -370,7 +370,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _contentController.text = newContent;
     _contentController.selection = TextSelection.collapsed(offset: cursorPos);
     _searchController.updateContent(newContent);
-    _searchController.search(_searchController.query); // Re-search
+    _searchController.search(_searchController.query);
   }
 
   void _handleTextChange() {

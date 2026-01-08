@@ -215,7 +215,11 @@ class _SearchOptions {
     required this.onToggleReplace,
   });
 
-  bool get hasActive => caseSensitive || wholeWord || useRegex || showReplace;
+  bool get hasActive =>
+      caseSensitive ||
+      wholeWord ||
+      useRegex ||
+      (showReplace && showReplaceOption);
 }
 
 class _SearchRow extends StatelessWidget {
