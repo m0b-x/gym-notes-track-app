@@ -720,15 +720,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   Widget _buildPreview() {
-    var content = _contentController.text.isEmpty
+    final content = _contentController.text.isEmpty
         ? AppLocalizations.of(context)!.noContentYet
         : _contentController.text;
-
-    if (_searchController.isSearching && _searchController.hasMatches) {
-      content = _highlightSearchInMarkdown(content);
-    }
-
-    final isSearchActive = _searchController.isSearching && _searchController.hasMatches;
 
     if (_useVirtualPreview) {
       return Stack(
@@ -737,7 +731,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
             data: content,
             selectable: true,
             scrollController: _editorScrollController,
-            styleSheet: _getPreviewStyleSheet(highlightStrong: isSearchActive),
+            styleSheet: _getPreviewStyleSheet(),
             onCheckboxChanged: (updatedContent) {
               setState(() {
                 _contentController.text = updatedContent;
@@ -764,7 +758,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           selectable: true,
           scrollController: _editorScrollController,
           padding: const EdgeInsets.all(16),
-          styleSheet: _getPreviewStyleSheet(highlightStrong: isSearchActive),
+          styleSheet: _getPreviewStyleSheet(),
           onCheckboxChanged: (updatedContent) {
             setState(() {
               _contentController.text = updatedContent;
@@ -784,15 +778,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     );
   }
 
-  MarkdownStyleSheet _getPreviewStyleSheet({bool highlightStrong = false}) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    // Use theme selection color for highlight
-    final highlightColor = isDark
-        ? theme.colorScheme.primary.withValues(alpha: 0.4)
-        : theme.colorScheme.primary.withValues(alpha: 0.3);
-
+  MarkdownStyleSheet _getPreviewStyleSheet() {
     return MarkdownStyleSheet(
       p: TextStyle(fontSize: _previewFontSize),
       h1: TextStyle(
@@ -807,44 +793,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         fontSize: _previewFontSize * 1.25,
         fontWeight: FontWeight.bold,
       ),
-      strong: highlightStrong
-          ? TextStyle(
-              fontWeight: FontWeight.bold,
-              backgroundColor: highlightColor,
-            )
-          : null,
     );
-  }
-
-  String _highlightSearchInMarkdown(String content) {
-    final matches = _searchController.matches;
-    if (matches.isEmpty) return content;
-
-    // Limit highlights for performance
-    final matchesToHighlight = matches.length > AppConstants.maxHighlightMatches
-        ? matches.take(AppConstants.maxHighlightMatches).toList()
-        : matches;
-
-    final buffer = StringBuffer();
-    int lastEnd = 0;
-
-    for (int i = 0; i < matchesToHighlight.length; i++) {
-      final match = matchesToHighlight[i];
-      if (match.start > content.length || match.end > content.length) continue;
-
-      buffer.write(content.substring(lastEnd, match.start));
-
-      final matchText = content.substring(match.start, match.end);
-      buffer.write('**$matchText**');
-
-      lastEnd = match.end;
-    }
-
-    if (lastEnd < content.length) {
-      buffer.write(content.substring(lastEnd));
-    }
-
-    return buffer.toString();
   }
 
   Widget _buildEditor() {

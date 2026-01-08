@@ -49,7 +49,6 @@ class AppConstants {
   // ============================================================
   static const int maxRecentSearches = 10;
   static const int maxSearchMatches = 1000;
-  static const int maxHighlightMatches = 200;
 
   // Private constructor to prevent instantiation
   AppConstants._();
