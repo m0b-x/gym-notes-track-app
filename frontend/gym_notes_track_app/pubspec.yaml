@@ -57,9 +57,6 @@ dependencies:
   
   # Search optimization
   stream_transform: ^2.1.0
-  
-  # High-performance text editor
-  re_editor: ^0.8.0
 
 dev_dependencies:
   flutter_test:

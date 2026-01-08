@@ -4,9 +4,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-import 'package:re_editor/re_editor.dart';
 
 import '../l10n/app_localizations.dart';
+import '../widgets/scroll_zone_mixin.dart';
 import '../bloc/optimized_note/optimized_note_bloc.dart';
 import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
@@ -14,11 +14,11 @@ import '../models/custom_markdown_shortcut.dart';
 import '../models/note_metadata.dart';
 import '../services/auto_save_service.dart';
 import '../services/settings_service.dart';
+import '../utils/text_history_observer.dart';
 import '../widgets/markdown_toolbar.dart';
 import '../widgets/efficient_markdown.dart';
 import '../widgets/interactive_markdown.dart';
 import '../widgets/scroll_progress_indicator.dart';
-import '../widgets/scroll_zone_mixin.dart';
 import '../widgets/note_search_bar.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/gradient_app_bar.dart';
@@ -49,9 +49,9 @@ class OptimizedNoteEditorPage extends StatefulWidget {
 
 class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   late TextEditingController _titleController;
-  late CodeLineEditingController _contentController;
+  late TextEditingController _contentController;
   late FocusNode _contentFocusNode;
-  late CodeScrollController _editorScrollController;
+  late ScrollController _editorScrollController;
   late NoteSearchController _searchController;
 
   bool _hasChanges = false;
@@ -61,6 +61,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _showStatsBar = true;
   int _searchCursorBehavior = SearchCursorBehavior.end;
 
+  TextHistoryObserver? _textHistory;
   AutoSaveService? _autoSaveService;
 
   double _previewFontSize = FontConstants.defaultFontSize;
@@ -75,6 +76,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   Timer? _searchContentDebounceTimer;
   int _lastLineCountTextLength = 0;
 
+  /// Only use virtual scrolling for PREVIEW mode with large content
   bool get _useVirtualPreview => _contentController.text.length > 5000;
 
   @override
@@ -85,19 +87,20 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _titleController = TextEditingController(
       text: widget.metadata?.title ?? '',
     );
-    _contentController = CodeLineEditingController();
+    _contentController = TextEditingController();
     _previousText = '';
     _contentFocusNode = FocusNode();
-    _editorScrollController = CodeScrollController();
+    _editorScrollController = ScrollController();
     _searchController = NoteSearchController();
 
     _titleController.addListener(_onTextChanged);
-    _contentController.addListener(_onContentChanged);
+    _contentController.addListener(_onTextChanged);
 
     if (widget.noteId != null) {
       _loadNoteContent();
     } else {
       _isLoading = false;
+      _setupTextHistory();
     }
 
     _loadCustomShortcuts();
@@ -111,8 +114,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     });
   }
 
-  void _onContentChanged() {
-    _onTextChanged();
+  void _setupTextHistory() {
+    _textHistory?.dispose();
+    _textHistory = TextHistoryObserver(_contentController);
   }
 
   Future<void> _loadFontSizes() async {
@@ -251,9 +255,14 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   void _updateCachedStats() {
-    final newCharCount = _contentController.text.length;
-    // Use re_editor's built-in lineCount for efficiency
-    final newLineCount = _contentController.lineCount;
+    final content = _contentController.text;
+    final newCharCount = content.length;
+    int newLineCount;
+    if (content.length > 50000) {
+      newLineCount = _fastLineCount(content);
+    } else {
+      newLineCount = '\n'.allMatches(content).length + 1;
+    }
     if (newLineCount != _cachedLineCount || newCharCount != _cachedCharCount) {
       setState(() {
         _cachedLineCount = newLineCount;
@@ -262,12 +271,20 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     }
   }
 
-  int _getCurrentLineFromScroll() {
-    final scroller = _editorScrollController.verticalScroller;
-    if (!scroller.hasClients) return 0;
+  int _fastLineCount(String text) {
+    int count = 1;
+    final length = text.length;
+    for (int i = 0; i < length; i++) {
+      if (text.codeUnitAt(i) == 10) count++;
+    }
+    return count;
+  }
 
-    final scrollOffset = scroller.offset;
-    final maxScroll = scroller.position.maxScrollExtent;
+  int _getCurrentLineFromScroll() {
+    if (!_editorScrollController.hasClients) return 0;
+
+    final scrollOffset = _editorScrollController.offset;
+    final maxScroll = _editorScrollController.position.maxScrollExtent;
     if (maxScroll <= 0) return 0;
 
     final scrollRatio = scrollOffset / maxScroll;
@@ -278,22 +295,21 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   void _scrollToLine(int targetLine) {
-    final scroller = _editorScrollController.verticalScroller;
-    if (!scroller.hasClients) return;
+    if (!_editorScrollController.hasClients) return;
     if (_cachedLineCount <= 1) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !scroller.hasClients) return;
+      if (!mounted || !_editorScrollController.hasClients) return;
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !scroller.hasClients) return;
+        if (!mounted || !_editorScrollController.hasClients) return;
 
-        final maxScroll = scroller.position.maxScrollExtent;
+        final maxScroll = _editorScrollController.position.maxScrollExtent;
         if (maxScroll <= 0) return;
 
         final lineRatio = targetLine / (_cachedLineCount - 1);
         final targetOffset = (lineRatio * maxScroll).clamp(0.0, maxScroll);
-        scroller.jumpTo(targetOffset);
+        _editorScrollController.jumpTo(targetOffset);
       });
     });
   }
@@ -324,6 +340,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _contentFocusNode.dispose();
     _editorScrollController.dispose();
     _searchController.dispose();
+    _textHistory?.dispose();
     super.dispose();
   }
 
@@ -342,52 +359,34 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final match = _searchController.currentMatch;
 
     if (_isPreviewMode) {
+      // In preview mode, estimate scroll position based on character offset
       _scrollToOffsetInPreview(match?.start ?? offset);
     } else {
+      // In editor mode, use the search cursor behavior setting
       if (match != null) {
-        final text = _contentController.text;
-        final startLine = _getLineFromOffset(text, match.start);
-        final startCol = _getColumnFromOffset(text, match.start);
-        final endLine = _getLineFromOffset(text, match.end);
-        final endCol = _getColumnFromOffset(text, match.end);
-
         switch (_searchCursorBehavior) {
           case SearchCursorBehavior.start:
-            _contentController.selection = CodeLineSelection.collapsed(
-              index: startLine,
-              offset: startCol,
+            _contentController.selection = TextSelection.collapsed(
+              offset: match.start,
             );
           case SearchCursorBehavior.end:
-            _contentController.selection = CodeLineSelection.collapsed(
-              index: endLine,
-              offset: endCol,
+            _contentController.selection = TextSelection.collapsed(
+              offset: match.end,
             );
           case SearchCursorBehavior.selection:
-            _contentController.selection = CodeLineSelection(
-              baseIndex: startLine,
-              baseOffset: startCol,
-              extentIndex: endLine,
-              extentOffset: endCol,
+            _contentController.selection = TextSelection(
+              baseOffset: match.start,
+              extentOffset: match.end,
             );
         }
+      } else {
+        _contentController.selection = TextSelection.collapsed(offset: offset);
       }
       _contentFocusNode.requestFocus();
-      _contentController.makeCursorVisible();
+      _scrollToCursor(match?.start ?? offset, _contentController.text);
     }
   }
 
-  int _getLineFromOffset(String text, int offset) {
-    int line = 0;
-    for (int i = 0; i < offset && i < text.length; i++) {
-      if (text.codeUnitAt(i) == 10) line++;
-    }
-    return line;
-  }
-
-  int _getColumnFromOffset(String text, int offset) {
-    int lastNewline = text.lastIndexOf('\n', offset - 1);
-    return offset - (lastNewline + 1);
-  }
   void _scrollToOffsetInPreview(int charOffset) {
     final text = _contentController.text;
     if (text.isEmpty) return;
@@ -398,16 +397,16 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       if (text[i] == '\n') lineNumber++;
     }
 
-    final scroller = _editorScrollController.verticalScroller;
-    if (!scroller.hasClients) return;
-
+    // Estimate scroll position based on line number and font size
+    // Using approximate line height (font size * 1.5 for line spacing)
     final estimatedLineHeight = _previewFontSize * 1.5;
     final targetScroll = lineNumber * estimatedLineHeight;
 
-    final maxScroll = scroller.position.maxScrollExtent;
+    // Get max scroll extent
+    final maxScroll = _editorScrollController.position.maxScrollExtent;
     final clampedScroll = targetScroll.clamp(0.0, maxScroll);
 
-    scroller.animateTo(
+    _editorScrollController.animateTo(
       clampedScroll,
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
@@ -415,7 +414,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   void _handleSearchReplace(String _, String newContent) {
+    final cursorPos = _searchController.currentMatch?.start ?? 0;
     _contentController.text = newContent;
+    _contentController.selection = TextSelection.collapsed(offset: cursorPos);
     _searchController.updateContent(newContent);
     _searchController.search(_searchController.query);
   }
@@ -431,29 +432,31 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
     if (!textLengthIncreased) return;
 
-    // Check if we just inserted a newline
-    // In CodeLineEditingController, after pressing Enter:
-    // - baseIndex is the new line (current line)
-    // - baseOffset is 0 (start of new line)
-    final currentLineIndex = selection.baseIndex;
-    if (currentLineIndex > 0 && selection.baseOffset == 0) {
+    if (selection.baseOffset > 0 &&
+        selection.baseOffset <= text.length &&
+        text[selection.baseOffset - 1] == '\n') {
       _isProcessingTextChange = true;
-      
-      // Get the previous line text
-      final prevLineIndex = currentLineIndex - 1;
-      final prevLine = _contentController.codeLines[prevLineIndex].text;
+      int prevLineStart;
+      if (selection.baseOffset < 2) {
+        prevLineStart = 0;
+      } else {
+        prevLineStart = text.lastIndexOf('\n', selection.baseOffset - 2);
+        if (prevLineStart == -1) {
+          prevLineStart = 0;
+        } else {
+          prevLineStart++;
+        }
+      }
+
+      String prevLine = text.substring(prevLineStart, selection.baseOffset - 1);
 
       if (_isEmptyListItem(prevLine.trim())) {
-        // Remove the empty list item line
-        final newText = text.replaceRange(
-          _getLineStartOffset(prevLineIndex),
-          _getLineStartOffset(currentLineIndex),
-          '',
-        );
-        _contentController.text = newText;
-        _contentController.selection = CodeLineSelection.collapsed(
-          index: prevLineIndex,
-          offset: 0,
+        final newText =
+            text.substring(0, prevLineStart) +
+            text.substring(selection.baseOffset);
+        _contentController.value = TextEditingValue(
+          text: newText,
+          selection: TextSelection.collapsed(offset: prevLineStart),
         );
         _previousText = newText;
         _isProcessingTextChange = false;
@@ -462,22 +465,22 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
       String? listPrefix = _getListPrefix(prevLine);
       if (listPrefix != null) {
-        // Insert the list prefix at the current position
-        _contentController.replaceSelection(listPrefix);
-        _previousText = _contentController.text;
+        final beforeCursor = text.substring(0, selection.baseOffset);
+        final afterCursor = text.substring(selection.baseOffset);
+
+        if (!afterCursor.startsWith(listPrefix)) {
+          final newText = beforeCursor + listPrefix + afterCursor;
+          final newOffset = selection.baseOffset + listPrefix.length;
+
+          _contentController.value = TextEditingValue(
+            text: newText,
+            selection: TextSelection.collapsed(offset: newOffset),
+          );
+          _previousText = newText;
+        }
       }
       _isProcessingTextChange = false;
     }
-  }
-  
-  /// Get the character offset where a given line starts in the full text
-  int _getLineStartOffset(int lineIndex) {
-    int offset = 0;
-    final codeLines = _contentController.codeLines;
-    for (int i = 0; i < lineIndex && i < codeLines.length; i++) {
-      offset += codeLines[i].text.length + 1; // +1 for newline
-    }
-    return offset;
   }
 
   bool _isEmptyListItem(String line) {
@@ -520,6 +523,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
             _cachedCharCount = content.length;
             _isLoading = false;
           });
+          _setupTextHistory();
           _contentFocusNode.requestFocus();
         }
       },
@@ -651,13 +655,13 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                           MarkdownToolbar(
                             shortcuts: _allShortcuts,
                             isPreviewMode: _isPreviewMode,
-                            canUndo: _contentController.canUndo,
-                            canRedo: _contentController.canRedo,
+                            canUndo: _textHistory?.canUndo ?? false,
+                            canRedo: _textHistory?.canRedo ?? false,
                             previewFontSize: _isPreviewMode
                                 ? _previewFontSize
                                 : _editorFontSize,
-                            onUndo: () => _contentController.undo(),
-                            onRedo: () => _contentController.redo(),
+                            onUndo: () => _textHistory?.undo(),
+                            onRedo: () => _textHistory?.redo(),
                             onDecreaseFontSize: () {
                               setState(() {
                                 if (_isPreviewMode) {
@@ -777,7 +781,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           EfficientMarkdownView(
             data: content,
             selectable: true,
-            scrollController: _editorScrollController.verticalScroller,
+            scrollController: _editorScrollController,
             styleSheet: _getPreviewStyleSheet(),
             onCheckboxChanged: (updatedContent) {
               setState(() {
@@ -791,7 +795,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
             bottom: 8,
             right: 0,
             child: ScrollProgressIndicator(
-              scrollController: _editorScrollController.verticalScroller,
+              scrollController: _editorScrollController,
             ),
           ),
         ],
@@ -803,7 +807,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         InteractiveMarkdown(
           data: content,
           selectable: true,
-          scrollController: _editorScrollController.verticalScroller,
+          scrollController: _editorScrollController,
           padding: const EdgeInsets.all(16),
           styleSheet: _getPreviewStyleSheet(),
           onCheckboxChanged: (updatedContent) {
@@ -818,7 +822,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           bottom: 8,
           right: 0,
           child: ScrollProgressIndicator(
-            scrollController: _editorScrollController.verticalScroller,
+            scrollController: _editorScrollController,
           ),
         ),
       ],
@@ -920,32 +924,98 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   void _handleShortcut(CustomMarkdownShortcut shortcut) {
-    final selectedText = _contentController.selectedText;
+    final text = _contentController.text;
+    final selection = _contentController.selection;
+    final start = selection.start;
+    final end = selection.end;
+
+    if (start < 0 || end < 0) return;
+
+    String newText = text;
+    int newCursor = end;
 
     if (shortcut.insertType == 'date') {
       final now = DateTime.now();
       final formatted =
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      final middle = selectedText.isNotEmpty ? selectedText : formatted;
+      final middle = start != end ? text.substring(start, end) : formatted;
       final wrapped = '${shortcut.beforeText}$middle${shortcut.afterText}';
-      _contentController.replaceSelection(wrapped);
+      newText = text.replaceRange(start, end, wrapped);
+      newCursor = start + wrapped.length;
     } else if (shortcut.insertType == 'header') {
-      final selection = _contentController.selection;
-      final lineIndex = selection.startIndex;
-      final line = _contentController.codeLines[lineIndex];
-      final newLineText = '${shortcut.beforeText}${line.text}';
-      _contentController.selectLine(lineIndex);
-      _contentController.replaceSelection(newLineText);
+      final lineStart = text.lastIndexOf('\n', start - 1) + 1;
+      newText = text.replaceRange(lineStart, lineStart, shortcut.beforeText);
+      final delta = shortcut.beforeText.length;
+      newCursor = end + delta;
     } else {
       final before = shortcut.beforeText;
       final after = shortcut.afterText;
-      final wrapped = '$before$selectedText$after';
-      _contentController.replaceSelection(wrapped);
+
+      if (start != end) {
+        final replaced = '$before${text.substring(start, end)}$after';
+        newText = text.replaceRange(start, end, replaced);
+        newCursor = start + replaced.length;
+      } else {
+        final inserted = '$before$after';
+        newText = text.replaceRange(start, end, inserted);
+        newCursor = start + before.length;
+      }
     }
+
+    _contentController.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newCursor),
+    );
 
     _onTextChanged();
     _contentFocusNode.requestFocus();
-    _contentController.makeCursorVisible();
+
+    // Scroll to make cursor visible after inserting markdown
+    _scrollToCursor(newCursor, newText);
+  }
+
+  /// Scrolls the editor to make the cursor visible
+  void _scrollToCursor(int cursorOffset, String text) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_editorScrollController.hasClients) return;
+
+      final maxScroll = _editorScrollController.position.maxScrollExtent;
+      if (maxScroll <= 0) return;
+
+      final totalLines = _cachedLineCount;
+      if (totalLines <= 1) return;
+
+      final lineNumber = _fastLineCountUpTo(text, cursorOffset);
+
+      final lineRatio = lineNumber / totalLines;
+      final viewportHeight = _editorScrollController.position.viewportDimension;
+      final targetScroll =
+          (lineRatio * (maxScroll + viewportHeight) - viewportHeight / 2).clamp(
+            0.0,
+            maxScroll,
+          );
+
+      final currentScroll = _editorScrollController.offset;
+      final buffer = viewportHeight * 0.2;
+
+      if (targetScroll > currentScroll + viewportHeight - buffer ||
+          targetScroll < currentScroll + buffer) {
+        _editorScrollController.animateTo(
+          targetScroll,
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  int _fastLineCountUpTo(String text, int offset) {
+    int count = 0;
+    final end = offset.clamp(0, text.length);
+    for (int i = 0; i < end; i++) {
+      if (text.codeUnitAt(i) == 10) count++;
+    }
+    return count;
   }
 
   Future<void> _loadCustomShortcuts() async {
@@ -1039,9 +1109,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 }
 
 class _ModernEditorWrapper extends StatefulWidget {
-  final CodeLineEditingController controller;
+  final TextEditingController controller;
   final FocusNode focusNode;
-  final CodeScrollController scrollController;
+  final ScrollController scrollController;
   final NoteSearchController searchController;
   final double editorFontSize;
   final VoidCallback onTextChanged;
@@ -1067,23 +1137,16 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
   void initState() {
     super.initState();
     initScrollZone();
-    widget.controller.addListener(_onControllerChanged);
   }
 
   @override
   void dispose() {
-    widget.controller.removeListener(_onControllerChanged);
     disposeScrollZone();
     super.dispose();
   }
 
-  void _onControllerChanged() {
-    widget.onTextChanged();
-  }
-
   @override
-  ScrollController getScrollController() =>
-      widget.scrollController.verticalScroller;
+  ScrollController getScrollController() => widget.scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -1096,7 +1159,26 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
             color: theme.colorScheme.surface.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: _buildCodeEditor(context),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                controller: widget.scrollController,
+                physics: const ClampingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
+                    maxHeight: double.infinity,
+                  ),
+                  child: ListenableBuilder(
+                    listenable: widget.searchController,
+                    builder: (context, _) => _buildEditorContent(context),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
         buildScrollZone(width: _scrollZoneWidth),
         Positioned(
@@ -1104,37 +1186,94 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
           bottom: 8,
           right: 0,
           child: ScrollProgressIndicator(
-            scrollController: widget.scrollController.verticalScroller,
+            scrollController: widget.scrollController,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildCodeEditor(BuildContext context) {
-    final theme = Theme.of(context);
+  Widget _buildEditorContent(BuildContext context) {
+    final hasMatches =
+        widget.searchController.matches.isNotEmpty &&
+        widget.searchController.isSearching;
 
-    return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-      child: CodeEditor(
+    return hasMatches
+        ? _buildHighlightedEditor(context)
+        : _buildPlainEditor(context);
+  }
+
+  TextStyle _getBaseStyle(BuildContext context) {
+    final theme = Theme.of(context);
+    return TextStyle(
+      fontSize: widget.editorFontSize,
+      height: 1.5,
+      color: theme.textTheme.bodyLarge?.color,
+    );
+  }
+
+  InputDecoration _getInputDecoration(
+    BuildContext context,
+    TextStyle style, {
+    bool showHint = true,
+  }) {
+    final theme = Theme.of(context);
+    return InputDecoration(
+      hintText: showHint ? AppLocalizations.of(context)!.startWriting : null,
+      hintStyle: TextStyle(
+        color: theme.hintColor.withValues(alpha: 0.5),
+        fontSize: widget.editorFontSize,
+        height: 1.5,
+        fontStyle: FontStyle.italic,
+      ),
+      border: InputBorder.none,
+      contentPadding: EdgeInsets.zero,
+      filled: false,
+    );
+  }
+
+  Widget _buildPlainEditor(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = _getBaseStyle(context);
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: TextField(
         controller: widget.controller,
         focusNode: widget.focusNode,
-        scrollController: widget.scrollController,
-        style: CodeEditorStyle(
-          fontSize: widget.editorFontSize,
-          fontHeight: 1.5,
-          textColor: theme.textTheme.bodyLarge?.color,
-          backgroundColor: Colors.transparent,
-          cursorColor: theme.colorScheme.primary,
-          cursorWidth: 2.5,
-          selectionColor: theme.colorScheme.primary.withValues(alpha: 0.3),
-        ),
-        wordWrap: true,
-        readOnly: false,
-        chunkAnalyzer: const NonCodeChunkAnalyzer(),
-        padding: const EdgeInsets.all(16.0),
-        // Hide default scrollbar - we use ScrollProgressIndicator instead
-        scrollbarBuilder: (context, child, details) => child,
+        maxLines: null,
+        textAlignVertical: TextAlignVertical.top,
+        keyboardType: TextInputType.multiline,
+        textInputAction: TextInputAction.newline,
+        style: style,
+        cursorColor: theme.colorScheme.primary,
+        cursorWidth: 2.5,
+        cursorRadius: const Radius.circular(2),
+        decoration: _getInputDecoration(context, style),
+        onChanged: (_) => widget.onTextChanged(),
+      ),
+    );
+  }
+
+  Widget _buildHighlightedEditor(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = _getBaseStyle(context);
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: TextField(
+        controller: widget.controller,
+        focusNode: widget.focusNode,
+        maxLines: null,
+        textAlignVertical: TextAlignVertical.top,
+        keyboardType: TextInputType.multiline,
+        textInputAction: TextInputAction.newline,
+        style: style,
+        cursorColor: theme.colorScheme.primary,
+        cursorWidth: 2.5,
+        cursorRadius: const Radius.circular(2),
+        decoration: _getInputDecoration(context, style, showHint: false),
+        onChanged: (_) => widget.onTextChanged(),
       ),
     );
   }
