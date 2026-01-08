@@ -303,12 +303,15 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   void _navigateToSearchMatch(int offset) {
-    // Set cursor to match position
-    _contentController.selection = TextSelection.collapsed(offset: offset);
+    final match = _searchController.currentMatch;
+    final cursorOffset = match?.end ?? offset;
+
+    _contentController.selection = TextSelection.collapsed(
+      offset: cursorOffset,
+    );
     _contentFocusNode.requestFocus();
 
-    // Scroll to make match visible
-    _scrollToCursor(offset, _contentController.text);
+    _scrollToCursor(cursorOffset, _contentController.text);
   }
 
   void _handleSearchReplace(String _, String newContent) {
@@ -1159,38 +1162,22 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
   Widget _buildHighlightedEditor(BuildContext context) {
     final theme = Theme.of(context);
     final style = _getBaseStyle(context);
-    final highlightSpans = _buildHighlightSpans(context, style);
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Stack(
-        children: [
-          // Highlight layer
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: RichText(
-              text: TextSpan(
-                style: style.copyWith(color: theme.textTheme.bodyLarge?.color),
-                children: highlightSpans,
-              ),
-            ),
-          ),
-          // Transparent text field for editing
-          TextField(
-            controller: widget.controller,
-            focusNode: widget.focusNode,
-            maxLines: null,
-            textAlignVertical: TextAlignVertical.top,
-            keyboardType: TextInputType.multiline,
-            textInputAction: TextInputAction.newline,
-            style: style.copyWith(color: Colors.transparent),
-            cursorColor: theme.colorScheme.primary,
-            cursorWidth: 2.5,
-            cursorRadius: const Radius.circular(2),
-            decoration: _getInputDecoration(context, style, showHint: true),
-            onChanged: (_) => widget.onTextChanged(),
-          ),
-        ],
+      child: TextField(
+        controller: widget.controller,
+        focusNode: widget.focusNode,
+        maxLines: null,
+        textAlignVertical: TextAlignVertical.top,
+        keyboardType: TextInputType.multiline,
+        textInputAction: TextInputAction.newline,
+        style: style,
+        cursorColor: theme.colorScheme.primary,
+        cursorWidth: 2.5,
+        cursorRadius: const Radius.circular(2),
+        decoration: _getInputDecoration(context, style, showHint: false),
+        onChanged: (_) => widget.onTextChanged(),
       ),
     );
   }
