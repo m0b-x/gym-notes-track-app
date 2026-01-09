@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import '../constants/app_spacing.dart';
+import '../constants/font_constants.dart';
+import '../constants/markdown_constants.dart';
 
 class InteractiveMarkdown extends StatefulWidget {
   final String data;
@@ -30,6 +33,17 @@ class InteractiveMarkdown extends StatefulWidget {
 class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
   late String _currentData;
 
+  // Cache for checkbox-free content and parsed checkboxes
+  String? _cachedNonCheckboxContent;
+  List<_CheckboxInfo>? _cachedCheckboxes;
+  String? _lastDataForCache;
+
+  // Pre-compiled patterns for performance
+  static final _checkboxPattern = RegExp(
+    r'^([\s]*)-\s+\[([xX\s])\]\s+(.+)$',
+    multiLine: true,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -41,162 +55,142 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.data != widget.data) {
       _currentData = widget.data;
+      // Invalidate cache when data changes
+      if (_lastDataForCache != _currentData) {
+        _cachedNonCheckboxContent = null;
+        _cachedCheckboxes = null;
+      }
     }
+  }
+
+  void _parseContent() {
+    if (_lastDataForCache == _currentData &&
+        _cachedNonCheckboxContent != null &&
+        _cachedCheckboxes != null) {
+      return; // Use cached values
+    }
+
+    final lines = _currentData.split('\n');
+    final checkboxes = <_CheckboxInfo>[];
+    final nonCheckboxLines = <String>[];
+
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final match = _checkboxPattern.firstMatch(line);
+
+      if (match != null) {
+        final indent = match.group(1)?.length ?? 0;
+        final isChecked = match.group(2)?.toLowerCase() == 'x';
+        final text = match.group(3) ?? '';
+
+        // Add placeholder for checkbox position
+        checkboxes.add(
+          _CheckboxInfo(
+            lineIndex: i,
+            placeholderIndex: nonCheckboxLines.length,
+            indent: indent,
+            isChecked: isChecked,
+            text: text,
+          ),
+        );
+        // Add empty line as placeholder to maintain structure
+        nonCheckboxLines.add('');
+      } else {
+        nonCheckboxLines.add(line);
+      }
+    }
+
+    _cachedNonCheckboxContent = nonCheckboxLines.join('\n');
+    _cachedCheckboxes = checkboxes;
+    _lastDataForCache = _currentData;
   }
 
   @override
   Widget build(BuildContext context) {
+    _parseContent();
+
+    // If no checkboxes, render simple markdown
+    if (_cachedCheckboxes!.isEmpty) {
+      return SingleChildScrollView(
+        controller: widget.scrollController,
+        padding: widget.padding ?? EdgeInsets.zero,
+        child: Markdown(
+          data: _currentData,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          styleSheet: widget.styleSheet,
+          selectable: widget.selectable,
+          padding: EdgeInsets.zero,
+          softLineBreak: true,
+        ),
+      );
+    }
+
+    // Build with checkboxes interspersed
     return SingleChildScrollView(
       controller: widget.scrollController,
       padding: widget.padding ?? EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: _buildContent(context),
-      ),
+      child: _buildContentWithCheckboxes(context),
     );
   }
 
-  List<Widget> _buildContent(BuildContext context) {
+  Widget _buildContentWithCheckboxes(BuildContext context) {
     final lines = _currentData.split('\n');
     final widgets = <Widget>[];
+    int currentLine = 0;
+    int checkboxIdx = 0;
 
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i];
-      final trimmedLine = line.trim();
-      final isSelected = widget.selectedLine == i;
-
-      final uncheckedPattern = RegExp(r'^([\s]*)-\s+\[\s\]\s+(.+)$');
-      final checkedPattern = RegExp(r'^([\s]*)-\s+\[[xX]\]\s+(.+)$');
-
-      final uncheckedMatch = uncheckedPattern.firstMatch(line);
-      final checkedMatch = checkedPattern.firstMatch(line);
-
-      final bulletPattern = RegExp(r'^([\s]*)[-*•]\s+(.+)$');
-      final bulletMatch = bulletPattern.firstMatch(line);
-
-      final numberedPattern = RegExp(r'^([\s]*)(\d+)\.\s+(.+)$');
-      final numberedMatch = numberedPattern.firstMatch(line);
-
-      Widget lineWidget;
-
-      if (uncheckedMatch != null) {
-        final indent = uncheckedMatch.group(1)?.length ?? 0;
-        final text = uncheckedMatch.group(2) ?? '';
-        lineWidget = _buildCheckboxItem(context, i, false, text, indent);
-      } else if (checkedMatch != null) {
-        final indent = checkedMatch.group(1)?.length ?? 0;
-        final text = checkedMatch.group(2) ?? '';
-        lineWidget = _buildCheckboxItem(context, i, true, text, indent);
-      } else if (bulletMatch != null) {
-        final indent = bulletMatch.group(1)?.length ?? 0;
-        final text = bulletMatch.group(2) ?? '';
-        lineWidget = _buildBulletItem(context, text, indent);
-      } else if (numberedMatch != null) {
-        final indent = numberedMatch.group(1)?.length ?? 0;
-        final number = numberedMatch.group(2) ?? '1';
-        final text = numberedMatch.group(3) ?? '';
-        lineWidget = _buildNumberedItem(context, text, number, indent);
-      } else if (trimmedLine.isEmpty) {
-        lineWidget = const SizedBox(height: 16);
+    while (currentLine < lines.length) {
+      // Check if current line is a checkbox
+      if (checkboxIdx < _cachedCheckboxes!.length &&
+          _cachedCheckboxes![checkboxIdx].lineIndex == currentLine) {
+        final checkbox = _cachedCheckboxes![checkboxIdx];
+        widgets.add(
+          _buildCheckboxItem(
+            context,
+            checkbox.lineIndex,
+            checkbox.isChecked,
+            checkbox.text,
+            checkbox.indent,
+          ),
+        );
+        checkboxIdx++;
+        currentLine++;
       } else {
-        lineWidget = _buildMarkdownLine(context, line);
-      }
+        // Collect consecutive non-checkbox lines
+        final startLine = currentLine;
+        while (currentLine < lines.length &&
+            (checkboxIdx >= _cachedCheckboxes!.length ||
+                _cachedCheckboxes![checkboxIdx].lineIndex != currentLine)) {
+          currentLine++;
+        }
 
-      widgets.add(_wrapWithSelection(context, lineWidget, i, isSelected));
+        // Render non-checkbox lines as a single markdown block
+        final content = lines.sublist(startLine, currentLine).join('\n');
+        if (content.trim().isNotEmpty) {
+          widgets.add(
+            Markdown(
+              data: content,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              styleSheet: widget.styleSheet,
+              selectable: widget.selectable,
+              padding: EdgeInsets.zero,
+              softLineBreak: true,
+            ),
+          );
+        } else if (content.contains('\n')) {
+          // Preserve empty line spacing
+          widgets.add(
+            SizedBox(height: AppSpacing.lg * (content.split('\n').length - 1)),
+          );
+        }
+      }
     }
 
-    return widgets;
-  }
-
-  Widget _wrapWithSelection(
-    BuildContext context,
-    Widget child,
-    int lineIndex,
-    bool isSelected,
-  ) {
-    return GestureDetector(
-      onTap: () => widget.onLineTap?.call(lineIndex),
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: double.infinity,
-        decoration: isSelected
-            ? BoxDecoration(
-                border: Border(
-                  left: BorderSide(
-                    color: Theme.of(context).colorScheme.primary,
-                    width: 2,
-                  ),
-                ),
-              )
-            : null,
-        child: child,
-      ),
-    );
-  }
-
-  Widget _buildMarkdownLine(BuildContext context, String line) {
-    return Markdown(
-      data: line,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      styleSheet: widget.styleSheet,
-      selectable: widget.selectable,
-      padding: EdgeInsets.zero,
-      softLineBreak: true,
-    );
-  }
-
-  Widget _buildBulletItem(BuildContext context, String text, int indent) {
-    final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16.0 + (indent ~/ 2) * 16.0,
-        top: 4,
-        bottom: 4,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8, top: 2),
-            child: Text('•', style: TextStyle(fontSize: baseFontSize)),
-          ),
-          Expanded(
-            child: Text(text, style: TextStyle(fontSize: baseFontSize)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNumberedItem(
-    BuildContext context,
-    String text,
-    String number,
-    int indent,
-  ) {
-    final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16.0 + (indent ~/ 2) * 16.0,
-        top: 4,
-        bottom: 4,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8, top: 2),
-            child: SizedBox(
-              width: 20,
-              child: Text('$number.', style: TextStyle(fontSize: baseFontSize)),
-            ),
-          ),
-          Expanded(
-            child: Text(text, style: TextStyle(fontSize: baseFontSize)),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
     );
   }
 
@@ -207,9 +201,14 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
     String text,
     int indent,
   ) {
-    final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
+    final baseFontSize = widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
+    final lineHeight = widget.styleSheet?.p?.height;
     return Padding(
-      padding: EdgeInsets.only(left: indent * 16.0, top: 4, bottom: 4),
+      padding: EdgeInsets.only(
+        left: indent * MarkdownConstants.indentPerLevel,
+        top: AppSpacing.xs,
+        bottom: AppSpacing.xs,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -218,15 +217,15 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
                 ? () => _toggleCheckbox(lineIndex, isChecked)
                 : null,
             child: Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: EdgeInsets.only(right: AppSpacing.sm),
               child: Icon(
                 isChecked ? Icons.check_box : Icons.check_box_outline_blank,
-                size: baseFontSize * 1.25,
+                size: baseFontSize * MarkdownConstants.checkboxIconScale,
                 color: isChecked
                     ? Theme.of(context).colorScheme.primary
-                    : Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.6),
+                    : Theme.of(context).colorScheme.onSurface.withValues(
+                          alpha: MarkdownConstants.uncheckedCheckboxOpacity,
+                        ),
               ),
             ),
           ),
@@ -239,16 +238,17 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
                 text,
                 style: TextStyle(
                   fontSize: baseFontSize,
+                  height: lineHeight,
                   decoration: isChecked ? TextDecoration.lineThrough : null,
                   decorationColor: isChecked
-                      ? Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.5)
+                      ? Theme.of(context).colorScheme.onSurface.withValues(
+                            alpha: MarkdownConstants.checkedTextOpacity,
+                          )
                       : null,
                   color: isChecked
-                      ? Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.5)
+                      ? Theme.of(context).colorScheme.onSurface.withValues(
+                            alpha: MarkdownConstants.checkedTextOpacity,
+                          )
                       : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
@@ -275,6 +275,10 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
 
       setState(() {
         _currentData = updatedContent;
+        // Invalidate cache after checkbox toggle
+        _cachedNonCheckboxContent = null;
+        _cachedCheckboxes = null;
+        _lastDataForCache = null;
       });
 
       if (widget.onCheckboxChanged != null) {
@@ -282,4 +286,21 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
       }
     }
   }
+}
+
+/// Helper class to store checkbox information
+class _CheckboxInfo {
+  final int lineIndex;
+  final int placeholderIndex;
+  final int indent;
+  final bool isChecked;
+  final String text;
+
+  const _CheckboxInfo({
+    required this.lineIndex,
+    required this.placeholderIndex,
+    required this.indent,
+    required this.isChecked,
+    required this.text,
+  });
 }

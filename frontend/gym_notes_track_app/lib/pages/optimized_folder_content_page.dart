@@ -107,7 +107,7 @@ class _OptimizedFolderContentPageState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Reload settings when returning from settings page
+    FocusManager.instance.primaryFocus?.unfocus();
     _loadSettings();
   }
 

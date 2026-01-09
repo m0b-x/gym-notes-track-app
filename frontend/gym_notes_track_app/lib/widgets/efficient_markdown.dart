@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import '../constants/app_spacing.dart';
 import '../constants/font_constants.dart';
+import '../constants/markdown_constants.dart';
 
 class MarkdownLine {
   final int index;
@@ -47,6 +49,7 @@ class EfficientMarkdownView extends StatefulWidget {
   final ScrollController? scrollController;
   final int? selectedLine;
   final Function(int)? onLineTap;
+  final EdgeInsets? padding;
 
   const EfficientMarkdownView({
     super.key,
@@ -54,11 +57,12 @@ class EfficientMarkdownView extends StatefulWidget {
     this.onCheckboxChanged,
     this.styleSheet,
     this.selectable = false,
-    this.itemExtent = 32.0,
-    this.cacheExtent = 500,
+    this.itemExtent = MarkdownConstants.itemExtent,
+    this.cacheExtent = MarkdownConstants.cacheExtent,
     this.scrollController,
     this.selectedLine,
     this.onLineTap,
+    this.padding,
   });
 
   @override
@@ -66,9 +70,14 @@ class EfficientMarkdownView extends StatefulWidget {
 }
 
 class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
-  late List<MarkdownLine> _parsedLines;
+  late List<String> _rawLines;
   late String _currentData;
-  List<String> _cachedLines = [];
+
+  // Lazy parsing cache - only parsed lines are stored
+  final Map<int, MarkdownLine> _parsedLineCache = {};
+
+  // Code block tracking for lazy parsing
+  List<bool>? _codeBlockState; // true if line i is inside a code block
 
   static final _boldPattern = RegExp(r'\*\*(.+?)\*\*');
   static final _boldAltPattern = RegExp(r'__(.+?)__');
@@ -84,164 +93,66 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
   );
   static final _numberedListPattern = RegExp(r'^(\d+)\.\s+(.+)$');
 
-  static const int _incrementalParseThreshold = 1000;
-
   @override
   void initState() {
     super.initState();
     _currentData = widget.data;
-    _cachedLines = _currentData.split('\n');
-    _parsedLines = _parseMarkdown(_currentData);
+    _rawLines = _currentData.split('\n');
+    _buildCodeBlockState();
   }
 
   @override
   void didUpdateWidget(EfficientMarkdownView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.data != widget.data) {
-      final oldData = _currentData;
       _currentData = widget.data;
+      _rawLines = _currentData.split('\n');
+      _parsedLineCache.clear();
+      _buildCodeBlockState();
+    }
+  }
 
-      if (_currentData.length < _incrementalParseThreshold ||
-          oldData.length < _incrementalParseThreshold) {
-        _cachedLines = _currentData.split('\n');
-        _parsedLines = _parseMarkdown(_currentData);
+  /// Pre-compute which lines are inside code blocks (fast single pass)
+  void _buildCodeBlockState() {
+    _codeBlockState = List<bool>.filled(_rawLines.length, false);
+    bool inCodeBlock = false;
+
+    for (int i = 0; i < _rawLines.length; i++) {
+      final line = _rawLines[i];
+      if (line.trim().startsWith('```')) {
+        _codeBlockState![i] = true; // The ``` line itself is part of code block
+        inCodeBlock = !inCodeBlock;
       } else {
-        _incrementalParse(oldData, _currentData);
+        _codeBlockState![i] = inCodeBlock;
       }
     }
   }
 
-  void _incrementalParse(String oldData, String newData) {
-    final newLines = newData.split('\n');
-    final oldLines = _cachedLines;
-    final lineCountDiff = newLines.length - oldLines.length;
-
-    if (lineCountDiff.abs() > 10) {
-      _cachedLines = newLines;
-      _parsedLines = _parseMarkdown(newData);
-      return;
+  /// Lazily parse a line only when needed
+  MarkdownLine _getLine(int index) {
+    // Return from cache if already parsed
+    if (_parsedLineCache.containsKey(index)) {
+      return _parsedLineCache[index]!;
     }
 
-    int firstDiff = 0;
-    final minLen = oldLines.length < newLines.length
-        ? oldLines.length
-        : newLines.length;
+    // Parse on demand
+    final line = _rawLines[index];
+    final isInCodeBlock = _codeBlockState?[index] ?? false;
 
-    while (firstDiff < minLen && oldLines[firstDiff] == newLines[firstDiff]) {
-      firstDiff++;
+    MarkdownLine parsed;
+    if (isInCodeBlock || line.trim().startsWith('```')) {
+      parsed = MarkdownLine(
+        index: index,
+        content: line,
+        type: MarkdownLineType.codeBlock,
+      );
+    } else {
+      parsed = _parseLine(index, line);
     }
 
-    int oldEndDiff = oldLines.length - 1;
-    int newEndDiff = newLines.length - 1;
-
-    while (oldEndDiff > firstDiff &&
-        newEndDiff > firstDiff &&
-        oldLines[oldEndDiff] == newLines[newEndDiff]) {
-      oldEndDiff--;
-      newEndDiff--;
-    }
-
-    if (firstDiff > newEndDiff && lineCountDiff == 0) {
-      _cachedLines = newLines;
-      return;
-    }
-
-    final newParsedLines = <MarkdownLine>[];
-
-    for (int i = 0; i < firstDiff && i < _parsedLines.length; i++) {
-      newParsedLines.add(_parsedLines[i]);
-    }
-
-    bool inCodeBlock = false;
-    for (int i = 0; i < firstDiff; i++) {
-      if (newLines[i].trim().startsWith('```')) {
-        inCodeBlock = !inCodeBlock;
-      }
-    }
-
-    for (int i = firstDiff; i <= newEndDiff; i++) {
-      final line = newLines[i];
-      if (line.trim().startsWith('```')) {
-        inCodeBlock = !inCodeBlock;
-        newParsedLines.add(
-          MarkdownLine(
-            index: i,
-            content: line,
-            type: MarkdownLineType.codeBlock,
-          ),
-        );
-      } else if (inCodeBlock) {
-        newParsedLines.add(
-          MarkdownLine(
-            index: i,
-            content: line,
-            type: MarkdownLineType.codeBlock,
-          ),
-        );
-      } else {
-        newParsedLines.add(_parseLine(i, line));
-      }
-    }
-
-    final oldRemainingStart = oldEndDiff + 1;
-    final indexOffset = lineCountDiff;
-
-    for (int i = oldRemainingStart; i < oldLines.length; i++) {
-      final oldParsedIndex = i;
-      if (oldParsedIndex < _parsedLines.length) {
-        final oldLine = _parsedLines[oldParsedIndex];
-        newParsedLines.add(
-          MarkdownLine(
-            index: oldLine.index + indexOffset,
-            content: oldLine.content,
-            type: oldLine.type,
-            indentLevel: oldLine.indentLevel,
-            isChecked: oldLine.isChecked,
-            listNumber: oldLine.listNumber,
-          ),
-        );
-      }
-    }
-
-    _cachedLines = newLines;
-    _parsedLines = newParsedLines;
-  }
-
-  List<MarkdownLine> _parseMarkdown(String data) {
-    final lines = data.split('\n');
-    final parsedLines = <MarkdownLine>[];
-    bool inCodeBlock = false;
-
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i];
-
-      if (line.trim().startsWith('```')) {
-        inCodeBlock = !inCodeBlock;
-        parsedLines.add(
-          MarkdownLine(
-            index: i,
-            content: line,
-            type: MarkdownLineType.codeBlock,
-          ),
-        );
-        continue;
-      }
-
-      if (inCodeBlock) {
-        parsedLines.add(
-          MarkdownLine(
-            index: i,
-            content: line,
-            type: MarkdownLineType.codeBlock,
-          ),
-        );
-        continue;
-      }
-
-      parsedLines.add(_parseLine(i, line));
-    }
-
-    return parsedLines;
+    // Cache it
+    _parsedLineCache[index] = parsed;
+    return parsed;
   }
 
   MarkdownLine _parseLine(int index, String line) {
@@ -375,11 +286,10 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
   void _toggleCheckbox(int lineIndex) {
     if (widget.onCheckboxChanged == null) return;
 
-    final lines = _currentData.split('\n');
-    if (lineIndex >= lines.length) return;
+    if (lineIndex >= _rawLines.length) return;
 
-    final line = lines[lineIndex];
-    final parsedLine = _parsedLines[lineIndex];
+    final line = _rawLines[lineIndex];
+    final parsedLine = _getLine(lineIndex);
 
     String newLine;
     if (parsedLine.isChecked) {
@@ -388,12 +298,13 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
       newLine = line.replaceFirst('[ ]', '[x]');
     }
 
-    lines[lineIndex] = newLine;
-    final updatedContent = lines.join('\n');
+    _rawLines[lineIndex] = newLine;
+    final updatedContent = _rawLines.join('\n');
 
     setState(() {
       _currentData = updatedContent;
-      _parsedLines = _parseMarkdown(_currentData);
+      // Only invalidate the changed line in cache
+      _parsedLineCache.remove(lineIndex);
     });
 
     widget.onCheckboxChanged!(updatedContent);
@@ -403,10 +314,12 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
   Widget build(BuildContext context) {
     return ListView.builder(
       controller: widget.scrollController,
-      itemCount: _parsedLines.length,
+      itemCount: _rawLines.length,
       cacheExtent: widget.cacheExtent.toDouble(),
+      padding: widget.padding,
       itemBuilder: (context, index) {
-        final line = _parsedLines[index];
+        // Lazy parsing happens here - only when line becomes visible
+        final line = _getLine(index);
         final isSelected = widget.selectedLine == index;
         return _wrapWithSelection(
           context,
@@ -447,18 +360,18 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
   Widget _buildLine(BuildContext context, MarkdownLine line) {
     switch (line.type) {
       case MarkdownLineType.empty:
-        return const SizedBox(height: 16);
+        return const SizedBox(height: AppSpacing.lg);
 
       case MarkdownLineType.heading1:
         final baseFontSize =
             widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
           child: _buildSelectableText(
             line.content,
             widget.styleSheet?.h1 ??
                 TextStyle(
-                  fontSize: baseFontSize * 2,
+                  fontSize: baseFontSize * MarkdownConstants.h1Scale,
                   fontWeight: FontWeight.bold,
                 ),
           ),
@@ -468,12 +381,12 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
         final baseFontSize =
             widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
           child: _buildSelectableText(
             line.content,
             widget.styleSheet?.h2 ??
                 TextStyle(
-                  fontSize: baseFontSize * 1.5,
+                  fontSize: baseFontSize * MarkdownConstants.h2Scale,
                   fontWeight: FontWeight.bold,
                 ),
           ),
@@ -483,12 +396,12 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
         final baseFontSize =
             widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
           child: _buildSelectableText(
             line.content,
             widget.styleSheet?.h3 ??
                 TextStyle(
-                  fontSize: baseFontSize * 1.25,
+                  fontSize: baseFontSize * MarkdownConstants.h3Scale,
                   fontWeight: FontWeight.bold,
                 ),
           ),
@@ -498,12 +411,12 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
         final baseFontSize =
             widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
           child: _buildSelectableText(
             line.content,
             widget.styleSheet?.h4 ??
                 TextStyle(
-                  fontSize: baseFontSize * 1.125,
+                  fontSize: baseFontSize * MarkdownConstants.h4Scale,
                   fontWeight: FontWeight.bold,
                 ),
           ),
@@ -513,7 +426,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
         final baseFontSize =
             widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
           child: _buildSelectableText(
             line.content,
             widget.styleSheet?.h5 ??
@@ -525,12 +438,12 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
         final baseFontSize =
             widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
           child: _buildSelectableText(
             line.content,
             widget.styleSheet?.h6 ??
                 TextStyle(
-                  fontSize: baseFontSize * 0.875,
+                  fontSize: baseFontSize * MarkdownConstants.h6Scale,
                   fontWeight: FontWeight.bold,
                 ),
           ),
@@ -542,29 +455,41 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
       case MarkdownLineType.bulletList:
         final baseFontSize =
             widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
+        final lineHeight = widget.styleSheet?.p?.height;
         return Padding(
-          padding: EdgeInsets.only(left: 16.0 + line.indentLevel * 16.0),
+          padding: EdgeInsets.only(
+            left: MarkdownConstants.indentPerLevel +
+                line.indentLevel * MarkdownConstants.indentPerLevel,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('• ', style: TextStyle(fontSize: baseFontSize)),
+              Text(
+                '• ',
+                style: TextStyle(fontSize: baseFontSize, height: lineHeight),
+              ),
               Expanded(child: _buildRichText(line.content)),
             ],
           ),
         );
 
       case MarkdownLineType.numberedList:
-        final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
+        final baseFontSize =
+            widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
+        final lineHeight = widget.styleSheet?.p?.height;
         return Padding(
-          padding: EdgeInsets.only(left: 16.0 + line.indentLevel * 16.0),
+          padding: EdgeInsets.only(
+            left: MarkdownConstants.indentPerLevel +
+                line.indentLevel * MarkdownConstants.indentPerLevel,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
-                width: 24,
+                width: MarkdownConstants.numberedListNumberWidth,
                 child: Text(
                   '${line.listNumber}. ',
-                  style: TextStyle(fontSize: baseFontSize),
+                  style: TextStyle(fontSize: baseFontSize, height: lineHeight),
                 ),
               ),
               Expanded(child: _buildRichText(line.content)),
@@ -574,13 +499,13 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
 
       case MarkdownLineType.quote:
         return Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.only(left: 16),
+          margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          padding: const EdgeInsets.only(left: AppSpacing.lg),
           decoration: BoxDecoration(
             border: Border(
               left: BorderSide(
                 color: Theme.of(context).colorScheme.primary,
-                width: 4,
+                width: MarkdownConstants.quoteBorderWidth,
               ),
             ),
           ),
@@ -590,7 +515,9 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
               fontStyle: FontStyle.italic,
               color: Theme.of(
                 context,
-              ).colorScheme.onSurface.withValues(alpha: 0.7),
+              ).colorScheme.onSurface.withValues(
+                    alpha: MarkdownConstants.quoteTextOpacity,
+                  ),
             ),
           ),
         );
@@ -598,13 +525,16 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
       case MarkdownLineType.codeBlock:
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
+          ),
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
           child: Text(
             line.content,
             style: TextStyle(
               fontFamily: 'monospace',
-              fontSize: 14,
+              fontSize: MarkdownConstants.codeBlockFontSize,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
@@ -612,25 +542,27 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
 
       case MarkdownLineType.horizontalRule:
         return const Padding(
-          padding: EdgeInsets.symmetric(vertical: 16),
+          padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
           child: Divider(),
         );
 
       case MarkdownLineType.text:
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
           child: _buildRichText(line.content),
         );
     }
   }
 
   Widget _buildCheckbox(BuildContext context, MarkdownLine line) {
-    final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
+    final baseFontSize =
+        widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
+    final lineHeight = widget.styleSheet?.p?.height;
     return Padding(
       padding: EdgeInsets.only(
-        left: line.indentLevel * 16.0,
-        top: 4,
-        bottom: 4,
+        left: line.indentLevel * MarkdownConstants.indentPerLevel,
+        top: AppSpacing.xs,
+        bottom: AppSpacing.xs,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -640,17 +572,17 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
                 ? () => _toggleCheckbox(line.index)
                 : null,
             child: Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: EdgeInsets.only(right: AppSpacing.sm),
               child: Icon(
                 line.isChecked
                     ? Icons.check_box
                     : Icons.check_box_outline_blank,
-                size: baseFontSize * 1.25,
+                size: baseFontSize * MarkdownConstants.checkboxIconScale,
                 color: line.isChecked
                     ? Theme.of(context).colorScheme.primary
-                    : Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.6),
+                    : Theme.of(context).colorScheme.onSurface.withValues(
+                          alpha: MarkdownConstants.uncheckedCheckboxOpacity,
+                        ),
               ),
             ),
           ),
@@ -663,13 +595,14 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
                 line.content,
                 style: TextStyle(
                   fontSize: baseFontSize,
+                  height: lineHeight,
                   decoration: line.isChecked
                       ? TextDecoration.lineThrough
                       : null,
                   color: line.isChecked
-                      ? Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.5)
+                      ? Theme.of(context).colorScheme.onSurface.withValues(
+                            alpha: MarkdownConstants.checkedTextOpacity,
+                          )
                       : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
@@ -689,7 +622,9 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
 
   Widget _buildRichText(String text) {
     final spans = _parseInlineMarkdown(text);
-    final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
+    final baseFontSize =
+        widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
+    final lineHeight = widget.styleSheet?.p?.height;
 
     if (widget.selectable) {
       return SelectableText.rich(TextSpan(children: spans));
@@ -701,6 +636,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
         style: TextStyle(
           color: Theme.of(context).colorScheme.onSurface,
           fontSize: baseFontSize,
+          height: lineHeight,
         ),
       ),
     );
@@ -708,10 +644,13 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
 
   List<TextSpan> _parseInlineMarkdown(String text) {
     final spans = <TextSpan>[];
-    final baseFontSize = widget.styleSheet?.p?.fontSize ?? 16;
+    final baseFontSize =
+        widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
+    final lineHeight = widget.styleSheet?.p?.height;
     final defaultStyle = TextStyle(
       color: Theme.of(context).colorScheme.onSurface,
       fontSize: baseFontSize,
+      height: lineHeight,
     );
 
     final codeStyle = TextStyle(
@@ -831,15 +770,15 @@ class _EfficientMarkdownEditorState extends State<EfficientMarkdownEditor> {
       styleSheet: MarkdownStyleSheet(
         p: TextStyle(fontSize: widget.previewFontSize),
         h1: TextStyle(
-          fontSize: widget.previewFontSize * 2,
+          fontSize: widget.previewFontSize * MarkdownConstants.h1Scale,
           fontWeight: FontWeight.bold,
         ),
         h2: TextStyle(
-          fontSize: widget.previewFontSize * 1.5,
+          fontSize: widget.previewFontSize * MarkdownConstants.h2Scale,
           fontWeight: FontWeight.bold,
         ),
         h3: TextStyle(
-          fontSize: widget.previewFontSize * 1.25,
+          fontSize: widget.previewFontSize * MarkdownConstants.h3Scale,
           fontWeight: FontWeight.bold,
         ),
       ),

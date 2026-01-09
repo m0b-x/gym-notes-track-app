@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:re_editor/re_editor.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/custom_markdown_shortcut.dart';
@@ -103,9 +104,9 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
   @override
   Widget build(BuildContext context) {
     if (_isReorderMode) {
-      return _buildReorderMode(context);
+      return CodeEditorTapRegion(child: _buildReorderMode(context));
     }
-    return _buildNormalMode(context);
+    return CodeEditorTapRegion(child: _buildNormalMode(context));
   }
 
   Widget _buildNormalMode(BuildContext context) {
@@ -709,16 +710,13 @@ class _ShortcutButton extends StatelessWidget {
     return Tooltip(
       message: shortcut.label,
       preferBelow: false,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            child: _buildButtonContent(context),
-          ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          child: _buildButtonContent(context),
         ),
       ),
     );
@@ -782,24 +780,21 @@ class _ToolbarButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       preferBelow: false,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 3),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onPressed,
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              child: Icon(
-                icon,
-                size: 24,
-                color: onPressed == null
-                    ? Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.3)
-                    : Theme.of(context).colorScheme.onSurface,
-              ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            child: Icon(
+              icon,
+              size: 24,
+              color: onPressed == null
+                  ? Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.3)
+                  : Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
