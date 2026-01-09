@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../constants/scroll_indicator_constants.dart';
 
 /// A touch-friendly scroll progress indicator optimized for mobile.
 /// Features a wide touch area, always visible, and supports edge swipe.
@@ -14,10 +15,12 @@ class ScrollProgressIndicator extends StatefulWidget {
   const ScrollProgressIndicator({
     super.key,
     required this.scrollController,
-    this.visibleWidth = 6,
-    this.touchAreaWidth = 44, // iOS recommended touch target
+    this.visibleWidth = ScrollIndicatorConstants.visibleWidth,
+    this.touchAreaWidth = ScrollIndicatorConstants.touchAreaWidth,
     this.activeColor,
-    this.animationDuration = const Duration(milliseconds: 150),
+    this.animationDuration = const Duration(
+      milliseconds: ScrollIndicatorConstants.animationDurationMs,
+    ),
   });
 
   @override
@@ -28,11 +31,18 @@ class ScrollProgressIndicator extends StatefulWidget {
 class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
   bool _isDragging = false;
   bool _isExpanded = false;
-  double _thumbHeight = 40;
+  double _thumbHeight = ScrollIndicatorConstants.defaultThumbHeight;
   double _trackHeight = 0;
   double _maxScroll = 0;
   Timer? _collapseTimer;
   Timer? _metricsCheckTimer;
+
+  // Smoothing state for reducing jiggle
+  double _smoothedProgress = 0;
+  
+  // Scroll stabilization state
+  bool _isStabilizing = false;
+  bool _isTapping = false; 
 
   @override
   void initState() {
@@ -44,14 +54,48 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
 
   void _startMetricsCheck() {
     _metricsCheckTimer?.cancel();
-    _metricsCheckTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+    _metricsCheckTimer = Timer.periodic(
+      const Duration(milliseconds: ScrollIndicatorConstants.metricsCheckIntervalMs),
+      (_) {
       if (!mounted) return;
       if (widget.scrollController.hasClients) {
         // Use positions (plural) to safely handle multiple attached views
         for (final pos in widget.scrollController.positions) {
           if (pos.hasContentDimensions) {
             final newMaxScroll = pos.maxScrollExtent;
-            if (newMaxScroll != _maxScroll) {
+            if (newMaxScroll != _maxScroll && _maxScroll > 0 && newMaxScroll > 0) {
+              // Scroll extent changed - stabilize position to reduce content jumping
+              final currentOffset = pos.pixels;
+              final currentPercentage = currentOffset / _maxScroll;
+              
+              // Only stabilize if not at edges and change is significant
+              final extentChange = (newMaxScroll - _maxScroll).abs() / _maxScroll;
+              if (extentChange > ScrollIndicatorConstants.minExtentChangeThreshold &&
+                  extentChange < ScrollIndicatorConstants.maxExtentChangeThreshold &&
+                  currentPercentage > ScrollIndicatorConstants.minScrollPercentageForStabilization &&
+                  currentPercentage < ScrollIndicatorConstants.maxScrollPercentageForStabilization &&
+                  !_isDragging &&
+                  !_isTapping &&
+                  !_isStabilizing) {
+                // Calculate what offset would maintain same relative position
+                final targetOffset = currentPercentage * newMaxScroll;
+                final offsetDelta = (targetOffset - currentOffset).abs();
+                
+                // Only correct if the jump would be noticeable but not too large
+                if (offsetDelta > ScrollIndicatorConstants.minOffsetDeltaToCorrect &&
+                    offsetDelta < ScrollIndicatorConstants.maxOffsetDeltaToCorrect) {
+                  _isStabilizing = true;
+                  pos.correctPixels(targetOffset);
+                  Future.microtask(() {
+                    if (mounted) _isStabilizing = false;
+                  });
+                }
+              }
+              
+              setState(() {
+                _maxScroll = newMaxScroll;
+              });
+            } else if (newMaxScroll != _maxScroll) {
               setState(() {
                 _maxScroll = newMaxScroll;
               });
@@ -69,6 +113,8 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
     if (oldWidget.scrollController != widget.scrollController) {
       oldWidget.scrollController.removeListener(_onScroll);
       widget.scrollController.addListener(_onScroll);
+      // Reset smoothing state for new controller
+      _smoothedProgress = 0;
     }
   }
 
@@ -94,7 +140,9 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
       setState(() => _isExpanded = true);
     }
     _collapseTimer?.cancel();
-    _collapseTimer = Timer(const Duration(milliseconds: 1200), () {
+    _collapseTimer = Timer(
+      const Duration(milliseconds: ScrollIndicatorConstants.collapseDelayMs),
+      () {
       if (mounted && !_isDragging) {
         setState(() => _isExpanded = false);
       }
@@ -146,8 +194,17 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
   }
 
   void _onTap(TapUpDetails details) {
-    setState(() => _isExpanded = true);
+    setState(() {
+      _isExpanded = true;
+      _isTapping = true;
+    });
     _scrollToPosition(details.localPosition.dy);
+    // Reset tapping flag after stabilization window
+    Future.delayed(
+      const Duration(milliseconds: ScrollIndicatorConstants.tapResetDelayMs),
+      () {
+      if (mounted) setState(() => _isTapping = false);
+    });
     _expandTemporarily();
   }
 
@@ -158,24 +215,36 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
 
     // Dynamic widths based on state
     final barWidth = _isDragging || _isExpanded
-        ? widget.visibleWidth * 1.5
+        ? widget.visibleWidth * ScrollIndicatorConstants.expandedWidthMultiplier
         : widget.visibleWidth;
 
     // Colors - always visible but more prominent when active
     final thumbColor = _isDragging
         ? baseColor
         : _isExpanded
-        ? baseColor.withValues(alpha: 0.8)
-        : baseColor.withValues(alpha: 0.5);
+            ? baseColor.withValues(
+                alpha: ScrollIndicatorConstants.expandedThumbOpacity,
+              )
+            : baseColor.withValues(
+                alpha: ScrollIndicatorConstants.idleThumbOpacity,
+              );
 
     final trackColor = _isDragging || _isExpanded
-        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.15)
-        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08);
+        ? Theme.of(context).colorScheme.onSurface.withValues(
+              alpha: ScrollIndicatorConstants.expandedTrackOpacity,
+            )
+        : Theme.of(context).colorScheme.onSurface.withValues(
+              alpha: ScrollIndicatorConstants.idleTrackOpacity,
+            );
 
     return LayoutBuilder(
       builder: (context, constraints) {
         _trackHeight = constraints.maxHeight;
-        _thumbHeight = (_trackHeight * 0.15).clamp(30.0, 80.0);
+        _thumbHeight = (_trackHeight * ScrollIndicatorConstants.thumbHeightPercentage)
+            .clamp(
+              ScrollIndicatorConstants.minThumbHeight,
+              ScrollIndicatorConstants.maxThumbHeight,
+            );
         final maxTop = _trackHeight - _thumbHeight;
 
         return AnimatedBuilder(
@@ -200,7 +269,51 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
                 _maxScroll = maxScroll; // Update for drag operations
 
                 if (maxScroll > 0) {
-                  progress = (currentOffset / maxScroll).clamp(0.0, 1.0);
+                  final rawProgress = (currentOffset / maxScroll).clamp(0.0, 1.0);
+                  
+                  // Apply smoothing to reduce jiggle from dynamic maxScrollExtent changes
+                  // When dragging, use faster smoothing for responsiveness
+                  if (_isDragging) {
+                    // Snap to edges immediately when dragging
+                    if (rawProgress <= ScrollIndicatorConstants.dragEdgeSnapThreshold) {
+                      _smoothedProgress = 0;
+                    } else if (rawProgress >= 1 - ScrollIndicatorConstants.dragEdgeSnapThreshold) {
+                      _smoothedProgress = 1;
+                    } else {
+                      _smoothedProgress = _smoothedProgress +
+                          ScrollIndicatorConstants.dragSmoothingFactor *
+                              (rawProgress - _smoothedProgress);
+                    }
+                  } else {
+                    // Snap to edges when at the very beginning or end
+                    if (rawProgress <= ScrollIndicatorConstants.immediateEdgeSnapThreshold) {
+                      _smoothedProgress = 0;
+                    } else if (rawProgress >= 1 - ScrollIndicatorConstants.immediateEdgeSnapThreshold) {
+                      _smoothedProgress = 1;
+                    } else {
+                      // Exponential smoothing: smoothed = smoothed + factor * (raw - smoothed)
+                      // This dampens small fluctuations while tracking large changes
+                      final delta = (rawProgress - _smoothedProgress).abs();
+
+                      // Use faster smoothing for large jumps, slower for small jitter
+                      final adaptiveFactor =
+                          delta > ScrollIndicatorConstants.fastSmoothingDeltaThreshold
+                              ? ScrollIndicatorConstants.fastSmoothingFactor
+                              : ScrollIndicatorConstants.smoothingFactor;
+                      _smoothedProgress = _smoothedProgress +
+                          adaptiveFactor * (rawProgress - _smoothedProgress);
+
+                      // Snap to edges when very close
+                      if (_smoothedProgress < ScrollIndicatorConstants.nearEdgeSmoothedThreshold &&
+                          rawProgress < ScrollIndicatorConstants.nearEdgeRawThreshold) {
+                        _smoothedProgress = 0;
+                      } else if (_smoothedProgress > 1 - ScrollIndicatorConstants.nearEdgeSmoothedThreshold &&
+                          rawProgress > 1 - ScrollIndicatorConstants.nearEdgeRawThreshold) {
+                        _smoothedProgress = 1;
+                      }
+                    }
+                  }
+                  progress = _smoothedProgress;
                 }
               }
             }
@@ -224,7 +337,9 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
                     duration: widget.animationDuration,
                     curve: Curves.easeOut,
                     width: barWidth,
-                    margin: const EdgeInsets.only(right: 2),
+                    margin: const EdgeInsets.only(
+                      right: ScrollIndicatorConstants.rightMargin,
+                    ),
                     decoration: BoxDecoration(
                       color: trackColor,
                       borderRadius: BorderRadius.circular(barWidth),
@@ -236,7 +351,9 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
                           left: 0,
                           right: 0,
                           child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 80),
+                            duration: const Duration(
+                              milliseconds: ScrollIndicatorConstants.thumbAnimationMs,
+                            ),
                             height: _thumbHeight,
                             decoration: BoxDecoration(
                               color: thumbColor,
@@ -244,9 +361,11 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
                               boxShadow: _isDragging
                                   ? [
                                       BoxShadow(
-                                        color: baseColor.withValues(alpha: 0.4),
-                                        blurRadius: 6,
-                                        spreadRadius: 1,
+                                        color: baseColor.withValues(
+                                          alpha: ScrollIndicatorConstants.dragShadowOpacity,
+                                        ),
+                                        blurRadius: ScrollIndicatorConstants.dragShadowBlurRadius,
+                                        spreadRadius: ScrollIndicatorConstants.dragShadowSpreadRadius,
                                       ),
                                     ]
                                   : null,
