@@ -1,4 +1,5 @@
 import '../constants/settings_keys.dart';
+import '../constants/app_constants.dart';
 import '../database/database.dart';
 
 /// Service for managing app settings using SQLite database
@@ -145,12 +146,13 @@ class SettingsService {
     await _setBool(SettingsKeys.hapticFeedback, value);
   }
 
-  // Search cursor behavior (0=start, 1=end, 2=selection)
   Future<int> getSearchCursorBehavior() async {
-    return _getInt(
+    final value = await _getInt(
       SettingsKeys.searchCursorBehavior,
       SettingsKeys.defaultSearchCursorBehavior,
     );
+
+    return AppConstants.validateSearchCursorBehavior(value);
   }
 
   Future<void> setSearchCursorBehavior(int value) async {

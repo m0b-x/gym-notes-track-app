@@ -34,10 +34,9 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
     on<UpdateOptimizedNote>(_onUpdateNote);
     on<DeleteOptimizedNote>(_onDeleteNote);
     on<SearchNotes>(_onSearchNotes);
-    // QuickSearch is debounced - waits 300ms after user stops typing
     on<QuickSearchNotes>(
       _onQuickSearchNotes,
-      transformer: debounce(const Duration(milliseconds: 300)),
+      transformer: debounce(const Duration(milliseconds: 200)),
     );
     on<ClearSearch>(_onClearSearch);
     on<RefreshNotes>(_onRefreshNotes);

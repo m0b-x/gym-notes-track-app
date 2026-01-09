@@ -62,7 +62,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _isLoading = true;
   bool _noteSwipeEnabled = true;
   bool _showStatsBar = true;
-  int _searchCursorBehavior = SearchCursorBehavior.end;
+  SearchCursorBehavior _searchCursorBehavior = SearchCursorBehavior.end;
 
   AutoSaveService? _autoSaveService;
 
@@ -162,7 +162,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     if (mounted) {
       setState(() {
         _noteSwipeEnabled = noteSwipe;
-        _searchCursorBehavior = searchCursor;
+        _searchCursorBehavior = SearchCursorBehavior.values[searchCursor];
         _showStatsBar = showStats;
       });
     }

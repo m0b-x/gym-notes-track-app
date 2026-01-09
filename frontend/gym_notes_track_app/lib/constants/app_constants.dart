@@ -1,4 +1,7 @@
 /// Centralized application constants
+// Enum describing search cursor placement behavior
+enum SearchCursorBehavior { start, end, selection }
+
 class AppConstants {
   // ============================================================
   // SHARED PREFERENCES KEYS (for device-local state only)
@@ -49,6 +52,14 @@ class AppConstants {
   static const int maxRecentSearches = 10;
   static const int maxSearchMatches = 1000;
 
-  // Private constructor to prevent instantiation
+  static const int defaultSearchCursorBehavior = 1; // SearchCursorBehavior.end
+
+  static int validateSearchCursorBehavior(int value) {
+    if (value >= SearchCursorBehavior.start.index && value < SearchCursorBehavior.values.length) {
+      return value;
+    }
+    return defaultSearchCursorBehavior;
+  }
+
   AppConstants._();
 }

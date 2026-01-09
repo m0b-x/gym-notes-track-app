@@ -1,4 +1,4 @@
-/// Centralized settings keys for UserSettings database table
+import 'app_constants.dart';
 class SettingsKeys {
   // Font settings
   static const String previewFontSize = 'preview_font_size';
@@ -36,16 +36,8 @@ class SettingsKeys {
   static const int defaultAutoSaveInterval = 5;
   static const bool defaultShowNotePreview = true;
   static const bool defaultShowStatsBar = true;
-  static const int defaultDefaultNotesSortOrder = 0;
   static const bool defaultHapticFeedback = true;
-  static const int defaultSearchCursorBehavior = SearchCursorBehavior.end;
+  static const int defaultDefaultNotesSortOrder = 0;
+  static const int defaultSearchCursorBehavior = AppConstants.defaultSearchCursorBehavior;
 }
 
-/// Constants for search cursor behavior options
-class SearchCursorBehavior {
-  static const int start = 0;
-  static const int end = 1;
-  static const int selection = 2;
-
-  SearchCursorBehavior._();
-}

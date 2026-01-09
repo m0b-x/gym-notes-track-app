@@ -5,6 +5,8 @@ import '../services/settings_service.dart';
 import '../utils/custom_snackbar.dart';
 import '../widgets/gradient_app_bar.dart';
 
+import '../constants/app_constants.dart';
+
 /// Controls settings page for managing gestures and interactions
 class ControlsSettingsPage extends StatefulWidget {
   const ControlsSettingsPage({super.key});
@@ -26,7 +28,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
   bool _showNotePreview = true;
   bool _showStatsBar = true;
   bool _hapticFeedback = true;
-  int _searchCursorBehavior = 1; // 0=start, 1=end, 2=selection
+  SearchCursorBehavior _searchCursorBehavior = SearchCursorBehavior.end; // 0=start, 1=end, 2=selection
 
   @override
   void initState() {
@@ -56,7 +58,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showNotePreview = showPreview;
       _showStatsBar = showStats;
       _hapticFeedback = haptic;
-      _searchCursorBehavior = searchCursor;
+      _searchCursorBehavior = SearchCursorBehavior.values[searchCursor];
       _isLoading = false;
     });
   }
@@ -247,14 +249,14 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
                         subtitle: l10n.searchCursorBehaviorDesc,
                         value: _searchCursorBehavior,
                         options: [
-                          (0, l10n.cursorAtStart),
-                          (1, l10n.cursorAtEnd),
-                          (2, l10n.selectMatch),
+                          (SearchCursorBehavior.start, l10n.cursorAtStart),
+                          (SearchCursorBehavior.end, l10n.cursorAtEnd),
+                          (SearchCursorBehavior.selection, l10n.selectMatch),
                         ],
                         onChanged: (value) async {
                           _onHapticFeedback();
                           setState(() => _searchCursorBehavior = value);
-                          await _settings?.setSearchCursorBehavior(value);
+                          await _settings?.setSearchCursorBehavior(value.index);
                         },
                       ),
                     ],
@@ -352,9 +354,9 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     required ColorScheme colorScheme,
     required String title,
     required String subtitle,
-    required int value,
-    required List<(int, String)> options,
-    required ValueChanged<int> onChanged,
+    required SearchCursorBehavior value,
+    required List<(SearchCursorBehavior, String)> options,
+    required ValueChanged<SearchCursorBehavior> onChanged,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -373,22 +375,22 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
-            child: SegmentedButton<int>(
-              segments: options
-                  .map(
-                    (opt) => ButtonSegment<int>(
-                      value: opt.$1,
-                      label: Text(opt.$2, style: const TextStyle(fontSize: 12)),
-                    ),
-                  )
-                  .toList(),
-              selected: {value},
-              onSelectionChanged: (selection) => onChanged(selection.first),
-              style: SegmentedButton.styleFrom(
-                selectedBackgroundColor: colorScheme.primaryContainer,
-                selectedForegroundColor: colorScheme.onPrimaryContainer,
+            child: SegmentedButton<SearchCursorBehavior>(
+                segments: options
+                    .map(
+                      (opt) => ButtonSegment<SearchCursorBehavior>(
+                        value: opt.$1,
+                        label: Text(opt.$2, style: const TextStyle(fontSize: 12)),
+                      ),
+                    )
+                    .toList(),
+                selected: {value},
+                onSelectionChanged: (selection) => onChanged(selection.first),
+                style: SegmentedButton.styleFrom(
+                  selectedBackgroundColor: colorScheme.primaryContainer,
+                  selectedForegroundColor: colorScheme.onPrimaryContainer,
+                ),
               ),
-            ),
           ),
         ],
       ),
@@ -472,7 +474,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     await _settings?.setShowNotePreview(true);
     await _settings?.setShowStatsBar(true);
     await _settings?.setHapticFeedback(true);
-    await _settings?.setSearchCursorBehavior(1);
+    await _settings?.setSearchCursorBehavior(SearchCursorBehavior.end.index);
 
     setState(() {
       _folderSwipeEnabled = true;
@@ -483,7 +485,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showNotePreview = true;
       _showStatsBar = true;
       _hapticFeedback = true;
-      _searchCursorBehavior = 1;
+      _searchCursorBehavior = SearchCursorBehavior.end;
     });
 
     if (!mounted) return;
