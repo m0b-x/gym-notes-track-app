@@ -3,6 +3,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import '../constants/app_spacing.dart';
 import '../constants/font_constants.dart';
 import '../constants/markdown_constants.dart';
+import 'interactive_markdown.dart' show CheckboxToggleInfo;
 
 class MarkdownLine {
   final int index;
@@ -41,7 +42,7 @@ enum MarkdownLineType {
 
 class EfficientMarkdownView extends StatefulWidget {
   final String data;
-  final Function(String)? onCheckboxChanged;
+  final Function(CheckboxToggleInfo)? onCheckboxToggle;
   final MarkdownStyleSheet? styleSheet;
   final bool selectable;
   final double itemExtent;
@@ -54,7 +55,7 @@ class EfficientMarkdownView extends StatefulWidget {
   const EfficientMarkdownView({
     super.key,
     required this.data,
-    this.onCheckboxChanged,
+    this.onCheckboxToggle,
     this.styleSheet,
     this.selectable = false,
     this.itemExtent = MarkdownConstants.itemExtent,
@@ -284,13 +285,28 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
   }
 
   void _toggleCheckbox(int lineIndex) {
-    if (widget.onCheckboxChanged == null) return;
-
+    if (widget.onCheckboxToggle == null) return;
     if (lineIndex >= _rawLines.length) return;
 
     final line = _rawLines[lineIndex];
     final parsedLine = _getLine(lineIndex);
 
+    // Calculate character offset to the start of this line
+    int lineStart = 0;
+    for (int i = 0; i < lineIndex; i++) {
+      lineStart += _rawLines[i].length + 1; // +1 for \n
+    }
+
+    // Find the checkbox bracket position within the line
+    final checkboxPattern = parsedLine.isChecked ? RegExp(r'\[[xX]\]') : RegExp(r'\[ \]');
+    final match = checkboxPattern.firstMatch(line);
+    if (match == null) return;
+
+    final absoluteStart = lineStart + match.start;
+    final absoluteEnd = lineStart + match.end;
+    final replacement = parsedLine.isChecked ? '[ ]' : '[x]';
+
+    // Update local state
     String newLine;
     if (parsedLine.isChecked) {
       newLine = line.replaceFirst(RegExp(r'\[[xX]\]'), '[ ]');
@@ -303,11 +319,14 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
 
     setState(() {
       _currentData = updatedContent;
-      // Only invalidate the changed line in cache
       _parsedLineCache.remove(lineIndex);
     });
 
-    widget.onCheckboxChanged!(updatedContent);
+    widget.onCheckboxToggle!(CheckboxToggleInfo(
+      start: absoluteStart,
+      end: absoluteEnd,
+      replacement: replacement,
+    ));
   }
 
   @override
@@ -568,7 +587,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
-            onTap: widget.onCheckboxChanged != null
+            onTap: widget.onCheckboxToggle != null
                 ? () => _toggleCheckbox(line.index)
                 : null,
             child: Padding(
@@ -588,7 +607,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: widget.onCheckboxChanged != null
+              onTap: widget.onCheckboxToggle != null
                   ? () => _toggleCheckbox(line.index)
                   : null,
               child: Text(
@@ -728,7 +747,7 @@ class _EfficientMarkdownViewState extends State<EfficientMarkdownView> {
 class EfficientMarkdownEditor extends StatefulWidget {
   final String initialContent;
   final ValueChanged<String>? onChanged;
-  final Function(String)? onCheckboxChanged;
+  final Function(CheckboxToggleInfo)? onCheckboxToggle;
   final double previewFontSize;
   final bool showLineNumbers;
 
@@ -736,7 +755,7 @@ class EfficientMarkdownEditor extends StatefulWidget {
     super.key,
     required this.initialContent,
     this.onChanged,
-    this.onCheckboxChanged,
+    this.onCheckboxToggle,
     this.previewFontSize = FontConstants.defaultFontSize,
     this.showLineNumbers = false,
   });
@@ -760,12 +779,14 @@ class _EfficientMarkdownEditorState extends State<EfficientMarkdownEditor> {
     return EfficientMarkdownView(
       data: _content,
       selectable: true,
-      onCheckboxChanged: (updatedContent) {
+      onCheckboxToggle: (info) {
+        // Update local content
+        final newContent = _content.replaceRange(info.start, info.end, info.replacement);
         setState(() {
-          _content = updatedContent;
+          _content = newContent;
         });
-        widget.onCheckboxChanged?.call(updatedContent);
-        widget.onChanged?.call(updatedContent);
+        widget.onCheckboxToggle?.call(info);
+        widget.onChanged?.call(newContent);
       },
       styleSheet: MarkdownStyleSheet(
         p: TextStyle(fontSize: widget.previewFontSize),

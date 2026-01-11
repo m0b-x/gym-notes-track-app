@@ -4,9 +4,22 @@ import '../constants/app_spacing.dart';
 import '../constants/font_constants.dart';
 import '../constants/markdown_constants.dart';
 
+/// Info for efficient checkbox toggle via replaceRange
+class CheckboxToggleInfo {
+  final int start;
+  final int end;
+  final String replacement;
+
+  const CheckboxToggleInfo({
+    required this.start,
+    required this.end,
+    required this.replacement,
+  });
+}
+
 class InteractiveMarkdown extends StatefulWidget {
   final String data;
-  final Function(String)? onCheckboxChanged;
+  final Function(CheckboxToggleInfo)? onCheckboxToggle;
   final MarkdownStyleSheet? styleSheet;
   final bool selectable;
   final EdgeInsets? padding;
@@ -17,7 +30,7 @@ class InteractiveMarkdown extends StatefulWidget {
   const InteractiveMarkdown({
     super.key,
     required this.data,
-    this.onCheckboxChanged,
+    this.onCheckboxToggle,
     this.styleSheet,
     this.selectable = false,
     this.padding,
@@ -213,7 +226,7 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
-            onTap: widget.onCheckboxChanged != null
+            onTap: widget.onCheckboxToggle != null
                 ? () => _toggleCheckbox(lineIndex, isChecked)
                 : null,
             child: Padding(
@@ -231,7 +244,7 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: widget.onCheckboxChanged != null
+              onTap: widget.onCheckboxToggle != null
                   ? () => _toggleCheckbox(lineIndex, isChecked)
                   : null,
               child: Text(
@@ -261,30 +274,45 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
 
   void _toggleCheckbox(int lineIndex, bool currentlyChecked) {
     final lines = _currentData.split('\n');
+    if (lineIndex >= lines.length) return;
 
-    if (lineIndex < lines.length) {
-      final line = lines[lineIndex];
+    final line = lines[lineIndex];
 
-      if (currentlyChecked) {
-        lines[lineIndex] = line.replaceFirst(RegExp(r'\[[xX]\]'), '[ ]');
-      } else {
-        lines[lineIndex] = line.replaceFirst('[ ]', '[x]');
-      }
-
-      final updatedContent = lines.join('\n');
-
-      setState(() {
-        _currentData = updatedContent;
-        // Invalidate cache after checkbox toggle
-        _cachedNonCheckboxContent = null;
-        _cachedCheckboxes = null;
-        _lastDataForCache = null;
-      });
-
-      if (widget.onCheckboxChanged != null) {
-        widget.onCheckboxChanged!(updatedContent);
-      }
+    // Calculate character offset to the start of this line
+    int lineStart = 0;
+    for (int i = 0; i < lineIndex; i++) {
+      lineStart += lines[i].length + 1; // +1 for \n
     }
+
+    // Find the checkbox bracket position within the line
+    final checkboxPattern = currentlyChecked ? RegExp(r'\[[xX]\]') : RegExp(r'\[ \]');
+    final match = checkboxPattern.firstMatch(line);
+    if (match == null) return;
+
+    final absoluteStart = lineStart + match.start;
+    final absoluteEnd = lineStart + match.end;
+    final replacement = currentlyChecked ? '[ ]' : '[x]';
+
+    // Update local state
+    if (currentlyChecked) {
+      lines[lineIndex] = line.replaceFirst(RegExp(r'\[[xX]\]'), '[ ]');
+    } else {
+      lines[lineIndex] = line.replaceFirst('[ ]', '[x]');
+    }
+    final updatedContent = lines.join('\n');
+
+    setState(() {
+      _currentData = updatedContent;
+      _cachedNonCheckboxContent = null;
+      _cachedCheckboxes = null;
+      _lastDataForCache = null;
+    });
+
+    widget.onCheckboxToggle?.call(CheckboxToggleInfo(
+      start: absoluteStart,
+      end: absoluteEnd,
+      replacement: replacement,
+    ));
   }
 }
 

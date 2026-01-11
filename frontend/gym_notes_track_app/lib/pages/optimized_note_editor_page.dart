@@ -23,6 +23,7 @@ import '../widgets/note_search_bar.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/gradient_app_bar.dart';
 import '../utils/note_search_controller.dart';
+import '../utils/scroll_position_sync.dart';
 import '../config/default_markdown_shortcuts.dart';
 import '../database/database.dart';
 import '../constants/app_constants.dart';
@@ -56,6 +57,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   late CodeScrollController _editorScrollController;
   final ScrollController _previewScrollController = ScrollController();
   late NoteSearchController _searchController;
+  late ScrollPositionSync _scrollPositionSync;
 
   bool _hasChanges = false;
   bool _isPreviewMode = false;
@@ -94,6 +96,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _contentFocusNode = FocusNode();
     _editorScrollController = CodeScrollController();
     _searchController = NoteSearchController();
+    _scrollPositionSync = ScrollPositionSync(
+      previewScrollController: _previewScrollController,
+      editorScrollController: _editorScrollController,
+    );
 
     _titleController.addListener(_onTextChanged);
     _contentController.addListener(_onContentChanged);
@@ -276,64 +282,26 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     }
   }
 
-  int _getCurrentLineFromScroll() {
-    // Use the appropriate scroll controller based on current mode
-    final scroller = _isPreviewMode 
-        ? _previewScrollController 
-        : _editorScrollController.verticalScroller;
-    if (!scroller.hasClients) return 0;
-
-    final scrollOffset = scroller.offset;
-    final maxScroll = scroller.position.maxScrollExtent;
-    if (maxScroll <= 0) return 0;
-
-    final scrollRatio = scrollOffset / maxScroll;
-    return (scrollRatio * (_cachedLineCount - 1)).round().clamp(
-      0,
-      _cachedLineCount - 1,
-    );
-  }
-
-  void _scrollToLine(int targetLine) {
-    if (_cachedLineCount <= 1) return;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-
-      // Wait for the new view to be built
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-
-        // Use the appropriate scroll controller based on current mode
-        final scroller = _isPreviewMode 
-            ? _previewScrollController 
-            : _editorScrollController.verticalScroller;
-        
-        if (!scroller.hasClients) return;
-
-        final maxScroll = scroller.position.maxScrollExtent;
-        if (maxScroll <= 0) return;
-
-        final lineRatio = targetLine / (_cachedLineCount - 1);
-        final targetOffset = (lineRatio * maxScroll).clamp(0.0, maxScroll);
-        scroller.jumpTo(targetOffset);
-      });
-    });
-  }
-
   void _togglePreviewMode() {
-    final currentLine = _getCurrentLineFromScroll();
+    final switchingToPreview = !_isPreviewMode;
+
+    _scrollPositionSync.syncScrollOnModeSwitch(
+      switchingToPreviewMode: switchingToPreview,
+      content: _contentController.text,
+      editorFontSize: _editorFontSize,
+      previewFontSize: _previewFontSize,
+      isMounted: () => mounted,
+      contentController: _contentController,
+    );
 
     setState(() {
-      _isPreviewMode = !_isPreviewMode;
+      _isPreviewMode = switchingToPreview;
       if (!_isPreviewMode) {
         Future.delayed(AppConstants.shortDelay, () {
           _contentFocusNode.requestFocus();
         });
       }
     });
-
-    _scrollToLine(currentLine);
   }
 
   @override
@@ -415,30 +383,33 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     return offset - (lastNewline + 1);
   }
 
-  void _scrollToOffsetInPreview(int charOffset) {
+  /// Efficiently toggle checkbox by replacing only the bracket characters
+  void _handleCheckboxToggle(CheckboxToggleInfo info) {
     final text = _contentController.text;
-    if (text.isEmpty) return;
+    final startLine = _getLineFromOffset(text, info.start);
+    final startCol = _getColumnFromOffset(text, info.start);
+    final endLine = _getLineFromOffset(text, info.end);
+    final endCol = _getColumnFromOffset(text, info.end);
 
-    // Calculate line number for the offset
-    int lineNumber = 0;
-    for (int i = 0; i < charOffset && i < text.length; i++) {
-      if (text[i] == '\n') lineNumber++;
-    }
+    // Select the checkbox bracket range [x] or [ ]
+    _contentController.selection = CodeLineSelection(
+      baseIndex: startLine,
+      baseOffset: startCol,
+      extentIndex: endLine,
+      extentOffset: endCol,
+    );
 
-    if (!_previewScrollController.hasClients) return;
+    // Replace only the selected range
+    _contentController.replaceSelection(info.replacement);
+    _hasChanges = true;
+  }
 
-    final estimatedLineHeight =
-        _previewFontSize * MarkdownConstants.lineHeight;
-    final targetScroll = lineNumber * estimatedLineHeight;
-
-    final maxScroll = _previewScrollController.position.maxScrollExtent;
-    final clampedScroll = targetScroll.clamp(0.0, maxScroll);
-
-    _previewScrollController.animateTo(
-      clampedScroll,
-      duration:
-          const Duration(milliseconds: MarkdownConstants.animationDurationMs),
-      curve: Curves.easeOut,
+  void _scrollToOffsetInPreview(int charOffset) {
+    _scrollPositionSync.scrollToOffsetInPreview(
+      charOffset: charOffset,
+      text: _contentController.text,
+      previewFontSize: _previewFontSize,
+      editorFontSize: _editorFontSize,
     );
   }
 
@@ -820,12 +791,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
             scrollController: _previewScrollController,
             styleSheet: _getPreviewStyleSheet(),
             padding: const EdgeInsets.all(AppSpacing.lg),
-            onCheckboxChanged: (updatedContent) {
-              setState(() {
-                _contentController.text = updatedContent;
-                _hasChanges = true;
-              });
-            },
+            onCheckboxToggle: _handleCheckboxToggle,
           ),
           Positioned(
             top: 8,
@@ -848,12 +814,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           scrollController: _previewScrollController,
           padding: const EdgeInsets.all(AppSpacing.lg),
           styleSheet: _getPreviewStyleSheet(),
-          onCheckboxChanged: (updatedContent) {
-            setState(() {
-              _contentController.text = updatedContent;
-              _hasChanges = true;
-            });
-          },
+          onCheckboxToggle: _handleCheckboxToggle,
         ),
         Positioned(
           top: 8,
