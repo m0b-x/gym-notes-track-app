@@ -19,6 +19,7 @@ class MarkdownToolbar extends StatefulWidget {
   final VoidCallback onDecreaseFontSize;
   final VoidCallback onIncreaseFontSize;
   final VoidCallback onSettings;
+  final VoidCallback? onShare;
   final Function(CustomMarkdownShortcut) onShortcutPressed;
   final Function(List<CustomMarkdownShortcut>)? onReorderComplete;
   final bool showSettings;
@@ -38,6 +39,7 @@ class MarkdownToolbar extends StatefulWidget {
     required this.onIncreaseFontSize,
     required this.onSettings,
     required this.onShortcutPressed,
+    this.onShare,
     this.onReorderComplete,
     this.showSettings = true,
     this.showBackground = true,
@@ -114,6 +116,72 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
         .where((s) => s.isVisible)
         .toList();
 
+    final toolbarContent = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!widget.isPreviewMode) ...[
+          ...visibleShortcuts.map(
+            (shortcut) => _ShortcutButton(
+              shortcut: shortcut,
+              onTap: () {
+                if (shortcut.id == 'default_header') {
+                  _showHeaderMenu(context);
+                } else {
+                  widget.onShortcutPressed(shortcut);
+                }
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          _buildVerticalDivider(context),
+          const SizedBox(width: 8),
+        ],
+        _ToolbarButton(
+          icon: Icons.undo,
+          tooltip: AppLocalizations.of(context)!.undo,
+          onPressed: widget.canUndo ? widget.onUndo : null,
+        ),
+        _ToolbarButton(
+          icon: Icons.redo,
+          tooltip: AppLocalizations.of(context)!.redo,
+          onPressed: widget.canRedo ? widget.onRedo : null,
+        ),
+        const SizedBox(width: 8),
+        _ToolbarButton(
+          icon: Icons.text_decrease,
+          tooltip: AppLocalizations.of(context)!.decreaseFontSize,
+          onPressed: widget.onDecreaseFontSize,
+        ),
+        _ToolbarButton(
+          icon: Icons.text_increase,
+          tooltip: AppLocalizations.of(context)!.increaseFontSize,
+          onPressed: widget.onIncreaseFontSize,
+        ),
+        const SizedBox(width: 16),
+        if (widget.showReorder &&
+            !widget.isPreviewMode &&
+            widget.onReorderComplete != null)
+          _ToolbarButton(
+            icon: Icons.swap_horiz,
+            tooltip: AppLocalizations.of(context)!.reorderShortcuts,
+            onPressed: _enterReorderMode,
+          ),
+        if (widget.isPreviewMode && widget.onShare != null)
+          _ToolbarButton(
+            icon: Icons.share,
+            tooltip: AppLocalizations.of(context)!.shareNote,
+            onPressed: widget.onShare,
+          ),
+        if (widget.showSettings)
+          _ToolbarButton(
+            icon: Icons.settings,
+            tooltip: AppLocalizations.of(context)!.settings,
+            onPressed: widget.onSettings,
+          ),
+        if (!widget.isPreviewMode) const SizedBox(width: 8),
+      ],
+    );
+
     return Container(
       decoration: widget.showBackground
           ? BoxDecoration(
@@ -127,69 +195,20 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
               ],
             )
           : null,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!widget.isPreviewMode) ...[
-              ...visibleShortcuts.map(
-                (shortcut) => _ShortcutButton(
-                  shortcut: shortcut,
-                  onTap: () {
-                    if (shortcut.id == 'default_header') {
-                      _showHeaderMenu(context);
-                    } else {
-                      widget.onShortcutPressed(shortcut);
-                    }
-                  },
-                ),
+      child: widget.isPreviewMode
+          ? SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Container(
+                width: MediaQuery.of(context).size.width,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                child: Center(child: toolbarContent),
               ),
-              const SizedBox(width: 8),
-              _buildVerticalDivider(context),
-              const SizedBox(width: 8),
-            ],
-            _ToolbarButton(
-              icon: Icons.undo,
-              tooltip: AppLocalizations.of(context)!.undo,
-              onPressed: widget.canUndo ? widget.onUndo : null,
+            )
+          : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              child: toolbarContent,
             ),
-            _ToolbarButton(
-              icon: Icons.redo,
-              tooltip: AppLocalizations.of(context)!.redo,
-              onPressed: widget.canRedo ? widget.onRedo : null,
-            ),
-            const SizedBox(width: 8),
-            _ToolbarButton(
-              icon: Icons.text_decrease,
-              tooltip: AppLocalizations.of(context)!.decreaseFontSize,
-              onPressed: widget.onDecreaseFontSize,
-            ),
-            _ToolbarButton(
-              icon: Icons.text_increase,
-              tooltip: AppLocalizations.of(context)!.increaseFontSize,
-              onPressed: widget.onIncreaseFontSize,
-            ),
-            const SizedBox(width: 16),
-            if (widget.showReorder &&
-                !widget.isPreviewMode &&
-                widget.onReorderComplete != null)
-              _ToolbarButton(
-                icon: Icons.swap_horiz,
-                tooltip: AppLocalizations.of(context)!.reorderShortcuts,
-                onPressed: _enterReorderMode,
-              ),
-            if (widget.showSettings)
-              _ToolbarButton(
-                icon: Icons.settings,
-                tooltip: AppLocalizations.of(context)!.settings,
-                onPressed: widget.onSettings,
-              ),
-            const SizedBox(width: 8),
-          ],
-        ),
-      ),
     );
   }
 

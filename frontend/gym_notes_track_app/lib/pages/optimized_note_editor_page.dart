@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:re_editor/re_editor.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../l10n/app_localizations.dart';
 import '../bloc/optimized_note/optimized_note_bloc.dart';
@@ -712,6 +715,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                             onSettings: _openMarkdownSettings,
                             onShortcutPressed: _handleShortcut,
                             onReorderComplete: _handleReorderComplete,
+                            onShare: _showExportFormatDialog,
                           ),
                           SizedBox(
                             height: MediaQuery.of(context).padding.bottom,
@@ -892,6 +896,122 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       );
     } else {
       await _autoSaveService?.forceSave(widget.noteId!, title, content);
+    }
+  }
+
+  void _showExportFormatDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppLocalizations.of(context)!.chooseExportFormat),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.description_rounded),
+              title: Text(AppLocalizations.of(context)!.exportAsMarkdown),
+              onTap: () {
+                Navigator.pop(dialogContext);
+                _shareNote('md');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.data_object_rounded),
+              title: Text(AppLocalizations.of(context)!.exportAsJson),
+              onTap: () {
+                Navigator.pop(dialogContext);
+                _shareNote('json');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.text_snippet_rounded),
+              title: Text(AppLocalizations.of(context)!.exportAsText),
+              onTap: () {
+                Navigator.pop(dialogContext);
+                _shareNote('txt');
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(AppLocalizations.of(context)!.cancel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _shareNote(String format) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
+            Text(AppLocalizations.of(dialogContext)!.exportingNote),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final title = _titleController.text.trim();
+      final content = _getCurrentContent();
+
+      String fileContent;
+      String extension;
+
+      switch (format) {
+        case 'md':
+          extension = 'md';
+          final noteTitle = title.isEmpty ? 'Untitled' : title;
+          fileContent = '# $noteTitle\n\n$content';
+          break;
+        case 'json':
+          extension = 'json';
+          final noteJson = {
+            'title': title,
+            'content': content,
+            'createdAt': widget.metadata?.createdAt.toIso8601String() ??
+                DateTime.now().toIso8601String(),
+            'updatedAt': widget.metadata?.updatedAt.toIso8601String() ??
+                DateTime.now().toIso8601String(),
+            'exportedAt': DateTime.now().toIso8601String(),
+          };
+          fileContent = const JsonEncoder.withIndent('  ').convert(noteJson);
+          break;
+        case 'txt':
+        default:
+          extension = 'txt';
+          fileContent = content;
+          break;
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final sanitizedTitle = title.isEmpty
+          ? 'note_${widget.noteId?.substring(0, 8) ?? 'new'}'
+          : title.replaceAll(RegExp(r'[^\w\s-]'), '_');
+      final fileName = '$sanitizedTitle.$extension';
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsString(fileContent);
+
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${AppLocalizations.of(context)!.noteExportError}: $e'),
+        ),
+      );
     }
   }
 
