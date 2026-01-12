@@ -25,7 +25,7 @@ import '../widgets/scroll_zone_mixin.dart';
 import '../widgets/note_search_bar.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/gradient_app_bar.dart';
-import '../utils/note_search_controller.dart';
+import '../utils/re_editor_search_controller.dart';
 import '../utils/scroll_position_sync.dart';
 import '../config/default_markdown_shortcuts.dart';
 import '../database/database.dart';
@@ -59,7 +59,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   late FocusNode _contentFocusNode;
   late CodeScrollController _editorScrollController;
   final ScrollController _previewScrollController = ScrollController();
-  late NoteSearchController _searchController;
+  late ReEditorSearchController _searchController;
   late ScrollPositionSync _scrollPositionSync;
 
   bool _hasChanges = false;
@@ -84,7 +84,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   int _lastLineCountTextLength = 0;
 
   bool get _useVirtualPreview =>
-      _contentController.text.length > MarkdownConstants.virtualPreviewThreshold;
+      _contentController.text.length >
+      MarkdownConstants.virtualPreviewThreshold;
 
   @override
   void initState() {
@@ -98,7 +99,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _previousText = '';
     _contentFocusNode = FocusNode();
     _editorScrollController = CodeScrollController();
-    _searchController = NoteSearchController();
+    _searchController = ReEditorSearchController();
+    _searchController.initialize(_contentController);
     _scrollPositionSync = ScrollPositionSync(
       previewScrollController: _previewScrollController,
       editorScrollController: _editorScrollController,
@@ -258,14 +260,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   void _throttledSearchContentUpdate() {
-    if (!_searchController.isSearching) return;
-
-    _searchContentDebounceTimer?.cancel();
-    _searchContentDebounceTimer = Timer(
-      const Duration(milliseconds: MarkdownConstants.searchDebounceMs),
-      () {
-      _searchController.updateContent(_contentController.text);
-    });
+    // No-op: CodeFindController automatically tracks content changes
+    // This method kept for compatibility but does nothing now
   }
 
   /// Gets the current content
@@ -328,7 +324,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       _searchController.closeSearch();
     } else {
       _searchController.openSearch();
-      _searchController.updateContent(_contentController.text);
+      // Note: updateContent is no-op now as CodeFindController auto-tracks content
     }
     setState(() {});
   }
@@ -417,9 +413,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   void _handleSearchReplace(String _, String newContent) {
-    _contentController.text = newContent;
-    _searchController.updateContent(newContent);
-    _searchController.search(_searchController.query);
+    // Note: Replace is handled by CodeFindController internally
+    // The newContent parameter is kept for API compatibility
+    // but the actual text change happens through the controller
+    _hasChanges = true;
   }
 
   void _handleTextChange() {
@@ -640,8 +637,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                       RepaintBoundary(child: _buildNoteStats(context)),
                     Expanded(
                       child: Padding(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                        ),
                         child: AnimatedSwitcher(
                           duration: const Duration(
                             milliseconds: MarkdownConstants.animationDurationMs,
@@ -976,9 +974,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           final noteJson = {
             'title': title,
             'content': content,
-            'createdAt': widget.metadata?.createdAt.toIso8601String() ??
+            'createdAt':
+                widget.metadata?.createdAt.toIso8601String() ??
                 DateTime.now().toIso8601String(),
-            'updatedAt': widget.metadata?.updatedAt.toIso8601String() ??
+            'updatedAt':
+                widget.metadata?.updatedAt.toIso8601String() ??
                 DateTime.now().toIso8601String(),
             'exportedAt': DateTime.now().toIso8601String(),
           };
@@ -1184,7 +1184,7 @@ class _ModernEditorWrapper extends StatefulWidget {
   final CodeLineEditingController controller;
   final FocusNode focusNode;
   final CodeScrollController scrollController;
-  final NoteSearchController searchController;
+  final ReEditorSearchController searchController;
   final double editorFontSize;
   final VoidCallback onTextChanged;
 
@@ -1278,7 +1278,31 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
         padding: const EdgeInsets.all(AppSpacing.lg),
         // Hide default scrollbar - we use ScrollProgressIndicator instead
         scrollbarBuilder: (context, child, details) => child,
+        // Use re_editor's native find functionality for highlighting
+        // We return a zero-size PreferredSizeWidget since we use our own NoteSearchBar UI
+        findBuilder: (context, controller, readOnly) {
+          // Connect the editor's find controller to our search controller
+          widget.searchController.setFindController(controller);
+          return _HiddenFindPanel(controller: controller);
+        },
       ),
     );
+  }
+}
+
+/// A hidden find panel widget that implements PreferredSizeWidget.
+/// This allows us to use re_editor's native search highlighting
+/// while using our own NoteSearchBar UI for the search interface.
+class _HiddenFindPanel extends StatelessWidget implements PreferredSizeWidget {
+  final CodeFindController? controller;
+
+  const _HiddenFindPanel({required this.controller});
+
+  @override
+  Size get preferredSize => Size.zero;
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.shrink();
   }
 }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
-import '../utils/note_search_controller.dart';
+import '../utils/re_editor_search_controller.dart';
 
 class NoteSearchBar extends StatefulWidget {
-  final NoteSearchController searchController;
+  final ReEditorSearchController searchController;
   final VoidCallback? onClose;
   final Function(int offset)? onNavigateToMatch;
   final bool showReplaceField;
@@ -34,7 +34,7 @@ class _NoteSearchBarState extends State<NoteSearchBar>
   bool _showReplace = false;
   String? _message;
 
-  NoteSearchController get _search => widget.searchController;
+  ReEditorSearchController get _search => widget.searchController;
 
   @override
   void initState() {

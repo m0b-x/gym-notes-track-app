@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import '../services/note_search_service.dart';
+import '../services/legacy_note_search_service.dart';
 
 class SearchMatch {
   final int start;
