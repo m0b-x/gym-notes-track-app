@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:re_editor/re_editor.dart';
 
+import '../constants/app_constants.dart';
 import '../l10n/app_localizations.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../utils/icon_utils.dart';
@@ -200,13 +201,19 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
               scrollDirection: Axis.horizontal,
               child: Container(
                 width: MediaQuery.of(context).size.width,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: AppConstants.markdownToolbarPadding,
+                ),
                 child: Center(child: toolbarContent),
               ),
             )
           : SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: AppConstants.markdownToolbarPadding,
+              ),
               child: toolbarContent,
             ),
     );
@@ -719,10 +726,7 @@ class _ShortcutButton extends StatelessWidget {
   final CustomMarkdownShortcut shortcut;
   final VoidCallback onTap;
 
-  const _ShortcutButton({
-    required this.shortcut,
-    required this.onTap,
-  });
+  const _ShortcutButton({required this.shortcut, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -733,8 +737,12 @@ class _ShortcutButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(14),
-          margin: const EdgeInsets.symmetric(horizontal: 3),
+          padding: const EdgeInsets.all(
+            AppConstants.markdownToolbarButtonPadding,
+          ),
+          margin: const EdgeInsets.symmetric(
+            horizontal: AppConstants.markdownToolbarButtonMargin,
+          ),
           child: _buildButtonContent(context),
         ),
       ),
@@ -746,7 +754,7 @@ class _ShortcutButton extends StatelessWidget {
       return Text(
         'B',
         style: TextStyle(
-          fontSize: 20,
+          fontSize: AppConstants.markdownToolbarTextSize,
           fontWeight: FontWeight.bold,
           color: Theme.of(context).iconTheme.color,
         ),
@@ -756,7 +764,7 @@ class _ShortcutButton extends StatelessWidget {
       return Text(
         'I',
         style: TextStyle(
-          fontSize: 20,
+          fontSize: AppConstants.markdownToolbarTextSize,
           fontStyle: FontStyle.italic,
           color: Theme.of(context).iconTheme.color,
         ),
@@ -766,7 +774,7 @@ class _ShortcutButton extends StatelessWidget {
       return Text(
         'H',
         style: TextStyle(
-          fontSize: 20,
+          fontSize: AppConstants.markdownToolbarTextSize,
           fontWeight: FontWeight.bold,
           color: Theme.of(context).colorScheme.onSurface,
         ),
@@ -777,7 +785,7 @@ class _ShortcutButton extends StatelessWidget {
         shortcut.iconCodePoint,
         shortcut.iconFontFamily,
       ),
-      size: 24,
+      size: AppConstants.markdownToolbarIconSize,
       color: Theme.of(context).iconTheme.color,
     );
   }
@@ -803,12 +811,16 @@ class _ToolbarButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onPressed,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 3),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConstants.markdownToolbarButtonMargin,
+          ),
           child: Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(
+              AppConstants.markdownToolbarButtonPadding,
+            ),
             child: Icon(
               icon,
-              size: 24,
+              size: AppConstants.markdownToolbarIconSize,
               color: onPressed == null
                   ? Theme.of(
                       context,

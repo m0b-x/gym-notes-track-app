@@ -652,75 +652,78 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                         ),
                       ),
                     ),
-                    RepaintBoundary(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          MarkdownToolbar(
-                            shortcuts: _allShortcuts,
-                            isPreviewMode: _isPreviewMode,
-                            canUndo: _contentController.canUndo,
-                            canRedo: _contentController.canRedo,
-                            previewFontSize: _isPreviewMode
-                                ? _previewFontSize
-                                : _editorFontSize,
-                            onUndo: () => _contentController.undo(),
-                            onRedo: () => _contentController.redo(),
-                            onDecreaseFontSize: () {
-                              setState(() {
-                                if (_isPreviewMode) {
-                                  _previewFontSize =
-                                      (_previewFontSize -
-                                              FontConstants.fontSizeStep)
-                                          .clamp(
-                                            FontConstants.minFontSize,
-                                            FontConstants.maxFontSize,
-                                          );
-                                } else {
-                                  _editorFontSize =
-                                      (_editorFontSize -
-                                              FontConstants.fontSizeStep)
-                                          .clamp(
-                                            FontConstants.minFontSize,
-                                            FontConstants.maxFontSize,
-                                          );
-                                }
-                              });
-                              _saveFontSizes();
-                            },
-                            onIncreaseFontSize: () {
-                              setState(() {
-                                if (_isPreviewMode) {
-                                  _previewFontSize =
-                                      (_previewFontSize +
-                                              FontConstants.fontSizeStep)
-                                          .clamp(
-                                            FontConstants.minFontSize,
-                                            FontConstants.maxFontSize,
-                                          );
-                                } else {
-                                  _editorFontSize =
-                                      (_editorFontSize +
-                                              FontConstants.fontSizeStep)
-                                          .clamp(
-                                            FontConstants.minFontSize,
-                                            FontConstants.maxFontSize,
-                                          );
-                                }
-                              });
-                              _saveFontSizes();
-                            },
-                            onSettings: _openMarkdownSettings,
-                            onShortcutPressed: _handleShortcut,
-                            onReorderComplete: _handleReorderComplete,
-                            onShare: _showExportFormatDialog,
-                          ),
-                          SizedBox(
-                            height: MediaQuery.of(context).padding.bottom,
-                          ),
-                        ],
+                    // Show toolbar only when keyboard is visible (edit mode) or in preview mode
+                    if (_isPreviewMode ||
+                        MediaQuery.of(context).viewInsets.bottom > 0)
+                      RepaintBoundary(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            MarkdownToolbar(
+                              shortcuts: _allShortcuts,
+                              isPreviewMode: _isPreviewMode,
+                              canUndo: _contentController.canUndo,
+                              canRedo: _contentController.canRedo,
+                              previewFontSize: _isPreviewMode
+                                  ? _previewFontSize
+                                  : _editorFontSize,
+                              onUndo: () => _contentController.undo(),
+                              onRedo: () => _contentController.redo(),
+                              onDecreaseFontSize: () {
+                                setState(() {
+                                  if (_isPreviewMode) {
+                                    _previewFontSize =
+                                        (_previewFontSize -
+                                                FontConstants.fontSizeStep)
+                                            .clamp(
+                                              FontConstants.minFontSize,
+                                              FontConstants.maxFontSize,
+                                            );
+                                  } else {
+                                    _editorFontSize =
+                                        (_editorFontSize -
+                                                FontConstants.fontSizeStep)
+                                            .clamp(
+                                              FontConstants.minFontSize,
+                                              FontConstants.maxFontSize,
+                                            );
+                                  }
+                                });
+                                _saveFontSizes();
+                              },
+                              onIncreaseFontSize: () {
+                                setState(() {
+                                  if (_isPreviewMode) {
+                                    _previewFontSize =
+                                        (_previewFontSize +
+                                                FontConstants.fontSizeStep)
+                                            .clamp(
+                                              FontConstants.minFontSize,
+                                              FontConstants.maxFontSize,
+                                            );
+                                  } else {
+                                    _editorFontSize =
+                                        (_editorFontSize +
+                                                FontConstants.fontSizeStep)
+                                            .clamp(
+                                              FontConstants.minFontSize,
+                                              FontConstants.maxFontSize,
+                                            );
+                                  }
+                                });
+                                _saveFontSizes();
+                              },
+                              onSettings: _openMarkdownSettings,
+                              onShortcutPressed: _handleShortcut,
+                              onReorderComplete: _handleReorderComplete,
+                              onShare: _showExportFormatDialog,
+                            ),
+                            SizedBox(
+                              height: MediaQuery.of(context).padding.bottom,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
                   ],
                 ),
         ),
@@ -1276,12 +1279,8 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
         readOnly: false,
         chunkAnalyzer: const NonCodeChunkAnalyzer(),
         padding: const EdgeInsets.all(AppSpacing.lg),
-        // Hide default scrollbar - we use ScrollProgressIndicator instead
         scrollbarBuilder: (context, child, details) => child,
-        // Use re_editor's native find functionality for highlighting
-        // We return a zero-size PreferredSizeWidget since we use our own NoteSearchBar UI
         findBuilder: (context, controller, readOnly) {
-          // Connect the editor's find controller to our search controller
           widget.searchController.setFindController(controller);
           return _HiddenFindPanel(controller: controller);
         },

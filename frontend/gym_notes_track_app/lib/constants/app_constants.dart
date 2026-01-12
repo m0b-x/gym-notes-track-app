@@ -26,6 +26,13 @@ class AppConstants {
   static const double edgeScrollThreshold = 80.0;
   static const double autoScrollSpeed = 10.0;
 
+  // Markdown toolbar sizing
+  static const double markdownToolbarPadding = 8.0;
+  static const double markdownToolbarButtonPadding = 10.0;
+  static const double markdownToolbarButtonMargin = 2.0;
+  static const double markdownToolbarIconSize = 20.0;
+  static const double markdownToolbarTextSize = 16.0;
+
   // ============================================================
   // PAGINATION CONSTANTS
   // ============================================================
@@ -55,7 +62,8 @@ class AppConstants {
   static const int defaultSearchCursorBehavior = 1; // SearchCursorBehavior.end
 
   static int validateSearchCursorBehavior(int value) {
-    if (value >= SearchCursorBehavior.start.index && value < SearchCursorBehavior.values.length) {
+    if (value >= SearchCursorBehavior.start.index &&
+        value < SearchCursorBehavior.values.length) {
       return value;
     }
     return defaultSearchCursorBehavior;
