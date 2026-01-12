@@ -921,4 +921,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searching => 'Searching...';
+
+  @override
+  String get editorSection => 'Editor';
+
+  @override
+  String get showLineNumbers => 'Line Numbers';
+
+  @override
+  String get showLineNumbersDesc =>
+      'Display line numbers on the left side of the editor';
+
+  @override
+  String get wordWrap => 'Word Wrap';
+
+  @override
+  String get wordWrapDesc => 'Wrap long lines to fit within the editor width';
+
+  @override
+  String get showCursorLine => 'Highlight Current Line';
+
+  @override
+  String get showCursorLineDesc =>
+      'Highlight the line where the cursor is positioned';
 }

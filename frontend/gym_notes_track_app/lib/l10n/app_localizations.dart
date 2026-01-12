@@ -1809,6 +1809,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Searching...'**
   String get searching;
+
+  /// Editor settings section title
+  ///
+  /// In en, this message translates to:
+  /// **'Editor'**
+  String get editorSection;
+
+  /// Setting for showing line numbers in editor
+  ///
+  /// In en, this message translates to:
+  /// **'Line Numbers'**
+  String get showLineNumbers;
+
+  /// Description for show line numbers setting
+  ///
+  /// In en, this message translates to:
+  /// **'Display line numbers on the left side of the editor'**
+  String get showLineNumbersDesc;
+
+  /// Setting for word wrapping in editor
+  ///
+  /// In en, this message translates to:
+  /// **'Word Wrap'**
+  String get wordWrap;
+
+  /// Description for word wrap setting
+  ///
+  /// In en, this message translates to:
+  /// **'Wrap long lines to fit within the editor width'**
+  String get wordWrapDesc;
+
+  /// Setting for highlighting the current line in editor
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight Current Line'**
+  String get showCursorLine;
+
+  /// Description for show cursor line setting
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight the line where the cursor is positioned'**
+  String get showCursorLineDesc;
 }
 
 class _AppLocalizationsDelegate

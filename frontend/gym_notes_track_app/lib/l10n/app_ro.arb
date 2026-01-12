@@ -173,6 +173,7 @@
   "deleteNotImplemented": "Funcția de ștergere nu este implementată încă din motive de siguranță",
   "deletingData": "Se șterg toate datele...",
   "dataDeleted": "Date Șterse",
+  "errorDeletingData": "Eroare la ștergerea datelor",
   "shareDatabase": "Partajează Baza de Date",
   "shareDatabaseDesc": "Exportă și partajează fișierul bazei de date prin email, aplicații de mesagerie sau stocare cloud pentru backup.",
   "preparingShare": "Se pregătește partajarea...",
@@ -282,5 +283,12 @@
   "cursorAtStart": "Înainte",
   "cursorAtEnd": "După",
   "selectMatch": "Selectează",
-  "searching": "Se caută..."
+  "searching": "Se caută...",
+  "editorSection": "Editor",
+  "showLineNumbers": "Numere de Linie",
+  "showLineNumbersDesc": "Afișează numerele liniilor în partea stângă a editorului",
+  "wordWrap": "Împachetare Text",
+  "wordWrapDesc": "Împachetează liniile lungi pentru a încăpea în lățimea editorului",
+  "showCursorLine": "Evidențiază Linia Curentă",
+  "showCursorLineDesc": "Evidențiază linia unde este poziționat cursorul"
 }

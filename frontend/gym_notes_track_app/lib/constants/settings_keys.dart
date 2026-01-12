@@ -28,6 +28,11 @@ class SettingsKeys {
   static const String hapticFeedback = 'haptic_feedback';
   static const String searchCursorBehavior = 'search_cursor_behavior';
 
+  // Editor settings
+  static const String showLineNumbers = 'show_line_numbers';
+  static const String wordWrap = 'word_wrap';
+  static const String showCursorLine = 'show_cursor_line';
+
   // Default values for control settings
   static const bool defaultFolderSwipeEnabled = true;
   static const bool defaultNoteSwipeEnabled = true;
@@ -39,5 +44,10 @@ class SettingsKeys {
   static const bool defaultHapticFeedback = true;
   static const int defaultDefaultNotesSortOrder = 0;
   static const int defaultSearchCursorBehavior = AppConstants.defaultSearchCursorBehavior;
+
+  // Default values for editor settings
+  static const bool defaultShowLineNumbers = false;
+  static const bool defaultWordWrap = true;
+  static const bool defaultShowCursorLine = false;
 }
 

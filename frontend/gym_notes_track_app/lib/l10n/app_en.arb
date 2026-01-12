@@ -1243,5 +1243,33 @@
   "searching": "Searching...",
   "@searching": {
     "description": "Shown while search is in progress"
+  },
+  "editorSection": "Editor",
+  "@editorSection": {
+    "description": "Editor settings section title"
+  },
+  "showLineNumbers": "Line Numbers",
+  "@showLineNumbers": {
+    "description": "Setting for showing line numbers in editor"
+  },
+  "showLineNumbersDesc": "Display line numbers on the left side of the editor",
+  "@showLineNumbersDesc": {
+    "description": "Description for show line numbers setting"
+  },
+  "wordWrap": "Word Wrap",
+  "@wordWrap": {
+    "description": "Setting for word wrapping in editor"
+  },
+  "wordWrapDesc": "Wrap long lines to fit within the editor width",
+  "@wordWrapDesc": {
+    "description": "Description for word wrap setting"
+  },
+  "showCursorLine": "Highlight Current Line",
+  "@showCursorLine": {
+    "description": "Setting for highlighting the current line in editor"
+  },
+  "showCursorLineDesc": "Highlight the line where the cursor is positioned",
+  "@showCursorLineDesc": {
+    "description": "Description for show cursor line setting"
   }
 }

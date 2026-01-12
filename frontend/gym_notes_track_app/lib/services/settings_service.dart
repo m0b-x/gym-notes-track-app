@@ -158,4 +158,40 @@ class SettingsService {
   Future<void> setSearchCursorBehavior(int value) async {
     await _setInt(SettingsKeys.searchCursorBehavior, value);
   }
+
+  // Editor settings - Show line numbers
+  Future<bool> getShowLineNumbers() async {
+    return _getBool(
+      SettingsKeys.showLineNumbers,
+      SettingsKeys.defaultShowLineNumbers,
+    );
+  }
+
+  Future<void> setShowLineNumbers(bool value) async {
+    await _setBool(SettingsKeys.showLineNumbers, value);
+  }
+
+  // Editor settings - Word wrap
+  Future<bool> getWordWrap() async {
+    return _getBool(
+      SettingsKeys.wordWrap,
+      SettingsKeys.defaultWordWrap,
+    );
+  }
+
+  Future<void> setWordWrap(bool value) async {
+    await _setBool(SettingsKeys.wordWrap, value);
+  }
+
+  // Editor settings - Show cursor line highlight
+  Future<bool> getShowCursorLine() async {
+    return _getBool(
+      SettingsKeys.showCursorLine,
+      SettingsKeys.defaultShowCursorLine,
+    );
+  }
+
+  Future<void> setShowCursorLine(bool value) async {
+    await _setBool(SettingsKeys.showCursorLine, value);
+  }
 }

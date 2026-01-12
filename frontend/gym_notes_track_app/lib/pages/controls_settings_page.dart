@@ -30,6 +30,11 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
   bool _hapticFeedback = true;
   SearchCursorBehavior _searchCursorBehavior = SearchCursorBehavior.end; // 0=start, 1=end, 2=selection
 
+  // Editor settings
+  bool _showLineNumbers = false;
+  bool _wordWrap = true;
+  bool _showCursorLine = false;
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +52,9 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     final showStats = await settings.getShowStatsBar();
     final haptic = await settings.getHapticFeedback();
     final searchCursor = await settings.getSearchCursorBehavior();
+    final showLineNumbers = await settings.getShowLineNumbers();
+    final wordWrap = await settings.getWordWrap();
+    final showCursorLine = await settings.getShowCursorLine();
 
     setState(() {
       _settings = settings;
@@ -59,6 +67,9 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showStatsBar = showStats;
       _hapticFeedback = haptic;
       _searchCursorBehavior = SearchCursorBehavior.values[searchCursor];
+      _showLineNumbers = showLineNumbers;
+      _wordWrap = wordWrap;
+      _showCursorLine = showCursorLine;
       _isLoading = false;
     });
   }
@@ -257,6 +268,53 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
                           _onHapticFeedback();
                           setState(() => _searchCursorBehavior = value);
                           await _settings?.setSearchCursorBehavior(value.index);
+                        },
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Editor section
+                  _buildSectionCard(
+                    context: context,
+                    colorScheme: colorScheme,
+                    icon: Icons.code_rounded,
+                    title: l10n.editorSection,
+                    children: [
+                      _buildSwitchTile(
+                        context: context,
+                        title: l10n.showLineNumbers,
+                        subtitle: l10n.showLineNumbersDesc,
+                        value: _showLineNumbers,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _showLineNumbers = value);
+                          await _settings?.setShowLineNumbers(value);
+                        },
+                      ),
+                      const Divider(height: 1),
+                      _buildSwitchTile(
+                        context: context,
+                        title: l10n.wordWrap,
+                        subtitle: l10n.wordWrapDesc,
+                        value: _wordWrap,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _wordWrap = value);
+                          await _settings?.setWordWrap(value);
+                        },
+                      ),
+                      const Divider(height: 1),
+                      _buildSwitchTile(
+                        context: context,
+                        title: l10n.showCursorLine,
+                        subtitle: l10n.showCursorLineDesc,
+                        value: _showCursorLine,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _showCursorLine = value);
+                          await _settings?.setShowCursorLine(value);
                         },
                       ),
                     ],
@@ -475,6 +533,9 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     await _settings?.setShowStatsBar(true);
     await _settings?.setHapticFeedback(true);
     await _settings?.setSearchCursorBehavior(SearchCursorBehavior.end.index);
+    await _settings?.setShowLineNumbers(false);
+    await _settings?.setWordWrap(true);
+    await _settings?.setShowCursorLine(false);
 
     setState(() {
       _folderSwipeEnabled = true;
@@ -486,6 +547,9 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showStatsBar = true;
       _hapticFeedback = true;
       _searchCursorBehavior = SearchCursorBehavior.end;
+      _showLineNumbers = false;
+      _wordWrap = true;
+      _showCursorLine = false;
     });
 
     if (!mounted) return;

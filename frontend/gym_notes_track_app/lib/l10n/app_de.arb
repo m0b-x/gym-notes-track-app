@@ -776,6 +776,10 @@
   "@databaseSettingsDesc": {
     "description": "Database settings description"
   },
+  "about": "Über",
+  "@about": {
+    "description": "About menu item"
+  },
   "databaseLocation": "Datenbankspeicherort",
   "@databaseLocation": {
     "description": "Database location card title"
@@ -876,6 +880,10 @@
   "@deleteConfirmation": {
     "description": "Delete confirmation message"
   },
+  "deleteNotImplemented": "Löschfunktion aus Sicherheitsgründen noch nicht implementiert",
+  "@deleteNotImplemented": {
+    "description": "Safety message for unimplemented delete"
+  },
   "deletingData": "Alle Daten werden gelöscht...",
   "@deletingData": {
     "description": "Loading text while deleting data"
@@ -915,6 +923,34 @@
   "databaseNotFound": "Datenbankdatei nicht gefunden",
   "@databaseNotFound": {
     "description": "Error when database file does not exist"
+  },
+  "renameNote": "Notiz umbenennen",
+  "@renameNote": {
+    "description": "Rename note option"
+  },
+  "enterNewName": "Neuen Namen eingeben",
+  "@enterNewName": {
+    "description": "Hint for rename input field"
+  },
+  "reorderMode": "Sortierungsmodus",
+  "@reorderMode": {
+    "description": "Reorder mode title"
+  },
+  "dragToReorder": "Elemente ziehen um neu zu ordnen",
+  "@dragToReorder": {
+    "description": "Drag to reorder hint"
+  },
+  "sortByCustom": "Benutzerdefinierte Reihenfolge",
+  "@sortByCustom": {
+    "description": "Custom sort order option"
+  },
+  "moveUp": "Nach oben",
+  "@moveUp": {
+    "description": "Move item up in list"
+  },
+  "moveDown": "Nach unten",
+  "@moveDown": {
+    "description": "Move item down in list"
   },
   "shareNote": "Notiz teilen",
   "@shareNote": {
@@ -1202,5 +1238,33 @@
   "searching": "Suche...",
   "@searching": {
     "description": "Shown while search is in progress"
+  },
+  "editorSection": "Editor",
+  "@editorSection": {
+    "description": "Editor settings section title"
+  },
+  "showLineNumbers": "Zeilennummern",
+  "@showLineNumbers": {
+    "description": "Setting for showing line numbers in editor"
+  },
+  "showLineNumbersDesc": "Zeilennummern auf der linken Seite des Editors anzeigen",
+  "@showLineNumbersDesc": {
+    "description": "Description for show line numbers setting"
+  },
+  "wordWrap": "Zeilenumbruch",
+  "@wordWrap": {
+    "description": "Setting for word wrapping in editor"
+  },
+  "wordWrapDesc": "Lange Zeilen umbrechen, um in die Editorbreite zu passen",
+  "@wordWrapDesc": {
+    "description": "Description for word wrap setting"
+  },
+  "showCursorLine": "Aktuelle Zeile hervorheben",
+  "@showCursorLine": {
+    "description": "Setting for highlighting the current line in editor"
+  },
+  "showCursorLineDesc": "Die Zeile hervorheben, in der sich der Cursor befindet",
+  "@showCursorLineDesc": {
+    "description": "Description for show cursor line setting"
   }
 }

@@ -575,7 +575,7 @@ class AppLocalizationsRo extends AppLocalizations {
   String get exitApp => 'Închide Aplicația';
 
   @override
-  String get errorDeletingData => 'Error deleting data';
+  String get errorDeletingData => 'Eroare la ștergerea datelor';
 
   @override
   String get shareDatabase => 'Partajează Baza de Date';
@@ -927,4 +927,28 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get searching => 'Se caută...';
+
+  @override
+  String get editorSection => 'Editor';
+
+  @override
+  String get showLineNumbers => 'Numere de Linie';
+
+  @override
+  String get showLineNumbersDesc =>
+      'Afișează numerele liniilor în partea stângă a editorului';
+
+  @override
+  String get wordWrap => 'Împachetare Text';
+
+  @override
+  String get wordWrapDesc =>
+      'Împachetează liniile lungi pentru a încăpea în lățimea editorului';
+
+  @override
+  String get showCursorLine => 'Evidențiază Linia Curentă';
+
+  @override
+  String get showCursorLineDesc =>
+      'Evidențiază linia unde este poziționat cursorul';
 }

@@ -69,6 +69,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _showStatsBar = true;
   SearchCursorBehavior _searchCursorBehavior = SearchCursorBehavior.end;
 
+  // Editor settings
+  bool _showLineNumbers = false;
+  bool _wordWrap = true;
+  bool _showCursorLine = false;
+
   AutoSaveService? _autoSaveService;
 
   double _previewFontSize = FontConstants.defaultFontSize;
@@ -119,11 +124,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _initializeAutoSave();
     _loadFontSizes();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_isLoading) {
-        _contentFocusNode.requestFocus();
-      }
-    });
+    // Keyboard hidden by default - user taps editor to open
   }
 
   void _onContentChanged() {
@@ -170,11 +171,17 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final noteSwipe = await settings.getNoteSwipeEnabled();
     final searchCursor = await settings.getSearchCursorBehavior();
     final showStats = await settings.getShowStatsBar();
+    final showLineNumbers = await settings.getShowLineNumbers();
+    final wordWrap = await settings.getWordWrap();
+    final showCursorLine = await settings.getShowCursorLine();
     if (mounted) {
       setState(() {
         _noteSwipeEnabled = noteSwipe;
         _searchCursorBehavior = SearchCursorBehavior.values[searchCursor];
         _showStatsBar = showStats;
+        _showLineNumbers = showLineNumbers;
+        _wordWrap = wordWrap;
+        _showCursorLine = showCursorLine;
       });
     }
   }
@@ -295,11 +302,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
     setState(() {
       _isPreviewMode = switchingToPreview;
-      if (!_isPreviewMode) {
-        Future.delayed(AppConstants.shortDelay, () {
-          _contentFocusNode.requestFocus();
-        });
-      }
+      // Keyboard hidden by default - user taps editor to open
     });
   }
 
@@ -519,7 +522,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
             _cachedCharCount = content.length;
             _isLoading = false;
           });
-          _contentFocusNode.requestFocus();
+          // Keyboard hidden by default - user taps editor to open
         }
       },
       child: PopScope(
@@ -865,6 +868,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       searchController: _searchController,
       editorFontSize: _editorFontSize,
       onTextChanged: _handleTextChange,
+      showLineNumbers: _showLineNumbers,
+      wordWrap: _wordWrap,
+      showCursorLine: _showCursorLine,
     );
   }
 
@@ -1190,6 +1196,9 @@ class _ModernEditorWrapper extends StatefulWidget {
   final ReEditorSearchController searchController;
   final double editorFontSize;
   final VoidCallback onTextChanged;
+  final bool showLineNumbers;
+  final bool wordWrap;
+  final bool showCursorLine;
 
   const _ModernEditorWrapper({
     super.key,
@@ -1199,6 +1208,9 @@ class _ModernEditorWrapper extends StatefulWidget {
     required this.searchController,
     required this.editorFontSize,
     required this.onTextChanged,
+    this.showLineNumbers = false,
+    this.wordWrap = true,
+    this.showCursorLine = false,
   });
 
   @override
@@ -1273,12 +1285,24 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
           backgroundColor: Colors.transparent,
           cursorColor: theme.colorScheme.primary,
           cursorWidth: 2.5,
+          cursorLineColor: widget.showCursorLine
+              ? theme.colorScheme.primary.withValues(alpha: 0.1)
+              : null,
           selectionColor: theme.colorScheme.primary.withValues(alpha: 0.3),
         ),
-        wordWrap: true,
+        wordWrap: widget.wordWrap,
         readOnly: false,
+        autofocus: false,
         chunkAnalyzer: const NonCodeChunkAnalyzer(),
         padding: const EdgeInsets.all(AppSpacing.lg),
+        indicatorBuilder: widget.showLineNumbers
+            ? (context, editingController, chunkController, notifier) {
+                return DefaultCodeLineNumber(
+                  controller: editingController,
+                  notifier: notifier,
+                );
+              }
+            : null,
         scrollbarBuilder: (context, child, details) => child,
         findBuilder: (context, controller, readOnly) {
           widget.searchController.setFindController(controller);

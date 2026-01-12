@@ -494,7 +494,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get databaseSettingsDesc => 'Datenbankspeicherort und -verwaltung';
 
   @override
-  String get about => 'About';
+  String get about => 'Über';
 
   @override
   String get databaseLocation => 'Datenbankspeicherort';
@@ -561,7 +561,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get deleteNotImplemented =>
-      'Delete functionality not yet implemented for safety';
+      'Löschfunktion aus Sicherheitsgründen noch nicht implementiert';
 
   @override
   String get deletingData => 'Alle Daten werden gelöscht...';
@@ -596,19 +596,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get databaseNotFound => 'Datenbankdatei nicht gefunden';
 
   @override
-  String get renameNote => 'Rename Note';
+  String get renameNote => 'Notiz umbenennen';
 
   @override
-  String get enterNewName => 'Enter new name';
+  String get enterNewName => 'Neuen Namen eingeben';
 
   @override
-  String get reorderMode => 'Reorder Mode';
+  String get reorderMode => 'Sortierungsmodus';
 
   @override
-  String get dragToReorder => 'Drag items to reorder';
+  String get dragToReorder => 'Elemente ziehen um neu zu ordnen';
 
   @override
-  String get sortByCustom => 'Custom Order';
+  String get sortByCustom => 'Benutzerdefinierte Reihenfolge';
 
   @override
   String get quickSort => 'Schnellsortierung';
@@ -626,10 +626,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get sortByName => 'Nach Name';
 
   @override
-  String get moveUp => 'Move Up';
+  String get moveUp => 'Nach oben';
 
   @override
-  String get moveDown => 'Move Down';
+  String get moveDown => 'Nach unten';
 
   @override
   String get controlsSettings => 'Steuerung';
@@ -929,4 +929,28 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get searching => 'Suche...';
+
+  @override
+  String get editorSection => 'Editor';
+
+  @override
+  String get showLineNumbers => 'Zeilennummern';
+
+  @override
+  String get showLineNumbersDesc =>
+      'Zeilennummern auf der linken Seite des Editors anzeigen';
+
+  @override
+  String get wordWrap => 'Zeilenumbruch';
+
+  @override
+  String get wordWrapDesc =>
+      'Lange Zeilen umbrechen, um in die Editorbreite zu passen';
+
+  @override
+  String get showCursorLine => 'Aktuelle Zeile hervorheben';
+
+  @override
+  String get showCursorLineDesc =>
+      'Die Zeile hervorheben, in der sich der Cursor befindet';
 }
