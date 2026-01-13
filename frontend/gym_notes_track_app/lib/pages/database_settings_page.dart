@@ -7,7 +7,8 @@ import '../database/database.dart';
 import '../services/database_manager.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/custom_snackbar.dart';
-import '../widgets/gradient_app_bar.dart';
+import '../widgets/app_drawer.dart';
+import '../widgets/unified_app_bars.dart';
 
 /// Database settings page for managing database location and operations
 class DatabaseSettingsPage extends StatefulWidget {
@@ -88,9 +89,9 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: GradientAppBar(
-        title: Text(AppLocalizations.of(context)!.databaseSettings),
-        gradientStyle: GradientStyle.drawer,
+      drawer: const AppDrawer(),
+      appBar: SettingsAppBar(
+        title: AppLocalizations.of(context)!.databaseSettings,
       ),
       body: SafeArea(
         top: false,

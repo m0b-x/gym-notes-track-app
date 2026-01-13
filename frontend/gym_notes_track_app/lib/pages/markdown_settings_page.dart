@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../utils/markdown_settings_utils.dart';
+import '../widgets/app_drawer.dart';
 import '../widgets/app_loading_bar.dart';
-import '../widgets/gradient_app_bar.dart';
+import '../widgets/unified_app_bars.dart';
 import '../widgets/shortcut_editor_dialog.dart';
 
 class MarkdownSettingsPage extends StatefulWidget {
@@ -186,8 +187,9 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
         }
       },
       child: LoadingScaffold(
-        appBar: GradientAppBar(
-          title: Text(AppLocalizations.of(context)!.markdownShortcuts),
+        drawer: const AppDrawer(),
+        appBar: SettingsAppBar(
+          title: AppLocalizations.of(context)!.markdownShortcuts,
           actions: [
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),

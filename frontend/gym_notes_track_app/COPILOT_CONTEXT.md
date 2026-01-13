@@ -22,7 +22,7 @@ Gym Notes is a mobile note-taking app designed for gym/workout tracking. It feat
 - USE modern designs only
 
 ## Stack
-flutter_bloc, drift, sqlite3_flutter_libs, path_provider, flutter_markdown_plus, uuid, equatable, flutter_localizations (EN/DE/RO), get_it, share_plus, shared_preferences, stream_transform
+flutter_bloc, drift, sqlite3_flutter_libs, path_provider, flutter_markdown_plus, uuid, equatable, flutter_localizations (EN/DE/RO), get_it, share_plus, shared_preferences, stream_transform, re_editor
 
 ## Architecture
 ```
@@ -40,7 +40,13 @@ lib/
 │   └── types/result.dart     # Sealed Result<T> type
 ├── constants/
 │   ├── app_constants.dart    # Centralized constants
-│   └── search_constants.dart # Diacritics map
+│   ├── search_constants.dart # Diacritics map
+│   ├── settings_keys.dart    # Settings keys for UserSettingsDao
+│   ├── app_colors.dart       # Color constants
+│   ├── app_spacing.dart      # Spacing constants
+│   ├── app_text_styles.dart  # Text style constants
+│   ├── font_constants.dart   # Font constants
+│   └── markdown_constants.dart # Markdown styling constants
 ├── database/                 # Drift database, DAOs, CRDT
 │   ├── database.dart         # AppDatabase singleton (background isolate)
 │   ├── crdt/hlc.dart         # HybridLogicalClock, HlcTimestamp
@@ -51,13 +57,13 @@ lib/
 │   ├── note_repository.dart  # NoteRepository with streams
 │   └── folder_repository.dart
 ├── models/                   # Folder, Note, NoteMetadata, CustomMarkdownShortcut
-├── services/                 # FolderStorage, NoteStorage, Search, AutoSave, Loading, Settings, DatabaseManager
-├── pages/                    # FolderContentPage, NoteEditorPage, SearchPage, MarkdownSettingsPage, DatabaseSettingsPage, ControlsSettingsPage
-├── widgets/                  # MarkdownToolbar, InfiniteScrollList, AppDrawer, GradientAppBar, etc.
+├── services/                 # FolderStorage, NoteStorage, Search, AutoSave, Loading, Settings, DatabaseManager, LegacyNoteSearch
+├── pages/                    # OptimizedFolderContentPage, OptimizedNoteEditorPage, SearchPage, MarkdownSettingsPage, DatabaseSettingsPage, ControlsSettingsPage
+├── widgets/                  # MarkdownToolbar, InfiniteScrollList, AppDrawer, UnifiedAppBars (FolderAppBar, NoteAppBar, SettingsAppBar, SearchAppBar), InteractiveMarkdown, ReNoteEditor, ModernNoteEditor, NoteSearchBar, ScrollProgressIndicator, IconPickerDialog, ShortcutEditorDialog, etc.
 ├── l10n/                     # app_en.arb, app_de.arb, app_ro.arb
 ├── config/                   # default_markdown_shortcuts, available_icons
 ├── handlers/                 # date/default/header_shortcut_handler
-├── utils/                    # compression, text_history, bloc_helpers, lru_cache, note_search_controller, markdown_settings_utils
+├── utils/                    # compression, text_history, bloc_helpers, lru_cache, legacy_note_search_controller, re_editor_search_controller, markdown_settings_utils, scroll_position_sync, icon_utils, dialog_helpers, custom_snackbar, isolate_worker
 ├── factories/                # shortcut_handler_factory
 └── main.dart
 ```
@@ -223,6 +229,11 @@ AppConstants.debounceDelay             // 500ms
 // UI
 AppConstants.edgeScrollThreshold       // 80.0
 AppConstants.autoScrollSpeed           // 10.0
+
+// Search
+AppConstants.maxRecentSearches         // 10
+AppConstants.maxSearchMatches          // 1000
+SearchCursorBehavior                   // enum: start, end, selection
 ```
 
 ## Database Migrations (DatabaseSchema)
@@ -361,10 +372,13 @@ getIt<NoteRepository>().noteChanges.listen((change) {
 - **PaginatedNotes**: notes list + pagination info (hasMore, currentPage, totalCount)
 - **PaginatedFolders**: folders list + pagination info
 - **SearchResult**: metadata + matches + relevanceScore
+- **SearchMatch**: start/end indices + matchType (title/content)
+- **CheckboxToggleInfo**: start/end indices + replacement text for checkbox toggling
 - **LoadingService**: Global loading state for database operations
 - **AutoSaveService**: 5s debounced saves + 30s interval
 - **TextHistoryObserver**: undo/redo tracking
-- **NoteSearchController**: In-note search/replace with regex support
+- **ReEditorSearchController**: In-note search/replace with regex support (wraps re_editor's CodeFindController)
+- **NoteSearchController**: Legacy in-note search/replace (in legacy_note_search_controller.dart)
 - **FolderSearchService**: Cross-note full-text search with indexing
 - **SettingsService**: User preferences (swipe gestures, haptic feedback, auto-save, preview, theme, locale)
 - **CustomMarkdownShortcut**: User-configurable markdown toolbar shortcuts
@@ -432,12 +446,15 @@ settings.hapticFeedback;      // Haptic feedback on interactions
 await settings.setShowNotePreview(true);
 ```
 
-## In-Note Search (NoteSearchController)
+## In-Note Search (ReEditorSearchController)
 ```dart
-final searchController = NoteSearchController();
+final searchController = ReEditorSearchController();
 
-// Update content to search
-searchController.updateContent(_contentController.text);
+// Initialize with editing controller
+searchController.initialize(editingController);
+
+// Set find controller from CodeEditor's findBuilder
+searchController.setFindController(findController);
 
 // Perform search with options
 searchController.updateQuery('text to find');
@@ -451,8 +468,14 @@ searchController.previousMatch();
 searchController.currentMatchIndex; // 1-based
 searchController.matchCount;
 
-// Replace functionality
-searchController.replaceCurrent('replacement');
+// Replace functionality (returns sealed ReplaceResultState)
+final result = searchController.replaceCurrent('replacement');
+switch (result) {
+  case ReplaceSuccessState(:final newContent, :final cursorPosition):
+    // Apply newContent
+  case ReplaceFailureState(:final reason):
+    // Handle failure
+}
 searchController.replaceAll('replacement');
 
 // State
@@ -494,31 +517,77 @@ MarkdownToolbar(
   isPreviewMode: false,
   canUndo: true,
   canRedo: false,
+  previewFontSize: 16.0,
+  onUndo: () => {},
+  onRedo: () => {},
+  onDecreaseFontSize: () => {},
+  onIncreaseFontSize: () => {},
+  onSettings: () => {},
   onShortcutPressed: (shortcut) => _handleShortcut(shortcut),
   onReorderComplete: (reordered) => _saveOrder(reordered),
+  onShare: () => {},
+  showSettings: true,
+  showBackground: true,
+  showReorder: true,
 );
 
 // InteractiveMarkdown - markdown preview with checkbox support
 InteractiveMarkdown(
   data: markdownContent,
   selectable: true,
-  onCheckboxChanged: (updatedContent) => {},
+  onCheckboxToggle: (CheckboxToggleInfo info) => {},
   styleSheet: MarkdownStyleSheet(...),
+  selectedLine: 5,
+  onLineTap: (lineNumber) => {},
 );
 
-// GradientAppBar - styled app bar with gradients
-GradientAppBar(
-  title: Text('Title'),
-  gradientStyle: GradientStyle.folder,  // folder, note, drawer
+// FolderAppBar - for folder navigation pages
+FolderAppBar(
+  title: 'Folder Name',
+  isRootPage: true,          // Shows menu icon, false shows back arrow
+  actions: [...],
+  onMenuPressed: () => {},   // Optional custom handler
+  onBackPressed: () => {},   // Optional custom handler
+);
+
+// NoteAppBar - for note editor page
+NoteAppBar(
+  title: 'Note Title',
+  hasChanges: true,          // Shows unsaved indicator dot
+  actions: [...],
+  onBackPressed: () => {},
+  onTitleTap: () => {},      // For editing title
+);
+
+// SettingsAppBar - for settings pages (drawer gradient style)
+SettingsAppBar(
+  title: 'Settings',
+  actions: [...],
+  showMenuButton: true,      // Shows menu button to open drawer (default: true)
+);
+
+// SearchAppBar - for search page with text field
+SearchAppBar(
+  controller: searchController,
+  focusNode: focusNode,
+  hintText: 'Search...',
+  onChanged: (query) => {},
+  onSubmitted: (query) => {},
+  onClear: () => {},
 );
 
 // InfiniteScrollList - paginated scrolling with loading
 InfiniteScrollList<Item>(
   items: items,
   hasMore: true,
-  onLoadMore: () async => loadMore(),
-  itemBuilder: (item) => ItemWidget(item),
+  isLoadingMore: false,
+  onLoadMore: () => loadMore(),
+  itemBuilder: (context, item, index) => ItemWidget(item),
+  emptyWidget: EmptyWidget(),
+  loadingWidget: LoadingWidget(),
+  loadMoreThreshold: 200.0,
+  padding: EdgeInsets.all(8),
+  controller: scrollController,
+  shrinkWrap: false,
 );
 ```
-
-## Sync (Future)

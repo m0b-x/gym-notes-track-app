@@ -6,6 +6,7 @@ import '../bloc/optimized_note/optimized_note_state.dart';
 import '../l10n/app_localizations.dart';
 import '../models/note_metadata.dart';
 import '../services/folder_search_service.dart';
+import '../widgets/unified_app_bars.dart';
 import 'optimized_note_editor_page.dart';
 
 class SearchPage extends StatefulWidget {
@@ -65,34 +66,16 @@ class _SearchPageState extends State<SearchPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: TextField(
-          controller: _searchController,
-          focusNode: _focusNode,
-          decoration: InputDecoration(
-            hintText: AppLocalizations.of(context)!.search,
-            border: InputBorder.none,
-            hintStyle: TextStyle(
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-          ),
-          style: const TextStyle(fontSize: 18),
-          onChanged: _onSearchChanged,
-          onSubmitted: _onSearchSubmitted,
-        ),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          if (_searchController.text.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.clear),
-              onPressed: () {
-                _searchController.clear();
-                _onSearchChanged('');
-              },
-            ),
-        ],
+      appBar: SearchAppBar(
+        controller: _searchController,
+        focusNode: _focusNode,
+        hintText: AppLocalizations.of(context)!.search,
+        onChanged: _onSearchChanged,
+        onSubmitted: _onSearchSubmitted,
+        onClear: () {
+          _searchController.clear();
+          _onSearchChanged('');
+        },
       ),
       body: SafeArea(
         top: false,

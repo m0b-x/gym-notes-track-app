@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
 import '../services/settings_service.dart';
 import '../utils/custom_snackbar.dart';
-import '../widgets/gradient_app_bar.dart';
+import '../widgets/app_drawer.dart';
+import '../widgets/unified_app_bars.dart';
 
 import '../constants/app_constants.dart';
 
@@ -87,9 +88,9 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: GradientAppBar(
-        title: Text(l10n.controlsSettings),
-        gradientStyle: GradientStyle.drawer,
+      drawer: const AppDrawer(),
+      appBar: SettingsAppBar(
+        title: l10n.controlsSettings,
       ),
       body: SafeArea(
         top: false,

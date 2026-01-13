@@ -37,12 +37,16 @@ class AppDrawer extends StatelessWidget {
                   subtitle: AppLocalizations.of(context)!.databaseSettingsDesc,
                   onTap: () {
                     Navigator.pop(context); // Close drawer
-                    Navigator.push(
+                    Navigator.push<String>(
                       context,
                       MaterialPageRoute(
                         builder: (_) => const DatabaseSettingsPage(),
                       ),
-                    );
+                    ).then((result) {
+                      if (result == 'openDrawer' && context.mounted) {
+                        Scaffold.of(context).openDrawer();
+                      }
+                    });
                   },
                 ),
 
@@ -54,12 +58,16 @@ class AppDrawer extends StatelessWidget {
                   subtitle: AppLocalizations.of(context)!.controlsSettingsDesc,
                   onTap: () {
                     Navigator.pop(context); // Close drawer
-                    Navigator.push(
+                    Navigator.push<String>(
                       context,
                       MaterialPageRoute(
                         builder: (_) => const ControlsSettingsPage(),
                       ),
-                    );
+                    ).then((result) {
+                      if (result == 'openDrawer' && context.mounted) {
+                        Scaffold.of(context).openDrawer();
+                      }
+                    });
                   },
                 ),
 
@@ -74,13 +82,17 @@ class AppDrawer extends StatelessWidget {
                     final shortcuts =
                         await MarkdownSettingsUtils.loadShortcuts();
                     if (context.mounted) {
-                      Navigator.push(
+                      Navigator.push<String>(
                         context,
                         MaterialPageRoute(
                           builder: (_) =>
                               MarkdownSettingsPage(allShortcuts: shortcuts),
                         ),
-                      );
+                      ).then((result) {
+                        if (result == 'openDrawer' && context.mounted) {
+                          Scaffold.of(context).openDrawer();
+                        }
+                      });
                     }
                   },
                 ),

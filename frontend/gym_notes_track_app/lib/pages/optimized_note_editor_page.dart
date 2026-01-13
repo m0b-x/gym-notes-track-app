@@ -24,7 +24,7 @@ import '../widgets/scroll_progress_indicator.dart';
 import '../widgets/scroll_zone_mixin.dart';
 import '../widgets/note_search_bar.dart';
 import '../widgets/app_drawer.dart';
-import '../widgets/gradient_app_bar.dart';
+import '../widgets/unified_app_bars.dart';
 import '../utils/re_editor_search_controller.dart';
 import '../utils/scroll_position_sync.dart';
 import '../config/default_markdown_shortcuts.dart';
@@ -538,39 +538,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         child: Scaffold(
           drawer: const AppDrawer(),
           drawerEnableOpenDragGesture: _noteSwipeEnabled,
-          appBar: GradientAppBar(
-            automaticallyImplyLeading: false,
-            purpleAlpha: 0.7,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.of(context).maybePop(),
-            ),
-            title: GestureDetector(
-              onTap: _editTitle,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _titleController.text.isEmpty
-                          ? AppLocalizations.of(context)!.newNote
-                          : _titleController.text,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (_hasChanges)
-                    Container(
-                      margin: const EdgeInsets.only(left: 8),
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                ],
-              ),
-            ),
+          appBar: NoteAppBar(
+            title: _titleController.text.isEmpty
+                ? AppLocalizations.of(context)!.newNote
+                : _titleController.text,
+            hasChanges: _hasChanges,
+            onTitleTap: _editTitle,
             actions: [
               IconButton(
                 icon: Icon(

@@ -20,7 +20,7 @@ import '../services/note_storage_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/infinite_scroll_list.dart';
 import '../widgets/app_drawer.dart';
-import '../widgets/gradient_app_bar.dart';
+import '../widgets/unified_app_bars.dart';
 import '../utils/bloc_helpers.dart';
 import '../utils/custom_snackbar.dart';
 import '../constants/app_colors.dart';
@@ -151,26 +151,10 @@ class _OptimizedFolderContentPageState
     final scaffold = Scaffold(
       drawer: const AppDrawer(),
       drawerEnableOpenDragGesture: _folderSwipeEnabled,
-      appBar: GradientAppBar(
-        automaticallyImplyLeading: false,
-        purpleAlpha: 0.7,
-        leading: !isRootPage
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.of(context).pop(),
-              )
-            : Builder(
-                builder: (context) => IconButton(
-                  icon: const Icon(Icons.menu),
-                  onPressed: () => Scaffold.of(context).openDrawer(),
-                ),
-              ),
-        title: Text(
-          widget.title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+      appBar: FolderAppBar(
+        title: widget.title,
+        isRootPage: isRootPage,
         actions: [
-          // Reorder mode toggle
           IconButton(
             icon: Icon(_isReorderMode ? Icons.check : Icons.swap_vert),
             tooltip: AppLocalizations.of(context)!.reorderMode,
@@ -190,7 +174,6 @@ class _OptimizedFolderContentPageState
               );
             },
           ),
-          // Sort button - shows bottom sheet with folder/note sort options
           IconButton(
             icon: const Icon(Icons.sort),
             tooltip: AppLocalizations.of(context)!.sortBy,
