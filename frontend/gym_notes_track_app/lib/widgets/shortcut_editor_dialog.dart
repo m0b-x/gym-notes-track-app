@@ -278,9 +278,28 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
       newCursor = start + wrapped.length;
     } else if (shortcut.insertType == 'header') {
       final lineStart = text.lastIndexOf('\n', start - 1) + 1;
-      newText = text.replaceRange(lineStart, lineStart, shortcut.beforeText);
-      final delta = shortcut.beforeText.length;
-      newCursor = end + delta;
+      int lineEnd = text.indexOf('\n', lineStart);
+      if (lineEnd == -1) lineEnd = text.length;
+      final lineText = text.substring(lineStart, lineEnd);
+      
+      final headerMatch = RegExp(r'^(#{1,6})\s').firstMatch(lineText);
+      String newLineText;
+      
+      if (headerMatch != null) {
+        final currentHashes = headerMatch.group(1)!;
+        final textWithoutHeader = lineText.substring(headerMatch.end);
+        
+        if (currentHashes.length >= 6) {
+          newLineText = textWithoutHeader;
+        } else {
+          newLineText = '${currentHashes}# $textWithoutHeader';
+        }
+      } else {
+        newLineText = '# $lineText';
+      }
+      
+      newText = text.replaceRange(lineStart, lineEnd, newLineText);
+      newCursor = lineStart + newLineText.length;
     } else {
       final before = shortcut.beforeText;
       final after = shortcut.afterText;

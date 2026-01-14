@@ -179,14 +179,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          Navigator.of(context).pop(_shortcuts);
-        }
-      },
-      child: LoadingScaffold(
+    return LoadingScaffold(
         drawer: const AppDrawer(),
         appBar: SettingsAppBar(
           title: AppLocalizations.of(context)!.markdownShortcuts,
@@ -379,7 +372,6 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
           onPressed: _addShortcut,
           child: const Icon(Icons.add),
         ),
-      ),
     );
   }
 }

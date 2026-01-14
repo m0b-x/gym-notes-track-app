@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:gym_notes_track_app/utils/markdown_settings_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:re_editor/re_editor.dart';
 import 'package:share_plus/share_plus.dart';
@@ -125,7 +126,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _loadCustomShortcuts();
     _initializeAutoSave();
     _loadFontSizes();
-
   }
 
   Future<void> _loadFontSizes() async {
@@ -323,8 +323,14 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     } else {
       if (match != null) {
         final text = _contentController.text;
-        final startLine = TextPositionUtils.getLineFromOffset(text, match.start);
-        final startCol = TextPositionUtils.getColumnFromOffset(text, match.start);
+        final startLine = TextPositionUtils.getLineFromOffset(
+          text,
+          match.start,
+        );
+        final startCol = TextPositionUtils.getColumnFromOffset(
+          text,
+          match.start,
+        );
         final endLine = TextPositionUtils.getLineFromOffset(text, match.end);
         final endCol = TextPositionUtils.getColumnFromOffset(text, match.end);
 
@@ -497,11 +503,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
               ),
               Tooltip(
                 message: _isPreviewMode
-                    ? AppLocalizations.of(context)!.switchToEditMode
-                    : AppLocalizations.of(context)!.previewMarkdown,
+                    ? AppLocalizations.of(context)!.previewMarkdown
+                    : AppLocalizations.of(context)!.switchToEditMode,
                 waitDuration: AppConstants.debounceDelay,
                 child: IconButton(
-                  icon: Icon(_isPreviewMode ? Icons.edit : Icons.visibility),
+                  icon: Icon(_isPreviewMode ? Icons.visibility : Icons.edit),
                   onPressed: () => _togglePreviewMode(),
                 ),
               ),
@@ -723,8 +729,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
     return Stack(
       key: const ValueKey('preview'),
+      alignment: Alignment.topLeft,
       children: [
-        markdownView,
+        Positioned.fill(child: markdownView),
         Positioned(
           top: 8,
           bottom: 8,
@@ -974,7 +981,24 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       final selection = _contentController.selection;
       final lineIndex = selection.startIndex;
       final line = _contentController.codeLines[lineIndex];
-      final newLineText = '${shortcut.beforeText}${line.text}';
+      final lineText = line.text;
+
+      final headerMatch = RegExp(r'^(#{1,6})\s').firstMatch(lineText);
+      String newLineText;
+
+      if (headerMatch != null) {
+        final currentHashes = headerMatch.group(1)!;
+        final textWithoutHeader = lineText.substring(headerMatch.end);
+
+        if (currentHashes.length >= 6) {
+          newLineText = textWithoutHeader;
+        } else {
+          newLineText = '$currentHashes# $textWithoutHeader';
+        }
+      } else {
+        newLineText = '# $lineText';
+      }
+
       _contentController.selectLine(lineIndex);
       _contentController.replaceSelection(newLineText);
     } else {
@@ -1003,7 +1027,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   Future<void> _loadCustomShortcuts() async {
     final db = await AppDatabase.getInstance();
     final shortcutsJson = await db.userSettingsDao.getValue(
-       SettingsKeys.markdownShortcuts,
+      SettingsKeys.markdownShortcuts,
     );
 
     final defaults = DefaultMarkdownShortcuts.shortcuts;
@@ -1056,16 +1080,17 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   Future<void> _openMarkdownSettings() async {
-    final result = await Navigator.push<List<CustomMarkdownShortcut>>(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => MarkdownSettingsPage(allShortcuts: _allShortcuts),
       ),
     );
 
-    if (result != null) {
-      setState(() => _allShortcuts = result);
-      await _saveShortcutsOrder();
+    // Reload shortcuts from database (they are saved immediately in settings page)
+    final shortcuts = await MarkdownSettingsUtils.loadShortcuts();
+    if (mounted) {
+      setState(() => _allShortcuts = shortcuts);
     }
   }
 }
