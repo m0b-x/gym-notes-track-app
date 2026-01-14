@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../constants/json_keys.dart';
+
 /// Represents a folder that contains notes
 class Folder extends Equatable {
   final String id;
@@ -38,23 +40,23 @@ class Folder extends Equatable {
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'name': name,
-      'parentId': parentId,
-      'createdAt': createdAt.toIso8601String(),
-      'noteSortOrder': noteSortOrder,
-      'subfolderSortOrder': subfolderSortOrder,
+      JsonKeys.id: id,
+      JsonKeys.name: name,
+      JsonKeys.parentId: parentId,
+      JsonKeys.createdAt: createdAt.toIso8601String(),
+      JsonKeys.noteSortOrder: noteSortOrder,
+      JsonKeys.subfolderSortOrder: subfolderSortOrder,
     };
   }
 
   factory Folder.fromJson(Map<String, dynamic> json) {
     return Folder(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      parentId: json['parentId'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      noteSortOrder: json['noteSortOrder'] as String?,
-      subfolderSortOrder: json['subfolderSortOrder'] as String?,
+      id: json[JsonKeys.id] as String,
+      name: json[JsonKeys.name] as String,
+      parentId: json[JsonKeys.parentId] as String?,
+      createdAt: DateTime.parse(json[JsonKeys.createdAt] as String),
+      noteSortOrder: json[JsonKeys.noteSortOrder] as String?,
+      subfolderSortOrder: json[JsonKeys.subfolderSortOrder] as String?,
     );
   }
 

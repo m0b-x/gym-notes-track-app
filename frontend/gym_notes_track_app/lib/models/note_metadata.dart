@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../constants/json_keys.dart';
+
 class NoteMetadata extends Equatable {
   final String id;
   final String folderId;
@@ -49,29 +51,29 @@ class NoteMetadata extends Equatable {
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'folderId': folderId,
-      'title': title,
-      'preview': preview,
-      'contentLength': contentLength,
-      'chunkCount': chunkCount,
-      'isCompressed': isCompressed,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      JsonKeys.id: id,
+      JsonKeys.folderId: folderId,
+      JsonKeys.title: title,
+      JsonKeys.preview: preview,
+      JsonKeys.contentLength: contentLength,
+      JsonKeys.chunkCount: chunkCount,
+      JsonKeys.isCompressed: isCompressed,
+      JsonKeys.createdAt: createdAt.toIso8601String(),
+      JsonKeys.updatedAt: updatedAt.toIso8601String(),
     };
   }
 
   factory NoteMetadata.fromJson(Map<String, dynamic> json) {
     return NoteMetadata(
-      id: json['id'] as String,
-      folderId: json['folderId'] as String,
-      title: json['title'] as String,
-      preview: json['preview'] as String? ?? '',
-      contentLength: json['contentLength'] as int? ?? 0,
-      chunkCount: json['chunkCount'] as int? ?? 1,
-      isCompressed: json['isCompressed'] as bool? ?? false,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      id: json[JsonKeys.id] as String,
+      folderId: json[JsonKeys.folderId] as String,
+      title: json[JsonKeys.title] as String,
+      preview: json[JsonKeys.preview] as String? ?? '',
+      contentLength: json[JsonKeys.contentLength] as int? ?? 0,
+      chunkCount: json[JsonKeys.chunkCount] as int? ?? 1,
+      isCompressed: json[JsonKeys.isCompressed] as bool? ?? false,
+      createdAt: DateTime.parse(json[JsonKeys.createdAt] as String),
+      updatedAt: DateTime.parse(json[JsonKeys.updatedAt] as String),
     );
   }
 

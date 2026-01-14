@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../constants/json_keys.dart';
+
 class Note extends Equatable {
   final String id;
   final String folderId;
@@ -37,23 +39,23 @@ class Note extends Equatable {
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'folderId': folderId,
-      'title': title,
-      'content': content,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      JsonKeys.id: id,
+      JsonKeys.folderId: folderId,
+      JsonKeys.title: title,
+      JsonKeys.content: content,
+      JsonKeys.createdAt: createdAt.toIso8601String(),
+      JsonKeys.updatedAt: updatedAt.toIso8601String(),
     };
   }
 
   factory Note.fromJson(Map<String, dynamic> json) {
     return Note(
-      id: json['id'] as String,
-      folderId: json['folderId'] as String,
-      title: json['title'] as String,
-      content: json['content'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      id: json[JsonKeys.id] as String,
+      folderId: json[JsonKeys.folderId] as String,
+      title: json[JsonKeys.title] as String,
+      content: json[JsonKeys.content] as String,
+      createdAt: DateTime.parse(json[JsonKeys.createdAt] as String),
+      updatedAt: DateTime.parse(json[JsonKeys.updatedAt] as String),
     );
   }
 

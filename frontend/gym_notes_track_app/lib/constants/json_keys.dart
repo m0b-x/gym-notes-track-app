@@ -1,0 +1,43 @@
+class JsonKeys {
+  JsonKeys._();
+
+  static const String id = 'id';
+  static const String folderId = 'folderId';
+  static const String parentId = 'parentId';
+  static const String name = 'name';
+  static const String title = 'title';
+  static const String content = 'content';
+  static const String preview = 'preview';
+  static const String contentLength = 'contentLength';
+  static const String chunkCount = 'chunkCount';
+  static const String isCompressed = 'isCompressed';
+  static const String createdAt = 'createdAt';
+  static const String updatedAt = 'updatedAt';
+  static const String exportedAt = 'exportedAt';
+  static const String noteSortOrder = 'noteSortOrder';
+  static const String subfolderSortOrder = 'subfolderSortOrder';
+
+  static const String label = 'label';
+  static const String iconCodePoint = 'iconCodePoint';
+  static const String iconFontFamily = 'iconFontFamily';
+  static const String beforeText = 'beforeText';
+  static const String afterText = 'afterText';
+  static const String isDefault = 'isDefault';
+  static const String isVisible = 'isVisible';
+  static const String insertType = 'insertType';
+  static const String dateFormat = 'dateFormat';
+
+  static const String wordToNoteIds = 'wordToNoteIds';
+  static const String termFrequency = 'termFrequency';
+
+  static const String query = 'query';
+  static const String notes = 'notes';
+  static const String original = 'original';
+  static const String modified = 'modified';
+  static const String error = 'error';
+  static const String success = 'success';
+  static const String data = 'data';
+  static const String hasChanges = 'hasChanges';
+  static const String type = 'type';
+  static const String line = 'line';
+}

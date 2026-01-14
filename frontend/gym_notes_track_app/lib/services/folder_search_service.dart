@@ -2,33 +2,33 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:gym_notes_track_app/constants/search_constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/isolate_data.dart';
 import '../models/note_metadata.dart';
 import 'note_storage_service.dart';
 
 /// Top-level function for isolate processing (required by compute())
-Map<String, dynamic> _buildIndexInIsolate(List<Map<String, String>> notesData) {
+Map<String, dynamic> _buildIndexInIsolate(List<NoteIndexData> notesData) {
   final wordToNoteIds = <String, Set<String>>{};
   final termFrequency = <String, Map<String, int>>{};
 
   final regex = RegExp(r'\b\w{2,}\b');
 
-  for (final noteData in notesData) {
-    final noteId = noteData['id']!;
-    final text = '${noteData['title']} ${noteData['content']}'.toLowerCase();
+  for (final note in notesData) {
+    final text = '${note.title} ${note.content}'.toLowerCase();
 
     // Normalize and tokenize
     final normalizedText = _removeDiacriticsIsolate(text);
     final matches = regex.allMatches(normalizedText);
     final words = matches.map((m) => m.group(0)!).toSet();
 
-    termFrequency[noteId] = {};
+    termFrequency[note.id] = {};
 
     for (final word in words) {
       wordToNoteIds.putIfAbsent(word, () => {});
-      wordToNoteIds[word]!.add(noteId);
+      wordToNoteIds[word]!.add(note.id);
 
-      termFrequency[noteId]!.putIfAbsent(word, () => 0);
-      termFrequency[noteId]![word] = termFrequency[noteId]![word]! + 1;
+      termFrequency[note.id]!.putIfAbsent(word, () => 0);
+      termFrequency[note.id]![word] = termFrequency[note.id]![word]! + 1;
     }
   }
 
@@ -358,18 +358,19 @@ class SearchIndex {
     _isBuilt = false;
   }
 
-  /// Export index data for isolate processing
+  static const _kWordToNoteIds = 'wordToNoteIds';
+  static const _kTermFrequency = 'termFrequency';
+
   Map<String, dynamic> toJson() => {
-    'wordToNoteIds': _wordToNoteIds.map((k, v) => MapEntry(k, v.toList())),
-    'termFrequency': _termFrequency,
+    _kWordToNoteIds: _wordToNoteIds.map((k, v) => MapEntry(k, v.toList())),
+    _kTermFrequency: _termFrequency,
   };
 
-  /// Import index data from isolate
   void fromJson(Map<String, dynamic> json) {
-    _wordToNoteIds = (json['wordToNoteIds'] as Map<String, dynamic>).map(
+    _wordToNoteIds = (json[_kWordToNoteIds] as Map<String, dynamic>).map(
       (k, v) => MapEntry(k, (v as List).cast<String>().toSet()),
     );
-    _termFrequency = (json['termFrequency'] as Map<String, dynamic>).map(
+    _termFrequency = (json[_kTermFrequency] as Map<String, dynamic>).map(
       (k, v) => MapEntry(k, (v as Map<String, dynamic>).cast<String, int>()),
     );
     _sortedWords = _wordToNoteIds.keys.toList()..sort();
@@ -412,15 +413,14 @@ class FolderSearchService {
         pageSize: 1000,
       );
 
-      // Collect all note data first
-      final notesData = <Map<String, String>>[];
+      final notesData = <NoteIndexData>[];
       for (final metadata in paginatedNotes.notes) {
         final content = await _storageService.loadNoteContent(metadata.id);
-        notesData.add({
-          'id': metadata.id,
-          'title': metadata.title,
-          'content': content,
-        });
+        notesData.add(NoteIndexData(
+          id: metadata.id,
+          title: metadata.title,
+          content: content,
+        ));
       }
 
       // Build index in isolate for large datasets (>50 notes)
@@ -428,13 +428,8 @@ class FolderSearchService {
         final indexData = await compute(_buildIndexInIsolate, notesData);
         _searchIndex.fromJson(indexData);
       } else {
-        // For small datasets, build directly (isolate overhead not worth it)
-        for (final noteData in notesData) {
-          _searchIndex.addNote(
-            noteData['id']!,
-            noteData['title']!,
-            noteData['content']!,
-          );
+        for (final note in notesData) {
+          _searchIndex.addNote(note.id, note.title, note.content);
         }
         _searchIndex.markBuilt();
       }

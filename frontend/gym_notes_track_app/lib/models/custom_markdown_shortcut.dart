@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../constants/json_keys.dart';
+
 class CustomMarkdownShortcut extends Equatable {
   final String id;
   final String label;
@@ -27,31 +29,31 @@ class CustomMarkdownShortcut extends Equatable {
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'label': label,
-      'iconCodePoint': iconCodePoint,
-      'iconFontFamily': iconFontFamily,
-      'beforeText': beforeText,
-      'afterText': afterText,
-      'isDefault': isDefault,
-      'isVisible': isVisible,
-      'insertType': insertType,
-      if (dateFormat != null) 'dateFormat': dateFormat,
+      JsonKeys.id: id,
+      JsonKeys.label: label,
+      JsonKeys.iconCodePoint: iconCodePoint,
+      JsonKeys.iconFontFamily: iconFontFamily,
+      JsonKeys.beforeText: beforeText,
+      JsonKeys.afterText: afterText,
+      JsonKeys.isDefault: isDefault,
+      JsonKeys.isVisible: isVisible,
+      JsonKeys.insertType: insertType,
+      if (dateFormat != null) JsonKeys.dateFormat: dateFormat,
     };
   }
 
   factory CustomMarkdownShortcut.fromJson(Map<String, dynamic> json) {
     return CustomMarkdownShortcut(
-      id: json['id'] as String,
-      label: json['label'] as String,
-      iconCodePoint: json['iconCodePoint'] as int,
-      iconFontFamily: json['iconFontFamily'] as String,
-      beforeText: json['beforeText'] as String,
-      afterText: json['afterText'] as String,
-      isDefault: json['isDefault'] as bool? ?? false,
-      isVisible: json['isVisible'] as bool? ?? true,
-      insertType: json['insertType'] as String? ?? 'wrap',
-      dateFormat: json['dateFormat'] as String?,
+      id: json[JsonKeys.id] as String,
+      label: json[JsonKeys.label] as String,
+      iconCodePoint: json[JsonKeys.iconCodePoint] as int,
+      iconFontFamily: json[JsonKeys.iconFontFamily] as String,
+      beforeText: json[JsonKeys.beforeText] as String,
+      afterText: json[JsonKeys.afterText] as String,
+      isDefault: json[JsonKeys.isDefault] as bool? ?? false,
+      isVisible: json[JsonKeys.isVisible] as bool? ?? true,
+      insertType: json[JsonKeys.insertType] as String? ?? 'wrap',
+      dateFormat: json[JsonKeys.dateFormat] as String?,
     );
   }
 

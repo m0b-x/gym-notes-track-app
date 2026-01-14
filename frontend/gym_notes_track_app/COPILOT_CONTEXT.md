@@ -46,6 +46,7 @@ lib/
 │   ├── app_spacing.dart      # Spacing constants
 │   ├── app_text_styles.dart  # Text style constants
 │   ├── font_constants.dart   # Font constants
+│   ├── json_keys.dart        # JSON serialization keys
 │   └── markdown_constants.dart # Markdown styling constants
 ├── database/                 # Drift database, DAOs, CRDT
 │   ├── database.dart         # AppDatabase singleton (background isolate)
@@ -59,11 +60,11 @@ lib/
 ├── models/                   # Folder, Note, NoteMetadata, CustomMarkdownShortcut
 ├── services/                 # FolderStorage, NoteStorage, Search, AutoSave, Loading, Settings, DatabaseManager, LegacyNoteSearch
 ├── pages/                    # OptimizedFolderContentPage, OptimizedNoteEditorPage, SearchPage, MarkdownSettingsPage, DatabaseSettingsPage, ControlsSettingsPage
-├── widgets/                  # MarkdownToolbar, InfiniteScrollList, AppDrawer, UnifiedAppBars (FolderAppBar, NoteAppBar, SettingsAppBar, SearchAppBar), InteractiveMarkdown, ReNoteEditor, ModernNoteEditor, NoteSearchBar, ScrollProgressIndicator, IconPickerDialog, ShortcutEditorDialog, etc.
+├── widgets/                  # MarkdownToolbar, InfiniteScrollList, AppDrawer, UnifiedAppBars (FolderAppBar, NoteAppBar, SettingsAppBar, SearchAppBar), InteractiveMarkdown, NoteSearchBar, ScrollProgressIndicator, IconPickerDialog, ShortcutEditorDialog, etc.
 ├── l10n/                     # app_en.arb, app_de.arb, app_ro.arb
 ├── config/                   # default_markdown_shortcuts, available_icons
 ├── handlers/                 # date/default/header_shortcut_handler
-├── utils/                    # compression, text_history, bloc_helpers, lru_cache, legacy_note_search_controller, re_editor_search_controller, markdown_settings_utils, scroll_position_sync, icon_utils, dialog_helpers, custom_snackbar, isolate_worker
+├── utils/                    # compression, text_history, bloc_helpers, lru_cache, legacy_note_search_controller, re_editor_search_controller, markdown_settings_utils, scroll_position_sync, icon_utils, dialog_helpers, custom_snackbar, isolate_worker, text_position_utils, markdown_list_utils
 ├── factories/                # shortcut_handler_factory
 └── main.dart
 ```

@@ -24,6 +24,7 @@ import '../widgets/unified_app_bars.dart';
 import '../utils/bloc_helpers.dart';
 import '../utils/custom_snackbar.dart';
 import '../constants/app_colors.dart';
+import '../constants/json_keys.dart';
 import 'optimized_note_editor_page.dart';
 import 'search_page.dart';
 
@@ -1453,11 +1454,11 @@ class _NoteCard extends StatelessWidget {
         case 'json':
           extension = 'json';
           final noteJson = {
-            'title': metadata.title,
-            'content': content,
-            'createdAt': metadata.createdAt.toIso8601String(),
-            'updatedAt': metadata.updatedAt.toIso8601String(),
-            'exportedAt': DateTime.now().toIso8601String(),
+            JsonKeys.title: metadata.title,
+            JsonKeys.content: content,
+            JsonKeys.createdAt: metadata.createdAt.toIso8601String(),
+            JsonKeys.updatedAt: metadata.updatedAt.toIso8601String(),
+            JsonKeys.exportedAt: DateTime.now().toIso8601String(),
           };
           fileContent = const JsonEncoder.withIndent('  ').convert(noteJson);
           break;

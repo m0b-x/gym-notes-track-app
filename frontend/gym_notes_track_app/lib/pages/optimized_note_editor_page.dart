@@ -27,11 +27,14 @@ import '../widgets/app_drawer.dart';
 import '../widgets/unified_app_bars.dart';
 import '../utils/re_editor_search_controller.dart';
 import '../utils/scroll_position_sync.dart';
+import '../utils/text_position_utils.dart';
+import '../utils/markdown_list_utils.dart';
 import '../config/default_markdown_shortcuts.dart';
 import '../database/database.dart';
 import '../constants/app_constants.dart';
 import '../constants/app_spacing.dart';
 import '../constants/font_constants.dart';
+import '../constants/json_keys.dart';
 import '../constants/markdown_constants.dart';
 import '../constants/settings_keys.dart';
 import 'markdown_settings_page.dart';
@@ -85,7 +88,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   int _cachedCharCount = 0;
 
   Timer? _lineCountDebounceTimer;
-  Timer? _searchContentDebounceTimer;
   int _lastLineCountTextLength = 0;
 
   bool get _useVirtualPreview =>
@@ -112,7 +114,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     );
 
     _titleController.addListener(_onTextChanged);
-    _contentController.addListener(_onContentChanged);
+    _contentController.addListener(_onTextChanged);
 
     if (widget.noteId != null) {
       _loadNoteContent();
@@ -124,11 +126,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _initializeAutoSave();
     _loadFontSizes();
 
-    // Keyboard hidden by default - user taps editor to open
-  }
-
-  void _onContentChanged() {
-    _onTextChanged();
   }
 
   Future<void> _loadFontSizes() async {
@@ -237,7 +234,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     }
 
     _debouncedLineCountUpdate();
-    _throttledSearchContentUpdate();
 
     if (widget.noteId != null) {
       _autoSaveService?.onContentChanged(
@@ -264,16 +260,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       _updateCachedStats();
       _lastLineCountTextLength = _contentController.text.length;
     });
-  }
-
-  void _throttledSearchContentUpdate() {
-    // No-op: CodeFindController automatically tracks content changes
-    // This method kept for compatibility but does nothing now
-  }
-
-  /// Gets the current content
-  String _getCurrentContent() {
-    return _contentController.text;
   }
 
   void _updateCachedStats() {
@@ -309,7 +295,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   @override
   void dispose() {
     _lineCountDebounceTimer?.cancel();
-    _searchContentDebounceTimer?.cancel();
     _autoSaveService?.stopTracking(widget.noteId ?? '');
     _autoSaveService?.dispose();
     _titleController.dispose();
@@ -323,11 +308,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
   void _toggleSearch() {
     if (_searchController.isSearching) {
-      _searchContentDebounceTimer?.cancel();
       _searchController.closeSearch();
     } else {
       _searchController.openSearch();
-      // Note: updateContent is no-op now as CodeFindController auto-tracks content
     }
     setState(() {});
   }
@@ -340,10 +323,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     } else {
       if (match != null) {
         final text = _contentController.text;
-        final startLine = _getLineFromOffset(text, match.start);
-        final startCol = _getColumnFromOffset(text, match.start);
-        final endLine = _getLineFromOffset(text, match.end);
-        final endCol = _getColumnFromOffset(text, match.end);
+        final startLine = TextPositionUtils.getLineFromOffset(text, match.start);
+        final startCol = TextPositionUtils.getColumnFromOffset(text, match.start);
+        final endLine = TextPositionUtils.getLineFromOffset(text, match.end);
+        final endCol = TextPositionUtils.getColumnFromOffset(text, match.end);
 
         switch (_searchCursorBehavior) {
           case SearchCursorBehavior.start:
@@ -372,26 +355,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     }
   }
 
-  int _getLineFromOffset(String text, int offset) {
-    int line = 0;
-    for (int i = 0; i < offset && i < text.length; i++) {
-      if (text.codeUnitAt(i) == 10) line++;
-    }
-    return line;
-  }
-
-  int _getColumnFromOffset(String text, int offset) {
-    int lastNewline = text.lastIndexOf('\n', offset - 1);
-    return offset - (lastNewline + 1);
-  }
-
-  /// Efficiently toggle checkbox by replacing only the bracket characters
   void _handleCheckboxToggle(CheckboxToggleInfo info) {
     final text = _contentController.text;
-    final startLine = _getLineFromOffset(text, info.start);
-    final startCol = _getColumnFromOffset(text, info.start);
-    final endLine = _getLineFromOffset(text, info.end);
-    final endCol = _getColumnFromOffset(text, info.end);
+    final startLine = TextPositionUtils.getLineFromOffset(text, info.start);
+    final startCol = TextPositionUtils.getColumnFromOffset(text, info.start);
+    final endLine = TextPositionUtils.getLineFromOffset(text, info.end);
+    final endCol = TextPositionUtils.getColumnFromOffset(text, info.end);
 
     // Select the checkbox bracket range [x] or [ ]
     _contentController.selection = CodeLineSelection(
@@ -445,7 +414,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       final prevLineIndex = currentLineIndex - 1;
       final prevLine = _contentController.codeLines[prevLineIndex].text;
 
-      if (_isEmptyListItem(prevLine.trim())) {
+      if (MarkdownListUtils.isEmptyListItem(prevLine.trim())) {
         // Remove the empty list item line
         final newText = text.replaceRange(
           _getLineStartOffset(prevLineIndex),
@@ -462,7 +431,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         return;
       }
 
-      String? listPrefix = _getListPrefix(prevLine);
+      String? listPrefix = MarkdownListUtils.getListPrefix(prevLine);
       if (listPrefix != null) {
         // Insert the list prefix at the current position
         _contentController.replaceSelection(listPrefix);
@@ -472,41 +441,13 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     }
   }
 
-  /// Get the character offset where a given line starts in the full text
   int _getLineStartOffset(int lineIndex) {
     int offset = 0;
     final codeLines = _contentController.codeLines;
     for (int i = 0; i < lineIndex && i < codeLines.length; i++) {
-      offset += codeLines[i].text.length + 1; // +1 for newline
+      offset += codeLines[i].text.length + 1;
     }
     return offset;
-  }
-
-  bool _isEmptyListItem(String line) {
-    line = line.trim();
-    final emptyPatterns = ['•', '-', '- [ ]', '- [x]', '- [X]'];
-    for (var pattern in emptyPatterns) {
-      if (line == pattern) return true;
-    }
-    final numberedPattern = RegExp(r'^\d+\.$');
-    return numberedPattern.hasMatch(line);
-  }
-
-  String? _getListPrefix(String line) {
-    line = line.trimLeft();
-
-    if (line.startsWith('• ')) return '• ';
-    if (line.startsWith('- ') && !line.startsWith('- [')) return '- ';
-    if (line.startsWith('- [ ] ')) return '- [ ] ';
-    if (line.startsWith('- [x] ') || line.startsWith('- [X] ')) return '- [ ] ';
-
-    final numberedMatch = RegExp(r'^(\d+)\.\s').firstMatch(line);
-    if (numberedMatch != null) {
-      final currentNumber = int.parse(numberedMatch.group(1)!);
-      return '${currentNumber + 1}. ';
-    }
-
-    return null;
   }
 
   @override
@@ -762,41 +703,28 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         ? AppLocalizations.of(context)!.noContentYet
         : _contentController.text;
 
-    if (_useVirtualPreview) {
-      return Stack(
-        key: const ValueKey('preview'),
-        children: [
-          EfficientMarkdownView(
+    final markdownView = _useVirtualPreview
+        ? EfficientMarkdownView(
             data: content,
             selectable: true,
             scrollController: _previewScrollController,
             styleSheet: _getPreviewStyleSheet(),
             padding: const EdgeInsets.all(AppSpacing.lg),
             onCheckboxToggle: _handleCheckboxToggle,
-          ),
-          Positioned(
-            top: 8,
-            bottom: 8,
-            right: 0,
-            child: ScrollProgressIndicator(
-              scrollController: _previewScrollController,
-            ),
-          ),
-        ],
-      );
-    }
+          )
+        : InteractiveMarkdown(
+            data: content,
+            selectable: true,
+            scrollController: _previewScrollController,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            styleSheet: _getPreviewStyleSheet(),
+            onCheckboxToggle: _handleCheckboxToggle,
+          );
 
     return Stack(
       key: const ValueKey('preview'),
       children: [
-        InteractiveMarkdown(
-          data: content,
-          selectable: true,
-          scrollController: _previewScrollController,
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          styleSheet: _getPreviewStyleSheet(),
-          onCheckboxToggle: _handleCheckboxToggle,
-        ),
+        markdownView,
         Positioned(
           top: 8,
           bottom: 8,
@@ -860,7 +788,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _contentFocusNode.unfocus();
 
     final title = _titleController.text.trim();
-    final content = _getCurrentContent().trim();
+    final content = _contentController.text.trim();
 
     if (title.isEmpty && content.isEmpty) {
       return;
@@ -940,7 +868,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
     try {
       final title = _titleController.text.trim();
-      final content = _getCurrentContent();
+      final content = _contentController.text;
 
       String fileContent;
       String extension;
@@ -954,15 +882,15 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         case 'json':
           extension = 'json';
           final noteJson = {
-            'title': title,
-            'content': content,
-            'createdAt':
+            JsonKeys.title: title,
+            JsonKeys.content: content,
+            JsonKeys.createdAt:
                 widget.metadata?.createdAt.toIso8601String() ??
                 DateTime.now().toIso8601String(),
-            'updatedAt':
+            JsonKeys.updatedAt:
                 widget.metadata?.updatedAt.toIso8601String() ??
                 DateTime.now().toIso8601String(),
-            'exportedAt': DateTime.now().toIso8601String(),
+            JsonKeys.exportedAt: DateTime.now().toIso8601String(),
           };
           fileContent = const JsonEncoder.withIndent('  ').convert(noteJson);
           break;
@@ -1075,7 +1003,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   Future<void> _loadCustomShortcuts() async {
     final db = await AppDatabase.getInstance();
     final shortcutsJson = await db.userSettingsDao.getValue(
-      'markdown_shortcuts',
+       SettingsKeys.markdownShortcuts,
     );
 
     final defaults = DefaultMarkdownShortcuts.shortcuts;
@@ -1119,22 +1047,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   Future<void> _saveShortcutsOrder() async {
-    try {
-      final db = await AppDatabase.getInstance();
-      final shortcutsJson = _allShortcuts
-          .map((shortcut) => shortcut.toJson())
-          .toList();
-      await db.userSettingsDao.setValue(
-        'markdown_shortcuts',
-        jsonEncode(shortcutsJson),
-      );
-      debugPrint(
-        '[NoteEditor] Shortcuts order saved (${_allShortcuts.length} items)',
-      );
-    } catch (e, stackTrace) {
-      debugPrint('[NoteEditor] ERROR saving shortcuts order: $e');
-      debugPrintStack(stackTrace: stackTrace, maxFrames: 5);
-    }
+    final db = await AppDatabase.getInstance();
+    final shortcutsJson = _allShortcuts.map((s) => s.toJson()).toList();
+    await db.userSettingsDao.setValue(
+      SettingsKeys.markdownShortcuts,
+      jsonEncode(shortcutsJson),
+    );
   }
 
   Future<void> _openMarkdownSettings() async {
@@ -1146,18 +1064,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     );
 
     if (result != null) {
-      setState(() {
-        _allShortcuts = result;
-      });
-
-      final db = await AppDatabase.getInstance();
-      final shortcutsJson = result
-          .map((shortcut) => shortcut.toJson())
-          .toList();
-      await db.userSettingsDao.setValue(
-        'markdown_shortcuts',
-        jsonEncode(shortcutsJson),
-      );
+      setState(() => _allShortcuts = result);
+      await _saveShortcutsOrder();
     }
   }
 }
