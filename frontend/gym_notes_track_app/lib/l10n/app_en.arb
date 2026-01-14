@@ -3,6 +3,67 @@
   "@appTitle": {
     "description": "The title of the application"
   },
+  "welcomeToGymNotes": "Welcome to Gym Notes",
+  "@welcomeToGymNotes": {
+    "description": "Welcome message on onboarding screen"
+  },
+  "onboardingDescription": "Track your workouts and notes in one place. Get started by creating a fresh workspace or restore from a previous backup.",
+  "@onboardingDescription": {
+    "description": "Description on onboarding screen"
+  },
+  "startFresh": "Start Fresh",
+  "@startFresh": {
+    "description": "Button to start with empty workspace"
+  },
+  "restoreFromBackup": "Restore from Backup",
+  "@restoreFromBackup": {
+    "description": "Button to restore from backup file"
+  },
+  "confirmImport": "Confirm Import",
+  "@confirmImport": {
+    "description": "Title for import confirmation dialog"
+  },
+  "backupContains": "This backup contains:",
+  "@backupContains": {
+    "description": "Label before listing backup contents"
+  },
+  "exportedOn": "Exported on: {date}",
+  "@exportedOn": {
+    "description": "Shows when backup was exported",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "import": "Import",
+  "@import": {
+    "description": "Button to import data"
+  },
+  "importSuccess": "Successfully imported {folders} folders and {notes} notes",
+  "@importSuccess": {
+    "description": "Success message after import",
+    "placeholders": {
+      "folders": {
+        "type": "int"
+      },
+      "notes": {
+        "type": "int"
+      }
+    }
+  },
+  "importFailed": "Import failed",
+  "@importFailed": {
+    "description": "Error message when import fails"
+  },
+  "invalidBackupFile": "Invalid backup file",
+  "@invalidBackupFile": {
+    "description": "Error message for invalid backup file"
+  },
+  "exportBackup": "Export Backup",
+  "@exportBackup": {
+    "description": "Button to export all data as backup"
+  },
   "folders": "Folders",
   "@folders": {
     "description": "Label for folders section"

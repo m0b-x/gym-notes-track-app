@@ -12,6 +12,47 @@ class AppLocalizationsRo extends AppLocalizations {
   String get appTitle => 'Gym Notes';
 
   @override
+  String get welcomeToGymNotes => 'Bine ai venit la Gym Notes';
+
+  @override
+  String get onboardingDescription =>
+      'Urmărește-ți antrenamentele și notițele într-un singur loc. Începe cu un spațiu de lucru nou sau restaurează dintr-un backup anterior.';
+
+  @override
+  String get startFresh => 'Începe de la zero';
+
+  @override
+  String get restoreFromBackup => 'Restaurează din Backup';
+
+  @override
+  String get confirmImport => 'Confirmă Importul';
+
+  @override
+  String get backupContains => 'Acest backup conține:';
+
+  @override
+  String exportedOn(String date) {
+    return 'Exportat la: $date';
+  }
+
+  @override
+  String get import => 'Importă';
+
+  @override
+  String importSuccess(int folders, int notes) {
+    return '$folders foldere și $notes notițe importate cu succes';
+  }
+
+  @override
+  String get importFailed => 'Import eșuat';
+
+  @override
+  String get invalidBackupFile => 'Fișier backup invalid';
+
+  @override
+  String get exportBackup => 'Exportă Backup';
+
+  @override
   String get folders => 'Foldere';
 
   @override

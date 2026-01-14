@@ -3,6 +3,18 @@
   "@appTitle": {
     "description": "The title of the application"
   },
+  "welcomeToGymNotes": "Willkommen bei Gym Notizen",
+  "onboardingDescription": "Verfolge deine Trainings und Notizen an einem Ort. Starte mit einem neuen Arbeitsbereich oder stelle ein vorheriges Backup wieder her.",
+  "startFresh": "Neu starten",
+  "restoreFromBackup": "Aus Backup wiederherstellen",
+  "confirmImport": "Import bestätigen",
+  "backupContains": "Dieses Backup enthält:",
+  "exportedOn": "Exportiert am: {date}",
+  "import": "Importieren",
+  "importSuccess": "{folders} Ordner und {notes} Notizen erfolgreich importiert",
+  "importFailed": "Import fehlgeschlagen",
+  "invalidBackupFile": "Ungültige Backup-Datei",
+  "exportBackup": "Backup exportieren",
   "folders": "Ordner",
   "@folders": {
     "description": "Label for folders section"

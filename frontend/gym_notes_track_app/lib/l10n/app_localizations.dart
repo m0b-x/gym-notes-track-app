@@ -106,6 +106,78 @@ abstract class AppLocalizations {
   /// **'Gym Notes'**
   String get appTitle;
 
+  /// Welcome message on onboarding screen
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Gym Notes'**
+  String get welcomeToGymNotes;
+
+  /// Description on onboarding screen
+  ///
+  /// In en, this message translates to:
+  /// **'Track your workouts and notes in one place. Get started by creating a fresh workspace or restore from a previous backup.'**
+  String get onboardingDescription;
+
+  /// Button to start with empty workspace
+  ///
+  /// In en, this message translates to:
+  /// **'Start Fresh'**
+  String get startFresh;
+
+  /// Button to restore from backup file
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from Backup'**
+  String get restoreFromBackup;
+
+  /// Title for import confirmation dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Import'**
+  String get confirmImport;
+
+  /// Label before listing backup contents
+  ///
+  /// In en, this message translates to:
+  /// **'This backup contains:'**
+  String get backupContains;
+
+  /// Shows when backup was exported
+  ///
+  /// In en, this message translates to:
+  /// **'Exported on: {date}'**
+  String exportedOn(String date);
+
+  /// Button to import data
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get import;
+
+  /// Success message after import
+  ///
+  /// In en, this message translates to:
+  /// **'Successfully imported {folders} folders and {notes} notes'**
+  String importSuccess(int folders, int notes);
+
+  /// Error message when import fails
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed'**
+  String get importFailed;
+
+  /// Error message for invalid backup file
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid backup file'**
+  String get invalidBackupFile;
+
+  /// Button to export all data as backup
+  ///
+  /// In en, this message translates to:
+  /// **'Export Backup'**
+  String get exportBackup;
+
   /// Label for folders section
   ///
   /// In en, this message translates to:

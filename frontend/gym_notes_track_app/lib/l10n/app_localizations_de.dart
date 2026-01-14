@@ -12,6 +12,47 @@ class AppLocalizationsDe extends AppLocalizations {
   String get appTitle => 'Gym Notizen';
 
   @override
+  String get welcomeToGymNotes => 'Willkommen bei Gym Notizen';
+
+  @override
+  String get onboardingDescription =>
+      'Verfolge deine Trainings und Notizen an einem Ort. Starte mit einem neuen Arbeitsbereich oder stelle ein vorheriges Backup wieder her.';
+
+  @override
+  String get startFresh => 'Neu starten';
+
+  @override
+  String get restoreFromBackup => 'Aus Backup wiederherstellen';
+
+  @override
+  String get confirmImport => 'Import bestätigen';
+
+  @override
+  String get backupContains => 'Dieses Backup enthält:';
+
+  @override
+  String exportedOn(String date) {
+    return 'Exportiert am: $date';
+  }
+
+  @override
+  String get import => 'Importieren';
+
+  @override
+  String importSuccess(int folders, int notes) {
+    return '$folders Ordner und $notes Notizen erfolgreich importiert';
+  }
+
+  @override
+  String get importFailed => 'Import fehlgeschlagen';
+
+  @override
+  String get invalidBackupFile => 'Ungültige Backup-Datei';
+
+  @override
+  String get exportBackup => 'Backup exportieren';
+
+  @override
   String get folders => 'Ordner';
 
   @override

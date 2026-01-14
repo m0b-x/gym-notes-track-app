@@ -194,4 +194,12 @@ class SettingsService {
   Future<void> setShowCursorLine(bool value) async {
     await _setBool(SettingsKeys.showCursorLine, value);
   }
+
+  Future<bool> isOnboardingCompleted() async {
+    return _getBool(SettingsKeys.onboardingCompleted, false);
+  }
+
+  Future<void> setOnboardingCompleted(bool value) async {
+    await _setBool(SettingsKeys.onboardingCompleted, value);
+  }
 }

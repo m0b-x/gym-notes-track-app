@@ -8,6 +8,8 @@ import 'bloc/optimized_folder/optimized_folder_bloc.dart';
 import 'bloc/optimized_note/optimized_note_bloc.dart';
 import 'core/di/injection.dart';
 import 'pages/optimized_folder_content_page.dart';
+import 'pages/onboarding_page.dart';
+import 'services/settings_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,8 +27,33 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool? _showOnboarding;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkOnboarding();
+  }
+
+  Future<void> _checkOnboarding() async {
+    final settings = await SettingsService.getInstance();
+    final completed = await settings.isOnboardingCompleted();
+    if (mounted) {
+      setState(() => _showOnboarding = !completed);
+    }
+  }
+
+  void _onOnboardingComplete() {
+    setState(() => _showOnboarding = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,13 +90,27 @@ class MyApp extends StatelessWidget {
               ),
               useMaterial3: true,
             ),
-            home: const OptimizedFolderContentPage(
-              folderId: null,
-              title: 'Gym Notes',
-            ),
+            home: _buildHome(),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildHome() {
+    if (_showOnboarding == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_showOnboarding!) {
+      return OnboardingPage(onComplete: _onOnboardingComplete);
+    }
+
+    return const OptimizedFolderContentPage(
+      folderId: null,
+      title: 'Gym Notes',
     );
   }
 }

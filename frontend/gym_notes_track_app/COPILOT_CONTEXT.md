@@ -22,7 +22,7 @@ Gym Notes is a mobile note-taking app designed for gym/workout tracking. It feat
 - USE modern designs only
 
 ## Stack
-flutter_bloc, drift, sqlite3_flutter_libs, path_provider, flutter_markdown_plus, uuid, equatable, flutter_localizations (EN/DE/RO), get_it, share_plus, shared_preferences, stream_transform, re_editor
+flutter_bloc, drift, sqlite3_flutter_libs, path_provider, flutter_markdown_plus, uuid, equatable, flutter_localizations (EN/DE/RO), get_it, share_plus, shared_preferences, stream_transform, re_editor, file_picker
 
 ## Architecture
 ```
@@ -58,8 +58,8 @@ lib/
 │   ├── note_repository.dart  # NoteRepository with streams
 │   └── folder_repository.dart
 ├── models/                   # Folder, Note, NoteMetadata, CustomMarkdownShortcut, NoteIndexData
-├── services/                 # FolderStorage, NoteStorage, Search, AutoSave, Loading, Settings, DatabaseManager, LegacyNoteSearch
-├── pages/                    # OptimizedFolderContentPage, OptimizedNoteEditorPage, SearchPage, MarkdownSettingsPage, DatabaseSettingsPage, ControlsSettingsPage
+├── services/                 # FolderStorage, NoteStorage, Search, AutoSave, Loading, Settings, DatabaseManager, LegacyNoteSearch, BackupService
+├── pages/                    # OptimizedFolderContentPage, OptimizedNoteEditorPage, SearchPage, MarkdownSettingsPage, DatabaseSettingsPage, ControlsSettingsPage, OnboardingPage
 ├── widgets/                  # MarkdownToolbar, InfiniteScrollList, AppDrawer, UnifiedAppBars (FolderAppBar, NoteAppBar, SettingsAppBar, SearchAppBar), InteractiveMarkdown, NoteSearchBar, ScrollProgressIndicator, IconPickerDialog, ShortcutEditorDialog, etc.
 ├── l10n/                     # app_en.arb, app_de.arb, app_ro.arb
 ├── config/                   # default_markdown_shortcuts, available_icons
@@ -395,6 +395,34 @@ getIt<NoteRepository>().noteChanges.listen((change) {
 - **FolderSearchService**: Cross-note full-text search with indexing
 - **SettingsService**: User preferences (swipe gestures, haptic feedback, auto-save, preview, theme, locale)
 - **CustomMarkdownShortcut**: User-configurable markdown toolbar shortcuts
+- **BackupService**: Full data export/import for backup and restore
+
+## Onboarding & Backup
+```dart
+// First launch detection (in main.dart)
+final settings = await SettingsService.getInstance();
+final completed = await settings.isOnboardingCompleted();
+// Shows OnboardingPage if not completed
+
+// Export all data as backup
+final backupService = await BackupService.getInstance();
+await backupService.shareBackup();  // Share backup JSON file
+
+// Validate backup before import
+final validation = await backupService.validateBackup(jsonString);
+if (validation.isValid) {
+  print('Folders: ${validation.folderCount}, Notes: ${validation.noteCount}');
+}
+
+// Import backup
+final result = await backupService.importFromJson(jsonString);
+if (result.success) {
+  print('Imported ${result.foldersImported} folders, ${result.notesImported} notes');
+}
+
+// Check if user has existing data
+final hasData = await backupService.hasExistingData();
+```
 
 ## Sync (Future)
 ```dart

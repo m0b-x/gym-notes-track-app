@@ -1,5 +1,8 @@
 import 'app_constants.dart';
 class SettingsKeys {
+  // Onboarding
+  static const String onboardingCompleted = 'onboarding_completed';
+
   // Font settings
   static const String previewFontSize = 'preview_font_size';
   static const String editorFontSize = 'editor_font_size';

@@ -60,6 +60,9 @@ dependencies:
   
   # High-performance text editor
   re_editor: ^0.8.0
+  
+  # File picker for backup import
+  file_picker: ^9.2.0
 
 dev_dependencies:
   flutter_test:
