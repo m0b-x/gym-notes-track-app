@@ -234,9 +234,7 @@ class NoteRepository {
   Future<void> deleteNote(String noteId) async {
     final note = await getNoteById(noteId);
 
-    // Soft delete chunks for CRDT sync consistency
-    await _chunkDao.softDeleteChunksForNote(noteId);
-    await _noteDao.softDeleteNote(noteId);
+    await _noteDao.softDeleteNoteWithChunks(noteId);
 
     _noteCache.remove(noteId);
     _contentCache.remove(noteId);
@@ -297,6 +295,15 @@ class NoteRepository {
       }
       _folderNotesCache[folderId] = notes;
       return notes;
+    });
+  }
+
+  Stream<Note?> watchNoteById(String id) {
+    return _noteDao.watchNoteById(id).map((note) {
+      if (note != null) {
+        _noteCache.put(note.id, note);
+      }
+      return note;
     });
   }
 

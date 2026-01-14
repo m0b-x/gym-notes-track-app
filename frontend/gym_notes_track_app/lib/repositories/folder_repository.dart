@@ -320,6 +320,25 @@ class FolderRepository {
     _invalidateParentCache(remote.parentId);
   }
 
+  Stream<List<Folder>> watchFoldersByParent(String? parentId) {
+    return _folderDao.watchFoldersByParent(parentId).map((folders) {
+      for (final folder in folders) {
+        _folderCache[folder.id] = folder;
+      }
+      _parentFoldersCache[parentId] = folders;
+      return folders;
+    });
+  }
+
+  Stream<Folder?> watchFolderById(String id) {
+    return _folderDao.watchFolderById(id).map((folder) {
+      if (folder != null) {
+        _folderCache[folder.id] = folder;
+      }
+      return folder;
+    });
+  }
+
   void _invalidateParentCache(String? parentId) {
     _parentFoldersCache.remove(parentId);
     _countCache.remove(parentId);

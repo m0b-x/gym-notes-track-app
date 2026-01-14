@@ -484,6 +484,17 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
     query.orderBy([(n) => OrderingTerm.desc(n.updatedAt)]);
     return query.watch();
   }
+
+  Stream<Note?> watchNoteById(String id) {
+    return (select(notes)..where((n) => n.id.equals(id))).watchSingleOrNull();
+  }
+
+  Future<void> softDeleteNoteWithChunks(String noteId) async {
+    await transaction(() async {
+      await db.contentChunkDao.softDeleteChunksForNote(noteId);
+      await softDeleteNote(noteId);
+    });
+  }
 }
 
 enum NoteSortField { title, createdAt, updatedAt, position }

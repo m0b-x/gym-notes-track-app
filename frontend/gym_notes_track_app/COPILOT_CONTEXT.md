@@ -57,7 +57,7 @@ lib/
 ├── repositories/             # Cached + reactive data layer
 │   ├── note_repository.dart  # NoteRepository with streams
 │   └── folder_repository.dart
-├── models/                   # Folder, Note, NoteMetadata, CustomMarkdownShortcut
+├── models/                   # Folder, Note, NoteMetadata, CustomMarkdownShortcut, NoteIndexData
 ├── services/                 # FolderStorage, NoteStorage, Search, AutoSave, Loading, Settings, DatabaseManager, LegacyNoteSearch
 ├── pages/                    # OptimizedFolderContentPage, OptimizedNoteEditorPage, SearchPage, MarkdownSettingsPage, DatabaseSettingsPage, ControlsSettingsPage
 ├── widgets/                  # MarkdownToolbar, InfiniteScrollList, AppDrawer, UnifiedAppBars (FolderAppBar, NoteAppBar, SettingsAppBar, SearchAppBar), InteractiveMarkdown, NoteSearchBar, ScrollProgressIndicator, IconPickerDialog, ShortcutEditorDialog, etc.
@@ -123,12 +123,16 @@ await noteRepo.getNotesByFolder(folderId);         // Cached
 await noteRepo.createNote(...);                    // Emits NoteChange
 noteRepo.noteChanges.listen((change) { ... });     // Reactive stream
 noteRepo.noteChangesForFolder(folderId);           // Filtered stream
+noteRepo.watchNotesByFolder(folderId);             // Drift watch query (auto-updates)
+noteRepo.watchNoteById(id);                        // Watch single note
 
 // FolderRepository  
 final folderRepo = getIt<FolderRepository>();
 await folderRepo.getFolderById(id);                // Cached
 await folderRepo.createFolder(name: n);            // Emits FolderChange
 folderRepo.folderChanges.listen((change) { ... }); // Reactive stream
+folderRepo.watchFoldersByParent(parentId);         // Drift watch query (auto-updates)
+folderRepo.watchFolderById(id);                    // Watch single folder
 
 // Change events
 enum NoteChangeType { created, updated, deleted }
@@ -167,7 +171,8 @@ final db = await AppDatabase.getInstance();
 // Folder operations
 db.folderDao.createFolder(name: 'Workout', parentId: null);
 db.folderDao.getFoldersPaginated(parentId: null, limit: 20, offset: 0, sortField: FolderSortField.name, ascending: true);
-db.folderDao.softDeleteFolderWithDescendants(folderId);
+db.folderDao.softDeleteFolderWithDescendants(folderId);  // Uses transaction
+db.folderDao.reorderFolders(parentId: null, orderedIds: ids);  // Uses transaction
 db.folderDao.mergeFolder(remoteFolder);  // CRDT merge
 
 // Note operations
@@ -175,8 +180,15 @@ db.noteDao.createNote(folderId: id, title: 'Day 1', preview: '...', contentLengt
 db.noteDao.getNotesPaginated(folderId: id, limit: 20, offset: 0, sortField: NoteSortField.updatedAt, ascending: false);
 db.noteDao.searchNotes(query, folderId: id);
 db.noteDao.fullTextSearch(query);  // FTS5
-db.noteDao.softDeleteNote(noteId);
+db.noteDao.softDeleteNoteWithChunks(noteId);  // Uses transaction (note + chunks)
+db.noteDao.reorderNotes(folderId: id, orderedIds: ids);  // Uses transaction
 db.noteDao.mergeNote(remoteNote);  // CRDT merge
+
+// Watch queries (reactive streams from Drift)
+db.noteDao.watchNotesByFolder(folderId);   // Stream<List<Note>>
+db.noteDao.watchNoteById(id);              // Stream<Note?>
+db.folderDao.watchFoldersByParent(parentId);  // Stream<List<Folder>>
+db.folderDao.watchFolderById(id);          // Stream<Folder?>
 
 // Content chunk operations
 db.contentChunkDao.saveContent(noteId: id, content: text);  // Auto-chunks & compresses

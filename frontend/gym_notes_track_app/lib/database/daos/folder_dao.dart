@@ -361,6 +361,22 @@ class FolderDao extends DatabaseAccessor<AppDatabase> with _$FolderDaoMixin {
       db.hlc.update(remoteHlc);
     }
   }
+
+  Stream<List<Folder>> watchFoldersByParent(String? parentId) {
+    final query = select(folders);
+    if (parentId == null) {
+      query.where((f) => f.parentId.isNull());
+    } else {
+      query.where((f) => f.parentId.equals(parentId));
+    }
+    query.where((f) => f.isDeleted.equals(false));
+    query.orderBy([(f) => OrderingTerm.asc(f.name)]);
+    return query.watch();
+  }
+
+  Stream<Folder?> watchFolderById(String id) {
+    return (select(folders)..where((f) => f.id.equals(id))).watchSingleOrNull();
+  }
 }
 
 enum FolderSortField { name, createdAt, updatedAt, position }
