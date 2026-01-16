@@ -54,10 +54,15 @@ class MarkdownSpanBuilder {
   int _sourceOffset = 0;
   final List<_CheckboxData> _checkboxes = [];
 
-  /// Maps list item elements to their checkbox data.
-  /// Pre-computed during buildLazy to ensure correct ordering regardless of
-  /// which order blocks are later rendered (fixes lazy rendering issues).
-  final Map<md.Element, _CheckboxData> _nodeCheckboxMap = {};
+  /// Maps (blockIndex, localCheckboxIndex) to checkbox data.
+  /// Stored as "blockIndex:localIndex" strings to avoid object references.
+  final Map<String, _CheckboxData> _nodeCheckboxMap = {};
+
+  /// Tracks which block we're currently building spans for.
+  int _currentBuildingBlock = -1;
+
+  /// Counter for checkboxes within the current block being built.
+  int _blockCheckboxCounter = 0;
 
   /// Marker for blank lines that should be preserved.
   /// Using a zero-width space sequence that won't appear in normal text.
@@ -110,11 +115,15 @@ class MarkdownSpanBuilder {
 
     final nodes = document.parse(processedSource);
 
-    // Pre-assign checkbox data to nodes in document order.
-    // This ensures correct mapping regardless of lazy rendering order.
-    int checkboxIndex = 0;
-    for (final node in nodes) {
-      checkboxIndex = _assignCheckboxesToNode(node, checkboxIndex);
+    // Pre-assign checkbox data to blocks in document order.
+    // Maps "blockIndex:localCheckboxIndex" to checkbox data.
+    int globalCheckboxIndex = 0;
+    for (int blockIdx = 0; blockIdx < nodes.length; blockIdx++) {
+      globalCheckboxIndex = _assignCheckboxesToBlock(
+        nodes[blockIdx],
+        globalCheckboxIndex,
+        blockIdx,
+      );
     }
 
     return LazyMarkdownBlocks(
@@ -125,25 +134,47 @@ class MarkdownSpanBuilder {
     );
   }
 
-  /// Recursively assigns checkbox data to list item nodes in document order.
-  /// Returns the updated checkbox index.
-  int _assignCheckboxesToNode(md.Node node, int checkboxIndex) {
-    if (node is md.Element) {
-      if (node.tag == 'li' && _hasCheckboxChild(node)) {
-        if (checkboxIndex < _checkboxes.length) {
-          _nodeCheckboxMap[node] = _checkboxes[checkboxIndex];
-          checkboxIndex++;
+  /// Counts checkboxes in a block and assigns their data.
+  int _assignCheckboxesToBlock(
+    md.Node node,
+    int globalCheckboxIndex,
+    int blockIndex,
+  ) {
+    int localIndex = 0;
+
+    void traverse(md.Node n) {
+      if (n is md.Element) {
+        if (n.tag == 'li' && _hasCheckboxChild(n)) {
+          if (globalCheckboxIndex < _checkboxes.length) {
+            _nodeCheckboxMap['$blockIndex:$localIndex'] =
+                _checkboxes[globalCheckboxIndex];
+            globalCheckboxIndex++;
+            localIndex++;
+          }
+        }
+        for (final child in n.children ?? []) {
+          traverse(child);
         }
       }
-      for (final child in node.children ?? []) {
-        checkboxIndex = _assignCheckboxesToNode(child, checkboxIndex);
-      }
     }
-    return checkboxIndex;
+
+    traverse(node);
+    return globalCheckboxIndex;
   }
 
   /// Build spans for a single AST node (called lazily)
-  List<InlineSpan> buildNodeSpans(md.Node node, TextStyle baseStyle) {
+  /// [blockIndex] is used to look up pre-computed checkbox positions.
+  List<InlineSpan> buildNodeSpans(
+    md.Node node,
+    TextStyle baseStyle, [
+    int blockIndex = 0,
+  ]) {
+    _currentBuildingBlock = blockIndex;
+    _blockCheckboxCounter = 0;
+    // Reset source offset for each block since blocks may be built out of order
+    // due to lazy rendering. This allows _findSourceOffset to search from the
+    // beginning of the source for each block.
+    _sourceOffset = 0;
     return _buildNode(node, baseStyle);
   }
 
@@ -637,9 +668,11 @@ class MarkdownSpanBuilder {
     final spans = <InlineSpan>[];
     bool isChecked = false;
 
-    // Look up pre-assigned checkbox data from the map (computed during buildLazy).
-    // This ensures correct positions regardless of lazy rendering order.
-    final checkboxData = _nodeCheckboxMap[element];
+    // Look up pre-assigned checkbox data using block:local index key.
+    // This avoids holding element references and ensures correct positions.
+    final key = '$_currentBuildingBlock:$_blockCheckboxCounter';
+    final checkboxData = _nodeCheckboxMap[key];
+    _blockCheckboxCounter++;
 
     if (element.children != null) {
       for (final child in element.children!) {
@@ -958,7 +991,8 @@ class LazyMarkdownBlocks {
       return spans;
     }
 
-    final spans = builder.buildNodeSpans(node, baseStyle);
+    // Pass block index for checkbox lookup
+    final spans = builder.buildNodeSpans(node, baseStyle, index);
     _cache[index] = spans;
     return spans;
   }

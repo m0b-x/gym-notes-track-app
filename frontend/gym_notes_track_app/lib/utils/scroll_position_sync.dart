@@ -14,8 +14,9 @@ class ScrollPositionSync {
   // Android: 300ms, iOS: 250ms
   static int get _keyboardAnimationMs => Platform.isIOS ? 250 : 300;
 
-  double _savedPreviewOffset = 0.0;
   CodeLineSelection? _savedEditorSelection;
+  int _savedEditorLineIndex = 0;
+  int _savedTotalLines = 1;
 
   ScrollPositionSync({
     required this.previewScrollController,
@@ -32,27 +33,36 @@ class ScrollPositionSync {
   }) {
     if (switchingToPreviewMode) {
       _savedEditorSelection = contentController.selection;
+      // Save line-based position for accurate preview scroll
+      _savedEditorLineIndex = contentController.selection.baseIndex;
+      _savedTotalLines = contentController.lineCount;
     } else {
-      if (previewScrollController.hasClients) {
-        _savedPreviewOffset = previewScrollController.offset;
-      }
+      // Currently no-op: we restore editor based on saved selection,
+      // not on preview scroll position
     }
 
     if (switchingToPreviewMode) {
-      _restorePreview(isMounted);
+      _restorePreviewFromEditorLine(isMounted);
     } else {
       _restoreEditor(isMounted, contentController);
     }
   }
 
-  void _restorePreview(bool Function() isMounted) {
+  /// Restore preview scroll position based on editor line index.
+  /// More accurate than offset-based restoration for varied content.
+  void _restorePreviewFromEditorLine(bool Function() isMounted) {
     void tryRestore() {
       if (!isMounted()) return;
-      if (previewScrollController.hasClients) {
-        final maxScroll = previewScrollController.position.maxScrollExtent;
-        final offset = _savedPreviewOffset.clamp(0.0, maxScroll);
-        previewScrollController.jumpTo(offset);
-      }
+      if (!previewScrollController.hasClients) return;
+      if (_savedTotalLines <= 1) return;
+
+      final maxScroll = previewScrollController.position.maxScrollExtent;
+      if (maxScroll <= 0) return;
+
+      // Use line ratio for more accurate positioning
+      final lineRatio = _savedEditorLineIndex / (_savedTotalLines - 1);
+      final targetOffset = (lineRatio * maxScroll).clamp(0.0, maxScroll);
+      previewScrollController.jumpTo(targetOffset);
     }
 
     Future.delayed(const Duration(milliseconds: 50), tryRestore);
@@ -120,7 +130,8 @@ class ScrollPositionSync {
   }
 
   void reset() {
-    _savedPreviewOffset = 0.0;
     _savedEditorSelection = null;
+    _savedEditorLineIndex = 0;
+    _savedTotalLines = 1;
   }
 }
