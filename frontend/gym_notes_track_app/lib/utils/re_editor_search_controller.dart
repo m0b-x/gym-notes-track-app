@@ -248,11 +248,18 @@ class ReEditorSearchController extends ChangeNotifier {
   }
 
   /// Update content for preview mode search
+  /// Always performs preview search so matches are ready when switching modes
   void updateContent(String content) {
     _previewContent = content;
-    // Re-run search if we have a query
-    if (_currentQuery.isNotEmpty && !_hasFindController) {
+    // Always re-run preview search if we have a query
+    // This ensures matches are ready when switching from edit to preview mode
+    if (_currentQuery.isNotEmpty) {
       _performPreviewSearch();
+      // Only notify if we're not using the find controller
+      // (otherwise the UI would show incorrect results)
+      if (!_hasFindController) {
+        notifyListeners();
+      }
     }
   }
 

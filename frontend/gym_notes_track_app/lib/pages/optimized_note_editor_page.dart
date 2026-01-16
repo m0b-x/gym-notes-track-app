@@ -278,19 +278,21 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       contentController: _contentController,
     );
 
-    // Re-trigger search when switching modes to ensure matches are found
+    // Handle search when switching modes
     if (_searchController.isSearching && _searchController.query.isNotEmpty) {
       final currentQuery = _searchController.query;
       if (switchingToPreview) {
-        // Update content for preview mode search
+        // Update content for preview mode search - this pre-computes matches
         _searchController.updateContent(_contentController.text);
+        // Schedule search re-trigger after mode switch completes
+        // This ensures the find controller is cleared before preview search runs
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _searchController.search(currentQuery);
+          }
+        });
       }
-      // Schedule search re-trigger after mode switch completes
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _searchController.search(currentQuery);
-        }
-      });
+      // When switching to edit mode, setFindController handles restoring search
     }
 
     setState(() {
@@ -724,12 +726,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         styleSheet: _getPreviewStyleSheet(),
         padding: const EdgeInsets.all(AppSpacing.lg),
         onCheckboxToggle: _handleCheckboxToggle,
-        // Pass search state for highlighting
-        searchQuery: _searchController.isSearching
-            ? _searchController.query
-            : null,
-        currentMatchIndex: _searchController.currentMatchIndex,
-        caseSensitive: _searchController.caseSensitive,
       ),
     );
 

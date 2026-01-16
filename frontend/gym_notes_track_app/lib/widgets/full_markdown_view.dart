@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-import '../constants/app_spacing.dart';
 import '../constants/font_constants.dart';
 import '../constants/markdown_constants.dart';
 
-/// Info for efficient checkbox toggle via replaceRange
 class CheckboxToggleInfo {
   final int start;
   final int end;
@@ -17,18 +15,6 @@ class CheckboxToggleInfo {
   });
 }
 
-/// Search match for preview mode
-class PreviewSearchMatch {
-  final int start;
-  final int end;
-
-  const PreviewSearchMatch({required this.start, required this.end});
-
-  int get length => end - start;
-}
-
-/// Full-featured markdown view using flutter_markdown_plus
-/// with custom checkbox handling for toggle callbacks and search highlighting
 class FullMarkdownView extends StatefulWidget {
   final String data;
   final Function(CheckboxToggleInfo)? onCheckboxToggle;
@@ -37,13 +23,6 @@ class FullMarkdownView extends StatefulWidget {
   final ScrollController? scrollController;
   final EdgeInsets? padding;
   final MarkdownTapLinkCallback? onTapLink;
-
-  // Search highlighting
-  final String? searchQuery;
-  final int currentMatchIndex;
-  final bool caseSensitive;
-  final Color? highlightColor;
-  final Color? currentMatchColor;
 
   const FullMarkdownView({
     super.key,
@@ -54,35 +33,7 @@ class FullMarkdownView extends StatefulWidget {
     this.scrollController,
     this.padding,
     this.onTapLink,
-    this.searchQuery,
-    this.currentMatchIndex = -1,
-    this.caseSensitive = false,
-    this.highlightColor,
-    this.currentMatchColor,
   });
-
-  /// Calculate all search matches in the given text
-  static List<PreviewSearchMatch> findMatches(
-    String text,
-    String query, {
-    bool caseSensitive = false,
-  }) {
-    if (query.isEmpty) return [];
-
-    final matches = <PreviewSearchMatch>[];
-    final searchText = caseSensitive ? text : text.toLowerCase();
-    final searchQuery = caseSensitive ? query : query.toLowerCase();
-
-    int index = 0;
-    while (true) {
-      index = searchText.indexOf(searchQuery, index);
-      if (index == -1) break;
-      matches.add(PreviewSearchMatch(start: index, end: index + query.length));
-      index += query.length;
-    }
-
-    return matches;
-  }
 
   @override
   State<FullMarkdownView> createState() => _FullMarkdownViewState();
@@ -90,15 +41,12 @@ class FullMarkdownView extends StatefulWidget {
 
 class _FullMarkdownViewState extends State<FullMarkdownView> {
   late String _currentData;
-
-  // Cache for parsed content
-  String? _cachedNonCheckboxContent;
   List<_CheckboxInfo>? _cachedCheckboxes;
   String? _lastDataForCache;
+  int _buildCallIndex = 0;
 
-  // Pre-compiled pattern for checkboxes
   static final _checkboxPattern = RegExp(
-    r'^([\s]*)-\s+\[([xX\s])\]\s+(.+)$',
+    r'^([\s]*)-\s+\[([xX\s])\]\s+(.*)$',
     multiLine: true,
   );
 
@@ -113,264 +61,70 @@ class _FullMarkdownViewState extends State<FullMarkdownView> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.data != widget.data) {
       _currentData = widget.data;
-      // Invalidate cache when data changes
       if (_lastDataForCache != _currentData) {
-        _cachedNonCheckboxContent = null;
         _cachedCheckboxes = null;
       }
     }
   }
 
-  void _parseContent() {
-    if (_lastDataForCache == _currentData &&
-        _cachedNonCheckboxContent != null &&
-        _cachedCheckboxes != null) {
-      return; // Use cached values
+  void _parseCheckboxes() {
+    if (_lastDataForCache == _currentData && _cachedCheckboxes != null) {
+      return;
     }
 
-    final lines = _currentData.split('\n');
     final checkboxes = <_CheckboxInfo>[];
-    final nonCheckboxLines = <String>[];
+    int currentPos = 0;
+    int lineIndex = 0;
 
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i];
+    for (final line in _currentData.split('\n')) {
       final match = _checkboxPattern.firstMatch(line);
-
       if (match != null) {
-        final indent = match.group(1)?.length ?? 0;
         final isChecked = match.group(2)?.toLowerCase() == 'x';
-        final text = match.group(3) ?? '';
-
         checkboxes.add(
           _CheckboxInfo(
-            lineIndex: i,
-            placeholderIndex: nonCheckboxLines.length,
-            indent: indent,
+            lineIndex: lineIndex,
+            charOffset: currentPos,
             isChecked: isChecked,
-            text: text,
           ),
         );
-        // Add empty line as placeholder to maintain structure
-        nonCheckboxLines.add('');
-      } else {
-        nonCheckboxLines.add(line);
       }
+      currentPos += line.length + 1;
+      lineIndex++;
     }
 
-    _cachedNonCheckboxContent = nonCheckboxLines.join('\n');
     _cachedCheckboxes = checkboxes;
     _lastDataForCache = _currentData;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    _parseContent();
+  void _toggleCheckbox(int checkboxIndex) {
+    if (widget.onCheckboxToggle == null) return;
+    _parseCheckboxes();
+    if (checkboxIndex < 0 || checkboxIndex >= _cachedCheckboxes!.length) return;
 
-    // If no checkboxes, use the built-in Markdown widget directly
-    if (_cachedCheckboxes!.isEmpty) {
-      return _buildMarkdownWidget(_currentData);
-    }
-
-    // Build with custom checkboxes interspersed
-    return SingleChildScrollView(
-      controller: widget.scrollController,
-      padding: widget.padding ?? EdgeInsets.zero,
-      child: _buildContentWithCheckboxes(context),
-    );
-  }
-
-  Widget _buildMarkdownWidget(String data) {
-    return Markdown(
-      data: data,
-      controller: widget.scrollController,
-      styleSheet: widget.styleSheet,
-      selectable: widget.selectable,
-      padding: widget.padding ?? const EdgeInsets.all(16.0),
-      onTapLink: widget.onTapLink,
-      softLineBreak: true,
-    );
-  }
-
-  Widget _buildContentWithCheckboxes(BuildContext context) {
+    final checkbox = _cachedCheckboxes![checkboxIndex];
     final lines = _currentData.split('\n');
-    final widgets = <Widget>[];
-    int currentLine = 0;
-    int checkboxIdx = 0;
+    if (checkbox.lineIndex >= lines.length) return;
 
-    while (currentLine < lines.length) {
-      // Check if current line is a checkbox
-      if (checkboxIdx < _cachedCheckboxes!.length &&
-          _cachedCheckboxes![checkboxIdx].lineIndex == currentLine) {
-        final checkbox = _cachedCheckboxes![checkboxIdx];
-        widgets.add(
-          _buildCheckboxItem(
-            context,
-            checkbox.lineIndex,
-            checkbox.isChecked,
-            checkbox.text,
-            checkbox.indent,
-          ),
-        );
-        checkboxIdx++;
-        currentLine++;
-      } else {
-        // Collect consecutive non-checkbox lines
-        final startLine = currentLine;
-        while (currentLine < lines.length &&
-            (checkboxIdx >= _cachedCheckboxes!.length ||
-                _cachedCheckboxes![checkboxIdx].lineIndex != currentLine)) {
-          currentLine++;
-        }
-
-        // Render non-checkbox lines
-        final contentLines = lines.sublist(startLine, currentLine);
-        _addMarkdownBlocks(context, contentLines, widgets);
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: widgets,
-    );
-  }
-
-  void _addMarkdownBlocks(
-    BuildContext context,
-    List<String> lines,
-    List<Widget> widgets,
-  ) {
-    int i = 0;
-    while (i < lines.length) {
-      if (lines[i].trim().isEmpty) {
-        int emptyCount = 0;
-        while (i < lines.length && lines[i].trim().isEmpty) {
-          emptyCount++;
-          i++;
-        }
-        if (emptyCount > 0) {
-          widgets.add(SizedBox(height: AppSpacing.lg * emptyCount));
-        }
-      } else {
-        final startIdx = i;
-        while (i < lines.length && lines[i].trim().isNotEmpty) {
-          i++;
-        }
-        final content = lines.sublist(startIdx, i).join('\n');
-        widgets.add(
-          MarkdownBody(
-            data: content,
-            styleSheet: widget.styleSheet,
-            selectable: widget.selectable,
-            onTapLink: widget.onTapLink,
-            softLineBreak: true,
-            fitContent: true,
-          ),
-        );
-      }
-    }
-  }
-
-  Widget _buildCheckboxItem(
-    BuildContext context,
-    int lineIndex,
-    bool isChecked,
-    String text,
-    int indent,
-  ) {
-    final baseFontSize =
-        widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
-    final lineHeight = widget.styleSheet?.p?.height;
-
-    return Padding(
-      padding: EdgeInsets.only(
-        left: indent * MarkdownConstants.indentPerLevel,
-        top: AppSpacing.xs,
-        bottom: AppSpacing.xs,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          GestureDetector(
-            onTap: widget.onCheckboxToggle != null
-                ? () => _toggleCheckbox(lineIndex, isChecked)
-                : null,
-            child: Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.sm),
-              child: Icon(
-                isChecked ? Icons.check_box : Icons.check_box_outline_blank,
-                size: baseFontSize * MarkdownConstants.checkboxIconScale,
-                color: isChecked
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.onSurface.withValues(
-                        alpha: MarkdownConstants.uncheckedCheckboxOpacity,
-                      ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: widget.onCheckboxToggle != null
-                  ? () => _toggleCheckbox(lineIndex, isChecked)
-                  : null,
-              child: Text(
-                text,
-                style: TextStyle(
-                  fontSize: baseFontSize,
-                  height: lineHeight,
-                  decoration: isChecked ? TextDecoration.lineThrough : null,
-                  decorationColor: isChecked
-                      ? Theme.of(context).colorScheme.onSurface.withValues(
-                          alpha: MarkdownConstants.checkedTextOpacity,
-                        )
-                      : null,
-                  color: isChecked
-                      ? Theme.of(context).colorScheme.onSurface.withValues(
-                          alpha: MarkdownConstants.checkedTextOpacity,
-                        )
-                      : Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _toggleCheckbox(int lineIndex, bool currentlyChecked) {
-    final lines = _currentData.split('\n');
-    if (lineIndex >= lines.length) return;
-
-    final line = lines[lineIndex];
-
-    // Calculate character offset to the start of this line
-    int lineStart = 0;
-    for (int i = 0; i < lineIndex; i++) {
-      lineStart += lines[i].length + 1; // +1 for \n
-    }
-
-    // Find the checkbox bracket position within the line
-    final checkboxPattern = currentlyChecked
+    final line = lines[checkbox.lineIndex];
+    final checkboxPatternInLine = checkbox.isChecked
         ? RegExp(r'\[[xX]\]')
         : RegExp(r'\[ \]');
-    final match = checkboxPattern.firstMatch(line);
+    final match = checkboxPatternInLine.firstMatch(line);
     if (match == null) return;
 
-    final absoluteStart = lineStart + match.start;
-    final absoluteEnd = lineStart + match.end;
-    final replacement = currentlyChecked ? '[ ]' : '[x]';
+    final absoluteStart = checkbox.charOffset + match.start;
+    final absoluteEnd = checkbox.charOffset + match.end;
+    final replacement = checkbox.isChecked ? '[ ]' : '[x]';
 
-    // Update local state
-    if (currentlyChecked) {
-      lines[lineIndex] = line.replaceFirst(RegExp(r'\[[xX]\]'), '[ ]');
+    if (checkbox.isChecked) {
+      lines[checkbox.lineIndex] = line.replaceFirst(RegExp(r'\[[xX]\]'), '[ ]');
     } else {
-      lines[lineIndex] = line.replaceFirst('[ ]', '[x]');
+      lines[checkbox.lineIndex] = line.replaceFirst('[ ]', '[x]');
     }
     final updatedContent = lines.join('\n');
 
     setState(() {
       _currentData = updatedContent;
-      _cachedNonCheckboxContent = null;
       _cachedCheckboxes = null;
       _lastDataForCache = null;
     });
@@ -383,21 +137,63 @@ class _FullMarkdownViewState extends State<FullMarkdownView> {
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    _parseCheckboxes();
+    _buildCallIndex = 0;
+
+    final hasInteractiveCheckboxes =
+        widget.onCheckboxToggle != null && _cachedCheckboxes!.isNotEmpty;
+
+    return Markdown(
+      key: hasInteractiveCheckboxes ? ValueKey(_currentData.hashCode) : null,
+      data: _currentData,
+      controller: widget.scrollController,
+      styleSheet: widget.styleSheet,
+      selectable: widget.selectable,
+      padding: widget.padding ?? const EdgeInsets.all(16.0),
+      onTapLink: widget.onTapLink,
+      softLineBreak: true,
+      listItemCrossAxisAlignment: MarkdownListItemCrossAxisAlignment.start,
+      checkboxBuilder: hasInteractiveCheckboxes ? _buildCheckbox : null,
+    );
+  }
+
+  Widget _buildCheckbox(bool checked) {
+    final checkboxIndex = _buildCallIndex;
+    _buildCallIndex++;
+
+    final baseFontSize =
+        widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
+
+    return GestureDetector(
+      onTap: () => _toggleCheckbox(checkboxIndex),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: Icon(
+          checked ? Icons.check_box : Icons.check_box_outline_blank,
+          size: baseFontSize * MarkdownConstants.checkboxIconScale,
+          color: checked
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurface.withValues(
+                  alpha: MarkdownConstants.uncheckedCheckboxOpacity,
+                ),
+        ),
+      ),
+    );
+  }
 }
 
-/// Helper class to store checkbox information
 class _CheckboxInfo {
   final int lineIndex;
-  final int placeholderIndex;
-  final int indent;
+  final int charOffset;
   final bool isChecked;
-  final String text;
 
   const _CheckboxInfo({
     required this.lineIndex,
-    required this.placeholderIndex,
-    required this.indent,
+    required this.charOffset,
     required this.isChecked,
-    required this.text,
   });
 }
