@@ -45,6 +45,9 @@ class SearchMatch {
 ///
 /// This controller maintains the same API as the old NoteSearchController
 /// so the UI doesn't need to change.
+///
+/// Also supports a "preview mode" for searching without CodeFindController,
+/// useful when the editor is not mounted (e.g., preview mode).
 class ReEditorSearchController extends ChangeNotifier {
   CodeFindController? _findController;
   CodeLineEditingController? _editingController;
@@ -53,11 +56,17 @@ class ReEditorSearchController extends ChangeNotifier {
   bool _isSearching = false;
   bool _showReplace = false;
   bool _wholeWord = false;
+  bool _caseSensitive = false;
   int _lastReplacementCount = 0;
 
   // Track options locally since CodeFindController doesn't expose wholeWord
   String _currentQuery = '';
   String _replacement = '';
+
+  // Preview mode search state (when no CodeFindController)
+  String _previewContent = '';
+  List<SearchMatch> _previewMatches = [];
+  int _previewMatchIndex = -1;
 
   bool get _hasFindController =>
       _findController != null && !_findControllerDisposed;
@@ -70,9 +79,31 @@ class ReEditorSearchController extends ChangeNotifier {
       _findController = controller;
       _findControllerDisposed = false;
       _findController!.addListener(_onFindControllerChanged);
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        notifyListeners();
-      });
+
+      // Restore search state if there's an active search
+      if (_isSearching && _currentQuery.isNotEmpty) {
+        // Need to activate find mode first, then set the query
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (_findController != null && !_findControllerDisposed) {
+            _findController!.findMode();
+            _findController!.findInputController.text = _applyWholeWord(
+              _currentQuery,
+            );
+            // Also restore case sensitivity if it was set
+            if (_caseSensitive) {
+              final value = _findController!.value;
+              if (!(value?.option.caseSensitive ?? false)) {
+                _findController!.toggleCaseSensitive();
+              }
+            }
+            notifyListeners();
+          }
+        });
+      } else {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          notifyListeners();
+        });
+      }
     }
   }
 
@@ -102,19 +133,24 @@ class ReEditorSearchController extends ChangeNotifier {
 
   /// List of matches converted to SearchMatch format
   List<SearchMatch> get matches {
-    if (!_hasFindController) return [];
-    final value = _findController?.value;
-    if (value?.result == null) return [];
+    // Use native CodeFindController if available
+    if (_hasFindController) {
+      final value = _findController?.value;
+      if (value?.result == null) return [];
 
-    final result = value!.result!;
-    return result.matches.asMap().entries.map((entry) {
-      final match = entry.value;
-      return SearchMatch(
-        start: _selectionToOffset(match.start),
-        end: _selectionToOffset(match.end),
-        lineNumber: match.startIndex,
-      );
-    }).toList();
+      final result = value!.result!;
+      return result.matches.asMap().entries.map((entry) {
+        final match = entry.value;
+        return SearchMatch(
+          start: _selectionToOffset(match.start),
+          end: _selectionToOffset(match.end),
+          lineNumber: match.startIndex,
+        );
+      }).toList();
+    }
+
+    // Use preview mode matches
+    return _previewMatches;
   }
 
   int _selectionToOffset(CodeLinePosition pos) {
@@ -129,16 +165,20 @@ class ReEditorSearchController extends ChangeNotifier {
 
   /// Current match index (0-based)
   int get currentMatchIndex {
-    if (!_hasFindController) return -1;
-    final value = _findController?.value;
-    return value?.result?.index ?? -1;
+    if (_hasFindController) {
+      final value = _findController?.value;
+      return value?.result?.index ?? -1;
+    }
+    return _previewMatchIndex;
   }
 
   /// Total number of matches
   int get matchCount {
-    if (!_hasFindController) return 0;
-    final value = _findController?.value;
-    return value?.result?.matches.length ?? 0;
+    if (_hasFindController) {
+      final value = _findController?.value;
+      return value?.result?.matches.length ?? 0;
+    }
+    return _previewMatches.length;
   }
 
   /// Whether there are any matches
@@ -149,9 +189,11 @@ class ReEditorSearchController extends ChangeNotifier {
 
   /// Case sensitive search option
   bool get caseSensitive {
-    if (!_hasFindController) return false;
-    final value = _findController?.value;
-    return value?.option.caseSensitive ?? false;
+    if (_hasFindController) {
+      final value = _findController?.value;
+      return value?.option.caseSensitive ?? false;
+    }
+    return _caseSensitive;
   }
 
   /// Regex search option
@@ -175,19 +217,27 @@ class ReEditorSearchController extends ChangeNotifier {
 
   /// Get the current match
   SearchMatch? get currentMatch {
-    if (!_hasFindController) return null;
-    final value = _findController?.value;
-    if (value?.result == null || value!.result!.matches.isEmpty) return null;
+    if (_hasFindController) {
+      final value = _findController?.value;
+      if (value?.result == null || value!.result!.matches.isEmpty) return null;
 
-    final idx = value.result!.index;
-    if (idx < 0 || idx >= value.result!.matches.length) return null;
+      final idx = value.result!.index;
+      if (idx < 0 || idx >= value.result!.matches.length) return null;
 
-    final match = value.result!.matches[idx];
-    return SearchMatch(
-      start: _selectionToOffset(match.start),
-      end: _selectionToOffset(match.end),
-      lineNumber: match.startIndex,
-    );
+      final match = value.result!.matches[idx];
+      return SearchMatch(
+        start: _selectionToOffset(match.start),
+        end: _selectionToOffset(match.end),
+        lineNumber: match.startIndex,
+      );
+    }
+
+    // Preview mode
+    if (_previewMatchIndex >= 0 &&
+        _previewMatchIndex < _previewMatches.length) {
+      return _previewMatches[_previewMatchIndex];
+    }
+    return null;
   }
 
   /// Whether a search is pending (re_editor handles this internally)
@@ -197,9 +247,53 @@ class ReEditorSearchController extends ChangeNotifier {
     return value?.searching ?? false;
   }
 
-  /// Update content - not needed as CodeFindController listens to editing controller
+  /// Update content for preview mode search
   void updateContent(String content) {
-    // No-op: CodeFindController automatically tracks content changes
+    _previewContent = content;
+    // Re-run search if we have a query
+    if (_currentQuery.isNotEmpty && !_hasFindController) {
+      _performPreviewSearch();
+    }
+  }
+
+  /// Perform text search for preview mode
+  void _performPreviewSearch() {
+    if (_currentQuery.isEmpty) {
+      _previewMatches = [];
+      _previewMatchIndex = -1;
+      return;
+    }
+
+    final searchText = _caseSensitive
+        ? _previewContent
+        : _previewContent.toLowerCase();
+    final searchQuery = _caseSensitive
+        ? _currentQuery
+        : _currentQuery.toLowerCase();
+
+    final matches = <SearchMatch>[];
+    int index = 0;
+    int lineNumber = 0;
+
+    while (true) {
+      index = searchText.indexOf(searchQuery, index);
+      if (index == -1) break;
+
+      // Calculate line number
+      lineNumber = '\n'.allMatches(_previewContent.substring(0, index)).length;
+
+      matches.add(
+        SearchMatch(
+          start: index,
+          end: index + _currentQuery.length,
+          lineNumber: lineNumber,
+        ),
+      );
+      index += _currentQuery.length;
+    }
+
+    _previewMatches = matches;
+    _previewMatchIndex = matches.isNotEmpty ? 0 : -1;
   }
 
   /// Search with the given query
@@ -207,6 +301,10 @@ class ReEditorSearchController extends ChangeNotifier {
     _currentQuery = query;
     if (_hasFindController) {
       _findController?.findInputController.text = _applyWholeWord(query);
+    } else {
+      // Preview mode search
+      _performPreviewSearch();
+      notifyListeners();
     }
   }
 
@@ -235,6 +333,9 @@ class ReEditorSearchController extends ChangeNotifier {
   void toggleCaseSensitive() {
     if (_hasFindController) {
       _findController?.toggleCaseSensitive();
+    } else {
+      _caseSensitive = !_caseSensitive;
+      _performPreviewSearch();
     }
     notifyListeners();
   }
@@ -292,6 +393,8 @@ class ReEditorSearchController extends ChangeNotifier {
     _showReplace = false;
     _replacement = '';
     _currentQuery = '';
+    _previewMatches = [];
+    _previewMatchIndex = -1;
     if (_hasFindController) {
       _findController?.close();
     }
@@ -302,6 +405,9 @@ class ReEditorSearchController extends ChangeNotifier {
   void nextMatch() {
     if (_hasFindController) {
       _findController?.nextMatch();
+    } else if (_previewMatches.isNotEmpty) {
+      _previewMatchIndex = (_previewMatchIndex + 1) % _previewMatches.length;
+      notifyListeners();
     }
   }
 
@@ -309,24 +415,34 @@ class ReEditorSearchController extends ChangeNotifier {
   void previousMatch() {
     if (_hasFindController) {
       _findController?.previousMatch();
+    } else if (_previewMatches.isNotEmpty) {
+      _previewMatchIndex =
+          (_previewMatchIndex - 1 + _previewMatches.length) %
+          _previewMatches.length;
+      notifyListeners();
     }
   }
 
   /// Go to specific match index
   void goToMatch(int index) {
-    // CodeFindController doesn't have direct index navigation,
-    // so we navigate from current position
-    final current = currentMatchIndex;
-    if (index == current) return;
+    if (_hasFindController) {
+      // CodeFindController doesn't have direct index navigation,
+      // so we navigate from current position
+      final current = currentMatchIndex;
+      if (index == current) return;
 
-    if (index > current) {
-      for (int i = current; i < index; i++) {
-        _findController?.nextMatch();
+      if (index > current) {
+        for (int i = current; i < index; i++) {
+          _findController?.nextMatch();
+        }
+      } else {
+        for (int i = current; i > index; i--) {
+          _findController?.previousMatch();
+        }
       }
-    } else {
-      for (int i = current; i > index; i--) {
-        _findController?.previousMatch();
-      }
+    } else if (index >= 0 && index < _previewMatches.length) {
+      _previewMatchIndex = index;
+      notifyListeners();
     }
   }
 

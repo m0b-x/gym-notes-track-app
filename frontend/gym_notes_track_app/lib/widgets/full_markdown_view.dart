@@ -17,41 +17,86 @@ class CheckboxToggleInfo {
   });
 }
 
-class InteractiveMarkdown extends StatefulWidget {
+/// Search match for preview mode
+class PreviewSearchMatch {
+  final int start;
+  final int end;
+
+  const PreviewSearchMatch({required this.start, required this.end});
+
+  int get length => end - start;
+}
+
+/// Full-featured markdown view using flutter_markdown_plus
+/// with custom checkbox handling for toggle callbacks and search highlighting
+class FullMarkdownView extends StatefulWidget {
   final String data;
   final Function(CheckboxToggleInfo)? onCheckboxToggle;
   final MarkdownStyleSheet? styleSheet;
   final bool selectable;
-  final EdgeInsets? padding;
   final ScrollController? scrollController;
-  final int? selectedLine;
-  final Function(int)? onLineTap;
+  final EdgeInsets? padding;
+  final MarkdownTapLinkCallback? onTapLink;
 
-  const InteractiveMarkdown({
+  // Search highlighting
+  final String? searchQuery;
+  final int currentMatchIndex;
+  final bool caseSensitive;
+  final Color? highlightColor;
+  final Color? currentMatchColor;
+
+  const FullMarkdownView({
     super.key,
     required this.data,
     this.onCheckboxToggle,
     this.styleSheet,
     this.selectable = false,
-    this.padding,
     this.scrollController,
-    this.selectedLine,
-    this.onLineTap,
+    this.padding,
+    this.onTapLink,
+    this.searchQuery,
+    this.currentMatchIndex = -1,
+    this.caseSensitive = false,
+    this.highlightColor,
+    this.currentMatchColor,
   });
 
+  /// Calculate all search matches in the given text
+  static List<PreviewSearchMatch> findMatches(
+    String text,
+    String query, {
+    bool caseSensitive = false,
+  }) {
+    if (query.isEmpty) return [];
+
+    final matches = <PreviewSearchMatch>[];
+    final searchText = caseSensitive ? text : text.toLowerCase();
+    final searchQuery = caseSensitive ? query : query.toLowerCase();
+
+    int index = 0;
+    while (true) {
+      index = searchText.indexOf(searchQuery, index);
+      if (index == -1) break;
+      matches.add(PreviewSearchMatch(start: index, end: index + query.length));
+      index += query.length;
+    }
+
+    return matches;
+  }
+
   @override
-  State<InteractiveMarkdown> createState() => _InteractiveMarkdownState();
+  State<FullMarkdownView> createState() => _FullMarkdownViewState();
 }
 
-class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
+class _FullMarkdownViewState extends State<FullMarkdownView> {
   late String _currentData;
 
-  // Cache for checkbox-free content and parsed checkboxes
+  // Cache for parsed content
   String? _cachedNonCheckboxContent;
   List<_CheckboxInfo>? _cachedCheckboxes;
   String? _lastDataForCache;
 
-  // Pre-compiled patterns for performance
+  // Pre-compiled pattern for checkboxes
   static final _checkboxPattern = RegExp(
     r'^([\s]*)-\s+\[([xX\s])\]\s+(.+)$',
     multiLine: true,
@@ -64,7 +109,7 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
   }
 
   @override
-  void didUpdateWidget(InteractiveMarkdown oldWidget) {
+  void didUpdateWidget(FullMarkdownView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.data != widget.data) {
       _currentData = widget.data;
@@ -96,7 +141,6 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
         final isChecked = match.group(2)?.toLowerCase() == 'x';
         final text = match.group(3) ?? '';
 
-        // Add placeholder for checkbox position
         checkboxes.add(
           _CheckboxInfo(
             lineIndex: i,
@@ -122,16 +166,12 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
   Widget build(BuildContext context) {
     _parseContent();
 
-    // If no checkboxes, render simple markdown with preserved empty lines
+    // If no checkboxes, use the built-in Markdown widget directly
     if (_cachedCheckboxes!.isEmpty) {
-      return SingleChildScrollView(
-        controller: widget.scrollController,
-        padding: widget.padding ?? EdgeInsets.zero,
-        child: _buildMarkdownWithPreservedNewlines(context, _currentData),
-      );
+      return _buildMarkdownWidget(_currentData);
     }
 
-    // Build with checkboxes interspersed
+    // Build with custom checkboxes interspersed
     return SingleChildScrollView(
       controller: widget.scrollController,
       padding: widget.padding ?? EdgeInsets.zero,
@@ -139,13 +179,15 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
     );
   }
 
-  Widget _buildMarkdownWithPreservedNewlines(BuildContext context, String data) {
-    final lines = data.split('\n');
-    final widgets = <Widget>[];
-    _addMarkdownBlocksWithPreservedNewlines(context, lines, widgets);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: widgets,
+  Widget _buildMarkdownWidget(String data) {
+    return Markdown(
+      data: data,
+      controller: widget.scrollController,
+      styleSheet: widget.styleSheet,
+      selectable: widget.selectable,
+      padding: widget.padding ?? const EdgeInsets.all(16.0),
+      onTapLink: widget.onTapLink,
+      softLineBreak: true,
     );
   }
 
@@ -180,9 +222,9 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
           currentLine++;
         }
 
-        // Render non-checkbox lines with preserved empty lines
+        // Render non-checkbox lines
         final contentLines = lines.sublist(startLine, currentLine);
-        _addMarkdownBlocksWithPreservedNewlines(context, contentLines, widgets);
+        _addMarkdownBlocks(context, contentLines, widgets);
       }
     }
 
@@ -192,7 +234,7 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
     );
   }
 
-  void _addMarkdownBlocksWithPreservedNewlines(
+  void _addMarkdownBlocks(
     BuildContext context,
     List<String> lines,
     List<Widget> widgets,
@@ -215,14 +257,13 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
         }
         final content = lines.sublist(startIdx, i).join('\n');
         widgets.add(
-          Markdown(
+          MarkdownBody(
             data: content,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
             styleSheet: widget.styleSheet,
             selectable: widget.selectable,
-            padding: EdgeInsets.zero,
+            onTapLink: widget.onTapLink,
             softLineBreak: true,
+            fitContent: true,
           ),
         );
       }
@@ -236,8 +277,10 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
     String text,
     int indent,
   ) {
-    final baseFontSize = widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
+    final baseFontSize =
+        widget.styleSheet?.p?.fontSize ?? FontConstants.defaultFontSize;
     final lineHeight = widget.styleSheet?.p?.height;
+
     return Padding(
       padding: EdgeInsets.only(
         left: indent * MarkdownConstants.indentPerLevel,
@@ -252,15 +295,15 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
                 ? () => _toggleCheckbox(lineIndex, isChecked)
                 : null,
             child: Padding(
-              padding: EdgeInsets.only(right: AppSpacing.sm),
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
               child: Icon(
                 isChecked ? Icons.check_box : Icons.check_box_outline_blank,
                 size: baseFontSize * MarkdownConstants.checkboxIconScale,
                 color: isChecked
                     ? Theme.of(context).colorScheme.primary
                     : Theme.of(context).colorScheme.onSurface.withValues(
-                          alpha: MarkdownConstants.uncheckedCheckboxOpacity,
-                        ),
+                        alpha: MarkdownConstants.uncheckedCheckboxOpacity,
+                      ),
               ),
             ),
           ),
@@ -277,13 +320,13 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
                   decoration: isChecked ? TextDecoration.lineThrough : null,
                   decorationColor: isChecked
                       ? Theme.of(context).colorScheme.onSurface.withValues(
-                            alpha: MarkdownConstants.checkedTextOpacity,
-                          )
+                          alpha: MarkdownConstants.checkedTextOpacity,
+                        )
                       : null,
                   color: isChecked
                       ? Theme.of(context).colorScheme.onSurface.withValues(
-                            alpha: MarkdownConstants.checkedTextOpacity,
-                          )
+                          alpha: MarkdownConstants.checkedTextOpacity,
+                        )
                       : Theme.of(context).colorScheme.onSurface,
                 ),
               ),
@@ -307,7 +350,9 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
     }
 
     // Find the checkbox bracket position within the line
-    final checkboxPattern = currentlyChecked ? RegExp(r'\[[xX]\]') : RegExp(r'\[ \]');
+    final checkboxPattern = currentlyChecked
+        ? RegExp(r'\[[xX]\]')
+        : RegExp(r'\[ \]');
     final match = checkboxPattern.firstMatch(line);
     if (match == null) return;
 
@@ -330,11 +375,13 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
       _lastDataForCache = null;
     });
 
-    widget.onCheckboxToggle?.call(CheckboxToggleInfo(
-      start: absoluteStart,
-      end: absoluteEnd,
-      replacement: replacement,
-    ));
+    widget.onCheckboxToggle?.call(
+      CheckboxToggleInfo(
+        start: absoluteStart,
+        end: absoluteEnd,
+        replacement: replacement,
+      ),
+    );
   }
 }
 

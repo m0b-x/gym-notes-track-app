@@ -8,7 +8,7 @@ import '../models/custom_markdown_shortcut.dart';
 import '../widgets/markdown_toolbar.dart';
 import '../widgets/overlay_snackbar.dart';
 import '../utils/markdown_settings_utils.dart';
-import '../widgets/interactive_markdown.dart';
+import '../widgets/full_markdown_view.dart';
 import '../constants/settings_keys.dart';
 import '../utils/icon_utils.dart';
 import '../widgets/icon_picker_dialog.dart';
@@ -283,14 +283,14 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
       int lineEnd = text.indexOf('\n', lineStart);
       if (lineEnd == -1) lineEnd = text.length;
       final lineText = text.substring(lineStart, lineEnd);
-      
+
       final headerMatch = RegExp(r'^(#{1,6})\s').firstMatch(lineText);
       String newLineText;
-      
+
       if (headerMatch != null) {
         final currentHashes = headerMatch.group(1)!;
         final textWithoutHeader = lineText.substring(headerMatch.end);
-        
+
         if (currentHashes.length >= 6) {
           newLineText = textWithoutHeader;
         } else {
@@ -299,7 +299,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
       } else {
         newLineText = '# $lineText';
       }
-      
+
       newText = text.replaceRange(lineStart, lineEnd, newLineText);
       newCursor = lineStart + newLineText.length;
     } else {
@@ -330,7 +330,10 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
       setState(() {
         _labelError = AppLocalizations.of(context)!.labelCannotBeEmpty;
       });
-      OverlaySnackbar.show(context, AppLocalizations.of(context)!.formHasErrors);
+      OverlaySnackbar.show(
+        context,
+        AppLocalizations.of(context)!.formHasErrors,
+      );
       return;
     }
 
@@ -499,62 +502,71 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                                 padding: EdgeInsets.zero,
                                 itemCount: _dateFormats.length,
                                 separatorBuilder: (context, index) => Divider(
-                              height: 1,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.outlineVariant,
-                            ),
-                            itemBuilder: (context, index) {
-                              final format = _dateFormats[index];
-                              final isSelected = format == _selectedDateFormat;
-                              final formattedDate = DateFormat(
-                                format,
-                              ).format(DateTime.now());
-                              return ListTile(
-                                dense: true,
-                                visualDensity: VisualDensity.compact,
-                                selected: isSelected,
-                                selectedTileColor: Theme.of(context)
-                                    .colorScheme
-                                    .primaryContainer
-                                    .withValues(alpha: 0.3),
-                                leading: Icon(
-                                  isSelected
-                                      ? Icons.radio_button_checked
-                                      : Icons.radio_button_off,
-                                  color: isSelected
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context).colorScheme.outline,
-                                  size: 20,
+                                  height: 1,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.outlineVariant,
                                 ),
-                                title: Text(
-                                  formattedDate,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
-                                    color: isSelected
-                                        ? Theme.of(context).colorScheme.primary
-                                        : null,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  format,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                onTap: () {
-                                  HapticFeedback.selectionClick();
-                                  setState(() => _selectedDateFormat = format);
+                                itemBuilder: (context, index) {
+                                  final format = _dateFormats[index];
+                                  final isSelected =
+                                      format == _selectedDateFormat;
+                                  final formattedDate = DateFormat(
+                                    format,
+                                  ).format(DateTime.now());
+                                  return ListTile(
+                                    dense: true,
+                                    visualDensity: VisualDensity.compact,
+                                    selected: isSelected,
+                                    selectedTileColor: Theme.of(context)
+                                        .colorScheme
+                                        .primaryContainer
+                                        .withValues(alpha: 0.3),
+                                    leading: Icon(
+                                      isSelected
+                                          ? Icons.radio_button_checked
+                                          : Icons.radio_button_off,
+                                      color: isSelected
+                                          ? Theme.of(
+                                              context,
+                                            ).colorScheme.primary
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.outline,
+                                      size: 20,
+                                    ),
+                                    title: Text(
+                                      formattedDate,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                        color: isSelected
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.primary
+                                            : null,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      format,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      HapticFeedback.selectionClick();
+                                      setState(
+                                        () => _selectedDateFormat = format,
+                                      );
+                                    },
+                                  );
                                 },
-                              );
-                            },
-                          ),
+                              ),
                             ),
                           ),
                         ),
@@ -697,7 +709,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                             color: Theme.of(context).colorScheme.outlineVariant,
                           ),
                         ),
-                        child: InteractiveMarkdown(
+                        child: FullMarkdownView(
                           data: _insertType == 'date'
                               ? '${_beforeController.text}${DateFormat(_selectedDateFormat).format(DateTime.now())}${_afterController.text}'
                               : '${_beforeController.text}text${_afterController.text}',

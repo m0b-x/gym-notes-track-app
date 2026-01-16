@@ -3,9 +3,6 @@ class MarkdownConstants {
   MarkdownConstants._();
 
   // Thresholds
-  /// Character threshold for switching to virtualized preview
-  static const int virtualPreviewThreshold = 5000;
-
   /// Character delta threshold for content change detection
   static const int contentChangeDeltaThreshold = 500;
 

@@ -19,8 +19,7 @@ import '../models/note_metadata.dart';
 import '../services/auto_save_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/markdown_toolbar.dart';
-import '../widgets/efficient_markdown.dart';
-import '../widgets/interactive_markdown.dart';
+import '../widgets/full_markdown_view.dart';
 import '../widgets/scroll_progress_indicator.dart';
 import '../widgets/scroll_zone_mixin.dart';
 import '../widgets/note_search_bar.dart';
@@ -89,10 +88,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
   Timer? _lineCountDebounceTimer;
   int _lastLineCountTextLength = 0;
-
-  bool get _useVirtualPreview =>
-      _contentController.text.length >
-      MarkdownConstants.virtualPreviewThreshold;
 
   @override
   void initState() {
@@ -283,6 +278,21 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       contentController: _contentController,
     );
 
+    // Re-trigger search when switching modes to ensure matches are found
+    if (_searchController.isSearching && _searchController.query.isNotEmpty) {
+      final currentQuery = _searchController.query;
+      if (switchingToPreview) {
+        // Update content for preview mode search
+        _searchController.updateContent(_contentController.text);
+      }
+      // Schedule search re-trigger after mode switch completes
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _searchController.search(currentQuery);
+        }
+      });
+    }
+
     setState(() {
       _isPreviewMode = switchingToPreview;
       // Keyboard hidden by default - user taps editor to open
@@ -314,48 +324,43 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
   void _navigateToSearchMatch(int offset) {
     final match = _searchController.currentMatch;
+    if (match == null) return;
+
+    final text = _contentController.text;
+    if (text.isEmpty ||
+        match.start < 0 ||
+        match.end < 0 ||
+        match.start > text.length ||
+        match.end > text.length) {
+      return;
+    }
 
     if (_isPreviewMode) {
-      _scrollToOffsetInPreview(match?.start ?? offset);
+      _scrollToOffsetInPreview(match.start);
     } else {
-      if (match != null) {
-        final text = _contentController.text;
-        if (match.start < 0 ||
-            match.end < 0 ||
-            match.start > text.length ||
-            match.end > text.length) {
-          return;
-        }
-        final startLine = TextPositionUtils.getLineFromOffset(
-          text,
-          match.start,
-        );
-        final startCol = TextPositionUtils.getColumnFromOffset(
-          text,
-          match.start,
-        );
-        final endLine = TextPositionUtils.getLineFromOffset(text, match.end);
-        final endCol = TextPositionUtils.getColumnFromOffset(text, match.end);
+      final startLine = TextPositionUtils.getLineFromOffset(text, match.start);
+      final startCol = TextPositionUtils.getColumnFromOffset(text, match.start);
+      final endLine = TextPositionUtils.getLineFromOffset(text, match.end);
+      final endCol = TextPositionUtils.getColumnFromOffset(text, match.end);
 
-        final lineCount = _contentController.lineCount;
-        if (startLine < 0 ||
-            startLine >= lineCount ||
-            endLine < 0 ||
-            endLine >= lineCount) {
-          return;
-        }
-
-        _contentController.selection = CodeLineSelection(
-          baseIndex: startLine,
-          baseOffset: startCol,
-          extentIndex: endLine,
-          extentOffset: endCol,
-        );
-
-        _editorScrollController.makeCenterIfInvisible(
-          CodeLinePosition(index: startLine, offset: startCol),
-        );
+      final lineCount = _contentController.lineCount;
+      if (startLine < 0 ||
+          startLine >= lineCount ||
+          endLine < 0 ||
+          endLine >= lineCount) {
+        return;
       }
+
+      _contentController.selection = CodeLineSelection(
+        baseIndex: startLine,
+        baseOffset: startCol,
+        extentIndex: endLine,
+        extentOffset: endCol,
+      );
+
+      _editorScrollController.makeCenterIfInvisible(
+        CodeLinePosition(index: startLine, offset: startCol),
+      );
     }
   }
 
@@ -707,23 +712,26 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         ? AppLocalizations.of(context)!.noContentYet
         : _contentController.text;
 
-    final markdownView = _useVirtualPreview
-        ? EfficientMarkdownView(
-            data: content,
-            selectable: true,
-            scrollController: _previewScrollController,
-            styleSheet: _getPreviewStyleSheet(),
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            onCheckboxToggle: _handleCheckboxToggle,
-          )
-        : InteractiveMarkdown(
-            data: content,
-            selectable: true,
-            scrollController: _previewScrollController,
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            styleSheet: _getPreviewStyleSheet(),
-            onCheckboxToggle: _handleCheckboxToggle,
-          );
+    // Update search controller content for preview mode search
+    _searchController.updateContent(content);
+
+    final markdownView = ListenableBuilder(
+      listenable: _searchController,
+      builder: (context, _) => FullMarkdownView(
+        data: content,
+        selectable: true,
+        scrollController: _previewScrollController,
+        styleSheet: _getPreviewStyleSheet(),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        onCheckboxToggle: _handleCheckboxToggle,
+        // Pass search state for highlighting
+        searchQuery: _searchController.isSearching
+            ? _searchController.query
+            : null,
+        currentMatchIndex: _searchController.currentMatchIndex,
+        caseSensitive: _searchController.caseSensitive,
+      ),
+    );
 
     return Stack(
       key: const ValueKey('preview'),
