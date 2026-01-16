@@ -869,6 +869,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     }
 
     if (widget.noteId == null) {
+      if (!mounted) return;
       context.read<OptimizedNoteBloc>().add(
         CreateOptimizedNote(
           folderId: widget.folderId,
