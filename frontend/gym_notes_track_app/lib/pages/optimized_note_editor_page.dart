@@ -17,6 +17,7 @@ import '../bloc/optimized_note/optimized_note_state.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/note_metadata.dart';
 import '../services/auto_save_service.dart';
+import '../services/note_position_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/markdown_toolbar.dart';
 import '../widgets/full_markdown_view.dart';
@@ -77,6 +78,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _showCursorLine = false;
 
   AutoSaveService? _autoSaveService;
+  NotePositionService? _notePositionService;
+  NotePositionData? _pendingPosition;
 
   double _previewFontSize = FontConstants.defaultFontSize;
   double _editorFontSize = FontConstants.defaultFontSize;
@@ -120,6 +123,20 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _loadCustomShortcuts();
     _initializeAutoSave();
     _loadFontSizes();
+    _initializePositionService();
+  }
+
+  Future<void> _initializePositionService() async {
+    _notePositionService = await NotePositionService.getInstance();
+    if (widget.noteId != null) {
+      final position = await _notePositionService!.getPosition(widget.noteId!);
+      if (mounted) {
+        setState(() {
+          _pendingPosition = position;
+          _isPreviewMode = position.isPreviewMode;
+        });
+      }
+    }
   }
 
   Future<void> _loadFontSizes() async {
@@ -278,27 +295,82 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       contentController: _contentController,
     );
 
-    // Handle search when switching modes
     if (_searchController.isSearching && _searchController.query.isNotEmpty) {
       final currentQuery = _searchController.query;
       if (switchingToPreview) {
-        // Update content for preview mode search - this pre-computes matches
         _searchController.updateContent(_contentController.text);
-        // Schedule search re-trigger after mode switch completes
-        // This ensures the find controller is cleared before preview search runs
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _searchController.search(currentQuery);
           }
         });
       }
-      // When switching to edit mode, setFindController handles restoring search
     }
 
     setState(() {
       _isPreviewMode = switchingToPreview;
-      // Keyboard hidden by default - user taps editor to open
     });
+
+    _saveCurrentPosition();
+  }
+
+  void _restoreSavedPosition() {
+    final position = _pendingPosition;
+    if (position == null) return;
+    _pendingPosition = null;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      if (position.isPreviewMode) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (!mounted) return;
+          if (_previewScrollController.hasClients) {
+            final maxScroll = _previewScrollController.position.maxScrollExtent;
+            final offset = position.previewScrollOffset.clamp(0.0, maxScroll);
+            _previewScrollController.jumpTo(offset);
+          }
+        });
+      } else {
+        final lineCount = _contentController.lineCount;
+        final lineIndex = position.editorLineIndex.clamp(0, lineCount - 1);
+
+        final lineText = lineIndex < _contentController.codeLines.length
+            ? _contentController.codeLines[lineIndex].text
+            : '';
+        final columnOffset = position.editorColumnOffset.clamp(
+          0,
+          lineText.length,
+        );
+
+        _contentController.selection = CodeLineSelection.collapsed(
+          index: lineIndex,
+          offset: columnOffset,
+        );
+
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (!mounted) return;
+          _editorScrollController.makeCenterIfInvisible(
+            CodeLinePosition(index: lineIndex, offset: columnOffset),
+          );
+        });
+      }
+    });
+  }
+
+  Future<void> _saveCurrentPosition() async {
+    if (widget.noteId == null || _notePositionService == null) return;
+
+    final position = NotePositionData(
+      isPreviewMode: _isPreviewMode,
+      previewScrollOffset: _previewScrollController.hasClients
+          ? _previewScrollController.offset
+          : 0.0,
+      editorLineIndex: _contentController.selection.baseIndex,
+      editorColumnOffset: _contentController.selection.baseOffset,
+    );
+
+    await _notePositionService!.savePosition(widget.noteId!, position);
   }
 
   @override
@@ -474,7 +546,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
             _cachedCharCount = content.length;
             _isLoading = false;
           });
-          // Keyboard hidden by default - user taps editor to open
+          _restoreSavedPosition();
         }
       },
       child: PopScope(
@@ -795,6 +867,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
   Future<void> _saveBeforeExit() async {
     _contentFocusNode.unfocus();
+
+    await _saveCurrentPosition();
 
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();

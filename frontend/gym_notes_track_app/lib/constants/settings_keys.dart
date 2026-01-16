@@ -36,6 +36,9 @@ class SettingsKeys {
   static const String wordWrap = 'word_wrap';
   static const String showCursorLine = 'show_cursor_line';
 
+  // Note position (prefix for per-note storage)
+  static const String notePositionPrefix = 'note_position_';
+
   // Default values for control settings
   static const bool defaultFolderSwipeEnabled = true;
   static const bool defaultNoteSwipeEnabled = true;
