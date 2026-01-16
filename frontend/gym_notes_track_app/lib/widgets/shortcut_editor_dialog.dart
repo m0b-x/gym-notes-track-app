@@ -6,6 +6,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import '../l10n/app_localizations.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../widgets/markdown_toolbar.dart';
+import '../widgets/overlay_snackbar.dart';
 import '../utils/markdown_settings_utils.dart';
 import '../widgets/interactive_markdown.dart';
 import '../constants/settings_keys.dart';
@@ -39,7 +40,6 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
   String _previousAfterText = '';
   bool _isProcessingTextChange = false;
   String? _labelError;
-  OverlayEntry? _overlayEntry;
 
   static const List<String> _dateFormats = [
     'MMMM d, yyyy',
@@ -111,70 +111,12 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
 
   @override
   void dispose() {
-    _removeOverlay();
     _labelController.dispose();
     _beforeController.dispose();
     _afterController.dispose();
     _beforeFocusNode.dispose();
     _afterFocusNode.dispose();
     super.dispose();
-  }
-
-  void _removeOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-  }
-
-  void _showOverlaySnackbar(String message) {
-    _removeOverlay();
-    
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 80,
-        left: 16,
-        right: 16,
-        child: Material(
-          elevation: 6,
-          borderRadius: BorderRadius.circular(4),
-          color: Theme.of(context).colorScheme.inverseSurface,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 16, top: 14, bottom: 14, right: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    message,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onInverseSurface,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    Icons.close,
-                    color: Theme.of(context).colorScheme.onInverseSurface,
-                    size: 20,
-                  ),
-                  onPressed: _removeOverlay,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 36,
-                    minHeight: 36,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-    Overlay.of(context).insert(_overlayEntry!);
-
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) _removeOverlay();
-    });
   }
 
   void _showIconPicker() async {
@@ -387,7 +329,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
       setState(() {
         _labelError = AppLocalizations.of(context)!.labelCannotBeEmpty;
       });
-      _showOverlaySnackbar(AppLocalizations.of(context)!.formHasErrors);
+      OverlaySnackbar.show(context, AppLocalizations.of(context)!.formHasErrors);
       return;
     }
 
