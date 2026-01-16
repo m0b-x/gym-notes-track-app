@@ -1136,6 +1136,7 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
 
   @override
   void dispose() {
+    widget.searchController.clearFindController();
     widget.controller.removeListener(_onControllerChanged);
     disposeScrollZone();
     super.dispose();

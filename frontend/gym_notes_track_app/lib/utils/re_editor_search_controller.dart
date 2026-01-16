@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:re_editor/re_editor.dart';
 
 /// Result states for replace operations
@@ -47,6 +48,7 @@ class SearchMatch {
 class ReEditorSearchController extends ChangeNotifier {
   CodeFindController? _findController;
   CodeLineEditingController? _editingController;
+  bool _findControllerDisposed = false;
 
   bool _isSearching = false;
   bool _showReplace = false;
@@ -57,15 +59,27 @@ class ReEditorSearchController extends ChangeNotifier {
   String _currentQuery = '';
   String _replacement = '';
 
+  bool get _hasFindController =>
+      _findController != null && !_findControllerDisposed;
+
   /// Set the CodeFindController from findBuilder callback
   /// This should be called from the findBuilder in CodeEditor
   void setFindController(CodeFindController controller) {
     if (_findController != controller) {
       _findController?.removeListener(_onFindControllerChanged);
       _findController = controller;
+      _findControllerDisposed = false;
       _findController!.addListener(_onFindControllerChanged);
-      notifyListeners();
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        notifyListeners();
+      });
     }
+  }
+
+  void clearFindController() {
+    _findController?.removeListener(_onFindControllerChanged);
+    _findController = null;
+    _findControllerDisposed = true;
   }
 
   /// Initialize with the editing controller (for offset calculations)
@@ -88,6 +102,7 @@ class ReEditorSearchController extends ChangeNotifier {
 
   /// List of matches converted to SearchMatch format
   List<SearchMatch> get matches {
+    if (!_hasFindController) return [];
     final value = _findController?.value;
     if (value?.result == null) return [];
 
@@ -114,12 +129,14 @@ class ReEditorSearchController extends ChangeNotifier {
 
   /// Current match index (0-based)
   int get currentMatchIndex {
+    if (!_hasFindController) return -1;
     final value = _findController?.value;
     return value?.result?.index ?? -1;
   }
 
   /// Total number of matches
   int get matchCount {
+    if (!_hasFindController) return 0;
     final value = _findController?.value;
     return value?.result?.matches.length ?? 0;
   }
@@ -132,12 +149,14 @@ class ReEditorSearchController extends ChangeNotifier {
 
   /// Case sensitive search option
   bool get caseSensitive {
+    if (!_hasFindController) return false;
     final value = _findController?.value;
     return value?.option.caseSensitive ?? false;
   }
 
   /// Regex search option
   bool get useRegex {
+    if (!_hasFindController) return false;
     final value = _findController?.value;
     return value?.option.regex ?? false;
   }
@@ -156,6 +175,7 @@ class ReEditorSearchController extends ChangeNotifier {
 
   /// Get the current match
   SearchMatch? get currentMatch {
+    if (!_hasFindController) return null;
     final value = _findController?.value;
     if (value?.result == null || value!.result!.matches.isEmpty) return null;
 
@@ -172,6 +192,7 @@ class ReEditorSearchController extends ChangeNotifier {
 
   /// Whether a search is pending (re_editor handles this internally)
   bool get isSearchPending {
+    if (!_hasFindController) return false;
     final value = _findController?.value;
     return value?.searching ?? false;
   }
@@ -184,7 +205,9 @@ class ReEditorSearchController extends ChangeNotifier {
   /// Search with the given query
   void search(String query) {
     _currentQuery = query;
-    _findController?.findInputController.text = _applyWholeWord(query);
+    if (_hasFindController) {
+      _findController?.findInputController.text = _applyWholeWord(query);
+    }
   }
 
   /// Execute search immediately (same as search for CodeFindController)
@@ -203,18 +226,24 @@ class ReEditorSearchController extends ChangeNotifier {
   /// Update replacement text
   void updateReplacement(String replacement) {
     _replacement = replacement;
-    _findController?.replaceInputController.text = replacement;
+    if (_hasFindController) {
+      _findController?.replaceInputController.text = replacement;
+    }
   }
 
   /// Toggle case sensitivity
   void toggleCaseSensitive() {
-    _findController?.toggleCaseSensitive();
+    if (_hasFindController) {
+      _findController?.toggleCaseSensitive();
+    }
     notifyListeners();
   }
 
   /// Toggle regex mode
   void toggleRegex() {
-    _findController?.toggleRegex();
+    if (_hasFindController) {
+      _findController?.toggleRegex();
+    }
     // Re-apply whole word if needed after regex toggle
     if (_currentQuery.isNotEmpty) {
       search(_currentQuery);
@@ -226,7 +255,7 @@ class ReEditorSearchController extends ChangeNotifier {
   void toggleWholeWord() {
     _wholeWord = !_wholeWord;
     // Re-apply search with whole word
-    if (_currentQuery.isNotEmpty) {
+    if (_currentQuery.isNotEmpty && _hasFindController) {
       _findController?.findInputController.text = _applyWholeWord(
         _currentQuery,
       );
@@ -237,10 +266,12 @@ class ReEditorSearchController extends ChangeNotifier {
   /// Toggle show replace panel
   void toggleShowReplace() {
     _showReplace = !_showReplace;
-    if (_showReplace) {
-      _findController?.replaceMode();
-    } else {
-      _findController?.findMode();
+    if (_hasFindController) {
+      if (_showReplace) {
+        _findController?.replaceMode();
+      } else {
+        _findController?.findMode();
+      }
     }
     notifyListeners();
   }
@@ -249,7 +280,9 @@ class ReEditorSearchController extends ChangeNotifier {
   void openSearch() {
     _isSearching = true;
     _lastReplacementCount = 0;
-    _findController?.findMode();
+    if (_hasFindController) {
+      _findController?.findMode();
+    }
     notifyListeners();
   }
 
@@ -259,18 +292,24 @@ class ReEditorSearchController extends ChangeNotifier {
     _showReplace = false;
     _replacement = '';
     _currentQuery = '';
-    _findController?.close();
+    if (_hasFindController) {
+      _findController?.close();
+    }
     notifyListeners();
   }
 
   /// Navigate to next match
   void nextMatch() {
-    _findController?.nextMatch();
+    if (_hasFindController) {
+      _findController?.nextMatch();
+    }
   }
 
   /// Navigate to previous match
   void previousMatch() {
-    _findController?.previousMatch();
+    if (_hasFindController) {
+      _findController?.previousMatch();
+    }
   }
 
   /// Go to specific match index
@@ -293,7 +332,7 @@ class ReEditorSearchController extends ChangeNotifier {
 
   /// Replace current match
   ReplaceResultState replaceCurrent() {
-    if (!hasMatches || _findController == null) {
+    if (!hasMatches || !_hasFindController) {
       return const ReplaceFailureState('No match selected');
     }
 
@@ -310,7 +349,7 @@ class ReEditorSearchController extends ChangeNotifier {
 
   /// Replace all matches
   ReplaceResultState replaceAll() {
-    if (!hasMatches || _findController == null) {
+    if (!hasMatches || !_hasFindController) {
       return const ReplaceFailureState('No matches to replace');
     }
 
