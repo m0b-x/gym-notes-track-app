@@ -71,7 +71,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _isLoading = true;
   bool _noteSwipeEnabled = true;
   bool _showStatsBar = true;
-  SearchCursorBehavior _searchCursorBehavior = SearchCursorBehavior.end;
 
   // Editor settings
   bool _showLineNumbers = false;
@@ -166,7 +165,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   Future<void> _loadSwipeSetting() async {
     final settings = await SettingsService.getInstance();
     final noteSwipe = await settings.getNoteSwipeEnabled();
-    final searchCursor = await settings.getSearchCursorBehavior();
     final showStats = await settings.getShowStatsBar();
     final showLineNumbers = await settings.getShowLineNumbers();
     final wordWrap = await settings.getWordWrap();
@@ -174,7 +172,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     if (mounted) {
       setState(() {
         _noteSwipeEnabled = noteSwipe;
-        _searchCursorBehavior = SearchCursorBehavior.values[searchCursor];
         _showStatsBar = showStats;
         _showLineNumbers = showLineNumbers;
         _wordWrap = wordWrap;
@@ -323,6 +320,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     } else {
       if (match != null) {
         final text = _contentController.text;
+        if (match.start < 0 ||
+            match.end < 0 ||
+            match.start > text.length ||
+            match.end > text.length) {
+          return;
+        }
         final startLine = TextPositionUtils.getLineFromOffset(
           text,
           match.start,
@@ -334,25 +337,20 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         final endLine = TextPositionUtils.getLineFromOffset(text, match.end);
         final endCol = TextPositionUtils.getColumnFromOffset(text, match.end);
 
-        switch (_searchCursorBehavior) {
-          case SearchCursorBehavior.start:
-            _contentController.selection = CodeLineSelection.collapsed(
-              index: startLine,
-              offset: startCol,
-            );
-          case SearchCursorBehavior.end:
-            _contentController.selection = CodeLineSelection.collapsed(
-              index: endLine,
-              offset: endCol,
-            );
-          case SearchCursorBehavior.selection:
-            _contentController.selection = CodeLineSelection(
-              baseIndex: startLine,
-              baseOffset: startCol,
-              extentIndex: endLine,
-              extentOffset: endCol,
-            );
+        final lineCount = _contentController.lineCount;
+        if (startLine < 0 ||
+            startLine >= lineCount ||
+            endLine < 0 ||
+            endLine >= lineCount) {
+          return;
         }
+
+        _contentController.selection = CodeLineSelection(
+          baseIndex: startLine,
+          baseOffset: startCol,
+          extentIndex: endLine,
+          extentOffset: endCol,
+        );
 
         _editorScrollController.makeCenterIfInvisible(
           CodeLinePosition(index: startLine, offset: startCol),
