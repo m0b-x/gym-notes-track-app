@@ -433,6 +433,10 @@
   "@labelCannotBeEmpty": {
     "description": "Error message when label is empty"
   },
+  "formHasErrors": "Please fix the errors in the form",
+  "@formHasErrors": {
+    "description": "Snackbar message when form has validation errors"
+  },
   "bold": "Bold",
   "@bold": {
     "description": "Bold shortcut label"

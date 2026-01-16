@@ -94,6 +94,7 @@
   "markdownEnd": "Sfârșit Markdown",
   "optionalTextAfterDate": "Text opțional după dată",
   "labelCannotBeEmpty": "Eticheta nu poate fi goală",
+  "formHasErrors": "Te rugăm să corectezi erorile din formular",
   "bold": "Îngroșat",
   "italic": "Italic",
   "headers": "Anteturi",

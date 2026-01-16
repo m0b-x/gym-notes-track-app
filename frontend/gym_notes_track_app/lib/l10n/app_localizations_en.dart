@@ -316,6 +316,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get labelCannotBeEmpty => 'Label cannot be empty';
 
   @override
+  String get formHasErrors => 'Please fix the errors in the form';
+
+  @override
   String get bold => 'Bold';
 
   @override

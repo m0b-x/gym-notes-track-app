@@ -320,6 +320,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get labelCannotBeEmpty => 'Beschriftung darf nicht leer sein';
 
   @override
+  String get formHasErrors => 'Bitte beheben Sie die Fehler im Formular';
+
+  @override
   String get bold => 'Fett';
 
   @override

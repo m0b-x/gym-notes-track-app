@@ -122,20 +122,12 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
   Widget build(BuildContext context) {
     _parseContent();
 
-    // If no checkboxes, render simple markdown
+    // If no checkboxes, render simple markdown with preserved empty lines
     if (_cachedCheckboxes!.isEmpty) {
       return SingleChildScrollView(
         controller: widget.scrollController,
         padding: widget.padding ?? EdgeInsets.zero,
-        child: Markdown(
-          data: _currentData,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          styleSheet: widget.styleSheet,
-          selectable: widget.selectable,
-          padding: EdgeInsets.zero,
-          softLineBreak: true,
-        ),
+        child: _buildMarkdownWithPreservedNewlines(context, _currentData),
       );
     }
 
@@ -144,6 +136,16 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
       controller: widget.scrollController,
       padding: widget.padding ?? EdgeInsets.zero,
       child: _buildContentWithCheckboxes(context),
+    );
+  }
+
+  Widget _buildMarkdownWithPreservedNewlines(BuildContext context, String data) {
+    final lines = data.split('\n');
+    final widgets = <Widget>[];
+    _addMarkdownBlocksWithPreservedNewlines(context, lines, widgets);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
     );
   }
 
@@ -178,26 +180,9 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
           currentLine++;
         }
 
-        // Render non-checkbox lines as a single markdown block
-        final content = lines.sublist(startLine, currentLine).join('\n');
-        if (content.trim().isNotEmpty) {
-          widgets.add(
-            Markdown(
-              data: content,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              styleSheet: widget.styleSheet,
-              selectable: widget.selectable,
-              padding: EdgeInsets.zero,
-              softLineBreak: true,
-            ),
-          );
-        } else if (content.contains('\n')) {
-          // Preserve empty line spacing
-          widgets.add(
-            SizedBox(height: AppSpacing.lg * (content.split('\n').length - 1)),
-          );
-        }
+        // Render non-checkbox lines with preserved empty lines
+        final contentLines = lines.sublist(startLine, currentLine);
+        _addMarkdownBlocksWithPreservedNewlines(context, contentLines, widgets);
       }
     }
 
@@ -205,6 +190,43 @@ class _InteractiveMarkdownState extends State<InteractiveMarkdown> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: widgets,
     );
+  }
+
+  void _addMarkdownBlocksWithPreservedNewlines(
+    BuildContext context,
+    List<String> lines,
+    List<Widget> widgets,
+  ) {
+    int i = 0;
+    while (i < lines.length) {
+      if (lines[i].trim().isEmpty) {
+        int emptyCount = 0;
+        while (i < lines.length && lines[i].trim().isEmpty) {
+          emptyCount++;
+          i++;
+        }
+        if (emptyCount > 0) {
+          widgets.add(SizedBox(height: AppSpacing.lg * emptyCount));
+        }
+      } else {
+        final startIdx = i;
+        while (i < lines.length && lines[i].trim().isNotEmpty) {
+          i++;
+        }
+        final content = lines.sublist(startIdx, i).join('\n');
+        widgets.add(
+          Markdown(
+            data: content,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            styleSheet: widget.styleSheet,
+            selectable: widget.selectable,
+            padding: EdgeInsets.zero,
+            softLineBreak: true,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildCheckboxItem(

@@ -318,6 +318,9 @@ class AppLocalizationsRo extends AppLocalizations {
   String get labelCannotBeEmpty => 'Eticheta nu poate fi goală';
 
   @override
+  String get formHasErrors => 'Te rugăm să corectezi erorile din formular';
+
+  @override
   String get bold => 'Îngroșat';
 
   @override

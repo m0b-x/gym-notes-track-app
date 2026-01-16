@@ -670,6 +670,12 @@ abstract class AppLocalizations {
   /// **'Label cannot be empty'**
   String get labelCannotBeEmpty;
 
+  /// Snackbar message when form has validation errors
+  ///
+  /// In en, this message translates to:
+  /// **'Please fix the errors in the form'**
+  String get formHasErrors;
+
   /// Bold shortcut label
   ///
   /// In en, this message translates to:
