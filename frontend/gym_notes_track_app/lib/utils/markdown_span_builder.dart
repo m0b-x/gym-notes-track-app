@@ -53,7 +53,15 @@ class MarkdownSpanBuilder {
   late String _source;
   int _sourceOffset = 0;
   final List<_CheckboxData> _checkboxes = [];
-  int _checkboxIndex = 0;
+
+  /// Maps list item elements to their checkbox data.
+  /// Pre-computed during buildLazy to ensure correct ordering regardless of
+  /// which order blocks are later rendered (fixes lazy rendering issues).
+  final Map<md.Element, _CheckboxData> _nodeCheckboxMap = {};
+
+  /// Marker for blank lines that should be preserved.
+  /// Using a zero-width space sequence that won't appear in normal text.
+  static const _blankLineMarker = '\u200B\u200B\u200B';
 
   static final _checkboxLinePattern = RegExp(r'^(\s*)-\s+\[([xX\s])\]\s');
 
@@ -65,13 +73,33 @@ class MarkdownSpanBuilder {
     this.currentHighlightIndex,
   });
 
+  /// Pre-process source to preserve multiple successive blank lines.
+  /// The markdown parser collapses them, so we replace patterns of 2+ blank
+  /// lines with paragraph markers that render as spacing.
+  String _preserveBlankLines(String source) {
+    // Replace sequences of 3+ newlines with preserved blank line markers.
+    // Two newlines = one blank line between paragraphs (normal).
+    // Three+ newlines = additional blank lines that should be preserved.
+    final pattern = RegExp(r'\n(\n)+');
+    return source.replaceAllMapped(pattern, (match) {
+      final newlines = match.group(0)!;
+      final extraBlanks = newlines.length - 2; // -2 for normal paragraph break
+      if (extraBlanks <= 0) return newlines;
+      // Insert marker paragraphs for extra blank lines
+      final markers = List.filled(extraBlanks, '\n$_blankLineMarker').join();
+      return '\n$markers\n';
+    });
+  }
+
   /// Parse markdown and return AST nodes (cheap operation)
   /// Returns a LazyMarkdownBlocks that builds spans on demand
   LazyMarkdownBlocks buildLazy(String source) {
-    _source = source;
+    // Pre-process to preserve multiple blank lines
+    final processedSource = _preserveBlankLines(source);
+    _source = source; // Keep original for checkbox position calculations
     _sourceOffset = 0;
     _checkboxes.clear();
-    _checkboxIndex = 0;
+    _nodeCheckboxMap.clear();
 
     _parseCheckboxPositions();
 
@@ -80,13 +108,38 @@ class MarkdownSpanBuilder {
       encodeHtml: false,
     );
 
-    final nodes = document.parse(source);
+    final nodes = document.parse(processedSource);
+
+    // Pre-assign checkbox data to nodes in document order.
+    // This ensures correct mapping regardless of lazy rendering order.
+    int checkboxIndex = 0;
+    for (final node in nodes) {
+      checkboxIndex = _assignCheckboxesToNode(node, checkboxIndex);
+    }
 
     return LazyMarkdownBlocks(
       nodes: nodes,
       builder: this,
       baseStyle: _baseStyle,
+      blankLineMarker: _blankLineMarker,
     );
+  }
+
+  /// Recursively assigns checkbox data to list item nodes in document order.
+  /// Returns the updated checkbox index.
+  int _assignCheckboxesToNode(md.Node node, int checkboxIndex) {
+    if (node is md.Element) {
+      if (node.tag == 'li' && _hasCheckboxChild(node)) {
+        if (checkboxIndex < _checkboxes.length) {
+          _nodeCheckboxMap[node] = _checkboxes[checkboxIndex];
+          checkboxIndex++;
+        }
+      }
+      for (final child in node.children ?? []) {
+        checkboxIndex = _assignCheckboxesToNode(child, checkboxIndex);
+      }
+    }
+    return checkboxIndex;
   }
 
   /// Build spans for a single AST node (called lazily)
@@ -583,18 +636,15 @@ class MarkdownSpanBuilder {
   ) {
     final spans = <InlineSpan>[];
     bool isChecked = false;
-    _CheckboxData? checkboxData;
+
+    // Look up pre-assigned checkbox data from the map (computed during buildLazy).
+    // This ensures correct positions regardless of lazy rendering order.
+    final checkboxData = _nodeCheckboxMap[element];
 
     if (element.children != null) {
       for (final child in element.children!) {
         if (child is md.Element && child.tag == 'input') {
           isChecked = child.attributes['checked'] != null;
-
-          // Simple O(1) index-based matching - checkboxes appear in document order
-          if (_checkboxIndex < _checkboxes.length) {
-            checkboxData = _checkboxes[_checkboxIndex];
-            _checkboxIndex++;
-          }
           break;
         }
       }
@@ -611,15 +661,16 @@ class MarkdownSpanBuilder {
     );
 
     if (checkboxData != null && onCheckboxTap != null) {
+      final data = checkboxData; // Local variable for closure capture
       spans.add(
         TextSpan(
           text: '$checkboxChar ',
           style: checkboxStyle,
           recognizer: TapGestureRecognizer()
             ..onTap = () => onCheckboxTap!(
-              checkboxData!.bracketStart,
-              checkboxData.bracketEnd,
-              checkboxData.isChecked,
+              data.bracketStart,
+              data.bracketEnd,
+              data.isChecked,
             ),
         ),
       );
@@ -876,6 +927,7 @@ class LazyMarkdownBlocks {
   final List<md.Node> nodes;
   final MarkdownSpanBuilder builder;
   final TextStyle baseStyle;
+  final String? blankLineMarker;
 
   /// Cache of already-built blocks (sparse - only built blocks are stored)
   final Map<int, List<InlineSpan>> _cache = {};
@@ -884,6 +936,7 @@ class LazyMarkdownBlocks {
     required this.nodes,
     required this.builder,
     required this.baseStyle,
+    this.blankLineMarker,
   });
 
   /// Number of top-level blocks
@@ -895,9 +948,27 @@ class LazyMarkdownBlocks {
       return _cache[index]!;
     }
 
-    final spans = builder.buildNodeSpans(nodes[index], baseStyle);
+    final node = nodes[index];
+
+    // Check if this is a blank line marker paragraph
+    if (blankLineMarker != null && _isBlankLineMarker(node)) {
+      // Return just a newline for spacing
+      final spans = <InlineSpan>[TextSpan(text: '\n', style: baseStyle)];
+      _cache[index] = spans;
+      return spans;
+    }
+
+    final spans = builder.buildNodeSpans(node, baseStyle);
     _cache[index] = spans;
     return spans;
+  }
+
+  bool _isBlankLineMarker(md.Node node) {
+    if (node is md.Element && node.tag == 'p') {
+      final text = node.textContent;
+      return text == blankLineMarker;
+    }
+    return false;
   }
 
   /// Check if a block has been built

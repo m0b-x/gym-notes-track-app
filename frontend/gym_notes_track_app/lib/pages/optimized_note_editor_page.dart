@@ -456,6 +456,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     // Replace only the selected range
     _contentController.replaceSelection(info.replacement);
     _hasChanges = true;
+
+    // Force rebuild preview to reflect checkbox state change
+    if (_isPreviewMode) {
+      setState(() {});
+    }
   }
 
   void _scrollToOffsetInPreview(int charOffset) {

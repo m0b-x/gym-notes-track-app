@@ -66,6 +66,12 @@ class _NoteSearchBarState extends State<NoteSearchBar>
   void _onSearch(String value) {
     _search.search(value);
     _clearMessage();
+    // Automatically navigate to first match after search completes
+    if (value.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigateToCurrent();
+      });
+    }
   }
 
   void _navigateToCurrent() {
