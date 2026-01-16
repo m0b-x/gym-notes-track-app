@@ -75,12 +75,18 @@ class _NoteSearchBarState extends State<NoteSearchBar>
 
   void _next() {
     _search.nextMatch();
-    _navigateToCurrent();
+    // Schedule navigation after nextMatch() updates the current index
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _navigateToCurrent();
+    });
   }
 
   void _previous() {
     _search.previousMatch();
-    _navigateToCurrent();
+    // Schedule navigation after previousMatch() updates the current index
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _navigateToCurrent();
+    });
   }
 
   Future<void> _close() async {
@@ -313,12 +319,13 @@ class _SearchRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: (isSearchPending
-                ? colors.secondaryContainer
-                : isError
+        color:
+            (isSearchPending
+                    ? colors.secondaryContainer
+                    : isError
                     ? colors.errorContainer
                     : colors.primaryContainer)
-            .withValues(alpha: 0.7),
+                .withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -329,8 +336,8 @@ class _SearchRow extends StatelessWidget {
           color: isSearchPending
               ? colors.onSecondaryContainer
               : isError
-                  ? colors.onErrorContainer
-                  : colors.onPrimaryContainer,
+              ? colors.onErrorContainer
+              : colors.onPrimaryContainer,
         ),
       ),
     );

@@ -384,390 +384,411 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
         ),
       ),
       contentPadding: EdgeInsets.zero,
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  _beforeFocusNode.unfocus();
-                  _afterFocusNode.unfocus();
-                },
-                child: SingleChildScrollView(
-                  clipBehavior: Clip.hardEdge,
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(AppLocalizations.of(context)!.icon),
-                      const SizedBox(height: 8),
-                      InkWell(
-                        onTap: _showIconPicker,
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        child: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    _beforeFocusNode.unfocus();
+                    _afterFocusNode.unfocus();
+                  },
+                  child: SingleChildScrollView(
+                    clipBehavior: Clip.hardEdge,
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(AppLocalizations.of(context)!.icon),
+                        const SizedBox(height: 8),
+                        InkWell(
+                          onTap: _showIconPicker,
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.3),
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(_selectedIcon, size: 32),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.tapToChangeIcon,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _labelController,
+                          onChanged: (_) {
+                            if (_labelError != null) {
+                              setState(() => _labelError = null);
+                            }
+                          },
+                          decoration: InputDecoration(
+                            labelText: AppLocalizations.of(context)!.label,
+                            hintText: AppLocalizations.of(context)!.labelHint,
+                            border: OutlineInputBorder(),
+                            errorText: _labelError,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(AppLocalizations.of(context)!.insertType),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          initialValue: _insertType,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                          items: [
+                            DropdownMenuItem(
+                              value: 'wrap',
+                              child: Text(
+                                AppLocalizations.of(context)!.wrapSelectedText,
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 'date',
+                              child: Text(
+                                AppLocalizations.of(context)!.insertCurrentDate,
+                              ),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _insertType = value ?? 'wrap';
+                              if (_insertType == 'date') {
+                                _beforeController.text = '';
+                                _afterController.text = '';
+                              }
+                            });
+                          },
+                        ),
+                        if (_insertType == 'date') ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            AppLocalizations.of(context)!.dateFormatSettings,
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 180,
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: ListView.separated(
+                                  padding: EdgeInsets.zero,
+                                  itemCount: _dateFormats.length,
+                                  separatorBuilder: (context, index) => Divider(
+                                    height: 1,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.outlineVariant,
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final format = _dateFormats[index];
+                                    final isSelected =
+                                        format == _selectedDateFormat;
+                                    final formattedDate = DateFormat(
+                                      format,
+                                    ).format(DateTime.now());
+                                    return ListTile(
+                                      dense: true,
+                                      visualDensity: VisualDensity.compact,
+                                      selected: isSelected,
+                                      selectedTileColor: Theme.of(context)
+                                          .colorScheme
+                                          .primaryContainer
+                                          .withValues(alpha: 0.3),
+                                      leading: Icon(
+                                        isSelected
+                                            ? Icons.radio_button_checked
+                                            : Icons.radio_button_off,
+                                        color: isSelected
+                                            ? Theme.of(
+                                                context,
+                                              ).colorScheme.primary
+                                            : Theme.of(
+                                                context,
+                                              ).colorScheme.outline,
+                                        size: 20,
+                                      ),
+                                      title: Text(
+                                        formattedDate,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                          color: isSelected
+                                              ? Theme.of(
+                                                  context,
+                                                ).colorScheme.primary
+                                              : null,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        format,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        setState(
+                                          () => _selectedDateFormat = format,
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primaryContainer
+                                .withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: Theme.of(
                                 context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.3),
+                              ).colorScheme.primary.withValues(alpha: 0.3),
                             ),
-                            borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
                             children: [
-                              Icon(_selectedIcon, size: 32),
-                              const SizedBox(width: 16),
+                              Icon(
+                                Icons.info_outline,
+                                size: 20,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  AppLocalizations.of(context)!.tapToChangeIcon,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.markdownSpaceWarning,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.8),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _labelController,
-                        onChanged: (_) {
-                          if (_labelError != null) {
-                            setState(() => _labelError = null);
-                          }
-                        },
-                        decoration: InputDecoration(
-                          labelText: AppLocalizations.of(context)!.label,
-                          hintText: AppLocalizations.of(context)!.labelHint,
-                          border: OutlineInputBorder(),
-                          errorText: _labelError,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(AppLocalizations.of(context)!.insertType),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        initialValue: _insertType,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        items: [
-                          DropdownMenuItem(
-                            value: 'wrap',
-                            child: Text(
-                              AppLocalizations.of(context)!.wrapSelectedText,
-                            ),
-                          ),
-                          DropdownMenuItem(
-                            value: 'date',
-                            child: Text(
-                              AppLocalizations.of(context)!.insertCurrentDate,
-                            ),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            _insertType = value ?? 'wrap';
-                            if (_insertType == 'date') {
-                              _beforeController.text = '';
-                              _afterController.text = '';
-                            }
-                          });
-                        },
-                      ),
-                      if (_insertType == 'date') ...[
                         const SizedBox(height: 16),
-                        Text(AppLocalizations.of(context)!.dateFormatSettings),
-                        const SizedBox(height: 8),
-                        Container(
-                          height: 180,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: ListView.separated(
-                                padding: EdgeInsets.zero,
-                                itemCount: _dateFormats.length,
-                                separatorBuilder: (context, index) => Divider(
-                                  height: 1,
-                                  color: Theme.of(
+                        TextField(
+                          controller: _beforeController,
+                          focusNode: _beforeFocusNode,
+                          maxLines: null,
+                          minLines: 3,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                          maxLength: _maxChars,
+                          maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                          decoration: InputDecoration(
+                            labelText: _insertType == 'date'
+                                ? AppLocalizations.of(context)!.beforeDate
+                                : AppLocalizations.of(context)!.markdownStart,
+                            hintText: _insertType == 'date'
+                                ? AppLocalizations.of(
                                     context,
-                                  ).colorScheme.outlineVariant,
-                                ),
-                                itemBuilder: (context, index) {
-                                  final format = _dateFormats[index];
-                                  final isSelected =
-                                      format == _selectedDateFormat;
-                                  final formattedDate = DateFormat(
-                                    format,
-                                  ).format(DateTime.now());
-                                  return ListTile(
-                                    dense: true,
-                                    visualDensity: VisualDensity.compact,
-                                    selected: isSelected,
-                                    selectedTileColor: Theme.of(context)
-                                        .colorScheme
-                                        .primaryContainer
-                                        .withValues(alpha: 0.3),
-                                    leading: Icon(
-                                      isSelected
-                                          ? Icons.radio_button_checked
-                                          : Icons.radio_button_off,
-                                      color: isSelected
-                                          ? Theme.of(
-                                              context,
-                                            ).colorScheme.primary
-                                          : Theme.of(
-                                              context,
-                                            ).colorScheme.outline,
-                                      size: 20,
-                                    ),
-                                    title: Text(
-                                      formattedDate,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: isSelected
-                                            ? FontWeight.w600
-                                            : FontWeight.normal,
-                                        color: isSelected
-                                            ? Theme.of(
-                                                context,
-                                              ).colorScheme.primary
-                                            : null,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      format,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                    onTap: () {
-                                      HapticFeedback.selectionClick();
-                                      setState(
-                                        () => _selectedDateFormat = format,
-                                      );
-                                    },
-                                  );
-                                },
+                                  )!.optionalTextBeforeDate
+                                : AppLocalizations.of(
+                                    context,
+                                  )!.markdownStartHint,
+                            border: const OutlineInputBorder(),
+                            alignLabelWithHint: true,
+                            counterText: '',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            AppLocalizations.of(context)!.charactersCount(
+                              _beforeController.text.length,
+                              _maxChars,
+                            ),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        TextField(
+                          controller: _afterController,
+                          focusNode: _afterFocusNode,
+                          maxLines: null,
+                          minLines: 3,
+                          keyboardType: TextInputType.multiline,
+                          textInputAction: TextInputAction.newline,
+                          maxLength: _maxChars,
+                          maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                          decoration: InputDecoration(
+                            labelText: _insertType == 'date'
+                                ? AppLocalizations.of(context)!.afterDate
+                                : AppLocalizations.of(context)!.markdownEnd,
+                            hintText: _insertType == 'date'
+                                ? AppLocalizations.of(
+                                    context,
+                                  )!.optionalTextAfterDate
+                                : AppLocalizations.of(
+                                    context,
+                                  )!.markdownStartHint,
+                            border: const OutlineInputBorder(),
+                            alignLabelWithHint: true,
+                            counterText: '',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            AppLocalizations.of(context)!.charactersCount(
+                              _afterController.text.length,
+                              _maxChars,
+                            ),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          AppLocalizations.of(context)!.preview,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          width: double.infinity,
+                          height: 200,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outlineVariant,
+                            ),
+                          ),
+                          child: FullMarkdownView(
+                            data: _insertType == 'date'
+                                ? '${_beforeController.text}${DateFormat(_selectedDateFormat).format(DateTime.now())}${_afterController.text}'
+                                : '${_beforeController.text}text${_afterController.text}',
+                            styleSheet: MarkdownStyleSheet(
+                              p: const TextStyle(fontSize: 14),
+                              h1: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              h2: const TextStyle(
+                                fontSize: 21,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              h3: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
                         ),
                       ],
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primaryContainer.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              size: 20,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                AppLocalizations.of(
-                                  context,
-                                )!.markdownSpaceWarning,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(context).colorScheme.onSurface
-                                      .withValues(alpha: 0.8),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _beforeController,
-                        focusNode: _beforeFocusNode,
-                        maxLines: null,
-                        minLines: 3,
-                        keyboardType: TextInputType.multiline,
-                        textInputAction: TextInputAction.newline,
-                        maxLength: _maxChars,
-                        maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                        decoration: InputDecoration(
-                          labelText: _insertType == 'date'
-                              ? AppLocalizations.of(context)!.beforeDate
-                              : AppLocalizations.of(context)!.markdownStart,
-                          hintText: _insertType == 'date'
-                              ? AppLocalizations.of(
-                                  context,
-                                )!.optionalTextBeforeDate
-                              : AppLocalizations.of(context)!.markdownStartHint,
-                          border: const OutlineInputBorder(),
-                          alignLabelWithHint: true,
-                          counterText: '',
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          AppLocalizations.of(context)!.charactersCount(
-                            _beforeController.text.length,
-                            _maxChars,
-                          ),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.6),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      TextField(
-                        controller: _afterController,
-                        focusNode: _afterFocusNode,
-                        maxLines: null,
-                        minLines: 3,
-                        keyboardType: TextInputType.multiline,
-                        textInputAction: TextInputAction.newline,
-                        maxLength: _maxChars,
-                        maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                        decoration: InputDecoration(
-                          labelText: _insertType == 'date'
-                              ? AppLocalizations.of(context)!.afterDate
-                              : AppLocalizations.of(context)!.markdownEnd,
-                          hintText: _insertType == 'date'
-                              ? AppLocalizations.of(
-                                  context,
-                                )!.optionalTextAfterDate
-                              : AppLocalizations.of(context)!.markdownStartHint,
-                          border: const OutlineInputBorder(),
-                          alignLabelWithHint: true,
-                          counterText: '',
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          AppLocalizations.of(context)!.charactersCount(
-                            _afterController.text.length,
-                            _maxChars,
-                          ),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.6),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        AppLocalizations.of(context)!.preview,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.outlineVariant,
-                          ),
-                        ),
-                        child: FullMarkdownView(
-                          data: _insertType == 'date'
-                              ? '${_beforeController.text}${DateFormat(_selectedDateFormat).format(DateTime.now())}${_afterController.text}'
-                              : '${_beforeController.text}text${_afterController.text}',
-                          styleSheet: MarkdownStyleSheet(
-                            p: const TextStyle(fontSize: 14),
-                            h1: const TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            h2: const TextStyle(
-                              fontSize: 21,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            h3: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            if (showToolbar && _shortcuts.isNotEmpty)
-              Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  border: Border(
-                    top: BorderSide(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                      width: 1,
-                    ),
-                    bottom: BorderSide(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                      width: 1,
                     ),
                   ),
                 ),
-                child: MarkdownToolbar(
-                  shortcuts: _shortcuts.where((s) => s.isVisible).toList(),
-                  isPreviewMode: false,
-                  canUndo: false,
-                  canRedo: false,
-                  previewFontSize: 16,
-                  onUndo: () {},
-                  onRedo: () {},
-                  onDecreaseFontSize: () {},
-                  onIncreaseFontSize: () {},
-                  onSettings: () {},
-                  onShortcutPressed: _handleShortcut,
-                  showSettings: false,
-                  showBackground: false,
-                  showReorder: false,
-                ),
               ),
-          ],
+              if (showToolbar && _shortcuts.isNotEmpty)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    border: Border(
+                      top: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                        width: 1,
+                      ),
+                      bottom: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: MarkdownToolbar(
+                    shortcuts: _shortcuts.where((s) => s.isVisible).toList(),
+                    isPreviewMode: false,
+                    canUndo: false,
+                    canRedo: false,
+                    previewFontSize: 16,
+                    onUndo: () {},
+                    onRedo: () {},
+                    onDecreaseFontSize: () {},
+                    onIncreaseFontSize: () {},
+                    onSettings: () {},
+                    onShortcutPressed: _handleShortcut,
+                    showSettings: false,
+                    showBackground: false,
+                    showReorder: false,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
       actions: [

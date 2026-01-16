@@ -63,6 +63,7 @@ dependencies:
   
   # File picker for backup import
   file_picker: ^9.2.0
+  markdown: ^7.3.0
 
 dev_dependencies:
   flutter_test:

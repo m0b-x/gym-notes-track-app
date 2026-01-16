@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:gym_notes_track_app/utils/markdown_settings_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:re_editor/re_editor.dart';
@@ -21,6 +20,7 @@ import '../services/note_position_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/markdown_toolbar.dart';
 import '../widgets/full_markdown_view.dart';
+import '../widgets/source_mapped_markdown_view.dart';
 import '../widgets/scroll_progress_indicator.dart';
 import '../widgets/scroll_zone_mixin.dart';
 import '../widgets/note_search_bar.dart';
@@ -786,18 +786,27 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         ? AppLocalizations.of(context)!.noContentYet
         : _contentController.text;
 
-    // Update search controller content for preview mode search
-    _searchController.updateContent(content);
+    // Only update search content when we're actually in preview mode
+    if (_isPreviewMode) {
+      _searchController.updateContent(content);
+    }
 
     final markdownView = ListenableBuilder(
       listenable: _searchController,
-      builder: (context, _) => FullMarkdownView(
+      builder: (context, _) => SourceMappedMarkdownView(
         data: content,
-        selectable: true,
+        fontSize: _previewFontSize,
         scrollController: _previewScrollController,
-        styleSheet: _getPreviewStyleSheet(),
         padding: const EdgeInsets.all(AppSpacing.lg),
         onCheckboxToggle: _handleCheckboxToggle,
+        searchHighlights: _searchController.isSearching
+            ? _searchController.matches
+                  .map((m) => TextRange(start: m.start, end: m.end))
+                  .toList()
+            : null,
+        currentHighlightIndex: _searchController.isSearching
+            ? _searchController.currentMatchIndex
+            : null,
       ),
     );
 
@@ -815,29 +824,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           ),
         ),
       ],
-    );
-  }
-
-  MarkdownStyleSheet _getPreviewStyleSheet() {
-    // Match editor's line height for visual consistency
-    const lineHeight = MarkdownConstants.lineHeight;
-    return MarkdownStyleSheet(
-      p: TextStyle(fontSize: _previewFontSize, height: lineHeight),
-      h1: TextStyle(
-        fontSize: _previewFontSize * MarkdownConstants.h1Scale,
-        fontWeight: FontWeight.bold,
-        height: lineHeight,
-      ),
-      h2: TextStyle(
-        fontSize: _previewFontSize * MarkdownConstants.h2Scale,
-        fontWeight: FontWeight.bold,
-        height: lineHeight,
-      ),
-      h3: TextStyle(
-        fontSize: _previewFontSize * MarkdownConstants.h3Scale,
-        fontWeight: FontWeight.bold,
-        height: lineHeight,
-      ),
     );
   }
 
