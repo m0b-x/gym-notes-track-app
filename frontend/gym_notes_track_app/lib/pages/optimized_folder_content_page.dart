@@ -172,7 +172,11 @@ class _OptimizedFolderContentPageState
                 MaterialPageRoute(
                   builder: (context) => SearchPage(folderId: widget.folderId),
                 ),
-              );
+              ).then((_) {
+                if (mounted) {
+                  _loadData();
+                }
+              });
             },
           ),
           IconButton(

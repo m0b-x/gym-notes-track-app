@@ -50,6 +50,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     'dd/MM/yyyy',
     'MM/dd/yyyy',
     'dd.MM.yyyy',
+    'EEEE d MMMM yyyy',
     'EEEE, MMMM d, yyyy',
     'EEE, MMM d, yyyy',
     'd/M/yy',
@@ -293,7 +294,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
         if (currentHashes.length >= 6) {
           newLineText = textWithoutHeader;
         } else {
-          newLineText = '${currentHashes}# $textWithoutHeader';
+          newLineText = '$currentHashes# $textWithoutHeader';
         }
       } else {
         newLineText = '# $lineText';
@@ -416,8 +417,12 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                             children: [
                               Icon(_selectedIcon, size: 32),
                               const SizedBox(width: 16),
-                              Text(
-                                AppLocalizations.of(context)!.tapToChangeIcon,
+                              Expanded(
+                                child: Text(
+                                  AppLocalizations.of(context)!.tapToChangeIcon,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ],
                           ),

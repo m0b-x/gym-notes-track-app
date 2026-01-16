@@ -172,6 +172,7 @@ class _IconSearchIndex {
       Icons.square: ['square', 'box', 'shape'],
       Icons.change_history: ['triangle', 'change', 'history', 'shape'],
       Icons.hexagon: ['hexagon', 'shape', 'polygon'],
+      Icons.computer: ['computer', 'pc'],
     };
 
     for (final entry in iconKeywords.entries) {
