@@ -305,6 +305,7 @@ class _SearchRow extends StatelessWidget {
         hasError: hasQuery && !hasMatches,
         onChanged: onChanged,
         onSubmitted: (_) => onNext(),
+        onIconTap: hasMatches ? onNext : null,
       ),
     );
   }
@@ -443,6 +444,7 @@ class _SearchField extends StatelessWidget {
   final bool hasError;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final VoidCallback? onIconTap;
 
   const _SearchField({
     required this.controller,
@@ -452,6 +454,7 @@ class _SearchField extends StatelessWidget {
     this.hasError = false,
     this.onChanged,
     this.onSubmitted,
+    this.onIconTap,
   });
 
   @override
@@ -482,7 +485,10 @@ class _SearchField extends StatelessWidget {
           ),
           prefixIcon: Padding(
             padding: const EdgeInsets.only(left: 12, right: 8),
-            child: Icon(icon, size: 20, color: colors.onSurfaceVariant),
+            child: GestureDetector(
+              onTap: onIconTap,
+              child: Icon(icon, size: 20, color: colors.onSurfaceVariant),
+            ),
           ),
           prefixIconConstraints: const BoxConstraints(
             minWidth: 40,
