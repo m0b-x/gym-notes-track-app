@@ -1,3 +1,5 @@
+// NOTE: This widget is only used for displaying markdown in dialogs (not in the main editor preview).
+// If you are looking for the main preview implementation, see SourceMappedMarkdownView.
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import '../constants/font_constants.dart';
