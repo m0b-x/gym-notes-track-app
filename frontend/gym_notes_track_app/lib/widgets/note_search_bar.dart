@@ -514,6 +514,13 @@ class _SearchField extends StatelessWidget {
         onChanged: onChanged,
         onSubmitted: onSubmitted,
         textInputAction: TextInputAction.search,
+        autocorrect: false,
+        enableSuggestions: false,
+        keyboardType: TextInputType.text,
+        textCapitalization: TextCapitalization.none,
+        smartDashesType: SmartDashesType.disabled,
+        smartQuotesType: SmartQuotesType.disabled,
+        spellCheckConfiguration: SpellCheckConfiguration.disabled(),
       ),
     );
   }
