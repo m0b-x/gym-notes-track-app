@@ -310,6 +310,13 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
             _searchController.search(currentQuery);
           }
         });
+      } else {
+        // Switching from preview to edit: update search results in a microtask, do NOT move cursor/selection
+        Future.microtask(() {
+          if (mounted) {
+            _searchController.search(currentQuery);
+          }
+        });
       }
     }
 
@@ -687,15 +694,17 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.lg,
                         ),
-                        child: AnimatedSwitcher(
-                          duration: const Duration(
-                            milliseconds: MarkdownConstants.animationDurationMs,
-                          ),
-                          switchInCurve: Curves.easeOut,
-                          switchOutCurve: Curves.easeIn,
-                          child: _isPreviewMode
-                              ? _buildPreview()
-                              : _buildEditor(),
+                        child: Stack(
+                          children: [
+                            Offstage(
+                              offstage: !_isPreviewMode,
+                              child: _buildPreview(),
+                            ),
+                            Offstage(
+                              offstage: _isPreviewMode,
+                              child: _buildEditor(),
+                            ),
+                          ],
                         ),
                       ),
                     ),
