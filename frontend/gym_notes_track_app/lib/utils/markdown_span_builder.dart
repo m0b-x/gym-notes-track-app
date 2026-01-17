@@ -64,10 +64,6 @@ class MarkdownSpanBuilder {
   /// Counter for checkboxes within the current block being built.
   int _blockCheckboxCounter = 0;
 
-  /// Marker for blank lines that should be preserved.
-  /// Using a zero-width space sequence that won't appear in normal text.
-  static const _blankLineMarker = '\u200B\u200B\u200B';
-
   static final _checkboxLinePattern = RegExp(r'^(\s*)-\s+\[([xX\s])\]\s');
 
   MarkdownSpanBuilder({
@@ -78,29 +74,9 @@ class MarkdownSpanBuilder {
     this.currentHighlightIndex,
   });
 
-  /// Pre-process source to preserve multiple successive blank lines.
-  /// The markdown parser collapses them, so we replace patterns of 2+ blank
-  /// lines with paragraph markers that render as spacing.
-  String _preserveBlankLines(String source) {
-    // Replace sequences of 3+ newlines with preserved blank line markers.
-    // Two newlines = one blank line between paragraphs (normal).
-    // Three+ newlines = additional blank lines that should be preserved.
-    final pattern = RegExp(r'\n(\n)+');
-    return source.replaceAllMapped(pattern, (match) {
-      final newlines = match.group(0)!;
-      final extraBlanks = newlines.length - 2; // -2 for normal paragraph break
-      if (extraBlanks <= 0) return newlines;
-      // Insert marker paragraphs for extra blank lines
-      final markers = List.filled(extraBlanks, '\n$_blankLineMarker').join();
-      return '\n$markers\n';
-    });
-  }
-
   /// Parse markdown and return AST nodes (cheap operation)
   /// Returns a LazyMarkdownBlocks that builds spans on demand
   LazyMarkdownBlocks buildLazy(String source) {
-    // Pre-process to preserve multiple blank lines
-    final processedSource = _preserveBlankLines(source);
     _source = source; // Keep original for checkbox position calculations
     _sourceOffset = 0;
     _checkboxes.clear();
@@ -113,7 +89,7 @@ class MarkdownSpanBuilder {
       encodeHtml: false,
     );
 
-    final nodes = document.parse(processedSource);
+    final nodes = document.parse(source);
 
     // Pre-assign checkbox data to blocks in document order.
     // Maps "blockIndex:localCheckboxIndex" to checkbox data.
@@ -130,7 +106,7 @@ class MarkdownSpanBuilder {
       nodes: nodes,
       builder: this,
       baseStyle: _baseStyle,
-      blankLineMarker: _blankLineMarker,
+      blankLineMarker: null, // No longer using blank line markers
     );
   }
 

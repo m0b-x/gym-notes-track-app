@@ -30,17 +30,89 @@ class SourceMappedMarkdownView extends StatefulWidget {
   });
 
   @override
+  @override
   State<SourceMappedMarkdownView> createState() =>
-      _SourceMappedMarkdownViewState();
+      SourceMappedMarkdownViewState();
+
+  /// Helper to access state for imperative actions (e.g., scroll to highlight)
+  static SourceMappedMarkdownViewState? of(BuildContext context) {
+    return context.findAncestorStateOfType<SourceMappedMarkdownViewState>();
+  }
 }
 
-class _SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
+class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
+  final List<List<int>> _blockOffsets = [];
+  final List<GlobalKey> _blockKeys = [];
+
+  /// Scrolls to the block containing the given source offset (e.g., search highlight start).
+  /// Returns true if a block was found and scrolled to.
+  /// Binary search for the block containing the given source offset.
+  int _findBlockIndexForOffset(int sourceOffset) {
+    int low = 0;
+    int high = _blockOffsets.length - 1;
+    while (low <= high) {
+      int mid = (low + high) >> 1;
+      final start = _blockOffsets[mid][0];
+      final end = _blockOffsets[mid][1];
+      if (sourceOffset < start) {
+        high = mid - 1;
+      } else if (sourceOffset >= end) {
+        low = mid + 1;
+      } else {
+        return mid;
+      }
+    }
+    return -1;
+  }
+
+  Future<bool> scrollToSourceOffset(
+    int sourceOffset, {
+    Duration duration = const Duration(milliseconds: 300),
+  }) async {
+    if (_lazyBlocks == null || _blockOffsets.isEmpty) {
+      return false;
+    }
+    final blockIndex = _findBlockIndexForOffset(sourceOffset);
+    if (blockIndex == -1 || blockIndex >= _blockKeys.length) return false;
+    final key = _blockKeys[blockIndex];
+    final context = key.currentContext;
+    if (context == null) return false;
+    await Scrollable.ensureVisible(
+      context,
+      duration: duration,
+      curve: Curves.easeInOut,
+      alignment: 0.1, // Show block near top
+    );
+    return true;
+  }
+
+  String _extractTextFromSpans(List<InlineSpan> spans) {
+    final buffer = StringBuffer();
+    void extract(InlineSpan span) {
+      if (span is TextSpan) {
+        if (span.text != null) buffer.write(span.text);
+        if (span.children != null) {
+          for (final child in span.children!) {
+            extract(child);
+          }
+        }
+      }
+      // WidgetSpan is ignored for text extraction
+    }
+
+    for (final span in spans) {
+      extract(span);
+    }
+    return buffer.toString();
+  }
+
   LazyMarkdownBlocks? _lazyBlocks;
   String? _lastData;
   double? _lastFontSize;
   List<TextRange>? _lastHighlights;
   int? _lastHighlightIndex;
   ThemeData? _lastTheme;
+  Set<int> _extraBlankLineIndices = {};
 
   bool _shouldRebuild(ThemeData theme) {
     return _lazyBlocks == null ||
@@ -49,6 +121,39 @@ class _SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
         _lastHighlights != widget.searchHighlights ||
         _lastHighlightIndex != widget.currentHighlightIndex ||
         _lastTheme?.brightness != theme.brightness;
+  }
+
+  /// Detects extra blank lines between blocks and records the block indices after which they occur.
+  void _detectExtraBlankLines(String source) {
+    _extraBlankLineIndices = {};
+    final lines = source.split('\n');
+    List<int> blockStartLines = [];
+    int lineCount = lines.length;
+    // Find the start line of each block (paragraph/list/code block)
+    // We'll use a simple heuristic: a non-blank line after a blank line is a new block
+    for (int i = 0; i < lineCount; i++) {
+      if (lines[i].trim().isEmpty) {
+      } else {
+        blockStartLines.add(i);
+      }
+    }
+    // Now, for each block, check how many blank lines precede it
+    int blockIdx = 0;
+    int prevBlockLine = -1;
+    for (final blockLine in blockStartLines) {
+      if (prevBlockLine >= 0) {
+        int blanks = 0;
+        for (int i = prevBlockLine + 1; i < blockLine; i++) {
+          if (i < lineCount && lines[i].trim().isEmpty) blanks++;
+        }
+        if (blanks > 1) {
+          // Insert extra space after previous block
+          _extraBlankLineIndices.add(blockIdx - 1);
+        }
+      }
+      prevBlockLine = blockLine;
+      blockIdx++;
+    }
   }
 
   void _buildCache(BuildContext context) {
@@ -76,6 +181,23 @@ class _SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
 
     // Use lazy building - only parses AST upfront, builds spans on demand
     _lazyBlocks = builder.buildLazy(widget.data);
+    _detectExtraBlankLines(widget.data);
+
+    // Build block offset mapping for fast search
+    _blockOffsets.clear();
+    _blockKeys.clear();
+    int runningOffset = 0;
+    if (_lazyBlocks != null) {
+      for (int i = 0; i < _lazyBlocks!.length; i++) {
+        final blockSpans = _lazyBlocks![i];
+        final blockText = _extractTextFromSpans(blockSpans);
+        final start = runningOffset;
+        final end = runningOffset + blockText.length;
+        _blockOffsets.add([start, end]);
+        runningOffset = end + 1; // +1 for newline between blocks
+        _blockKeys.add(GlobalKey());
+      }
+    }
   }
 
   void _handleLinkTap(String url) {
@@ -110,14 +232,25 @@ class _SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
       height: MarkdownConstants.lineHeight,
     );
 
+    final blockCount = _lazyBlocks?.length ?? 0;
     return ListView.builder(
       controller: widget.scrollController,
       padding: widget.padding ?? const EdgeInsets.all(AppSpacing.lg),
-      itemCount: _lazyBlocks?.length ?? 0,
+      itemCount: blockCount,
       itemBuilder: (context, index) {
-        // Spans are built lazily here, only when this block becomes visible
         final blockSpans = _lazyBlocks![index];
-        return Text.rich(TextSpan(style: baseStyle, children: blockSpans));
+        final children = <Widget>[];
+        children.add(
+          Text.rich(TextSpan(style: baseStyle, children: blockSpans)),
+        );
+        if (_extraBlankLineIndices.contains(index)) {
+          children.add(SizedBox(height: widget.fontSize * 1.0));
+        }
+        return Column(
+          key: _blockKeys.length > index ? _blockKeys[index] : null,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        );
       },
     );
   }
