@@ -62,7 +62,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   late CodeLineEditingController _contentController;
   late FocusNode _contentFocusNode;
   late CodeScrollController _editorScrollController;
-  final ScrollController _previewScrollController = ScrollController();
+  ScrollController _previewScrollController = ScrollController();
+  double _pendingPreviewScrollOffset = 0.0;
   late ReEditorSearchController _searchController;
   late ScrollPositionSync _scrollPositionSync;
 
@@ -137,6 +138,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         setState(() {
           _pendingPosition = position;
           _isPreviewMode = position.isPreviewMode;
+          _pendingPreviewScrollOffset = position.previewScrollOffset;
         });
       }
     }
@@ -292,6 +294,13 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   void _togglePreviewMode() {
     final switchingToPreview = !_isPreviewMode;
 
+    // Save the scroll offset before switching
+    if (!switchingToPreview) {
+      if (_previewScrollController.hasClients) {
+        _pendingPreviewScrollOffset = _previewScrollController.offset;
+      }
+    }
+
     _scrollPositionSync.syncScrollOnModeSwitch(
       switchingToPreviewMode: switchingToPreview,
       content: _contentController.text,
@@ -311,7 +320,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           }
         });
       } else {
-        // Switching from preview to edit: update search results in a microtask, do NOT move cursor/selection
         Future.microtask(() {
           if (mounted) {
             _searchController.search(currentQuery);
@@ -322,6 +330,19 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
     setState(() {
       _isPreviewMode = switchingToPreview;
+      if (switchingToPreview) {
+        // Always use the last known offset
+        double initialOffset = _previewScrollController.hasClients
+            ? _previewScrollController.offset
+            : _pendingPreviewScrollOffset;
+        _previewScrollController.dispose();
+        _previewScrollController = ScrollController(initialScrollOffset: initialOffset);
+        // Re-attach to sync util
+        _scrollPositionSync = ScrollPositionSync(
+          previewScrollController: _previewScrollController,
+          editorScrollController: _editorScrollController,
+        );
+      }
     });
 
     _saveCurrentPosition();
@@ -697,12 +718,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                         child: Stack(
                           children: [
                             Offstage(
-                              offstage: !_isPreviewMode,
-                              child: _buildPreview(),
+                              offstage: _isPreviewMode, // Hide editor in preview mode
+                              child: _buildEditor(),
                             ),
                             Offstage(
-                              offstage: _isPreviewMode,
-                              child: _buildEditor(),
+                              offstage: !_isPreviewMode, // Hide preview in edit mode
+                              child: _buildPreview(),
                             ),
                           ],
                         ),
@@ -838,14 +859,16 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   Widget _buildPreview() {
+    if (!_isPreviewMode) {
+      // If not in preview mode, skip building the preview entirely
+      return const SizedBox.shrink();
+    }
     final content = _contentController.text.isEmpty
         ? AppLocalizations.of(context)!.noContentYet
         : _contentController.text;
 
     // Only update search content when we're actually in preview mode
-    if (_isPreviewMode) {
-      _searchController.updateContent(content);
-    }
+    _searchController.updateContent(content);
 
     final markdownView = ListenableBuilder(
       listenable: _searchController,
