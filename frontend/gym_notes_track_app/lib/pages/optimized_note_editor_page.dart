@@ -78,8 +78,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _wordWrap = true;
   bool _showCursorLine = false;
 
-  // Search cursor behavior setting
-  SearchCursorBehavior _searchCursorBehavior = SearchCursorBehavior.end;
 
   AutoSaveService? _autoSaveService;
   NotePositionService? _notePositionService;
@@ -186,7 +184,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final showLineNumbers = await settings.getShowLineNumbers();
     final wordWrap = await settings.getWordWrap();
     final showCursorLine = await settings.getShowCursorLine();
-    final searchCursorBehavior = await settings.getSearchCursorBehavior();
     if (mounted) {
       setState(() {
         _noteSwipeEnabled = noteSwipe;
@@ -194,8 +191,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         _showLineNumbers = showLineNumbers;
         _wordWrap = wordWrap;
         _showCursorLine = showCursorLine;
-        _searchCursorBehavior =
-            SearchCursorBehavior.values[searchCursorBehavior];
       });
     }
   }
@@ -445,67 +440,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
     if (_isPreviewMode) {
       _scrollToOffsetInPreview(match.start);
-    } else {
-      // Set cursor/selection based on _searchCursorBehavior
-      switch (_searchCursorBehavior) {
-        case SearchCursorBehavior.start:
-          final startLine = TextPositionUtils.getLineFromOffset(
-            text,
-            match.start,
-          );
-          final startCol = TextPositionUtils.getColumnFromOffset(
-            text,
-            match.start,
-          );
-          _contentController.selection = CodeLineSelection.collapsed(
-            index: startLine,
-            offset: startCol,
-          );
-          _editorScrollController.makeCenterIfInvisible(
-            CodeLinePosition(index: startLine, offset: startCol),
-          );
-          break;
-        case SearchCursorBehavior.end:
-          final endLine = TextPositionUtils.getLineFromOffset(text, match.end);
-          final endCol = TextPositionUtils.getColumnFromOffset(text, match.end);
-          _contentController.selection = CodeLineSelection.collapsed(
-            index: endLine,
-            offset: endCol,
-          );
-          _editorScrollController.makeCenterIfInvisible(
-            CodeLinePosition(index: endLine, offset: endCol),
-          );
-          break;
-        case SearchCursorBehavior.selection:
-          final startLine = TextPositionUtils.getLineFromOffset(
-            text,
-            match.start,
-          );
-          final startCol = TextPositionUtils.getColumnFromOffset(
-            text,
-            match.start,
-          );
-          final endLine = TextPositionUtils.getLineFromOffset(text, match.end);
-          final endCol = TextPositionUtils.getColumnFromOffset(text, match.end);
-          final lineCount = _contentController.lineCount;
-          if (startLine < 0 ||
-              startLine >= lineCount ||
-              endLine < 0 ||
-              endLine >= lineCount) {
-            return;
-          }
-          _contentController.selection = CodeLineSelection(
-            baseIndex: startLine,
-            baseOffset: startCol,
-            extentIndex: endLine,
-            extentOffset: endCol,
-          );
-          _editorScrollController.makeCenterIfInvisible(
-            CodeLinePosition(index: startLine, offset: startCol),
-          );
-          break;
-      }
-    }
+    } 
   }
 
   void _handleCheckboxToggle(CheckboxToggleInfo info) {

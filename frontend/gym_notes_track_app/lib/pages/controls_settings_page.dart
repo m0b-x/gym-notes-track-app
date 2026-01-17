@@ -6,8 +6,6 @@ import '../utils/custom_snackbar.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/unified_app_bars.dart';
 
-import '../constants/app_constants.dart';
-
 /// Controls settings page for managing gestures and interactions
 class ControlsSettingsPage extends StatefulWidget {
   const ControlsSettingsPage({super.key});
@@ -29,8 +27,6 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
   bool _showNotePreview = true;
   bool _showStatsBar = true;
   bool _hapticFeedback = true;
-  SearchCursorBehavior _searchCursorBehavior = SearchCursorBehavior.end; // 0=start, 1=end, 2=selection
-
   // Editor settings
   bool _showLineNumbers = false;
   bool _wordWrap = true;
@@ -52,7 +48,6 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     final showPreview = await settings.getShowNotePreview();
     final showStats = await settings.getShowStatsBar();
     final haptic = await settings.getHapticFeedback();
-    final searchCursor = await settings.getSearchCursorBehavior();
     final showLineNumbers = await settings.getShowLineNumbers();
     final wordWrap = await settings.getWordWrap();
     final showCursorLine = await settings.getShowCursorLine();
@@ -67,7 +62,6 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showNotePreview = showPreview;
       _showStatsBar = showStats;
       _hapticFeedback = haptic;
-      _searchCursorBehavior = SearchCursorBehavior.values[searchCursor];
       _showLineNumbers = showLineNumbers;
       _wordWrap = wordWrap;
       _showCursorLine = showCursorLine;
@@ -247,35 +241,6 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
 
                   const SizedBox(height: 16),
 
-                  // Search section
-                  _buildSectionCard(
-                    context: context,
-                    colorScheme: colorScheme,
-                    icon: Icons.search_rounded,
-                    title: l10n.searchSection,
-                    children: [
-                      _buildSegmentedTile(
-                        context: context,
-                        colorScheme: colorScheme,
-                        title: l10n.searchCursorBehavior,
-                        subtitle: l10n.searchCursorBehaviorDesc,
-                        value: _searchCursorBehavior,
-                        options: [
-                          (SearchCursorBehavior.start, l10n.cursorAtStart),
-                          (SearchCursorBehavior.end, l10n.cursorAtEnd),
-                          (SearchCursorBehavior.selection, l10n.selectMatch),
-                        ],
-                        onChanged: (value) async {
-                          _onHapticFeedback();
-                          setState(() => _searchCursorBehavior = value);
-                          await _settings?.setSearchCursorBehavior(value.index);
-                        },
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
                   // Editor section
                   _buildSectionCard(
                     context: context,
@@ -408,54 +373,6 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     );
   }
 
-  Widget _buildSegmentedTile({
-    required BuildContext context,
-    required ColorScheme colorScheme,
-    required String title,
-    required String subtitle,
-    required SearchCursorBehavior value,
-    required List<(SearchCursorBehavior, String)> options,
-    required ValueChanged<SearchCursorBehavior> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: SegmentedButton<SearchCursorBehavior>(
-                segments: options
-                    .map(
-                      (opt) => ButtonSegment<SearchCursorBehavior>(
-                        value: opt.$1,
-                        label: Text(opt.$2, style: const TextStyle(fontSize: 12)),
-                      ),
-                    )
-                    .toList(),
-                selected: {value},
-                onSelectionChanged: (selection) => onChanged(selection.first),
-                style: SegmentedButton.styleFrom(
-                  selectedBackgroundColor: colorScheme.primaryContainer,
-                  selectedForegroundColor: colorScheme.onPrimaryContainer,
-                ),
-              ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSliderTile({
     required BuildContext context,
     required ColorScheme colorScheme,
@@ -533,7 +450,6 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     await _settings?.setShowNotePreview(true);
     await _settings?.setShowStatsBar(true);
     await _settings?.setHapticFeedback(true);
-    await _settings?.setSearchCursorBehavior(SearchCursorBehavior.end.index);
     await _settings?.setShowLineNumbers(false);
     await _settings?.setWordWrap(true);
     await _settings?.setShowCursorLine(false);
@@ -547,7 +463,6 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showNotePreview = true;
       _showStatsBar = true;
       _hapticFeedback = true;
-      _searchCursorBehavior = SearchCursorBehavior.end;
       _showLineNumbers = false;
       _wordWrap = true;
       _showCursorLine = false;

@@ -1,4 +1,3 @@
-import 'app_constants.dart';
 class SettingsKeys {
   // Onboarding
   static const String onboardingCompleted = 'onboarding_completed';
@@ -29,7 +28,6 @@ class SettingsKeys {
   static const String showStatsBar = 'show_stats_bar';
   static const String defaultNotesSortOrder = 'default_notes_sort_order';
   static const String hapticFeedback = 'haptic_feedback';
-  static const String searchCursorBehavior = 'search_cursor_behavior';
 
   // Editor settings
   static const String showLineNumbers = 'show_line_numbers';
@@ -49,7 +47,6 @@ class SettingsKeys {
   static const bool defaultShowStatsBar = true;
   static const bool defaultHapticFeedback = true;
   static const int defaultDefaultNotesSortOrder = 0;
-  static const int defaultSearchCursorBehavior = AppConstants.defaultSearchCursorBehavior;
 
   // Default values for editor settings
   static const bool defaultShowLineNumbers = false;

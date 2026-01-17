@@ -1,5 +1,4 @@
 import '../constants/settings_keys.dart';
-import '../constants/app_constants.dart';
 import '../database/database.dart';
 
 /// Service for managing app settings using SQLite database
@@ -144,19 +143,6 @@ class SettingsService {
 
   Future<void> setHapticFeedback(bool value) async {
     await _setBool(SettingsKeys.hapticFeedback, value);
-  }
-
-  Future<int> getSearchCursorBehavior() async {
-    final value = await _getInt(
-      SettingsKeys.searchCursorBehavior,
-      SettingsKeys.defaultSearchCursorBehavior,
-    );
-
-    return AppConstants.validateSearchCursorBehavior(value);
-  }
-
-  Future<void> setSearchCursorBehavior(int value) async {
-    await _setInt(SettingsKeys.searchCursorBehavior, value);
   }
 
   // Editor settings - Show line numbers

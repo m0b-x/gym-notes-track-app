@@ -246,7 +246,6 @@ AppConstants.autoScrollSpeed           // 10.0
 // Search
 AppConstants.maxRecentSearches         // 10
 AppConstants.maxSearchMatches          // 1000
-SearchCursorBehavior                   // enum: start, end, selection
 ```
 
 ## Database Migrations (DatabaseSchema)
