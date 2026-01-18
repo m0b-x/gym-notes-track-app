@@ -1345,6 +1345,14 @@
   "@autoBreakLongLinesDesc": {
     "description": "Description for auto break long lines setting"
   },
+  "previewWhenKeyboardHidden": "Preview When Keyboard Hidden",
+  "@previewWhenKeyboardHidden": {
+    "description": "Setting to show preview mode when keyboard is hidden"
+  },
+  "previewWhenKeyboardHiddenDesc": "Show rendered markdown preview when the keyboard is hidden. The editor appears when you tap to type.",
+  "@previewWhenKeyboardHiddenDesc": {
+    "description": "Description for preview when keyboard hidden setting"
+  },
   "linesFormatted": "{count, plural, =1{1 long line was formatted} other{{count} long lines were formatted}}",
   "@linesFormatted": {
     "description": "Toast message when lines are formatted on paste",

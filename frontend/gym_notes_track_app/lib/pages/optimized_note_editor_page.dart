@@ -85,6 +85,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _wordWrap = true;
   bool _showCursorLine = false;
   bool _autoBreakLongLines = true;
+  bool _previewWhenKeyboardHidden = false;
 
   // Preview settings
   bool _showPreviewScrollbar = false;
@@ -206,6 +207,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final showPreviewScrollbar = await settings.getShowPreviewScrollbar();
     final previewLinesPerChunk = await settings.getPreviewLinesPerChunk();
     final autoBreakLongLines = await settings.getAutoBreakLongLines();
+    final previewWhenKeyboardHidden = await settings.getPreviewWhenKeyboardHidden();
     if (mounted) {
       setState(() {
         _noteSwipeEnabled = noteSwipe;
@@ -216,6 +218,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         _showPreviewScrollbar = showPreviewScrollbar;
         _previewLinesPerChunk = previewLinesPerChunk;
         _autoBreakLongLines = autoBreakLongLines;
+        _previewWhenKeyboardHidden = previewWhenKeyboardHidden;
       });
     }
   }
@@ -756,19 +759,31 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.lg,
                         ),
-                        child: Stack(
-                          children: [
-                            Offstage(
-                              offstage:
-                                  _isPreviewMode, // Hide editor in preview mode
-                              child: _buildEditor(),
-                            ),
-                            Offstage(
-                              offstage:
-                                  !_isPreviewMode, // Hide preview in edit mode
-                              child: _buildPreview(),
-                            ),
-                          ],
+                        child: Builder(
+                          builder: (context) {
+                            final keyboardVisible =
+                                MediaQuery.of(context).viewInsets.bottom > 0;
+                            // Show preview if:
+                            // 1. User toggled preview mode manually, OR
+                            // 2. previewWhenKeyboardHidden is enabled AND keyboard is hidden
+                            final showPreview = _isPreviewMode ||
+                                (_previewWhenKeyboardHidden && !keyboardVisible);
+
+                            return Stack(
+                              children: [
+                                Offstage(
+                                  offstage:
+                                      showPreview, // Hide editor when showing preview
+                                  child: _buildEditor(),
+                                ),
+                                Offstage(
+                                  offstage:
+                                      !showPreview, // Hide preview when showing editor
+                                  child: _buildPreview(),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ),
                     ),

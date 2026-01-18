@@ -32,6 +32,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
   bool _wordWrap = true;
   bool _showCursorLine = false;
   bool _autoBreakLongLines = true;
+  bool _previewWhenKeyboardHidden = false;
 
   // Preview settings
   bool _showPreviewScrollbar = false;
@@ -59,6 +60,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     final wordWrap = await settings.getWordWrap();
     final showCursorLine = await settings.getShowCursorLine();
     final autoBreakLongLines = await settings.getAutoBreakLongLines();
+    final previewWhenKeyboardHidden = await settings.getPreviewWhenKeyboardHidden();
     final showPreviewScrollbar = await settings.getShowPreviewScrollbar();
     final previewLinesPerChunk = await settings.getPreviewLinesPerChunk();
 
@@ -76,6 +78,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _wordWrap = wordWrap;
       _showCursorLine = showCursorLine;
       _autoBreakLongLines = autoBreakLongLines;
+      _previewWhenKeyboardHidden = previewWhenKeyboardHidden;
       _showPreviewScrollbar = showPreviewScrollbar;
       _previewLinesPerChunk = previewLinesPerChunk;
       _isLoading = false;
@@ -306,6 +309,18 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
                           await _settings?.setAutoBreakLongLines(value);
                         },
                       ),
+                      const Divider(height: 1),
+                      _buildSwitchTile(
+                        context: context,
+                        title: l10n.previewWhenKeyboardHidden,
+                        subtitle: l10n.previewWhenKeyboardHiddenDesc,
+                        value: _previewWhenKeyboardHidden,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _previewWhenKeyboardHidden = value);
+                          await _settings?.setPreviewWhenKeyboardHidden(value);
+                        },
+                      ),
                     ],
                   ),
 
@@ -531,6 +546,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     await _settings?.setWordWrap(true);
     await _settings?.setShowCursorLine(false);
     await _settings?.setAutoBreakLongLines(true);
+    await _settings?.setPreviewWhenKeyboardHidden(false);
 
     setState(() {
       _folderSwipeEnabled = true;
@@ -545,6 +561,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _wordWrap = true;
       _showCursorLine = false;
       _autoBreakLongLines = true;
+      _previewWhenKeyboardHidden = false;
     });
 
     if (!mounted) return;

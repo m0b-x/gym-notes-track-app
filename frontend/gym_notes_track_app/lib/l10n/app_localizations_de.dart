@@ -1006,6 +1006,13 @@ class AppLocalizationsDe extends AppLocalizations {
       'Automatically break long lines when pasting text. May slightly affect search positioning accuracy in preview mode.';
 
   @override
+  String get previewWhenKeyboardHidden => 'Preview When Keyboard Hidden';
+
+  @override
+  String get previewWhenKeyboardHiddenDesc =>
+      'Show rendered markdown preview when the keyboard is hidden. The editor appears when you tap to type.';
+
+  @override
   String linesFormatted(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

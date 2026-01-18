@@ -190,6 +190,18 @@ class SettingsService {
     await _setBool(SettingsKeys.autoBreakLongLines, value);
   }
 
+  // Editor settings - Show preview when keyboard is hidden
+  Future<bool> getPreviewWhenKeyboardHidden() async {
+    return _getBool(
+      SettingsKeys.previewWhenKeyboardHidden,
+      SettingsKeys.defaultPreviewWhenKeyboardHidden,
+    );
+  }
+
+  Future<void> setPreviewWhenKeyboardHidden(bool value) async {
+    await _setBool(SettingsKeys.previewWhenKeyboardHidden, value);
+  }
+
   // Preview settings - Show scrollbar
   Future<bool> getShowPreviewScrollbar() async {
     return _getBool(

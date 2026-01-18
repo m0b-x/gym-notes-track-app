@@ -1942,6 +1942,18 @@ abstract class AppLocalizations {
   /// **'Automatically break long lines when pasting text. May slightly affect search positioning accuracy in preview mode.'**
   String get autoBreakLongLinesDesc;
 
+  /// Setting to show preview mode when keyboard is hidden
+  ///
+  /// In en, this message translates to:
+  /// **'Preview When Keyboard Hidden'**
+  String get previewWhenKeyboardHidden;
+
+  /// Description for preview when keyboard hidden setting
+  ///
+  /// In en, this message translates to:
+  /// **'Show rendered markdown preview when the keyboard is hidden. The editor appears when you tap to type.'**
+  String get previewWhenKeyboardHiddenDesc;
+
   /// Toast message when lines are formatted on paste
   ///
   /// In en, this message translates to:
