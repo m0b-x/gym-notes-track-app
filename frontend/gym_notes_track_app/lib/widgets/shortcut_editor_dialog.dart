@@ -82,20 +82,20 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     _afterFocusNode = FocusNode();
 
     _beforeFocusNode.addListener(() {
-      setState(() {
-        if (_beforeFocusNode.hasFocus) {
+      if (_beforeFocusNode.hasFocus && _activeController != _beforeController) {
+        setState(() {
           _activeController = _beforeController;
           _activeFocusNode = _beforeFocusNode;
-        }
-      });
+        });
+      }
     });
     _afterFocusNode.addListener(() {
-      setState(() {
-        if (_afterFocusNode.hasFocus) {
+      if (_afterFocusNode.hasFocus && _activeController != _afterController) {
+        setState(() {
           _activeController = _afterController;
           _activeFocusNode = _afterFocusNode;
-        }
-      });
+        });
+      }
     });
 
     _selectedIcon = widget.shortcut != null
@@ -360,6 +360,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
 
     return AlertDialog(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       titlePadding: EdgeInsets.zero,
       title: Container(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
@@ -395,7 +396,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
             children: [
               Flexible(
                 child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
+                  behavior: HitTestBehavior.translucent,
                   onTap: () {
                     _beforeFocusNode.unfocus();
                     _afterFocusNode.unfocus();

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gym_notes_track_app/utils/markdown_settings_utils.dart';
 import 'package:path_provider/path_provider.dart';
@@ -78,7 +79,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _showLineNumbers = false;
   bool _wordWrap = true;
   bool _showCursorLine = false;
-
 
   AutoSaveService? _autoSaveService;
   NotePositionService? _notePositionService;
@@ -332,7 +332,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
             ? _previewScrollController.offset
             : _pendingPreviewScrollOffset;
         _previewScrollController.dispose();
-        _previewScrollController = ScrollController(initialScrollOffset: initialOffset);
+        _previewScrollController = ScrollController(
+          initialScrollOffset: initialOffset,
+        );
         // Re-attach to sync util
         _scrollPositionSync = ScrollPositionSync(
           previewScrollController: _previewScrollController,
@@ -441,7 +443,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
     if (_isPreviewMode) {
       _scrollToOffsetInPreview(match.start);
-    } 
+    }
   }
 
   void _handleCheckboxToggle(CheckboxToggleInfo info) {
@@ -651,11 +653,13 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                         child: Stack(
                           children: [
                             Offstage(
-                              offstage: _isPreviewMode, // Hide editor in preview mode
+                              offstage:
+                                  _isPreviewMode, // Hide editor in preview mode
                               child: _buildEditor(),
                             ),
                             Offstage(
-                              offstage: !_isPreviewMode, // Hide preview in edit mode
+                              offstage:
+                                  !_isPreviewMode, // Hide preview in edit mode
                               child: _buildPreview(),
                             ),
                           ],
@@ -1048,8 +1052,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
     if (shortcut.insertType == 'date') {
       final now = DateTime.now();
-      final formatted =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final format = shortcut.dateFormat ?? 'yyyy-MM-dd';
+      final formatted = DateFormat(format).format(now);
       final middle = selectedText.isNotEmpty ? selectedText : formatted;
       final wrapped = '${shortcut.beforeText}$middle${shortcut.afterText}';
       _contentController.replaceSelection(wrapped);
