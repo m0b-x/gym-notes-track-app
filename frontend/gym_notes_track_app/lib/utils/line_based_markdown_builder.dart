@@ -295,6 +295,7 @@ class LineBasedMarkdownBuilder {
 
       final line = _getLine(i);
       final lineSpan = buildLine(line, i, chunkIndex);
+
       spans.add(lineSpan);
 
       // Add newline between lines (except after last line in chunk)
@@ -303,7 +304,6 @@ class LineBasedMarkdownBuilder {
       }
     }
 
-    // Cache with LRU eviction
     _addToCache(chunkIndex, spans);
     return spans;
   }

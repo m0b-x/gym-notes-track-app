@@ -5,6 +5,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../constants/app_spacing.dart';
 import '../constants/markdown_constants.dart';
+import '../models/dev_options.dart';
 import '../utils/line_based_markdown_builder.dart';
 import 'full_markdown_view.dart';
 
@@ -70,6 +71,7 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
   int? _lastHighlightIndex;
   ThemeData? _lastTheme;
   int? _lastLinesPerChunk;
+  bool? _lastDebugEnabled;
 
   /// Debounce timer for rapid data changes
   Timer? _rebuildDebounce;
@@ -383,13 +385,18 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
   }
 
   bool _shouldRebuild(ThemeData theme) {
+    final devOptions = DevOptions.instance;
+    final debugEnabled =
+        devOptions.colorMarkdownBlocks || devOptions.showBlockBoundaries;
+
     return _builder == null ||
         _lastData != widget.data ||
         _lastFontSize != widget.fontSize ||
         !_highlightsEqual(_lastHighlights, widget.searchHighlights) ||
         _lastHighlightIndex != widget.currentHighlightIndex ||
         _lastTheme?.brightness != theme.brightness ||
-        _lastLinesPerChunk != widget.linesPerChunk;
+        _lastLinesPerChunk != widget.linesPerChunk ||
+        _lastDebugEnabled != debugEnabled;
   }
 
   /// Deep equality check for highlights list
@@ -410,12 +417,17 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
       return;
     }
 
+    final devOptions = DevOptions.instance;
+    final debugEnabled =
+        devOptions.colorMarkdownBlocks || devOptions.showBlockBoundaries;
+
     _lastData = widget.data;
     _lastFontSize = widget.fontSize;
     _lastHighlights = widget.searchHighlights;
     _lastHighlightIndex = widget.currentHighlightIndex;
     _lastTheme = theme;
     _lastLinesPerChunk = widget.linesPerChunk;
+    _lastDebugEnabled = debugEnabled;
 
     final mdStyle = LineMarkdownStyle.fromTheme(theme, widget.fontSize);
 
@@ -486,6 +498,12 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
     final isShortContent = chunkCount <= 3;
     final itemCount = isShortContent ? chunkCount + 1 : chunkCount;
 
+    // Cache debug state ONCE per build, not per chunk
+    final devOptions = DevOptions.instance;
+    final showColors = devOptions.colorMarkdownBlocks;
+    final showBorders = devOptions.showBlockBoundaries;
+    final debugEnabled = showColors || showBorders;
+
     return ScrollablePositionedList.builder(
       itemScrollController: _itemScrollController,
       itemPositionsListener: _itemPositionsListener,
@@ -510,11 +528,100 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
         // Build chunk spans (cached internally)
         final chunkSpans = _builder!.buildChunk(index);
 
-        // RepaintBoundary isolates repaints to this chunk only
-        return RepaintBoundary(
-          child: Text.rich(TextSpan(style: baseStyle, children: chunkSpans)),
+        // Build the text widget
+        Widget chunkWidget = Text.rich(
+          TextSpan(style: baseStyle, children: chunkSpans),
         );
+
+        // Early exit if debug disabled - no extra work
+        if (!debugEnabled) {
+          return RepaintBoundary(child: chunkWidget);
+        }
+
+        // Debug mode: wrap in colored/bordered container
+        final colorIndex = index % _debugColors.length;
+
+        if (showBorders) {
+          // Full debug with borders and label
+          chunkWidget = Container(
+            decoration: BoxDecoration(
+              color: showColors ? _debugColors[colorIndex] : null,
+              border: Border.all(
+                color: _debugBorderColors[colorIndex],
+                width: 2,
+              ),
+              borderRadius: _debugBorderRadius,
+            ),
+            padding: _debugPadding,
+            margin: _debugMargin,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: _debugLabelPadding,
+                  margin: _debugLabelMargin,
+                  decoration: BoxDecoration(
+                    color: _debugBorderColors[colorIndex],
+                    borderRadius: _debugLabelBorderRadius,
+                  ),
+                  child: Text('Chunk $index', style: _debugLabelStyle),
+                ),
+                chunkWidget,
+              ],
+            ),
+          );
+        } else if (showColors) {
+          // Just background color, minimal overhead
+          chunkWidget = Container(
+            color: _debugColors[colorIndex],
+            child: chunkWidget,
+          );
+        }
+
+        // RepaintBoundary isolates repaints to this chunk only
+        return RepaintBoundary(child: chunkWidget);
       },
     );
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DEBUG STYLING CONSTANTS (static to avoid recreation)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static const List<Color> _debugColors = [
+    Color(0x30FF5722), // orange
+    Color(0x302196F3), // blue
+    Color(0x304CAF50), // green
+    Color(0x309C27B0), // purple
+    Color(0x30FF9800), // amber
+    Color(0x3000BCD4), // cyan
+  ];
+
+  static const List<Color> _debugBorderColors = [
+    Color(0xFFFF5722),
+    Color(0xFF2196F3),
+    Color(0xFF4CAF50),
+    Color(0xFF9C27B0),
+    Color(0xFFFF9800),
+    Color(0xFF00BCD4),
+  ];
+
+  static const BorderRadius _debugBorderRadius = BorderRadius.all(
+    Radius.circular(8),
+  );
+  static const BorderRadius _debugLabelBorderRadius = BorderRadius.all(
+    Radius.circular(4),
+  );
+  static const EdgeInsets _debugPadding = EdgeInsets.all(8);
+  static const EdgeInsets _debugMargin = EdgeInsets.symmetric(vertical: 4);
+  static const EdgeInsets _debugLabelPadding = EdgeInsets.symmetric(
+    horizontal: 6,
+    vertical: 2,
+  );
+  static const EdgeInsets _debugLabelMargin = EdgeInsets.only(bottom: 4);
+  static const TextStyle _debugLabelStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+  );
 }

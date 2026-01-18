@@ -60,7 +60,8 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     final wordWrap = await settings.getWordWrap();
     final showCursorLine = await settings.getShowCursorLine();
     final autoBreakLongLines = await settings.getAutoBreakLongLines();
-    final previewWhenKeyboardHidden = await settings.getPreviewWhenKeyboardHidden();
+    final previewWhenKeyboardHidden = await settings
+        .getPreviewWhenKeyboardHidden();
     final showPreviewScrollbar = await settings.getShowPreviewScrollbar();
     final previewLinesPerChunk = await settings.getPreviewLinesPerChunk();
 

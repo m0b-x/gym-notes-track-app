@@ -1,15 +1,71 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/app_settings/app_settings_bloc.dart';
 import '../l10n/app_localizations.dart';
+import '../models/dev_options.dart';
 import '../pages/database_settings_page.dart';
 import '../pages/controls_settings_page.dart';
+import '../pages/developer_options_page.dart';
 import '../pages/markdown_settings_page.dart';
+import '../services/dev_options_service.dart';
+import '../utils/custom_snackbar.dart';
 import '../utils/markdown_settings_utils.dart';
 
 /// Global navigation drawer for app-wide settings
-class AppDrawer extends StatelessWidget {
+class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
+
+  @override
+  State<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends State<AppDrawer> {
+  int _tapCount = 0;
+  DateTime? _lastTapTime;
+  static const Duration _tapTimeout = Duration(seconds: 2);
+
+  void _resetTapCount() {
+    setState(() {
+      _tapCount = 0;
+      _lastTapTime = null;
+    });
+  }
+
+  Future<void> _handleIconTap(BuildContext context) async {
+    final now = DateTime.now();
+
+    // Reset if timeout expired
+    if (_lastTapTime != null && now.difference(_lastTapTime!) > _tapTimeout) {
+      _resetTapCount();
+    }
+
+    setState(() {
+      _tapCount++;
+      _lastTapTime = now;
+    });
+
+    if (_tapCount >= 5) {
+      final devOptions = DevOptions.instance;
+      if (!devOptions.developerModeUnlocked) {
+        devOptions.developerModeUnlocked = true;
+        final service = await DevOptionsService.getInstance();
+        await service.saveOptions();
+        HapticFeedback.mediumImpact();
+        if (context.mounted) {
+          Navigator.pop(context); // Close drawer first
+          await Future.delayed(const Duration(milliseconds: 100));
+          if (context.mounted) {
+            CustomSnackbar.showSuccess(
+              context,
+              AppLocalizations.of(context)!.developerModeUnlocked,
+            );
+          }
+        }
+      }
+      _resetTapCount();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,6 +153,42 @@ class AppDrawer extends StatelessWidget {
                   },
                 ),
 
+                // Developer options divider and menu (only shown when unlocked)
+                ListenableBuilder(
+                  listenable: DevOptions.instance,
+                  builder: (context, _) {
+                    if (!DevOptions.instance.developerModeUnlocked) {
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      children: [
+                        const Divider(indent: 16, endIndent: 16),
+                        _buildMenuItem(
+                          context: context,
+                          icon: Icons.developer_mode_rounded,
+                          title: AppLocalizations.of(context)!.developerOptions,
+                          subtitle: AppLocalizations.of(
+                            context,
+                          )!.developerOptionsDesc,
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push<String>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const DeveloperOptionsPage(),
+                              ),
+                            ).then((result) {
+                              if (result == 'openDrawer' && context.mounted) {
+                                Scaffold.of(context).openDrawer();
+                              }
+                            });
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                ),
+
                 const Divider(indent: 16, endIndent: 16),
 
                 // Language settings
@@ -149,6 +241,7 @@ class AppDrawer extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context, ColorScheme colorScheme) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       width: double.infinity,
@@ -176,25 +269,52 @@ class AppDrawer extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: isDark
-                  ? null
-                  : [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-            ),
-            child: Icon(
-              Icons.fitness_center_rounded,
-              size: 32,
-              color: colorScheme.primary,
+          // Gym icon with tap (5x) or swipe-to-unlock developer mode
+          GestureDetector(
+            onTap: () => _handleIconTap(context),
+            onHorizontalDragEnd: (details) async {
+              // Swipe left-to-right with sufficient velocity
+              if (details.primaryVelocity != null &&
+                  details.primaryVelocity! > 200) {
+                final devOptions = DevOptions.instance;
+                if (!devOptions.developerModeUnlocked) {
+                  devOptions.developerModeUnlocked = true;
+                  final service = await DevOptionsService.getInstance();
+                  await service.saveOptions();
+                  HapticFeedback.mediumImpact();
+                  if (context.mounted) {
+                    Navigator.pop(context); // Close drawer first
+                    await Future.delayed(const Duration(milliseconds: 100));
+                    if (context.mounted) {
+                      CustomSnackbar.showSuccess(
+                        context,
+                        l10n.developerModeUnlocked,
+                      );
+                    }
+                  }
+                }
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: isDark
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+              ),
+              child: Icon(
+                Icons.fitness_center_rounded,
+                size: 32,
+                color: colorScheme.primary,
+              ),
             ),
           ),
           const SizedBox(height: 16),

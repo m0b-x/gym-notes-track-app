@@ -1122,4 +1122,122 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get afterAllRepeatsHint => 'e.g., \\n---';
+
+  @override
+  String get developerOptions => 'Developer Options';
+
+  @override
+  String get developerOptionsDesc => 'Debug tools and diagnostics';
+
+  @override
+  String get developerOptionsWarning =>
+      'These options are for debugging only. Enabling them may affect app performance.';
+
+  @override
+  String get developerOptionsReset => 'Developer options reset to defaults';
+
+  @override
+  String get developerModeUnlocked => 'Developer mode unlocked!';
+
+  @override
+  String get lockDeveloperMode => 'Lock Developer Mode';
+
+  @override
+  String get developerModeLocked => 'Developer mode locked';
+
+  @override
+  String get visualizationDebug => 'Visualization / Debug';
+
+  @override
+  String get colorMarkdownBlocks => 'Color Markdown Blocks';
+
+  @override
+  String get colorMarkdownBlocksDesc =>
+      'Show different colors for headers, code, lists, etc.';
+
+  @override
+  String get showBlockBoundaries => 'Show Block Boundaries';
+
+  @override
+  String get showBlockBoundariesDesc =>
+      'Draw borders around each parsed element';
+
+  @override
+  String get showWhitespace => 'Show Whitespace';
+
+  @override
+  String get showWhitespaceDesc => 'Visualize spaces, tabs, and newlines';
+
+  @override
+  String get showPreviewLineNumbers => 'Preview Line Numbers';
+
+  @override
+  String get showPreviewLineNumbersDesc =>
+      'Show source line numbers in preview mode';
+
+  @override
+  String get performanceMonitoring => 'Performance Monitoring';
+
+  @override
+  String get showRenderTime => 'Show Render Time';
+
+  @override
+  String get showRenderTimeDesc => 'Display how long preview takes to render';
+
+  @override
+  String get showFpsCounter => 'Show FPS Counter';
+
+  @override
+  String get showFpsCounterDesc => 'Monitor scroll and animation performance';
+
+  @override
+  String get showChunkIndicators => 'Show Chunk Indicators';
+
+  @override
+  String get showChunkIndicatorsDesc =>
+      'Highlight which chunks are loaded in preview';
+
+  @override
+  String get showRepaintRainbow => 'Show Repaint Rainbow';
+
+  @override
+  String get showRepaintRainbowDesc =>
+      'Color widgets when they repaint (Flutter debug)';
+
+  @override
+  String get editorDebug => 'Editor Debug';
+
+  @override
+  String get showCursorInfo => 'Show Cursor Info';
+
+  @override
+  String get showCursorInfoDesc => 'Display line, column, and character offset';
+
+  @override
+  String get showSelectionDetails => 'Show Selection Details';
+
+  @override
+  String get showSelectionDetailsDesc =>
+      'Display start, end positions and length';
+
+  @override
+  String get logParserEvents => 'Log Parser Events';
+
+  @override
+  String get logParserEventsDesc => 'Output parsing info to debug console';
+
+  @override
+  String get storageData => 'Storage / Data';
+
+  @override
+  String get showNoteSize => 'Show Note Size';
+
+  @override
+  String get showNoteSizeDesc => 'Display content size in bytes';
+
+  @override
+  String get showDatabaseStats => 'Show Database Stats';
+
+  @override
+  String get showDatabaseStatsDesc => 'Query count and cache information';
 }

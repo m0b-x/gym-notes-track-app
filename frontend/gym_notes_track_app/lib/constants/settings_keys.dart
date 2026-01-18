@@ -34,7 +34,8 @@ class SettingsKeys {
   static const String wordWrap = 'word_wrap';
   static const String showCursorLine = 'show_cursor_line';
   static const String autoBreakLongLines = 'auto_break_long_lines';
-  static const String previewWhenKeyboardHidden = 'preview_when_keyboard_hidden';
+  static const String previewWhenKeyboardHidden =
+      'preview_when_keyboard_hidden';
 
   // Preview settings
   static const String showPreviewScrollbar = 'show_preview_scrollbar';

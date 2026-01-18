@@ -2151,6 +2151,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'e.g., \\n---'**
   String get afterAllRepeatsHint;
+
+  /// Title for developer options page
+  ///
+  /// In en, this message translates to:
+  /// **'Developer Options'**
+  String get developerOptions;
+
+  /// Description for developer options in drawer
+  ///
+  /// In en, this message translates to:
+  /// **'Debug tools and diagnostics'**
+  String get developerOptionsDesc;
+
+  /// Warning message on developer options page
+  ///
+  /// In en, this message translates to:
+  /// **'These options are for debugging only. Enabling them may affect app performance.'**
+  String get developerOptionsWarning;
+
+  /// Toast message when dev options are reset
+  ///
+  /// In en, this message translates to:
+  /// **'Developer options reset to defaults'**
+  String get developerOptionsReset;
+
+  /// Toast message when developer mode is unlocked by swiping gym icon
+  ///
+  /// In en, this message translates to:
+  /// **'Developer mode unlocked!'**
+  String get developerModeUnlocked;
+
+  /// Button to hide developer options from menu
+  ///
+  /// In en, this message translates to:
+  /// **'Lock Developer Mode'**
+  String get lockDeveloperMode;
+
+  /// Toast message when developer mode is locked
+  ///
+  /// In en, this message translates to:
+  /// **'Developer mode locked'**
+  String get developerModeLocked;
+
+  /// Section title for visualization debug options
+  ///
+  /// In en, this message translates to:
+  /// **'Visualization / Debug'**
+  String get visualizationDebug;
+
+  /// Option to color different markdown blocks
+  ///
+  /// In en, this message translates to:
+  /// **'Color Markdown Blocks'**
+  String get colorMarkdownBlocks;
+
+  /// Description for color markdown blocks option
+  ///
+  /// In en, this message translates to:
+  /// **'Show different colors for headers, code, lists, etc.'**
+  String get colorMarkdownBlocksDesc;
+
+  /// Option to show block boundaries
+  ///
+  /// In en, this message translates to:
+  /// **'Show Block Boundaries'**
+  String get showBlockBoundaries;
+
+  /// Description for show block boundaries option
+  ///
+  /// In en, this message translates to:
+  /// **'Draw borders around each parsed element'**
+  String get showBlockBoundariesDesc;
+
+  /// Option to show whitespace characters
+  ///
+  /// In en, this message translates to:
+  /// **'Show Whitespace'**
+  String get showWhitespace;
+
+  /// Description for show whitespace option
+  ///
+  /// In en, this message translates to:
+  /// **'Visualize spaces, tabs, and newlines'**
+  String get showWhitespaceDesc;
+
+  /// Option to show line numbers in preview
+  ///
+  /// In en, this message translates to:
+  /// **'Preview Line Numbers'**
+  String get showPreviewLineNumbers;
+
+  /// Description for show preview line numbers option
+  ///
+  /// In en, this message translates to:
+  /// **'Show source line numbers in preview mode'**
+  String get showPreviewLineNumbersDesc;
+
+  /// Section title for performance monitoring options
+  ///
+  /// In en, this message translates to:
+  /// **'Performance Monitoring'**
+  String get performanceMonitoring;
+
+  /// Option to show render time
+  ///
+  /// In en, this message translates to:
+  /// **'Show Render Time'**
+  String get showRenderTime;
+
+  /// Description for show render time option
+  ///
+  /// In en, this message translates to:
+  /// **'Display how long preview takes to render'**
+  String get showRenderTimeDesc;
+
+  /// Option to show FPS counter
+  ///
+  /// In en, this message translates to:
+  /// **'Show FPS Counter'**
+  String get showFpsCounter;
+
+  /// Description for show FPS counter option
+  ///
+  /// In en, this message translates to:
+  /// **'Monitor scroll and animation performance'**
+  String get showFpsCounterDesc;
+
+  /// Option to show chunk indicators
+  ///
+  /// In en, this message translates to:
+  /// **'Show Chunk Indicators'**
+  String get showChunkIndicators;
+
+  /// Description for show chunk indicators option
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight which chunks are loaded in preview'**
+  String get showChunkIndicatorsDesc;
+
+  /// Option to show repaint rainbow
+  ///
+  /// In en, this message translates to:
+  /// **'Show Repaint Rainbow'**
+  String get showRepaintRainbow;
+
+  /// Description for show repaint rainbow option
+  ///
+  /// In en, this message translates to:
+  /// **'Color widgets when they repaint (Flutter debug)'**
+  String get showRepaintRainbowDesc;
+
+  /// Section title for editor debug options
+  ///
+  /// In en, this message translates to:
+  /// **'Editor Debug'**
+  String get editorDebug;
+
+  /// Option to show cursor position info
+  ///
+  /// In en, this message translates to:
+  /// **'Show Cursor Info'**
+  String get showCursorInfo;
+
+  /// Description for show cursor info option
+  ///
+  /// In en, this message translates to:
+  /// **'Display line, column, and character offset'**
+  String get showCursorInfoDesc;
+
+  /// Option to show selection details
+  ///
+  /// In en, this message translates to:
+  /// **'Show Selection Details'**
+  String get showSelectionDetails;
+
+  /// Description for show selection details option
+  ///
+  /// In en, this message translates to:
+  /// **'Display start, end positions and length'**
+  String get showSelectionDetailsDesc;
+
+  /// Option to log parser events
+  ///
+  /// In en, this message translates to:
+  /// **'Log Parser Events'**
+  String get logParserEvents;
+
+  /// Description for log parser events option
+  ///
+  /// In en, this message translates to:
+  /// **'Output parsing info to debug console'**
+  String get logParserEventsDesc;
+
+  /// Section title for storage data options
+  ///
+  /// In en, this message translates to:
+  /// **'Storage / Data'**
+  String get storageData;
+
+  /// Option to show note size
+  ///
+  /// In en, this message translates to:
+  /// **'Show Note Size'**
+  String get showNoteSize;
+
+  /// Description for show note size option
+  ///
+  /// In en, this message translates to:
+  /// **'Display content size in bytes'**
+  String get showNoteSizeDesc;
+
+  /// Option to show database stats
+  ///
+  /// In en, this message translates to:
+  /// **'Show Database Stats'**
+  String get showDatabaseStats;
+
+  /// Description for show database stats option
+  ///
+  /// In en, this message translates to:
+  /// **'Query count and cache information'**
+  String get showDatabaseStatsDesc;
 }
 
 class _AppLocalizationsDelegate

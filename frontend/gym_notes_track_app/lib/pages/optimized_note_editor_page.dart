@@ -15,10 +15,13 @@ import '../bloc/optimized_note/optimized_note_bloc.dart';
 import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
 import '../models/custom_markdown_shortcut.dart';
+import '../models/dev_options.dart';
 import '../models/note_metadata.dart';
 import '../services/auto_save_service.dart';
+import '../services/dev_options_service.dart';
 import '../services/note_position_service.dart';
 import '../services/settings_service.dart';
+import '../widgets/debug_overlays.dart';
 import '../widgets/markdown_toolbar.dart';
 import '../widgets/full_markdown_view.dart';
 import '../widgets/source_mapped_markdown_view.dart';
@@ -118,6 +121,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   void initState() {
     super.initState();
     _loadSwipeSetting();
+    _initDevOptions();
 
     _titleController = TextEditingController(
       text: widget.metadata?.title ?? '',
@@ -207,7 +211,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final showPreviewScrollbar = await settings.getShowPreviewScrollbar();
     final previewLinesPerChunk = await settings.getPreviewLinesPerChunk();
     final autoBreakLongLines = await settings.getAutoBreakLongLines();
-    final previewWhenKeyboardHidden = await settings.getPreviewWhenKeyboardHidden();
+    final previewWhenKeyboardHidden = await settings
+        .getPreviewWhenKeyboardHidden();
     if (mounted) {
       setState(() {
         _noteSwipeEnabled = noteSwipe;
@@ -221,6 +226,19 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         _previewWhenKeyboardHidden = previewWhenKeyboardHidden;
       });
     }
+  }
+
+  Future<void> _initDevOptions() async {
+    // Initialize dev options service (loads settings from DB)
+    await DevOptionsService.getInstance();
+    // Listen for changes and rebuild if needed
+    if (mounted) {
+      DevOptions.instance.addListener(_onDevOptionsChanged);
+    }
+  }
+
+  void _onDevOptionsChanged() {
+    if (mounted) setState(() {});
   }
 
   void _initializeAutoSave() {
@@ -435,6 +453,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
   @override
   void dispose() {
+    DevOptions.instance.removeListener(_onDevOptionsChanged);
     _lineCountDebounceTimer?.cancel();
     _autoSaveService?.stopTracking(widget.noteId ?? '');
     _autoSaveService?.dispose();
@@ -766,22 +785,80 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                             // Show preview if:
                             // 1. User toggled preview mode manually, OR
                             // 2. previewWhenKeyboardHidden is enabled AND keyboard is hidden
-                            final showPreview = _isPreviewMode ||
-                                (_previewWhenKeyboardHidden && !keyboardVisible);
+                            final showPreview =
+                                _isPreviewMode ||
+                                (_previewWhenKeyboardHidden &&
+                                    !keyboardVisible);
 
-                            return Stack(
-                              children: [
-                                Offstage(
-                                  offstage:
-                                      showPreview, // Hide editor when showing preview
-                                  child: _buildEditor(),
-                                ),
-                                Offstage(
-                                  offstage:
-                                      !showPreview, // Hide preview when showing editor
-                                  child: _buildPreview(),
-                                ),
-                              ],
+                            // Only calculate debug info if any debug option is enabled
+                            final devOptions = DevOptions.instance;
+                            if (!devOptions.anyEnabled) {
+                              return Stack(
+                                children: [
+                                  Offstage(
+                                    offstage:
+                                        showPreview, // Hide editor when showing preview
+                                    child: _buildEditor(),
+                                  ),
+                                  Offstage(
+                                    offstage:
+                                        !showPreview, // Hide preview when showing editor
+                                    child: _buildPreview(),
+                                  ),
+                                ],
+                              );
+                            }
+
+                            final selection = _contentController.selection;
+                            final cursorLine = selection.baseIndex + 1;
+                            final cursorColumn = selection.baseOffset;
+                            final cursorOffset =
+                                _getLineStartOffset(selection.baseIndex) +
+                                selection.baseOffset;
+                            final int? selStart;
+                            final int? selEnd;
+                            if (selection.isCollapsed) {
+                              selStart = null;
+                              selEnd = null;
+                            } else {
+                              // Get start and end offsets based on normalized selection
+                              final baseOff =
+                                  _getLineStartOffset(selection.baseIndex) +
+                                  selection.baseOffset;
+                              final extentOff =
+                                  _getLineStartOffset(selection.extentIndex) +
+                                  selection.extentOffset;
+                              if (baseOff <= extentOff) {
+                                selStart = baseOff;
+                                selEnd = extentOff;
+                              } else {
+                                selStart = extentOff;
+                                selEnd = baseOff;
+                              }
+                            }
+                            final noteSize = _contentController.text.length;
+
+                            return DebugOverlayStack(
+                              cursorLine: cursorLine,
+                              cursorColumn: cursorColumn,
+                              cursorOffset: cursorOffset,
+                              selectionStart: selStart,
+                              selectionEnd: selEnd,
+                              noteSize: noteSize,
+                              child: Stack(
+                                children: [
+                                  Offstage(
+                                    offstage:
+                                        showPreview, // Hide editor when showing preview
+                                    child: _buildEditor(),
+                                  ),
+                                  Offstage(
+                                    offstage:
+                                        !showPreview, // Hide preview when showing editor
+                                    child: _buildPreview(),
+                                  ),
+                                ],
+                              ),
                             );
                           },
                         ),
@@ -928,8 +1005,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     // Only update search content when we're actually in preview mode
     _searchController.updateContent(content);
 
+    // Use Listenable.merge to listen to both search and dev options changes
     final markdownView = ListenableBuilder(
-      listenable: _searchController,
+      listenable: Listenable.merge([_searchController, DevOptions.instance]),
       builder: (context, _) => SourceMappedMarkdownView(
         key: _markdownViewKey,
         data: content,

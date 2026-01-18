@@ -1494,5 +1494,158 @@
   "afterAllRepeatsHint": "e.g., \\n---",
   "@afterAllRepeatsHint": {
     "description": "Hint for after all repeats field"
+  },
+
+  "developerOptions": "Developer Options",
+  "@developerOptions": {
+    "description": "Title for developer options page"
+  },
+  "developerOptionsDesc": "Debug tools and diagnostics",
+  "@developerOptionsDesc": {
+    "description": "Description for developer options in drawer"
+  },
+  "developerOptionsWarning": "These options are for debugging only. Enabling them may affect app performance.",
+  "@developerOptionsWarning": {
+    "description": "Warning message on developer options page"
+  },
+  "developerOptionsReset": "Developer options reset to defaults",
+  "@developerOptionsReset": {
+    "description": "Toast message when dev options are reset"
+  },
+  "developerModeUnlocked": "Developer mode unlocked!",
+  "@developerModeUnlocked": {
+    "description": "Toast message when developer mode is unlocked by swiping gym icon"
+  },
+  "lockDeveloperMode": "Lock Developer Mode",
+  "@lockDeveloperMode": {
+    "description": "Button to hide developer options from menu"
+  },
+  "developerModeLocked": "Developer mode locked",
+  "@developerModeLocked": {
+    "description": "Toast message when developer mode is locked"
+  },
+
+  "visualizationDebug": "Visualization / Debug",
+  "@visualizationDebug": {
+    "description": "Section title for visualization debug options"
+  },
+  "colorMarkdownBlocks": "Color Markdown Blocks",
+  "@colorMarkdownBlocks": {
+    "description": "Option to color different markdown blocks"
+  },
+  "colorMarkdownBlocksDesc": "Show different colors for headers, code, lists, etc.",
+  "@colorMarkdownBlocksDesc": {
+    "description": "Description for color markdown blocks option"
+  },
+  "showBlockBoundaries": "Show Block Boundaries",
+  "@showBlockBoundaries": {
+    "description": "Option to show block boundaries"
+  },
+  "showBlockBoundariesDesc": "Draw borders around each parsed element",
+  "@showBlockBoundariesDesc": {
+    "description": "Description for show block boundaries option"
+  },
+  "showWhitespace": "Show Whitespace",
+  "@showWhitespace": {
+    "description": "Option to show whitespace characters"
+  },
+  "showWhitespaceDesc": "Visualize spaces, tabs, and newlines",
+  "@showWhitespaceDesc": {
+    "description": "Description for show whitespace option"
+  },
+  "showPreviewLineNumbers": "Preview Line Numbers",
+  "@showPreviewLineNumbers": {
+    "description": "Option to show line numbers in preview"
+  },
+  "showPreviewLineNumbersDesc": "Show source line numbers in preview mode",
+  "@showPreviewLineNumbersDesc": {
+    "description": "Description for show preview line numbers option"
+  },
+
+  "performanceMonitoring": "Performance Monitoring",
+  "@performanceMonitoring": {
+    "description": "Section title for performance monitoring options"
+  },
+  "showRenderTime": "Show Render Time",
+  "@showRenderTime": {
+    "description": "Option to show render time"
+  },
+  "showRenderTimeDesc": "Display how long preview takes to render",
+  "@showRenderTimeDesc": {
+    "description": "Description for show render time option"
+  },
+  "showFpsCounter": "Show FPS Counter",
+  "@showFpsCounter": {
+    "description": "Option to show FPS counter"
+  },
+  "showFpsCounterDesc": "Monitor scroll and animation performance",
+  "@showFpsCounterDesc": {
+    "description": "Description for show FPS counter option"
+  },
+  "showChunkIndicators": "Show Chunk Indicators",
+  "@showChunkIndicators": {
+    "description": "Option to show chunk indicators"
+  },
+  "showChunkIndicatorsDesc": "Highlight which chunks are loaded in preview",
+  "@showChunkIndicatorsDesc": {
+    "description": "Description for show chunk indicators option"
+  },
+  "showRepaintRainbow": "Show Repaint Rainbow",
+  "@showRepaintRainbow": {
+    "description": "Option to show repaint rainbow"
+  },
+  "showRepaintRainbowDesc": "Color widgets when they repaint (Flutter debug)",
+  "@showRepaintRainbowDesc": {
+    "description": "Description for show repaint rainbow option"
+  },
+
+  "editorDebug": "Editor Debug",
+  "@editorDebug": {
+    "description": "Section title for editor debug options"
+  },
+  "showCursorInfo": "Show Cursor Info",
+  "@showCursorInfo": {
+    "description": "Option to show cursor position info"
+  },
+  "showCursorInfoDesc": "Display line, column, and character offset",
+  "@showCursorInfoDesc": {
+    "description": "Description for show cursor info option"
+  },
+  "showSelectionDetails": "Show Selection Details",
+  "@showSelectionDetails": {
+    "description": "Option to show selection details"
+  },
+  "showSelectionDetailsDesc": "Display start, end positions and length",
+  "@showSelectionDetailsDesc": {
+    "description": "Description for show selection details option"
+  },
+  "logParserEvents": "Log Parser Events",
+  "@logParserEvents": {
+    "description": "Option to log parser events"
+  },
+  "logParserEventsDesc": "Output parsing info to debug console",
+  "@logParserEventsDesc": {
+    "description": "Description for log parser events option"
+  },
+
+  "storageData": "Storage / Data",
+  "@storageData": {
+    "description": "Section title for storage data options"
+  },
+  "showNoteSize": "Show Note Size",
+  "@showNoteSize": {
+    "description": "Option to show note size"
+  },
+  "showNoteSizeDesc": "Display content size in bytes",
+  "@showNoteSizeDesc": {
+    "description": "Description for show note size option"
+  },
+  "showDatabaseStats": "Show Database Stats",
+  "@showDatabaseStats": {
+    "description": "Option to show database stats"
+  },
+  "showDatabaseStatsDesc": "Query count and cache information",
+  "@showDatabaseStatsDesc": {
+    "description": "Description for show database stats option"
   }
 }
