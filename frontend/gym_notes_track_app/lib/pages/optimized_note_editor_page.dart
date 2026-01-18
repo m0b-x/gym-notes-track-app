@@ -66,6 +66,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   double _pendingPreviewScrollOffset = 0.0;
   late ReEditorSearchController _searchController;
   late ScrollPositionSync _scrollPositionSync;
+  final GlobalKey<SourceMappedMarkdownViewState> _markdownViewKey = GlobalKey();
 
   bool _hasChanges = false;
   bool _isPreviewMode = false;
@@ -469,12 +470,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   void _scrollToOffsetInPreview(int charOffset) {
-    _scrollPositionSync.scrollToOffsetInPreview(
-      charOffset: charOffset,
-      text: _contentController.text,
-      previewFontSize: _previewFontSize,
-      editorFontSize: _editorFontSize,
-    );
+    // Use the SourceMappedMarkdownView's native scroll method
+    // which uses actual widget positions (not estimated line heights)
+    _markdownViewKey.currentState?.scrollToSourceOffset(charOffset);
   }
 
   void _handleSearchReplace(String _, String newContent) {
@@ -808,6 +806,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final markdownView = ListenableBuilder(
       listenable: _searchController,
       builder: (context, _) => SourceMappedMarkdownView(
+        key: _markdownViewKey,
         data: content,
         fontSize: _previewFontSize,
         scrollController: _previewScrollController,

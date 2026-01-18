@@ -183,21 +183,126 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
     _lazyBlocks = builder.buildLazy(widget.data);
     _detectExtraBlankLines(widget.data);
 
-    // Build block offset mapping for fast search
+    // Build block offset mapping using source positions for accurate search scroll
     _blockOffsets.clear();
     _blockKeys.clear();
-    int runningOffset = 0;
-    if (_lazyBlocks != null) {
-      for (int i = 0; i < _lazyBlocks!.length; i++) {
-        final blockSpans = _lazyBlocks![i];
-        final blockText = _extractTextFromSpans(blockSpans);
-        final start = runningOffset;
-        final end = runningOffset + blockText.length;
+    _buildSourceOffsets(widget.data);
+  }
+
+  /// Builds source-based block offsets by finding each block's text in the original source.
+  /// This ensures search highlights (which use source offsets) map correctly to blocks.
+  void _buildSourceOffsets(String source) {
+    if (_lazyBlocks == null) return;
+
+    // Split source into lines for block boundary detection
+    final lines = source.split('\n');
+    int lineOffset = 0;
+    final lineOffsets = <int>[0]; // Start of each line in source
+    for (final line in lines) {
+      lineOffset += line.length + 1; // +1 for newline
+      lineOffsets.add(lineOffset);
+    }
+
+    // For each block, estimate its source range
+    // We use line-based mapping since markdown blocks correspond to source lines
+    int currentLine = 0;
+
+    for (int i = 0; i < _lazyBlocks!.length; i++) {
+      final blockSpans = _lazyBlocks![i];
+      final blockText = _extractTextFromSpans(blockSpans);
+
+      // Skip empty blocks (nbsp placeholders)
+      if (blockText.trim().isEmpty || blockText == '\u00A0') {
+        // Blank line block - advance one line
+        final start = currentLine < lineOffsets.length - 1
+            ? lineOffsets[currentLine]
+            : source.length;
+        final end = start + 1;
         _blockOffsets.add([start, end]);
-        runningOffset = end + 1; // +1 for newline between blocks
         _blockKeys.add(GlobalKey());
+        currentLine++;
+        continue;
+      }
+
+      // Find the first significant text in this block
+      final firstText = _getFirstWord(blockText);
+      if (firstText.isEmpty) {
+        _blockOffsets.add([
+          lineOffsets[currentLine],
+          lineOffsets[currentLine] + 1,
+        ]);
+        _blockKeys.add(GlobalKey());
+        currentLine++;
+        continue;
+      }
+
+      // Search for this text in source starting from current line
+      int blockStart = -1;
+      for (int j = currentLine; j < lines.length && blockStart == -1; j++) {
+        final idx = source.indexOf(firstText, lineOffsets[j]);
+        if (idx != -1 &&
+            idx <
+                (j + 1 < lineOffsets.length
+                    ? lineOffsets[j + 1]
+                    : source.length)) {
+          blockStart = lineOffsets[j];
+          currentLine = j;
+          break;
+        }
+      }
+
+      if (blockStart == -1) {
+        blockStart = currentLine < lineOffsets.length
+            ? lineOffsets[currentLine]
+            : source.length;
+      }
+
+      // Estimate block end by counting newlines in rendered text
+      final newlineCount = '\n'.allMatches(blockText).length;
+      final blockEndLine = (currentLine + newlineCount + 1).clamp(
+        0,
+        lines.length,
+      );
+      final blockEnd = blockEndLine < lineOffsets.length
+          ? lineOffsets[blockEndLine]
+          : source.length;
+
+      _blockOffsets.add([blockStart, blockEnd]);
+      _blockKeys.add(GlobalKey());
+      currentLine = blockEndLine;
+    }
+  }
+
+  /// Extracts the first word/token from text for matching purposes.
+  String _getFirstWord(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return '';
+
+    // Skip bullet points and list markers
+    var start = 0;
+    while (start < trimmed.length &&
+        (trimmed[start] == '•' ||
+            trimmed[start] == '-' ||
+            trimmed[start] == '*' ||
+            trimmed[start] == ' ' ||
+            trimmed[start] == '\t' ||
+            (trimmed[start].codeUnitAt(0) >= 0x30 &&
+                trimmed[start].codeUnitAt(0) <= 0x39))) {
+      start++;
+      // Skip "1. " style markers
+      if (start < trimmed.length && trimmed[start] == '.') {
+        start++;
+        while (start < trimmed.length && trimmed[start] == ' ') {
+          start++;
+        }
       }
     }
+
+    // Get first word (up to 20 chars for efficiency)
+    final end = trimmed.indexOf(' ', start);
+    final wordEnd = end == -1 ? trimmed.length : end;
+    final maxEnd = (start + 20).clamp(start, wordEnd);
+    return trimmed.substring(start, maxEnd);
   }
 
   void _handleLinkTap(String url) {

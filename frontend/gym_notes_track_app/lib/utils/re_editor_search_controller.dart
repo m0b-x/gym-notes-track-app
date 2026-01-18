@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:re_editor/re_editor.dart';
@@ -67,6 +69,10 @@ class ReEditorSearchController extends ChangeNotifier {
   String _previewContent = '';
   List<SearchMatch> _previewMatches = [];
   int _previewMatchIndex = -1;
+
+  // Debounce timer for preview mode search
+  Timer? _searchDebounceTimer;
+  static const _searchDebounceMs = 300;
 
   bool get _hasFindController =>
       _findController != null && !_findControllerDisposed;
@@ -302,21 +308,35 @@ class ReEditorSearchController extends ChangeNotifier {
     _previewMatchIndex = matches.isNotEmpty ? 0 : -1;
   }
 
-  /// Search with the given query
+  /// Search with the given query (debounced for preview mode)
   void search(String query) {
     _currentQuery = query;
     if (_hasFindController) {
+      // Editor mode - use CodeFindController directly (already handles its own updates)
       _findController?.findInputController.text = _applyWholeWord(query);
     } else {
-      // Preview mode search
-      _performPreviewSearch();
-      notifyListeners();
+      // Preview mode - debounce to avoid searching on every keystroke
+      _searchDebounceTimer?.cancel();
+      _searchDebounceTimer = Timer(
+        Duration(milliseconds: _searchDebounceMs),
+        () {
+          _performPreviewSearch();
+          notifyListeners();
+        },
+      );
     }
   }
 
-  /// Execute search immediately (same as search for CodeFindController)
+  /// Execute search immediately without debouncing
   void searchImmediate(String query) {
-    search(query);
+    _currentQuery = query;
+    _searchDebounceTimer?.cancel();
+    if (_hasFindController) {
+      _findController?.findInputController.text = _applyWholeWord(query);
+    } else {
+      _performPreviewSearch();
+      notifyListeners();
+    }
   }
 
   String _applyWholeWord(String query) {
@@ -509,6 +529,7 @@ class ReEditorSearchController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel();
     _findController?.removeListener(_onFindControllerChanged);
     // Don't dispose _findController - it's owned by CodeEditor
     super.dispose();

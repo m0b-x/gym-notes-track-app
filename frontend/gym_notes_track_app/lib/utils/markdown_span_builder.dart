@@ -54,6 +54,16 @@ class MarkdownSpanBuilder {
   int _sourceOffset = 0;
   final List<_CheckboxData> _checkboxes = [];
 
+  /// Tracks which source ranges have already been claimed by a text span.
+  /// This prevents the same source text from being highlighted multiple times
+  /// when markdown nesting causes overlapping renders.
+  final Set<int> _claimedSourceStarts = {};
+
+  /// Cached highlight bounds for fast early-exit checks.
+  /// If source position is outside [_minHighlight, _maxHighlight], no overlap possible.
+  int _minHighlight = 0;
+  int _maxHighlight = 0;
+
   /// Maps (blockIndex, localCheckboxIndex) to checkbox data.
   /// Stored as "blockIndex:localIndex" strings to avoid object references.
   final Map<String, _CheckboxData> _nodeCheckboxMap = {};
@@ -85,6 +95,17 @@ class MarkdownSpanBuilder {
     _sourceOffset = 0;
     _checkboxes.clear();
     _nodeCheckboxMap.clear();
+    _claimedSourceStarts.clear();
+
+    // Cache highlight bounds for fast early-exit checks
+    if (searchHighlights != null && searchHighlights!.isNotEmpty) {
+      _minHighlight = searchHighlights!.first.start;
+      _maxHighlight = searchHighlights!.last.end;
+      for (final h in searchHighlights!) {
+        if (h.start < _minHighlight) _minHighlight = h.start;
+        if (h.end > _maxHighlight) _maxHighlight = h.end;
+      }
+    }
 
     _parseCheckboxPositions();
 
@@ -385,26 +406,36 @@ class MarkdownSpanBuilder {
       return TextSpan(text: text, style: style);
     }
 
-    final sourceStart = _findSourceOffset(text);
+    // Normalize text once - remove nbsp characters for source matching
+    final normalizedText = text.replaceAll('\u00A0', '');
+    final normalizedLen = normalizedText.length;
+    if (normalizedLen == 0) {
+      return TextSpan(text: text, style: style);
+    }
+
+    final sourceStart = _findSourceOffset(normalizedText);
     if (sourceStart == -1) {
       return TextSpan(text: text, style: style);
     }
 
-    final sourceEnd = sourceStart + text.length;
-    final overlapping = <_HighlightRange>[];
+    final sourceEnd = sourceStart + normalizedLen;
 
-    for (int i = 0; i < searchHighlights!.length; i++) {
-      final h = searchHighlights![i];
-      if (h.start < sourceEnd && h.end > sourceStart) {
-        overlapping.add(
-          _HighlightRange(
-            start: (h.start - sourceStart).clamp(0, text.length),
-            end: (h.end - sourceStart).clamp(0, text.length),
-            isCurrent: i == currentHighlightIndex,
-          ),
-        );
-      }
+    // Fast early-exit: if this span is entirely outside highlight bounds, skip
+    if (sourceEnd <= _minHighlight || sourceStart >= _maxHighlight) {
+      return TextSpan(text: text, style: style);
     }
+
+    // Build mapping from source position to display position only if needed
+    // This accounts for nbsp characters inserted for blank line preservation
+    final sourceToDisplay = _buildSourceToDisplayMap(text);
+
+    // Use binary search to find first potentially overlapping highlight
+    final overlapping = _findOverlappingHighlights(
+      sourceStart,
+      sourceEnd,
+      normalizedLen,
+      sourceToDisplay,
+    );
 
     if (overlapping.isEmpty) {
       return TextSpan(text: text, style: style);
@@ -440,49 +471,155 @@ class MarkdownSpanBuilder {
     return TextSpan(style: style, children: children);
   }
 
-  /// Pre-compiled regex for finding text after markdown syntax.
-  /// Matches text preceded by common markdown characters or word boundaries.
-  /// This covers: bold/italic (*, _), strikethrough (~~), code (`),
-  /// links ([), tables (|), headers (#), and general whitespace/punctuation.
-  static final _markdownPrefixPattern = RegExp(r'(?:^|[\*_~`\[\]|#>\-\+\s\n])');
+  /// Builds a mapping from source character index to display character index.
+  /// Needed because nbsp characters in display text don't exist in source.
+  List<int> _buildSourceToDisplayMap(String text) {
+    final sourceToDisplay = <int>[];
+    for (int displayPos = 0; displayPos < text.length; displayPos++) {
+      if (text[displayPos] != '\u00A0') {
+        sourceToDisplay.add(displayPos);
+      }
+    }
+    // Add end position mapping
+    sourceToDisplay.add(text.length);
+    return sourceToDisplay;
+  }
+
+  /// Uses binary search to find first highlight that might overlap, then scans linearly.
+  /// O(log h + k) where h = total highlights, k = overlapping highlights.
+  List<_HighlightRange> _findOverlappingHighlights(
+    int sourceStart,
+    int sourceEnd,
+    int normalizedLen,
+    List<int> sourceToDisplay,
+  ) {
+    final highlights = searchHighlights!;
+    final overlapping = <_HighlightRange>[];
+
+    // Binary search: find first highlight where end > sourceStart
+    int low = 0;
+    int high = highlights.length - 1;
+    int firstCandidate = highlights.length;
+
+    while (low <= high) {
+      final mid = (low + high) >> 1;
+      if (highlights[mid].end > sourceStart) {
+        firstCandidate = mid;
+        high = mid - 1;
+      } else {
+        low = mid + 1;
+      }
+    }
+
+    // Scan from first candidate until highlight.start >= sourceEnd
+    for (int i = firstCandidate; i < highlights.length; i++) {
+      final h = highlights[i];
+      if (h.start >= sourceEnd) break; // No more overlaps possible
+
+      if (h.start < sourceEnd && h.end > sourceStart) {
+        // Convert source positions to display positions
+        final relStart = (h.start - sourceStart).clamp(0, normalizedLen);
+        final relEnd = (h.end - sourceStart).clamp(0, normalizedLen);
+        final displayStart = sourceToDisplay[relStart];
+        final displayEnd = sourceToDisplay[relEnd];
+
+        overlapping.add(
+          _HighlightRange(
+            start: displayStart,
+            end: displayEnd,
+            isCurrent: i == currentHighlightIndex,
+          ),
+        );
+      }
+    }
+
+    return overlapping;
+  }
+
+  /// Characters that indicate word/token boundaries in markdown.
+  /// Used to validate that matched text is a complete token, not part of another word.
+  static final _boundaryChars = RegExp(
+    r'[\*_~`\[\]|#>\-\+\s\n\r\(\)\{\}<>:;,\.!?\\/\u00A0]',
+  );
+
+  /// Checks if a character at given index is a valid boundary (or out of bounds).
+  bool _isBoundary(int index) {
+    if (index < 0 || index >= _source.length) return true;
+    return _boundaryChars.hasMatch(_source[index]);
+  }
 
   /// Finds the source offset for rendered text, accounting for markdown syntax.
   /// Returns the offset where the actual text content starts in the source.
   ///
+  /// For short text (1-2 chars), validates prefix boundary to avoid false positives.
+  /// For longer text, uses simple indexOf since false positives are unlikely.
+  /// Skips source positions that have already been claimed to avoid duplicate highlights.
+  ///
   /// Performance: O(n) worst case where n = remaining source length.
-  /// Fast path (exact match) is O(n) with low constant factor.
-  /// Regex fallback only triggers for formatted text.
-  int _findSourceOffset(String text) {
-    if (text.isEmpty) return -1;
+  /// Finds the source offset for rendered text, accounting for markdown syntax.
+  /// Returns the offset where the actual text content starts in the source.
+  ///
+  /// [normalizedText] should already have nbsp characters removed.
+  ///
+  /// For short text (1-2 chars), validates prefix boundary to avoid false positives.
+  /// For longer text, uses simple indexOf since false positives are unlikely.
+  /// Skips source positions that have already been claimed to avoid duplicate highlights.
+  ///
+  /// Performance: O(n) worst case where n = remaining source length.
+  int _findSourceOffset(String normalizedText) {
+    if (normalizedText.isEmpty) return -1;
 
-    // Fast path: exact match works for plain text (most common case)
-    final exactIndex = _source.indexOf(text, _sourceOffset);
-    if (exactIndex != -1) {
-      // Validate this isn't a false positive inside another word
-      // by checking if it's at start or preceded by valid markdown char
-      if (exactIndex == 0 ||
-          _markdownPrefixPattern.hasMatch(_source[exactIndex - 1])) {
-        _sourceOffset = exactIndex + text.length;
-        return exactIndex;
+    final textLen = normalizedText.length;
+    final sourceLen = _source.length;
+    var searchStart = _sourceOffset;
+
+    // For longer text (3+ chars), false positives are rare - use simple indexOf
+    // but we need to loop to skip already-claimed positions
+    if (textLen >= 3) {
+      while (searchStart <= sourceLen - textLen) {
+        final index = _source.indexOf(normalizedText, searchStart);
+        if (index == -1) {
+          return -1;
+        }
+
+        // Skip if this source position was already claimed
+        if (_claimedSourceStarts.contains(index)) {
+          searchStart = index + 1;
+          continue;
+        }
+
+        _sourceOffset = index + textLen;
+        _claimedSourceStarts.add(index);
+        return index;
       }
+
+      return -1;
     }
 
-    // Fallback: search for text after any markdown syntax character
-    // This handles cases like **bold**, ~~strike~~, `code`, [link], |table|
-    final searchStart = _sourceOffset;
-    final sourceLen = _source.length;
-    final textLen = text.length;
-
-    // Scan through source looking for our text
-    for (int i = searchStart; i <= sourceLen - textLen; i++) {
-      // Check if text matches at position i
-      if (_source.substring(i, i + textLen) == text) {
-        // Verify it's preceded by markdown syntax or start of string
-        if (i == 0 || _markdownPrefixPattern.hasMatch(_source[i - 1])) {
-          _sourceOffset = i + textLen;
-          return i;
-        }
+    // For short text (1-2 chars), use boundary validation to avoid false positives
+    while (searchStart <= sourceLen - textLen) {
+      final index = _source.indexOf(normalizedText, searchStart);
+      if (index == -1) {
+        break;
       }
+
+      // Skip if this source position was already claimed
+      if (_claimedSourceStarts.contains(index)) {
+        searchStart = index + 1;
+        continue;
+      }
+
+      // Only check prefix boundary for short text
+      final hasValidPrefix = _isBoundary(index - 1);
+
+      if (hasValidPrefix) {
+        _sourceOffset = index + textLen;
+        _claimedSourceStarts.add(index);
+        return index;
+      }
+
+      // Not a valid match, continue searching after this position
+      searchStart = index + 1;
     }
 
     return -1;
