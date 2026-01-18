@@ -1283,6 +1283,18 @@
   "@showCursorLineDesc": {
     "description": "Description for show cursor line setting"
   },
+  "previewSection": "Vorschau",
+  "@previewSection": {
+    "description": "Preview settings section title"
+  },
+  "showPreviewScrollbar": "Vorschau-Bildlaufleiste",
+  "@showPreviewScrollbar": {
+    "description": "Setting for showing scrollbar in preview mode"
+  },
+  "showPreviewScrollbarDesc": "Eine interaktive Bildlaufleiste im Vorschaumodus anzeigen (experimentell)",
+  "@showPreviewScrollbarDesc": {
+    "description": "Description for show preview scrollbar setting"
+  },
   "previewPerformanceSection": "Vorschau-Leistung",
   "@previewPerformanceSection": {
     "description": "Preview performance settings section title"

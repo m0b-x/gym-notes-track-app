@@ -32,6 +32,9 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
   bool _wordWrap = true;
   bool _showCursorLine = false;
 
+  // Preview settings
+  bool _showPreviewScrollbar = false;
+
   // Preview performance settings
   int _previewLinesPerChunk = 10;
 
@@ -54,6 +57,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     final showLineNumbers = await settings.getShowLineNumbers();
     final wordWrap = await settings.getWordWrap();
     final showCursorLine = await settings.getShowCursorLine();
+    final showPreviewScrollbar = await settings.getShowPreviewScrollbar();
     final previewLinesPerChunk = await settings.getPreviewLinesPerChunk();
 
     setState(() {
@@ -69,6 +73,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showLineNumbers = showLineNumbers;
       _wordWrap = wordWrap;
       _showCursorLine = showCursorLine;
+      _showPreviewScrollbar = showPreviewScrollbar;
       _previewLinesPerChunk = previewLinesPerChunk;
       _isLoading = false;
     });
@@ -284,6 +289,29 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
                           _onHapticFeedback();
                           setState(() => _showCursorLine = value);
                           await _settings?.setShowCursorLine(value);
+                        },
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Preview section
+                  _buildSectionCard(
+                    context: context,
+                    colorScheme: colorScheme,
+                    icon: Icons.visibility_rounded,
+                    title: l10n.previewSection,
+                    children: [
+                      _buildSwitchTile(
+                        context: context,
+                        title: l10n.showPreviewScrollbar,
+                        subtitle: l10n.showPreviewScrollbarDesc,
+                        value: _showPreviewScrollbar,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _showPreviewScrollbar = value);
+                          await _settings?.setShowPreviewScrollbar(value);
                         },
                       ),
                     ],

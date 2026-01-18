@@ -178,6 +178,18 @@ class SettingsService {
     await _setBool(SettingsKeys.showCursorLine, value);
   }
 
+  // Preview settings - Show scrollbar
+  Future<bool> getShowPreviewScrollbar() async {
+    return _getBool(
+      SettingsKeys.showPreviewScrollbar,
+      SettingsKeys.defaultShowPreviewScrollbar,
+    );
+  }
+
+  Future<void> setShowPreviewScrollbar(bool value) async {
+    await _setBool(SettingsKeys.showPreviewScrollbar, value);
+  }
+
   // Preview performance - Lines per chunk
   Future<int> getPreviewLinesPerChunk() async {
     return _getInt(

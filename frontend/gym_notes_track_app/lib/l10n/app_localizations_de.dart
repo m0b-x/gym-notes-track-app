@@ -999,6 +999,16 @@ class AppLocalizationsDe extends AppLocalizations {
       'Die Zeile hervorheben, in der sich der Cursor befindet';
 
   @override
+  String get previewSection => 'Vorschau';
+
+  @override
+  String get showPreviewScrollbar => 'Vorschau-Bildlaufleiste';
+
+  @override
+  String get showPreviewScrollbarDesc =>
+      'Eine interaktive Bildlaufleiste im Vorschaumodus anzeigen (experimentell)';
+
+  @override
   String get previewPerformanceSection => 'Vorschau-Leistung';
 
   @override

@@ -96,32 +96,70 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
     final firstVisible = sortedPositions.first;
     final lastVisible = sortedPositions.last;
 
-    // Check if we're at the end (last chunk is visible and its trailing edge is at or past viewport bottom)
-    if (lastVisible.index == chunkCount - 1 &&
-        lastVisible.itemTrailingEdge <= 1.0) {
-      // At the end - calculate how close to fully scrolled
-      // When trailing edge is 1.0, we're exactly at the bottom
-      // When trailing edge is less, we've scrolled past
-      return 1.0;
+    // Special case: only one chunk or all content fits in viewport
+    if (chunkCount == 1) {
+      // For single chunk, use the leading edge as progress indicator
+      if (firstVisible.itemLeadingEdge >= 0 &&
+          firstVisible.itemTrailingEdge <= 1.0) {
+        return 0.0; // Content fits entirely in viewport
+      }
+      if (firstVisible.itemLeadingEdge >= 0) return 0.0;
+      if (firstVisible.itemTrailingEdge <= 1.0) return 1.0;
+      // Content is larger than viewport, calculate based on position
+      final totalHeight =
+          firstVisible.itemTrailingEdge - firstVisible.itemLeadingEdge;
+      final scrolledAmount = -firstVisible.itemLeadingEdge;
+      return (scrolledAmount / (totalHeight - 1.0)).clamp(0.0, 1.0);
     }
 
-    // Check if we're at the start
+    // Check if at the very start
     if (firstVisible.index == 0 && firstVisible.itemLeadingEdge >= 0.0) {
       return 0.0;
     }
 
-    // Calculate smooth progress using both index and leading edge
-    // itemLeadingEdge: 0.0 = item at top of viewport, negative = item extends above viewport
+    // Check if at the very end
+    if (lastVisible.index == chunkCount - 1 &&
+        lastVisible.itemTrailingEdge <= 1.0) {
+      return 1.0;
+    }
 
-    // Base progress from chunk index
-    final baseProgress = firstVisible.index / chunkCount;
+    // Find the item at the top of the viewport (partially scrolled past)
+    final topItem = sortedPositions.firstWhere(
+      (p) => p.itemLeadingEdge <= 0 && p.itemTrailingEdge > 0,
+      orElse: () => firstVisible,
+    );
 
-    // Add sub-chunk offset based on how much of the item is scrolled past
-    // When leadingEdge is negative, we've scrolled into this chunk
-    final scrolledPastAmount = -firstVisible.itemLeadingEdge;
-    final subChunkProgress = scrolledPastAmount.clamp(0.0, 1.0) / chunkCount;
+    // Calculate how much of the top item has been scrolled past
+    double scrolledPastRatio = 0.0;
+    if (topItem.itemLeadingEdge < 0) {
+      final itemHeight = topItem.itemTrailingEdge - topItem.itemLeadingEdge;
+      if (itemHeight > 0) {
+        scrolledPastRatio = (-topItem.itemLeadingEdge / itemHeight).clamp(
+          0.0,
+          1.0,
+        );
+      }
+    }
 
-    return (baseProgress + subChunkProgress).clamp(0.0, 1.0);
+    // Calculate progress with an adjusted denominator
+    // The maximum scrollable position is when the last chunk's trailing edge = 1.0
+    // So the range is [0, chunkCount - viewportChunks] but we approximate
+    // by using a reduced denominator to account for viewport height
+
+    // Estimate how many chunks fit in viewport
+    final visibleChunkCount = sortedPositions.length;
+
+    // Effective scroll range: we can't scroll past when last chunk hits bottom
+    // So the denominator should be (chunkCount - visibleChunkCount + 1)
+    final effectiveRange = (chunkCount - visibleChunkCount + 1).clamp(
+      1,
+      chunkCount,
+    );
+
+    // Progress = how far through the effective range
+    final progress = (topItem.index + scrolledPastRatio) / effectiveRange;
+
+    return progress.clamp(0.0, 1.0);
   }
 
   @override
@@ -290,6 +328,58 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
 
     final firstVisible = positions.reduce((a, b) => a.index < b.index ? a : b);
     return firstVisible.index * _builder!.linesPerChunk;
+  }
+
+  /// Get the total number of chunks
+  int get chunkCount => _builder?.chunkCount ?? 0;
+
+  /// Scroll to a specific progress value (0.0 to 1.0)
+  /// Used by interactive scrollbars
+  void scrollToProgress(double progress, {bool animate = false}) {
+    if (_builder == null || _builder!.chunkCount == 0) return;
+
+    final clampedProgress = progress.clamp(0.0, 1.0);
+    final chunkCount = _builder!.chunkCount;
+
+    // Handle edge cases
+    if (clampedProgress <= 0.0) {
+      _itemScrollController.jumpTo(index: 0, alignment: 0.0);
+      return;
+    }
+    if (clampedProgress >= 1.0) {
+      // Scroll to the last chunk with alignment that puts it at the bottom
+      _itemScrollController.jumpTo(index: chunkCount - 1, alignment: 0.0);
+      return;
+    }
+
+    // Estimate visible chunks - we'll use positions if available, else estimate
+    final positions = _itemPositionsListener.itemPositions.value;
+    int visibleChunkCount = 3; // Default estimate
+    if (positions.isNotEmpty) {
+      visibleChunkCount = positions.length;
+    }
+
+    // Use the same effective range calculation as scrollProgress
+    final effectiveRange = (chunkCount - visibleChunkCount + 1).clamp(
+      1,
+      chunkCount,
+    );
+
+    // Calculate target chunk and alignment
+    final targetPosition = clampedProgress * effectiveRange;
+    final targetChunk = targetPosition.floor().clamp(0, chunkCount - 1);
+    final alignment = (targetPosition - targetChunk).clamp(0.0, 0.8);
+
+    if (animate) {
+      _itemScrollController.scrollTo(
+        index: targetChunk,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        alignment: alignment,
+      );
+    } else {
+      _itemScrollController.jumpTo(index: targetChunk, alignment: alignment);
+    }
   }
 
   bool _shouldRebuild(ThemeData theme) {

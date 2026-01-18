@@ -997,6 +997,16 @@ class AppLocalizationsRo extends AppLocalizations {
       'Evidențiază linia unde este poziționat cursorul';
 
   @override
+  String get previewSection => 'Previzualizare';
+
+  @override
+  String get showPreviewScrollbar => 'Bară de Derulare Previzualizare';
+
+  @override
+  String get showPreviewScrollbarDesc =>
+      'Afișează o bară de derulare interactivă în modul previzualizare (experimental)';
+
+  @override
   String get previewPerformanceSection => 'Performanță Previzualizare';
 
   @override

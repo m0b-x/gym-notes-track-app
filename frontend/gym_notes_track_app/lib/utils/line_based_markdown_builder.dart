@@ -647,19 +647,6 @@ class LineBasedMarkdownBuilder {
       checkboxRecognizer = _checkboxRecognizers[lineIndex];
     }
 
-    final children = <InlineSpan>[
-      TextSpan(text: indentStr, style: baseStyle),
-      TextSpan(
-        text: '$checkboxChar ',
-        style: baseStyle.copyWith(
-          color: isChecked
-              ? style.primaryColor
-              : style.textColor.withValues(alpha: 0.7),
-        ),
-        recognizer: checkboxRecognizer,
-      ),
-    ];
-
     // Add formatted content - use contentStart for correct highlighting
     final contentSpan = _buildInlineFormatted(
       text,
@@ -667,13 +654,33 @@ class LineBasedMarkdownBuilder {
       contentStart,
       lineEnd,
     );
-    if (contentSpan.children != null) {
-      children.addAll(contentSpan.children!);
-    } else if (contentSpan.text != null) {
-      children.add(TextSpan(text: contentSpan.text, style: contentStyle));
-    }
 
-    return TextSpan(children: children);
+    // Use WidgetSpan to create hanging indent for wrapped lines
+    return TextSpan(
+      children: [
+        if (indentStr.isNotEmpty) TextSpan(text: indentStr, style: baseStyle),
+        WidgetSpan(
+          alignment: PlaceholderAlignment.top,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: checkboxRecognizer?.onTap,
+                child: Text(
+                  '$checkboxChar ',
+                  style: baseStyle.copyWith(
+                    color: isChecked
+                        ? style.primaryColor
+                        : style.textColor.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+              Expanded(child: Text.rich(contentSpan, style: contentStyle)),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   TextSpan _buildListItem(
@@ -692,30 +699,35 @@ class LineBasedMarkdownBuilder {
       color: style.textColor,
     );
 
-    final children = <InlineSpan>[
-      TextSpan(text: indentStr, style: baseStyle),
-      TextSpan(
-        text: '$bullet ',
-        style: baseStyle.copyWith(
-          color: style.primaryColor,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    ];
-
     final contentSpan = _buildInlineFormatted(
       text,
       baseStyle,
       contentStart,
       lineEnd,
     );
-    if (contentSpan.children != null) {
-      children.addAll(contentSpan.children!);
-    } else if (contentSpan.text != null) {
-      children.add(contentSpan);
-    }
 
-    return TextSpan(children: children);
+    // Use WidgetSpan to create hanging indent for wrapped lines
+    return TextSpan(
+      children: [
+        if (indentStr.isNotEmpty) TextSpan(text: indentStr, style: baseStyle),
+        WidgetSpan(
+          alignment: PlaceholderAlignment.top,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$bullet ',
+                style: baseStyle.copyWith(
+                  color: style.primaryColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Expanded(child: Text.rich(contentSpan, style: baseStyle)),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   TextSpan _buildOrderedListItem(
@@ -733,30 +745,35 @@ class LineBasedMarkdownBuilder {
       color: style.textColor,
     );
 
-    final children = <InlineSpan>[
-      TextSpan(text: indentStr, style: baseStyle),
-      TextSpan(
-        text: '$number. ',
-        style: baseStyle.copyWith(
-          color: style.primaryColor,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    ];
-
     final contentSpan = _buildInlineFormatted(
       text,
       baseStyle,
       contentStart,
       lineEnd,
     );
-    if (contentSpan.children != null) {
-      children.addAll(contentSpan.children!);
-    } else if (contentSpan.text != null) {
-      children.add(contentSpan);
-    }
 
-    return TextSpan(children: children);
+    // Use WidgetSpan to create hanging indent for wrapped lines
+    return TextSpan(
+      children: [
+        if (indentStr.isNotEmpty) TextSpan(text: indentStr, style: baseStyle),
+        WidgetSpan(
+          alignment: PlaceholderAlignment.top,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$number. ',
+                style: baseStyle.copyWith(
+                  color: style.primaryColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Expanded(child: Text.rich(contentSpan, style: baseStyle)),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   TextSpan _buildBlockquote(String text, int contentStart, int lineEnd) {

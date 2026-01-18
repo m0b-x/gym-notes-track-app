@@ -34,6 +34,9 @@ class SettingsKeys {
   static const String wordWrap = 'word_wrap';
   static const String showCursorLine = 'show_cursor_line';
 
+  // Preview settings
+  static const String showPreviewScrollbar = 'show_preview_scrollbar';
+
   // Preview performance settings
   static const String previewLinesPerChunk = 'preview_lines_per_chunk';
 
@@ -55,6 +58,9 @@ class SettingsKeys {
   static const bool defaultShowLineNumbers = false;
   static const bool defaultWordWrap = true;
   static const bool defaultShowCursorLine = false;
+
+  // Default values for preview settings
+  static const bool defaultShowPreviewScrollbar = false;
 
   // Default values for preview performance
   static const int defaultPreviewLinesPerChunk = 10;

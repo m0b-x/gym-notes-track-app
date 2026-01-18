@@ -1930,6 +1930,24 @@ abstract class AppLocalizations {
   /// **'Highlight the line where the cursor is positioned'**
   String get showCursorLineDesc;
 
+  /// Preview settings section title
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get previewSection;
+
+  /// Setting for showing scrollbar in preview mode
+  ///
+  /// In en, this message translates to:
+  /// **'Preview Scrollbar'**
+  String get showPreviewScrollbar;
+
+  /// Description for show preview scrollbar setting
+  ///
+  /// In en, this message translates to:
+  /// **'Show an interactive scrollbar in preview mode (experimental)'**
+  String get showPreviewScrollbarDesc;
+
   /// Preview performance settings section title
   ///
   /// In en, this message translates to:

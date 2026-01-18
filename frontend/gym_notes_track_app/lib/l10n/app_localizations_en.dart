@@ -990,6 +990,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Highlight the line where the cursor is positioned';
 
   @override
+  String get previewSection => 'Preview';
+
+  @override
+  String get showPreviewScrollbar => 'Preview Scrollbar';
+
+  @override
+  String get showPreviewScrollbarDesc =>
+      'Show an interactive scrollbar in preview mode (experimental)';
+
+  @override
   String get previewPerformanceSection => 'Preview Performance';
 
   @override

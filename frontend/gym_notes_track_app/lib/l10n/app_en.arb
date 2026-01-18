@@ -1337,6 +1337,18 @@
   "@showCursorLineDesc": {
     "description": "Description for show cursor line setting"
   },
+  "previewSection": "Preview",
+  "@previewSection": {
+    "description": "Preview settings section title"
+  },
+  "showPreviewScrollbar": "Preview Scrollbar",
+  "@showPreviewScrollbar": {
+    "description": "Setting for showing scrollbar in preview mode"
+  },
+  "showPreviewScrollbarDesc": "Show an interactive scrollbar in preview mode (experimental)",
+  "@showPreviewScrollbarDesc": {
+    "description": "Description for show preview scrollbar setting"
+  },
   "previewPerformanceSection": "Preview Performance",
   "@previewPerformanceSection": {
     "description": "Preview performance settings section title"
