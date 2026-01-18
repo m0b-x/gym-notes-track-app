@@ -178,6 +178,18 @@ class SettingsService {
     await _setBool(SettingsKeys.showCursorLine, value);
   }
 
+  // Editor settings - Auto break long lines on paste
+  Future<bool> getAutoBreakLongLines() async {
+    return _getBool(
+      SettingsKeys.autoBreakLongLines,
+      SettingsKeys.defaultAutoBreakLongLines,
+    );
+  }
+
+  Future<void> setAutoBreakLongLines(bool value) async {
+    await _setBool(SettingsKeys.autoBreakLongLines, value);
+  }
+
   // Preview settings - Show scrollbar
   Future<bool> getShowPreviewScrollbar() async {
     return _getBool(

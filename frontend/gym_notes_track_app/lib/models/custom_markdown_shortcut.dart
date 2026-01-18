@@ -47,6 +47,12 @@ class RepeatConfig extends Equatable {
   final int dateIncrementYears;
   final String separator;
 
+  /// Text to insert before all repeated items
+  final String beforeRepeatText;
+
+  /// Text to insert after all repeated items
+  final String afterRepeatText;
+
   const RepeatConfig({
     this.count = 1,
     this.incrementDate = false,
@@ -54,6 +60,8 @@ class RepeatConfig extends Equatable {
     this.dateIncrementMonths = 0,
     this.dateIncrementYears = 0,
     this.separator = '\n',
+    this.beforeRepeatText = '',
+    this.afterRepeatText = '',
   });
 
   bool get isActive => count > 1;
@@ -65,6 +73,8 @@ class RepeatConfig extends Equatable {
     JsonKeys.dateIncrementMonths: dateIncrementMonths,
     JsonKeys.dateIncrementYears: dateIncrementYears,
     JsonKeys.repeatSeparator: separator,
+    JsonKeys.beforeRepeatText: beforeRepeatText,
+    JsonKeys.afterRepeatText: afterRepeatText,
   };
 
   factory RepeatConfig.fromJson(Map<String, dynamic> json) {
@@ -75,6 +85,8 @@ class RepeatConfig extends Equatable {
       dateIncrementMonths: json[JsonKeys.dateIncrementMonths] as int? ?? 0,
       dateIncrementYears: json[JsonKeys.dateIncrementYears] as int? ?? 0,
       separator: json[JsonKeys.repeatSeparator] as String? ?? '\n',
+      beforeRepeatText: json[JsonKeys.beforeRepeatText] as String? ?? '',
+      afterRepeatText: json[JsonKeys.afterRepeatText] as String? ?? '',
     );
   }
 
@@ -85,6 +97,8 @@ class RepeatConfig extends Equatable {
     int? dateIncrementMonths,
     int? dateIncrementYears,
     String? separator,
+    String? beforeRepeatText,
+    String? afterRepeatText,
   }) {
     return RepeatConfig(
       count: count ?? this.count,
@@ -93,6 +107,8 @@ class RepeatConfig extends Equatable {
       dateIncrementMonths: dateIncrementMonths ?? this.dateIncrementMonths,
       dateIncrementYears: dateIncrementYears ?? this.dateIncrementYears,
       separator: separator ?? this.separator,
+      beforeRepeatText: beforeRepeatText ?? this.beforeRepeatText,
+      afterRepeatText: afterRepeatText ?? this.afterRepeatText,
     );
   }
 
@@ -104,6 +120,8 @@ class RepeatConfig extends Equatable {
     dateIncrementMonths,
     dateIncrementYears,
     separator,
+    beforeRepeatText,
+    afterRepeatText,
   ];
 }
 

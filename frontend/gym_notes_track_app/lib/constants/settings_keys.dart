@@ -33,6 +33,7 @@ class SettingsKeys {
   static const String showLineNumbers = 'show_line_numbers';
   static const String wordWrap = 'word_wrap';
   static const String showCursorLine = 'show_cursor_line';
+  static const String autoBreakLongLines = 'auto_break_long_lines';
 
   // Preview settings
   static const String showPreviewScrollbar = 'show_preview_scrollbar';
@@ -58,6 +59,7 @@ class SettingsKeys {
   static const bool defaultShowLineNumbers = false;
   static const bool defaultWordWrap = true;
   static const bool defaultShowCursorLine = false;
+  static const bool defaultAutoBreakLongLines = true;
 
   // Default values for preview settings
   static const bool defaultShowPreviewScrollbar = false;

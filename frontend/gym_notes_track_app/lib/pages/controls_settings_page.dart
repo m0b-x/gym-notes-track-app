@@ -31,6 +31,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
   bool _showLineNumbers = false;
   bool _wordWrap = true;
   bool _showCursorLine = false;
+  bool _autoBreakLongLines = true;
 
   // Preview settings
   bool _showPreviewScrollbar = false;
@@ -57,6 +58,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     final showLineNumbers = await settings.getShowLineNumbers();
     final wordWrap = await settings.getWordWrap();
     final showCursorLine = await settings.getShowCursorLine();
+    final autoBreakLongLines = await settings.getAutoBreakLongLines();
     final showPreviewScrollbar = await settings.getShowPreviewScrollbar();
     final previewLinesPerChunk = await settings.getPreviewLinesPerChunk();
 
@@ -73,6 +75,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showLineNumbers = showLineNumbers;
       _wordWrap = wordWrap;
       _showCursorLine = showCursorLine;
+      _autoBreakLongLines = autoBreakLongLines;
       _showPreviewScrollbar = showPreviewScrollbar;
       _previewLinesPerChunk = previewLinesPerChunk;
       _isLoading = false;
@@ -289,6 +292,18 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
                           _onHapticFeedback();
                           setState(() => _showCursorLine = value);
                           await _settings?.setShowCursorLine(value);
+                        },
+                      ),
+                      const Divider(height: 1),
+                      _buildSwitchTile(
+                        context: context,
+                        title: l10n.autoBreakLongLines,
+                        subtitle: l10n.autoBreakLongLinesDesc,
+                        value: _autoBreakLongLines,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _autoBreakLongLines = value);
+                          await _settings?.setAutoBreakLongLines(value);
                         },
                       ),
                     ],
@@ -515,6 +530,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     await _settings?.setShowLineNumbers(false);
     await _settings?.setWordWrap(true);
     await _settings?.setShowCursorLine(false);
+    await _settings?.setAutoBreakLongLines(true);
 
     setState(() {
       _folderSwipeEnabled = true;
@@ -528,6 +544,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showLineNumbers = false;
       _wordWrap = true;
       _showCursorLine = false;
+      _autoBreakLongLines = true;
     });
 
     if (!mounted) return;

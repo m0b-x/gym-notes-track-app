@@ -1337,6 +1337,23 @@
   "@showCursorLineDesc": {
     "description": "Description for show cursor line setting"
   },
+  "autoBreakLongLines": "Auto-Break Long Lines",
+  "@autoBreakLongLines": {
+    "description": "Setting for automatically breaking long lines on paste"
+  },
+  "autoBreakLongLinesDesc": "Automatically break long lines when pasting text. May slightly affect search positioning accuracy in preview mode.",
+  "@autoBreakLongLinesDesc": {
+    "description": "Description for auto break long lines setting"
+  },
+  "linesFormatted": "{count, plural, =1{1 long line was formatted} other{{count} long lines were formatted}}",
+  "@linesFormatted": {
+    "description": "Toast message when lines are formatted on paste",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "previewSection": "Preview",
   "@previewSection": {
     "description": "Preview settings section title"
@@ -1445,5 +1462,29 @@
   "advancedOptionsDescription": "Date offset, repeat, and more",
   "@advancedOptionsDescription": {
     "description": "Description for advanced options toggle"
+  },
+  "repeatWrapperText": "Wrapper text",
+  "@repeatWrapperText": {
+    "description": "Label for wrapper text around all repeated items"
+  },
+  "repeatWrapperTextDesc": "Text inserted before/after all repeated items",
+  "@repeatWrapperTextDesc": {
+    "description": "Description for wrapper text fields"
+  },
+  "beforeAllRepeats": "Before all",
+  "@beforeAllRepeats": {
+    "description": "Label for text before all repeated items"
+  },
+  "beforeAllRepeatsHint": "e.g., ## Week 1\\n",
+  "@beforeAllRepeatsHint": {
+    "description": "Hint for before all repeats field"
+  },
+  "afterAllRepeats": "After all",
+  "@afterAllRepeats": {
+    "description": "Label for text after all repeated items"
+  },
+  "afterAllRepeatsHint": "e.g., \\n---",
+  "@afterAllRepeatsHint": {
+    "description": "Hint for after all repeats field"
   }
 }

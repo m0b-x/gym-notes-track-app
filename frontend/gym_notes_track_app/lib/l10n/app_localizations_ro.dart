@@ -997,6 +997,24 @@ class AppLocalizationsRo extends AppLocalizations {
       'Evidențiază linia unde este poziționat cursorul';
 
   @override
+  String get autoBreakLongLines => 'Auto-Break Long Lines';
+
+  @override
+  String get autoBreakLongLinesDesc =>
+      'Automatically break long lines when pasting text. May slightly affect search positioning accuracy in preview mode.';
+
+  @override
+  String linesFormatted(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count long lines were formatted',
+      one: '1 long line was formatted',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get previewSection => 'Previzualizare';
 
   @override
@@ -1078,4 +1096,23 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get advancedOptionsDescription => 'Offset dată, repetare și altele';
+
+  @override
+  String get repeatWrapperText => 'Wrapper text';
+
+  @override
+  String get repeatWrapperTextDesc =>
+      'Text inserted before/after all repeated items';
+
+  @override
+  String get beforeAllRepeats => 'Before all';
+
+  @override
+  String get beforeAllRepeatsHint => 'e.g., ## Week 1\\n';
+
+  @override
+  String get afterAllRepeats => 'After all';
+
+  @override
+  String get afterAllRepeatsHint => 'e.g., \\n---';
 }

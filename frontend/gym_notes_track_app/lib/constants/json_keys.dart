@@ -41,6 +41,8 @@ class JsonKeys {
   static const String dateIncrementMonths = 'dateIncrementMonths';
   static const String dateIncrementYears = 'dateIncrementYears';
   static const String repeatSeparator = 'repeatSeparator';
+  static const String beforeRepeatText = 'beforeRepeatText';
+  static const String afterRepeatText = 'afterRepeatText';
 
   static const String wordToNoteIds = 'wordToNoteIds';
   static const String termFrequency = 'termFrequency';

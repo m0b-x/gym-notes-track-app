@@ -27,6 +27,8 @@ import '../widgets/scroll_zone_mixin.dart';
 import '../widgets/note_search_bar.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/unified_app_bars.dart';
+import '../utils/editor_width_calculator.dart';
+import '../utils/custom_snackbar.dart';
 import '../utils/re_editor_search_controller.dart';
 import '../utils/scroll_position_sync.dart';
 import '../utils/text_position_utils.dart';
@@ -68,6 +70,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   late ReEditorSearchController _searchController;
   late ScrollPositionSync _scrollPositionSync;
   final GlobalKey<SourceMappedMarkdownViewState> _markdownViewKey = GlobalKey();
+  final GlobalKey _editorWrapperKey = GlobalKey();
+  final GlobalKey _lineNumbersKey = GlobalKey();
+  final GlobalKey _scrollIndicatorKey = GlobalKey();
 
   bool _hasChanges = false;
   bool _isPreviewMode = false;
@@ -79,6 +84,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _showLineNumbers = false;
   bool _wordWrap = true;
   bool _showCursorLine = false;
+  bool _autoBreakLongLines = true;
 
   // Preview settings
   bool _showPreviewScrollbar = false;
@@ -100,6 +106,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _isProcessingTextChange = false;
   int _cachedLineCount = 1;
   int _cachedCharCount = 0;
+
+  // Paste detection threshold - if text increases by more than this, it's likely a paste
+  static const int _pasteThreshold = 20;
 
   Timer? _lineCountDebounceTimer;
   int _lastLineCountTextLength = 0;
@@ -196,6 +205,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final showCursorLine = await settings.getShowCursorLine();
     final showPreviewScrollbar = await settings.getShowPreviewScrollbar();
     final previewLinesPerChunk = await settings.getPreviewLinesPerChunk();
+    final autoBreakLongLines = await settings.getAutoBreakLongLines();
     if (mounted) {
       setState(() {
         _noteSwipeEnabled = noteSwipe;
@@ -205,6 +215,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         _showCursorLine = showCursorLine;
         _showPreviewScrollbar = showPreviewScrollbar;
         _previewLinesPerChunk = previewLinesPerChunk;
+        _autoBreakLongLines = autoBreakLongLines;
       });
     }
   }
@@ -505,10 +516,21 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final text = _contentController.text;
     final selection = _contentController.selection;
 
-    final textLengthIncreased = text.length > _previousText.length;
+    final textLengthDiff = text.length - _previousText.length;
+    final textLengthIncreased = textLengthDiff > 0;
+
+    // Detect paste: large text additions
+    final isPaste = textLengthDiff > _pasteThreshold;
+
     _previousText = text;
 
     if (!textLengthIncreased) return;
+
+    // Handle paste: break long lines to fit editor width
+    if (isPaste) {
+      _handlePasteLineBreaking();
+      return;
+    }
 
     // Check if we just inserted a newline
     // In CodeLineEditingController, after pressing Enter:
@@ -547,6 +569,75 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       }
       _isProcessingTextChange = false;
     }
+  }
+
+  /// Creates an EditorWidthCalculator with current configuration
+  EditorWidthCalculator _createWidthCalculator() {
+    return EditorWidthCalculator(
+      config: EditorWidthConfig(
+        editorContainerKey: _editorWrapperKey,
+        lineNumbersKey: _showLineNumbers ? _lineNumbersKey : null,
+        scrollIndicatorKey: _scrollIndicatorKey,
+        fontSize: _editorFontSize,
+      ),
+      editorPadding: EdgeInsets.only(
+        left: AppSpacing.lg,
+        top: AppSpacing.lg,
+        right: AppSpacing.lg + 48,
+        bottom: AppSpacing.lg,
+      ),
+    );
+  }
+
+  /// Handle paste by breaking long lines to fit editor width.
+  /// Respects markdown syntax and skips code blocks.
+  void _handlePasteLineBreaking() {
+    // Check if feature is enabled
+    if (!_autoBreakLongLines) return;
+
+    _isProcessingTextChange = true;
+
+    final calculator = _createWidthCalculator();
+    final availableWidth = calculator.getAvailableTextWidth();
+    if (availableWidth == null) {
+      _isProcessingTextChange = false;
+      return;
+    }
+
+    // Get all lines as strings
+    final codeLines = _contentController.codeLines;
+    final lineCount = codeLines.length;
+    final lines = <String>[];
+    for (int i = 0; i < lineCount; i++) {
+      lines.add(codeLines[i].text);
+    }
+
+    // Use smart line breaking that respects code blocks and markdown syntax
+    final result = calculator.breakLinesSmartly(lines, availableWidth);
+
+    if (result.linesModified > 0) {
+      final newText = result.lines.join('\n');
+      if (newText != _contentController.text) {
+        // Preserve cursor at end of pasted content
+        _contentController.text = newText;
+        _contentController.selection = CodeLineSelection.collapsed(
+          index: result.lines.length - 1,
+          offset: result.lines.last.length,
+        );
+        _previousText = newText;
+
+        // Show toast notification
+        if (mounted) {
+          CustomSnackbar.show(
+            context,
+            AppLocalizations.of(context)!.linesFormatted(result.linesModified),
+            withToolbarOffset: true,
+          );
+        }
+      }
+    }
+
+    _isProcessingTextChange = false;
   }
 
   int _getLineStartOffset(int lineIndex) {
@@ -870,17 +961,22 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   Widget _buildEditor() {
-    return _ModernEditorWrapper(
-      key: const ValueKey('editor'),
-      controller: _contentController,
-      focusNode: _contentFocusNode,
-      scrollController: _editorScrollController,
-      searchController: _searchController,
-      editorFontSize: _editorFontSize,
-      onTextChanged: _handleTextChange,
-      showLineNumbers: _showLineNumbers,
-      wordWrap: _wordWrap,
-      showCursorLine: _showCursorLine,
+    return KeyedSubtree(
+      key: _editorWrapperKey,
+      child: _ModernEditorWrapper(
+        key: const ValueKey('editor'),
+        controller: _contentController,
+        focusNode: _contentFocusNode,
+        scrollController: _editorScrollController,
+        searchController: _searchController,
+        editorFontSize: _editorFontSize,
+        onTextChanged: _handleTextChange,
+        showLineNumbers: _showLineNumbers,
+        wordWrap: _wordWrap,
+        showCursorLine: _showCursorLine,
+        lineNumbersKey: _lineNumbersKey,
+        scrollIndicatorKey: _scrollIndicatorKey,
+      ),
     );
   }
 
@@ -1076,6 +1172,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final selectedText = _contentController.selectedText;
     final repeatCount = shortcut.repeatConfig?.count ?? 1;
     final separator = shortcut.repeatConfig?.separator ?? '\n';
+    final beforeRepeatText = shortcut.repeatConfig?.beforeRepeatText ?? '';
+    final afterRepeatText = shortcut.repeatConfig?.afterRepeatText ?? '';
 
     if (shortcut.insertType == 'date') {
       final format = shortcut.dateFormat ?? 'yyyy-MM-dd';
@@ -1113,7 +1211,13 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         results.add('${shortcut.beforeText}$middle${shortcut.afterText}');
       }
 
-      final wrapped = results.join(separator);
+      var wrapped = results.join(separator);
+
+      // Apply wrapper text around all repeated items
+      if (beforeRepeatText.isNotEmpty || afterRepeatText.isNotEmpty) {
+        wrapped = '$beforeRepeatText$wrapped$afterRepeatText';
+      }
+
       _contentController.replaceSelection(wrapped);
     } else if (shortcut.insertType == 'header') {
       final selection = _contentController.selection;
@@ -1156,6 +1260,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       // Apply repeat if configured
       if (repeatCount > 1) {
         wrapped = List.filled(repeatCount, wrapped).join(separator);
+      }
+
+      // Apply wrapper text around all repeated items
+      if (beforeRepeatText.isNotEmpty || afterRepeatText.isNotEmpty) {
+        wrapped = '$beforeRepeatText$wrapped$afterRepeatText';
       }
 
       _contentController.replaceSelection(wrapped);
@@ -1250,6 +1359,8 @@ class _ModernEditorWrapper extends StatefulWidget {
   final bool showLineNumbers;
   final bool wordWrap;
   final bool showCursorLine;
+  final GlobalKey? lineNumbersKey;
+  final GlobalKey? scrollIndicatorKey;
 
   const _ModernEditorWrapper({
     super.key,
@@ -1262,6 +1373,8 @@ class _ModernEditorWrapper extends StatefulWidget {
     this.showLineNumbers = false,
     this.wordWrap = true,
     this.showCursorLine = false,
+    this.lineNumbersKey,
+    this.scrollIndicatorKey,
   });
 
   @override
@@ -1313,8 +1426,11 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
           top: 8,
           bottom: 8,
           right: 0,
-          child: ScrollProgressIndicator(
-            scrollController: widget.scrollController.verticalScroller,
+          child: KeyedSubtree(
+            key: widget.scrollIndicatorKey,
+            child: ScrollProgressIndicator(
+              scrollController: widget.scrollController.verticalScroller,
+            ),
           ),
         ),
       ],
@@ -1355,9 +1471,12 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
         ),
         indicatorBuilder: widget.showLineNumbers
             ? (context, editingController, chunkController, notifier) {
-                return DefaultCodeLineNumber(
-                  controller: editingController,
-                  notifier: notifier,
+                return KeyedSubtree(
+                  key: widget.lineNumbersKey,
+                  child: DefaultCodeLineNumber(
+                    controller: editingController,
+                    notifier: notifier,
+                  ),
                 );
               }
             : null,

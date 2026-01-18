@@ -55,6 +55,8 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
   late int _dateIncrementMonths;
   late int _dateIncrementYears;
   late String _repeatSeparator;
+  late String _beforeRepeatText;
+  late String _afterRepeatText;
 
   static const List<String> _dateFormats = [
     'MMMM d, yyyy',
@@ -137,6 +139,8 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     _dateIncrementMonths = repeatConfig?.dateIncrementMonths ?? 0;
     _dateIncrementYears = repeatConfig?.dateIncrementYears ?? 0;
     _repeatSeparator = repeatConfig?.separator ?? '\n';
+    _beforeRepeatText = repeatConfig?.beforeRepeatText ?? '';
+    _afterRepeatText = repeatConfig?.afterRepeatText ?? '';
 
     // Auto-enable advanced mode if any advanced features are configured
     _isAdvancedMode = _hasAdvancedFeatures();
@@ -148,7 +152,9 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     return _repeatCount > 1 ||
         _dateOffsetDays != 0 ||
         _dateOffsetMonths != 0 ||
-        _dateOffsetYears != 0;
+        _dateOffsetYears != 0 ||
+        _beforeRepeatText.isNotEmpty ||
+        _afterRepeatText.isNotEmpty;
   }
 
   void _resetAdvancedFeatures() {
@@ -159,6 +165,8 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
       _dateIncrementMonths = 0;
       _dateIncrementYears = 0;
       _repeatSeparator = '\n';
+      _beforeRepeatText = '';
+      _afterRepeatText = '';
       _dateOffsetDays = 0;
       _dateOffsetMonths = 0;
       _dateOffsetYears = 0;
@@ -405,9 +413,11 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
       );
     }
 
-    // Build repeat config if repeat count > 1
+    // Build repeat config if repeat count > 1 or wrapper text is set
     RepeatConfig? repeatConfig;
-    if (_repeatCount > 1) {
+    if (_repeatCount > 1 ||
+        _beforeRepeatText.isNotEmpty ||
+        _afterRepeatText.isNotEmpty) {
       repeatConfig = RepeatConfig(
         count: _repeatCount,
         incrementDate: _incrementDateOnRepeat,
@@ -415,6 +425,8 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
         dateIncrementMonths: _dateIncrementMonths,
         dateIncrementYears: _dateIncrementYears,
         separator: _repeatSeparator,
+        beforeRepeatText: _beforeRepeatText,
+        afterRepeatText: _afterRepeatText,
       );
     }
 
@@ -735,6 +747,70 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     );
   }
 
+  Widget _buildRepeatWrapperTextFields() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          AppLocalizations.of(context)!.repeatWrapperText,
+          style: TextStyle(fontSize: 14),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          AppLocalizations.of(context)!.repeatWrapperTextDesc,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: TextEditingController(text: _beforeRepeatText),
+                onChanged: (value) => setState(() => _beforeRepeatText = value),
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.beforeAllRepeats,
+                  hintText: AppLocalizations.of(context)!.beforeAllRepeatsHint,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+                style: TextStyle(fontSize: 13),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: TextEditingController(text: _afterRepeatText),
+                onChanged: (value) => setState(() => _afterRepeatText = value),
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.afterAllRepeats,
+                  hintText: AppLocalizations.of(context)!.afterAllRepeatsHint,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+                style: TextStyle(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildDateIncrementSection() {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -887,6 +963,8 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
   }
 
   String _generatePreviewText() {
+    String result;
+
     if (_insertType == 'date') {
       final baseDate = _getPreviewDate();
       final results = <String>[];
@@ -906,14 +984,22 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
         );
       }
 
-      return results.join(_repeatSeparator);
+      result = results.join(_repeatSeparator);
     } else {
       final single = '${_beforeController.text}text${_afterController.text}';
       if (_repeatCount > 1) {
-        return List.filled(_repeatCount, single).join(_repeatSeparator);
+        result = List.filled(_repeatCount, single).join(_repeatSeparator);
+      } else {
+        result = single;
       }
-      return single;
     }
+
+    // Apply wrapper text around all repeated items
+    if (_beforeRepeatText.isNotEmpty || _afterRepeatText.isNotEmpty) {
+      result = '$_beforeRepeatText$result$_afterRepeatText';
+    }
+
+    return result;
   }
 
   @override
@@ -1191,6 +1277,8 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                           if (_repeatCount > 1) ...[
                             const SizedBox(height: 12),
                             _buildSeparatorSelector(),
+                            const SizedBox(height: 12),
+                            _buildRepeatWrapperTextFields(),
                             if (_insertType == 'date') ...[
                               const SizedBox(height: 12),
                               _buildDateIncrementSection(),

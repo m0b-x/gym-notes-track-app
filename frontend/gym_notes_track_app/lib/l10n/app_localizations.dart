@@ -1930,6 +1930,24 @@ abstract class AppLocalizations {
   /// **'Highlight the line where the cursor is positioned'**
   String get showCursorLineDesc;
 
+  /// Setting for automatically breaking long lines on paste
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Break Long Lines'**
+  String get autoBreakLongLines;
+
+  /// Description for auto break long lines setting
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically break long lines when pasting text. May slightly affect search positioning accuracy in preview mode.'**
+  String get autoBreakLongLinesDesc;
+
+  /// Toast message when lines are formatted on paste
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 long line was formatted} other{{count} long lines were formatted}}'**
+  String linesFormatted(int count);
+
   /// Preview settings section title
   ///
   /// In en, this message translates to:
@@ -2085,6 +2103,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Date offset, repeat, and more'**
   String get advancedOptionsDescription;
+
+  /// Label for wrapper text around all repeated items
+  ///
+  /// In en, this message translates to:
+  /// **'Wrapper text'**
+  String get repeatWrapperText;
+
+  /// Description for wrapper text fields
+  ///
+  /// In en, this message translates to:
+  /// **'Text inserted before/after all repeated items'**
+  String get repeatWrapperTextDesc;
+
+  /// Label for text before all repeated items
+  ///
+  /// In en, this message translates to:
+  /// **'Before all'**
+  String get beforeAllRepeats;
+
+  /// Hint for before all repeats field
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., ## Week 1\\n'**
+  String get beforeAllRepeatsHint;
+
+  /// Label for text after all repeated items
+  ///
+  /// In en, this message translates to:
+  /// **'After all'**
+  String get afterAllRepeats;
+
+  /// Hint for after all repeats field
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., \\n---'**
+  String get afterAllRepeatsHint;
 }
 
 class _AppLocalizationsDelegate
