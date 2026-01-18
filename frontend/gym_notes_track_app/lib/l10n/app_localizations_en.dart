@@ -1043,4 +1043,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get incrementByEachRepeat => 'Increment by for each repetition:';
+
+  @override
+  String get advancedOptions => 'Advanced Options';
+
+  @override
+  String get advancedOptionsDescription => 'Date offset, repeat, and more';
 }

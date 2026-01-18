@@ -1408,5 +1408,13 @@
   "incrementByEachRepeat": "Increment by for each repetition:",
   "@incrementByEachRepeat": {
     "description": "Label for date increment values"
+  },
+  "advancedOptions": "Advanced Options",
+  "@advancedOptions": {
+    "description": "Toggle label for advanced shortcut options"
+  },
+  "advancedOptionsDescription": "Date offset, repeat, and more",
+  "@advancedOptionsDescription": {
+    "description": "Description for advanced options toggle"
   }
 }

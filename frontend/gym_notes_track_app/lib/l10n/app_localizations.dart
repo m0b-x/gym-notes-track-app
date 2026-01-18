@@ -2037,6 +2037,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Increment by for each repetition:'**
   String get incrementByEachRepeat;
+
+  /// Toggle label for advanced shortcut options
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced Options'**
+  String get advancedOptions;
+
+  /// Description for advanced options toggle
+  ///
+  /// In en, this message translates to:
+  /// **'Date offset, repeat, and more'**
+  String get advancedOptionsDescription;
 }
 
 class _AppLocalizationsDelegate

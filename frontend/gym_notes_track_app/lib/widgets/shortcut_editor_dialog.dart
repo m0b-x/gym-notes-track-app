@@ -41,6 +41,9 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
   bool _isProcessingTextChange = false;
   String? _labelError;
 
+  // Advanced mode toggle
+  late bool _isAdvancedMode;
+
   // Date offset state
   late int _dateOffsetDays;
   late int _dateOffsetMonths;
@@ -136,7 +139,31 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     _dateIncrementYears = repeatConfig?.dateIncrementYears ?? 0;
     _repeatSeparator = repeatConfig?.separator ?? '\n';
 
+    // Auto-enable advanced mode if any advanced features are configured
+    _isAdvancedMode = _hasAdvancedFeatures();
+
     _loadShortcuts();
+  }
+
+  bool _hasAdvancedFeatures() {
+    return _repeatCount > 1 ||
+        _dateOffsetDays != 0 ||
+        _dateOffsetMonths != 0 ||
+        _dateOffsetYears != 0;
+  }
+
+  void _resetAdvancedFeatures() {
+    setState(() {
+      _repeatCount = 1;
+      _incrementDateOnRepeat = false;
+      _dateIncrementDays = 1;
+      _dateIncrementMonths = 0;
+      _dateIncrementYears = 0;
+      _repeatSeparator = '\n';
+      _dateOffsetDays = 0;
+      _dateOffsetMonths = 0;
+      _dateOffsetYears = 0;
+    });
   }
 
   @override
@@ -408,6 +435,72 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
 
     widget.onSave(shortcut);
     Navigator.pop(context);
+  }
+
+  Widget _buildAdvancedModeToggle() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: _isAdvancedMode
+            ? Theme.of(
+                context,
+              ).colorScheme.primaryContainer.withValues(alpha: 0.3)
+            : Theme.of(context).colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _isAdvancedMode
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
+              : Theme.of(context).colorScheme.outlineVariant,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.tune,
+            size: 20,
+            color: _isAdvancedMode
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppLocalizations.of(context)!.advancedOptions,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color: _isAdvancedMode
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                ),
+                Text(
+                  AppLocalizations.of(context)!.advancedOptionsDescription,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _isAdvancedMode,
+            onChanged: (value) {
+              HapticFeedback.selectionClick();
+              setState(() {
+                _isAdvancedMode = value;
+                if (!value) {
+                  _resetAdvancedFeatures();
+                }
+              });
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSectionHeader(String title, IconData icon) {
@@ -1051,16 +1144,42 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                             ),
                           ),
                         ],
-                        // Date offset section (only for date insert type)
-                        if (_insertType == 'date') ...[
+                        // Advanced mode toggle
+                        const SizedBox(height: 16),
+                        _buildAdvancedModeToggle(),
+                        // Advanced features (date offset and repeat)
+                        if (_isAdvancedMode) ...[
+                          // Date offset section (only for date insert type)
+                          if (_insertType == 'date') ...[
+                            const SizedBox(height: 16),
+                            _buildSectionHeader(
+                              AppLocalizations.of(context)!.dateOffset,
+                              Icons.calendar_today,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              AppLocalizations.of(
+                                context,
+                              )!.dateOffsetDescription,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _buildDateOffsetRow(),
+                          ],
+                          // Repeat section (for all insert types)
                           const SizedBox(height: 16),
                           _buildSectionHeader(
-                            AppLocalizations.of(context)!.dateOffset,
-                            Icons.calendar_today,
+                            AppLocalizations.of(context)!.repeatSettings,
+                            Icons.repeat,
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            AppLocalizations.of(context)!.dateOffsetDescription,
+                            AppLocalizations.of(context)!.repeatDescription,
                             style: TextStyle(
                               fontSize: 12,
                               color: Theme.of(
@@ -1069,32 +1188,14 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          _buildDateOffsetRow(),
-                        ],
-                        // Repeat section (for all insert types)
-                        const SizedBox(height: 16),
-                        _buildSectionHeader(
-                          AppLocalizations.of(context)!.repeatSettings,
-                          Icons.repeat,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          AppLocalizations.of(context)!.repeatDescription,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildRepeatCountRow(),
-                        if (_repeatCount > 1) ...[
-                          const SizedBox(height: 12),
-                          _buildSeparatorSelector(),
-                          if (_insertType == 'date') ...[
+                          _buildRepeatCountRow(),
+                          if (_repeatCount > 1) ...[
                             const SizedBox(height: 12),
-                            _buildDateIncrementSection(),
+                            _buildSeparatorSelector(),
+                            if (_insertType == 'date') ...[
+                              const SizedBox(height: 12),
+                              _buildDateIncrementSection(),
+                            ],
                           ],
                         ],
                         const SizedBox(height: 16),

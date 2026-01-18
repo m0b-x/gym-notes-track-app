@@ -1354,5 +1354,13 @@
   "incrementByEachRepeat": "Erhöhung pro Wiederholung:",
   "@incrementByEachRepeat": {
     "description": "Label for date increment values"
+  },
+  "advancedOptions": "Erweiterte Optionen",
+  "@advancedOptions": {
+    "description": "Toggle label for advanced shortcut options"
+  },
+  "advancedOptionsDescription": "Datumsversatz, Wiederholung und mehr",
+  "@advancedOptionsDescription": {
+    "description": "Description for advanced options toggle"
   }
 }

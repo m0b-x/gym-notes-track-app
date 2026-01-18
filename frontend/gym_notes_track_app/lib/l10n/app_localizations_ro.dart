@@ -1051,4 +1051,10 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get incrementByEachRepeat => 'Incrementare pentru fiecare repetare:';
+
+  @override
+  String get advancedOptions => 'Opțiuni Avansate';
+
+  @override
+  String get advancedOptionsDescription => 'Offset dată, repetare și altele';
 }

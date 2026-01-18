@@ -1052,4 +1052,11 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get incrementByEachRepeat => 'Erhöhung pro Wiederholung:';
+
+  @override
+  String get advancedOptions => 'Erweiterte Optionen';
+
+  @override
+  String get advancedOptionsDescription =>
+      'Datumsversatz, Wiederholung und mehr';
 }

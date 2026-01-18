@@ -321,5 +321,7 @@
   "comma": "Virgulă",
   "pipe": "Bară",
   "incrementDateOnRepeat": "Incrementează data la repetare",
-  "incrementByEachRepeat": "Incrementare pentru fiecare repetare:"
+  "incrementByEachRepeat": "Incrementare pentru fiecare repetare:",
+  "advancedOptions": "Opțiuni Avansate",
+  "advancedOptionsDescription": "Offset dată, repetare și altele"
 }
