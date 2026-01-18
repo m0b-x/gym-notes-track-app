@@ -391,18 +391,34 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
 
     final chunkCount = _builder?.chunkCount ?? 0;
 
+    // Add a spacer item for short content to prevent centering
+    // The spacer fills remaining viewport space, forcing content to top
+    final isShortContent = chunkCount <= 3;
+    final itemCount = isShortContent ? chunkCount + 1 : chunkCount;
+
     return ScrollablePositionedList.builder(
       itemScrollController: _itemScrollController,
       itemPositionsListener: _itemPositionsListener,
       padding: widget.padding ?? const EdgeInsets.all(AppSpacing.lg),
-      itemCount: chunkCount,
-      itemBuilder: (context, chunkIndex) {
-        if (_builder == null || chunkIndex >= chunkCount) {
+      itemCount: itemCount,
+      itemBuilder: (context, index) {
+        // Spacer item - fills remaining space to prevent centering
+        if (isShortContent && index == chunkCount) {
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              // Get viewport height and create spacer to fill it
+              final viewportHeight = MediaQuery.of(context).size.height;
+              return SizedBox(height: viewportHeight * 0.7);
+            },
+          );
+        }
+
+        if (_builder == null || index >= chunkCount) {
           return const SizedBox.shrink();
         }
 
         // Build chunk spans (cached internally)
-        final chunkSpans = _builder!.buildChunk(chunkIndex);
+        final chunkSpans = _builder!.buildChunk(index);
 
         // RepaintBoundary isolates repaints to this chunk only
         return RepaintBoundary(
