@@ -1929,6 +1929,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Highlight the line where the cursor is positioned'**
   String get showCursorLineDesc;
+
+  /// Section title for date offset settings
+  ///
+  /// In en, this message translates to:
+  /// **'Date Offset'**
+  String get dateOffset;
+
+  /// Description for date offset feature
+  ///
+  /// In en, this message translates to:
+  /// **'Shift the date forward or backward from today'**
+  String get dateOffsetDescription;
+
+  /// Label for days input
+  ///
+  /// In en, this message translates to:
+  /// **'Days'**
+  String get days;
+
+  /// Label for months input
+  ///
+  /// In en, this message translates to:
+  /// **'Months'**
+  String get monthsLabel;
+
+  /// Label for years input
+  ///
+  /// In en, this message translates to:
+  /// **'Years'**
+  String get yearsLabel;
+
+  /// Section title for repeat settings
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat'**
+  String get repeatSettings;
+
+  /// Description for repeat feature
+  ///
+  /// In en, this message translates to:
+  /// **'Insert this shortcut multiple times'**
+  String get repeatDescription;
+
+  /// Label for repeat count
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat count'**
+  String get repeatCount;
+
+  /// Label for separator selection
+  ///
+  /// In en, this message translates to:
+  /// **'Separator'**
+  String get separator;
+
+  /// New line separator option
+  ///
+  /// In en, this message translates to:
+  /// **'New line'**
+  String get newLine;
+
+  /// No separator option
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get noSeparator;
+
+  /// Space separator option
+  ///
+  /// In en, this message translates to:
+  /// **'Space'**
+  String get space;
+
+  /// Non-breaking space separator option
+  ///
+  /// In en, this message translates to:
+  /// **'Non-breaking'**
+  String get nbspSpace;
+
+  /// Blank line separator option (double newline)
+  ///
+  /// In en, this message translates to:
+  /// **'Blank line'**
+  String get blankLine;
+
+  /// Comma separator option
+  ///
+  /// In en, this message translates to:
+  /// **'Comma'**
+  String get comma;
+
+  /// Pipe separator option
+  ///
+  /// In en, this message translates to:
+  /// **'Pipe'**
+  String get pipe;
+
+  /// Toggle to increment date for each repetition
+  ///
+  /// In en, this message translates to:
+  /// **'Increment date on repeat'**
+  String get incrementDateOnRepeat;
+
+  /// Label for date increment values
+  ///
+  /// In en, this message translates to:
+  /// **'Increment by for each repetition:'**
+  String get incrementByEachRepeat;
 }
 
 class _AppLocalizationsDelegate

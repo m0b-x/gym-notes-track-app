@@ -988,4 +988,59 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get showCursorLineDesc =>
       'Highlight the line where the cursor is positioned';
+
+  @override
+  String get dateOffset => 'Date Offset';
+
+  @override
+  String get dateOffsetDescription =>
+      'Shift the date forward or backward from today';
+
+  @override
+  String get days => 'Days';
+
+  @override
+  String get monthsLabel => 'Months';
+
+  @override
+  String get yearsLabel => 'Years';
+
+  @override
+  String get repeatSettings => 'Repeat';
+
+  @override
+  String get repeatDescription => 'Insert this shortcut multiple times';
+
+  @override
+  String get repeatCount => 'Repeat count';
+
+  @override
+  String get separator => 'Separator';
+
+  @override
+  String get newLine => 'New line';
+
+  @override
+  String get noSeparator => 'None';
+
+  @override
+  String get space => 'Space';
+
+  @override
+  String get nbspSpace => 'Non-breaking';
+
+  @override
+  String get blankLine => 'Blank line';
+
+  @override
+  String get comma => 'Comma';
+
+  @override
+  String get pipe => 'Pipe';
+
+  @override
+  String get incrementDateOnRepeat => 'Increment date on repeat';
+
+  @override
+  String get incrementByEachRepeat => 'Increment by for each repetition:';
 }

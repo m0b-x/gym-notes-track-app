@@ -997,4 +997,59 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get showCursorLineDesc =>
       'Die Zeile hervorheben, in der sich der Cursor befindet';
+
+  @override
+  String get dateOffset => 'Datumsversatz';
+
+  @override
+  String get dateOffsetDescription =>
+      'Das Datum von heute vor- oder zurückverschieben';
+
+  @override
+  String get days => 'Tage';
+
+  @override
+  String get monthsLabel => 'Monate';
+
+  @override
+  String get yearsLabel => 'Jahre';
+
+  @override
+  String get repeatSettings => 'Wiederholen';
+
+  @override
+  String get repeatDescription => 'Diese Verknüpfung mehrmals einfügen';
+
+  @override
+  String get repeatCount => 'Wiederholungsanzahl';
+
+  @override
+  String get separator => 'Trennzeichen';
+
+  @override
+  String get newLine => 'Neue Zeile';
+
+  @override
+  String get noSeparator => 'Keines';
+
+  @override
+  String get space => 'Leerzeichen';
+
+  @override
+  String get nbspSpace => 'Geschütztes';
+
+  @override
+  String get blankLine => 'Leerzeile';
+
+  @override
+  String get comma => 'Komma';
+
+  @override
+  String get pipe => 'Senkrechter Strich';
+
+  @override
+  String get incrementDateOnRepeat => 'Datum bei Wiederholung erhöhen';
+
+  @override
+  String get incrementByEachRepeat => 'Erhöhung pro Wiederholung:';
 }

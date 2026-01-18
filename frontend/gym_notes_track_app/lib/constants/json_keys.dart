@@ -27,6 +27,21 @@ class JsonKeys {
   static const String insertType = 'insertType';
   static const String dateFormat = 'dateFormat';
 
+  // Date offset keys
+  static const String dateOffset = 'dateOffset';
+  static const String days = 'days';
+  static const String months = 'months';
+  static const String years = 'years';
+
+  // Repeat config keys
+  static const String repeatConfig = 'repeatConfig';
+  static const String repeatCount = 'repeatCount';
+  static const String incrementDate = 'incrementDate';
+  static const String dateIncrementDays = 'dateIncrementDays';
+  static const String dateIncrementMonths = 'dateIncrementMonths';
+  static const String dateIncrementYears = 'dateIncrementYears';
+  static const String repeatSeparator = 'repeatSeparator';
+
   static const String wordToNoteIds = 'wordToNoteIds';
   static const String termFrequency = 'termFrequency';
 

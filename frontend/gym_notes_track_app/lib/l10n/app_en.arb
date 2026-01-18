@@ -1336,5 +1336,77 @@
   "showCursorLineDesc": "Highlight the line where the cursor is positioned",
   "@showCursorLineDesc": {
     "description": "Description for show cursor line setting"
+  },
+  "dateOffset": "Date Offset",
+  "@dateOffset": {
+    "description": "Section title for date offset settings"
+  },
+  "dateOffsetDescription": "Shift the date forward or backward from today",
+  "@dateOffsetDescription": {
+    "description": "Description for date offset feature"
+  },
+  "days": "Days",
+  "@days": {
+    "description": "Label for days input"
+  },
+  "monthsLabel": "Months",
+  "@monthsLabel": {
+    "description": "Label for months input"
+  },
+  "yearsLabel": "Years",
+  "@yearsLabel": {
+    "description": "Label for years input"
+  },
+  "repeatSettings": "Repeat",
+  "@repeatSettings": {
+    "description": "Section title for repeat settings"
+  },
+  "repeatDescription": "Insert this shortcut multiple times",
+  "@repeatDescription": {
+    "description": "Description for repeat feature"
+  },
+  "repeatCount": "Repeat count",
+  "@repeatCount": {
+    "description": "Label for repeat count"
+  },
+  "separator": "Separator",
+  "@separator": {
+    "description": "Label for separator selection"
+  },
+  "newLine": "New line",
+  "@newLine": {
+    "description": "New line separator option"
+  },
+  "noSeparator": "None",
+  "@noSeparator": {
+    "description": "No separator option"
+  },
+  "space": "Space",
+  "@space": {
+    "description": "Space separator option"
+  },
+  "nbspSpace": "Non-breaking",
+  "@nbspSpace": {
+    "description": "Non-breaking space separator option"
+  },
+  "blankLine": "Blank line",
+  "@blankLine": {
+    "description": "Blank line separator option (double newline)"
+  },
+  "comma": "Comma",
+  "@comma": {
+    "description": "Comma separator option"
+  },
+  "pipe": "Pipe",
+  "@pipe": {
+    "description": "Pipe separator option"
+  },
+  "incrementDateOnRepeat": "Increment date on repeat",
+  "@incrementDateOnRepeat": {
+    "description": "Toggle to increment date for each repetition"
+  },
+  "incrementByEachRepeat": "Increment by for each repetition:",
+  "@incrementByEachRepeat": {
+    "description": "Label for date increment values"
   }
 }

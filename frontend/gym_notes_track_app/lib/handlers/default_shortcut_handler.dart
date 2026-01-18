@@ -21,18 +21,28 @@ class DefaultShortcutHandler implements MarkdownShortcutHandler {
       selectedText = text.substring(start, end);
     }
 
-    final newText =
-        text.substring(0, start) +
-        shortcut.beforeText +
-        selectedText +
-        shortcut.afterText +
-        text.substring(end);
+    // Build the single insertion
+    final singleInsertion =
+        shortcut.beforeText + selectedText + shortcut.afterText;
+
+    // Apply repeat if configured
+    final repeatConfig = shortcut.repeatConfig;
+    final repeatCount = repeatConfig?.count ?? 1;
+    final separator = repeatConfig?.separator ?? '\n';
+
+    String insertText;
+    if (repeatCount > 1) {
+      // For repeats, use the single insertion pattern multiple times
+      insertText = List.filled(repeatCount, singleInsertion).join(separator);
+    } else {
+      insertText = singleInsertion;
+    }
+
+    final newText = text.substring(0, start) + insertText + text.substring(end);
 
     controller.value = TextEditingValue(
       text: newText,
-      selection: TextSelection.collapsed(
-        offset: start + shortcut.beforeText.length + selectedText.length,
-      ),
+      selection: TextSelection.collapsed(offset: start + insertText.length),
     );
 
     focusNode.requestFocus();

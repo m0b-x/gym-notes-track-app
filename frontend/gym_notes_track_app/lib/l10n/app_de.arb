@@ -1282,5 +1282,77 @@
   "showCursorLineDesc": "Die Zeile hervorheben, in der sich der Cursor befindet",
   "@showCursorLineDesc": {
     "description": "Description for show cursor line setting"
+  },
+  "dateOffset": "Datumsversatz",
+  "@dateOffset": {
+    "description": "Section title for date offset settings"
+  },
+  "dateOffsetDescription": "Das Datum von heute vor- oder zurückverschieben",
+  "@dateOffsetDescription": {
+    "description": "Description for date offset feature"
+  },
+  "days": "Tage",
+  "@days": {
+    "description": "Label for days input"
+  },
+  "monthsLabel": "Monate",
+  "@monthsLabel": {
+    "description": "Label for months input"
+  },
+  "yearsLabel": "Jahre",
+  "@yearsLabel": {
+    "description": "Label for years input"
+  },
+  "repeatSettings": "Wiederholen",
+  "@repeatSettings": {
+    "description": "Section title for repeat settings"
+  },
+  "repeatDescription": "Diese Verknüpfung mehrmals einfügen",
+  "@repeatDescription": {
+    "description": "Description for repeat feature"
+  },
+  "repeatCount": "Wiederholungsanzahl",
+  "@repeatCount": {
+    "description": "Label for repeat count"
+  },
+  "separator": "Trennzeichen",
+  "@separator": {
+    "description": "Label for separator selection"
+  },
+  "newLine": "Neue Zeile",
+  "@newLine": {
+    "description": "New line separator option"
+  },
+  "noSeparator": "Keines",
+  "@noSeparator": {
+    "description": "No separator option"
+  },
+  "space": "Leerzeichen",
+  "@space": {
+    "description": "Space separator option"
+  },
+  "nbspSpace": "Geschütztes",
+  "@nbspSpace": {
+    "description": "Non-breaking space separator option"
+  },
+  "blankLine": "Leerzeile",
+  "@blankLine": {
+    "description": "Blank line separator option (double newline)"
+  },
+  "comma": "Komma",
+  "@comma": {
+    "description": "Comma separator option"
+  },
+  "pipe": "Senkrechter Strich",
+  "@pipe": {
+    "description": "Pipe separator option"
+  },
+  "incrementDateOnRepeat": "Datum bei Wiederholung erhöhen",
+  "@incrementDateOnRepeat": {
+    "description": "Toggle to increment date for each repetition"
+  },
+  "incrementByEachRepeat": "Erhöhung pro Wiederholung:",
+  "@incrementByEachRepeat": {
+    "description": "Label for date increment values"
   }
 }

@@ -1049,13 +1049,46 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
   void _handleShortcut(CustomMarkdownShortcut shortcut) {
     final selectedText = _contentController.selectedText;
+    final repeatCount = shortcut.repeatConfig?.count ?? 1;
+    final separator = shortcut.repeatConfig?.separator ?? '\n';
 
     if (shortcut.insertType == 'date') {
-      final now = DateTime.now();
       final format = shortcut.dateFormat ?? 'yyyy-MM-dd';
-      final formatted = DateFormat(format).format(now);
-      final middle = selectedText.isNotEmpty ? selectedText : formatted;
-      final wrapped = '${shortcut.beforeText}$middle${shortcut.afterText}';
+      final dateOffset = shortcut.dateOffset;
+      final repeatConfig = shortcut.repeatConfig;
+
+      // Calculate base date with offset
+      var baseDate = DateTime.now();
+      if (dateOffset != null) {
+        baseDate = DateTime(
+          baseDate.year + dateOffset.years,
+          baseDate.month + dateOffset.months,
+          baseDate.day + dateOffset.days,
+        );
+      }
+
+      // Generate repeated dates
+      final results = <String>[];
+      for (int i = 0; i < repeatCount; i++) {
+        var date = baseDate;
+
+        // Apply incremental date offset for each repetition
+        if (repeatConfig != null && repeatConfig.incrementDate && i > 0) {
+          date = DateTime(
+            baseDate.year + (repeatConfig.dateIncrementYears * i),
+            baseDate.month + (repeatConfig.dateIncrementMonths * i),
+            baseDate.day + (repeatConfig.dateIncrementDays * i),
+          );
+        }
+
+        final formatted = DateFormat(format).format(date);
+        final middle = selectedText.isNotEmpty && i == 0
+            ? selectedText
+            : formatted;
+        results.add('${shortcut.beforeText}$middle${shortcut.afterText}');
+      }
+
+      final wrapped = results.join(separator);
       _contentController.replaceSelection(wrapped);
     } else if (shortcut.insertType == 'header') {
       final selection = _contentController.selection;
@@ -1088,12 +1121,19 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       final isSymmetricWrapper =
           before == after && before.isNotEmpty && after.isNotEmpty;
 
+      String wrapped;
       if (selectedText.isEmpty && isSymmetricWrapper) {
-        _contentController.replaceSelection(before);
+        wrapped = before;
       } else {
-        final wrapped = '$before$selectedText$after';
-        _contentController.replaceSelection(wrapped);
+        wrapped = '$before$selectedText$after';
       }
+
+      // Apply repeat if configured
+      if (repeatCount > 1) {
+        wrapped = List.filled(repeatCount, wrapped).join(separator);
+      }
+
+      _contentController.replaceSelection(wrapped);
     }
 
     _onTextChanged();

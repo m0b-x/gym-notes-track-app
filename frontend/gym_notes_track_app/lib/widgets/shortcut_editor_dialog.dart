@@ -41,6 +41,19 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
   bool _isProcessingTextChange = false;
   String? _labelError;
 
+  // Date offset state
+  late int _dateOffsetDays;
+  late int _dateOffsetMonths;
+  late int _dateOffsetYears;
+
+  // Repeat config state
+  late int _repeatCount;
+  late bool _incrementDateOnRepeat;
+  late int _dateIncrementDays;
+  late int _dateIncrementMonths;
+  late int _dateIncrementYears;
+  late String _repeatSeparator;
+
   static const List<String> _dateFormats = [
     'MMMM d, yyyy',
     'MMM d, yyyy',
@@ -107,6 +120,22 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     _insertType = widget.shortcut?.insertType ?? 'wrap';
     _selectedDateFormat =
         widget.shortcut?.dateFormat ?? SettingsKeys.defaultDateFormat;
+
+    // Initialize date offset
+    final dateOffset = widget.shortcut?.dateOffset;
+    _dateOffsetDays = dateOffset?.days ?? 0;
+    _dateOffsetMonths = dateOffset?.months ?? 0;
+    _dateOffsetYears = dateOffset?.years ?? 0;
+
+    // Initialize repeat config
+    final repeatConfig = widget.shortcut?.repeatConfig;
+    _repeatCount = repeatConfig?.count ?? 1;
+    _incrementDateOnRepeat = repeatConfig?.incrementDate ?? false;
+    _dateIncrementDays = repeatConfig?.dateIncrementDays ?? 1;
+    _dateIncrementMonths = repeatConfig?.dateIncrementMonths ?? 0;
+    _dateIncrementYears = repeatConfig?.dateIncrementYears ?? 0;
+    _repeatSeparator = repeatConfig?.separator ?? '\n';
+
     _loadShortcuts();
   }
 
@@ -337,6 +366,32 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
       return;
     }
 
+    // Build date offset if any values are set
+    DateOffset? dateOffset;
+    if (_insertType == 'date' &&
+        (_dateOffsetDays != 0 ||
+            _dateOffsetMonths != 0 ||
+            _dateOffsetYears != 0)) {
+      dateOffset = DateOffset(
+        days: _dateOffsetDays,
+        months: _dateOffsetMonths,
+        years: _dateOffsetYears,
+      );
+    }
+
+    // Build repeat config if repeat count > 1
+    RepeatConfig? repeatConfig;
+    if (_repeatCount > 1) {
+      repeatConfig = RepeatConfig(
+        count: _repeatCount,
+        incrementDate: _incrementDateOnRepeat,
+        dateIncrementDays: _dateIncrementDays,
+        dateIncrementMonths: _dateIncrementMonths,
+        dateIncrementYears: _dateIncrementYears,
+        separator: _repeatSeparator,
+      );
+    }
+
     final shortcut = CustomMarkdownShortcut(
       id: widget.shortcut?.id ?? const Uuid().v4(),
       label: _labelController.text,
@@ -346,11 +401,427 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
       afterText: _afterController.text,
       insertType: _insertType,
       dateFormat: _insertType == 'date' ? _selectedDateFormat : null,
+      dateOffset: dateOffset,
+      repeatConfig: repeatConfig,
       isVisible: widget.shortcut?.isVisible ?? true,
     );
 
     widget.onSave(shortcut);
     Navigator.pop(context);
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateOffsetRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildOffsetField(
+            label: AppLocalizations.of(context)!.days,
+            value: _dateOffsetDays,
+            onChanged: (v) => setState(() => _dateOffsetDays = v),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildOffsetField(
+            label: AppLocalizations.of(context)!.monthsLabel,
+            value: _dateOffsetMonths,
+            onChanged: (v) => setState(() => _dateOffsetMonths = v),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildOffsetField(
+            label: AppLocalizations.of(context)!.yearsLabel,
+            value: _dateOffsetYears,
+            onChanged: (v) => setState(() => _dateOffsetYears = v),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOffsetField({
+    required String label,
+    required int value,
+    required ValueChanged<int> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => onChanged(value - 1),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.remove, size: 18),
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: Text(
+                  value.toString(),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: value != 0
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                ),
+              ),
+            ),
+            InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => onChanged(value + 1),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.add, size: 18),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRepeatCountRow() {
+    return Row(
+      children: [
+        Text(
+          AppLocalizations.of(context)!.repeatCount,
+          style: TextStyle(fontSize: 14),
+        ),
+        const Spacer(),
+        InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: _repeatCount > 1 ? () => setState(() => _repeatCount--) : null,
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.remove,
+              size: 20,
+              color: _repeatCount > 1 ? null : Theme.of(context).disabledColor,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            '$_repeatCount×',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: _repeatCount > 1
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
+            ),
+          ),
+        ),
+        InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: _repeatCount < 100
+              ? () => setState(() => _repeatCount++)
+              : null,
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.add,
+              size: 20,
+              color: _repeatCount < 100
+                  ? null
+                  : Theme.of(context).disabledColor,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSeparatorSelector() {
+    final separators = [
+      ('\n', AppLocalizations.of(context)!.newLine),
+      ('\n\n', AppLocalizations.of(context)!.blankLine),
+      ('', AppLocalizations.of(context)!.noSeparator),
+      (' ', AppLocalizations.of(context)!.space),
+      ('\u00A0', AppLocalizations.of(context)!.nbspSpace),
+      (', ', AppLocalizations.of(context)!.comma),
+      (' | ', AppLocalizations.of(context)!.pipe),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          AppLocalizations.of(context)!.separator,
+          style: TextStyle(fontSize: 14),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: separators.map((sep) {
+            final isSelected = _repeatSeparator == sep.$1;
+            return InkWell(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _repeatSeparator = sep.$1);
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : Theme.of(context).colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.transparent,
+                  ),
+                ),
+                child: Text(
+                  sep.$2,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w600 : null,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateIncrementSection() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: _incrementDateOnRepeat
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
+              : Theme.of(context).colorScheme.outlineVariant,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  AppLocalizations.of(context)!.incrementDateOnRepeat,
+                  style: TextStyle(fontSize: 14),
+                ),
+              ),
+              Switch(
+                value: _incrementDateOnRepeat,
+                onChanged: (value) {
+                  HapticFeedback.selectionClick();
+                  setState(() => _incrementDateOnRepeat = value);
+                },
+              ),
+            ],
+          ),
+          if (_incrementDateOnRepeat) ...[
+            const SizedBox(height: 8),
+            Text(
+              AppLocalizations.of(context)!.incrementByEachRepeat,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildIncrementField(
+                    label: AppLocalizations.of(context)!.days,
+                    value: _dateIncrementDays,
+                    onChanged: (v) => setState(() => _dateIncrementDays = v),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildIncrementField(
+                    label: AppLocalizations.of(context)!.monthsLabel,
+                    value: _dateIncrementMonths,
+                    onChanged: (v) => setState(() => _dateIncrementMonths = v),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildIncrementField(
+                    label: AppLocalizations.of(context)!.yearsLabel,
+                    value: _dateIncrementYears,
+                    onChanged: (v) => setState(() => _dateIncrementYears = v),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIncrementField({
+    required String label,
+    required int value,
+    required ValueChanged<int> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: value > 0 ? () => onChanged(value - 1) : null,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  Icons.remove,
+                  size: 16,
+                  color: value > 0 ? null : Theme.of(context).disabledColor,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: Text(
+                  value.toString(),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: value > 0
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                ),
+              ),
+            ),
+            InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: () => onChanged(value + 1),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(Icons.add, size: 16),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  DateTime _getPreviewDate() {
+    var date = DateTime.now();
+    date = DateTime(
+      date.year + _dateOffsetYears,
+      date.month + _dateOffsetMonths,
+      date.day + _dateOffsetDays,
+    );
+    return date;
+  }
+
+  String _generatePreviewText() {
+    if (_insertType == 'date') {
+      final baseDate = _getPreviewDate();
+      final results = <String>[];
+
+      for (int i = 0; i < _repeatCount; i++) {
+        var date = baseDate;
+        if (_incrementDateOnRepeat && i > 0) {
+          date = DateTime(
+            date.year + (_dateIncrementYears * i),
+            date.month + (_dateIncrementMonths * i),
+            date.day + (_dateIncrementDays * i),
+          );
+        }
+        final formatted = DateFormat(_selectedDateFormat).format(date);
+        results.add(
+          '${_beforeController.text}$formatted${_afterController.text}',
+        );
+      }
+
+      return results.join(_repeatSeparator);
+    } else {
+      final single = '${_beforeController.text}text${_afterController.text}';
+      if (_repeatCount > 1) {
+        return List.filled(_repeatCount, single).join(_repeatSeparator);
+      }
+      return single;
+    }
   }
 
   @override
@@ -580,6 +1051,52 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                             ),
                           ),
                         ],
+                        // Date offset section (only for date insert type)
+                        if (_insertType == 'date') ...[
+                          const SizedBox(height: 16),
+                          _buildSectionHeader(
+                            AppLocalizations.of(context)!.dateOffset,
+                            Icons.calendar_today,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            AppLocalizations.of(context)!.dateOffsetDescription,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildDateOffsetRow(),
+                        ],
+                        // Repeat section (for all insert types)
+                        const SizedBox(height: 16),
+                        _buildSectionHeader(
+                          AppLocalizations.of(context)!.repeatSettings,
+                          Icons.repeat,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          AppLocalizations.of(context)!.repeatDescription,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildRepeatCountRow(),
+                        if (_repeatCount > 1) ...[
+                          const SizedBox(height: 12),
+                          _buildSeparatorSelector(),
+                          if (_insertType == 'date') ...[
+                            const SizedBox(height: 12),
+                            _buildDateIncrementSection(),
+                          ],
+                        ],
                         const SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -729,9 +1246,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                             ),
                           ),
                           child: FullMarkdownView(
-                            data: _insertType == 'date'
-                                ? '${_beforeController.text}${DateFormat(_selectedDateFormat).format(DateTime.now())}${_afterController.text}'
-                                : '${_beforeController.text}text${_afterController.text}',
+                            data: _generatePreviewText(),
                             styleSheet: MarkdownStyleSheet(
                               p: const TextStyle(fontSize: 14),
                               h1: const TextStyle(

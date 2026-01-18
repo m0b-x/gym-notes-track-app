@@ -995,4 +995,60 @@ class AppLocalizationsRo extends AppLocalizations {
   @override
   String get showCursorLineDesc =>
       'Evidențiază linia unde este poziționat cursorul';
+
+  @override
+  String get dateOffset => 'Offset Dată';
+
+  @override
+  String get dateOffsetDescription =>
+      'Deplasează data înainte sau înapoi față de azi';
+
+  @override
+  String get days => 'Zile';
+
+  @override
+  String get monthsLabel => 'Luni';
+
+  @override
+  String get yearsLabel => 'Ani';
+
+  @override
+  String get repeatSettings => 'Repetare';
+
+  @override
+  String get repeatDescription =>
+      'Inserează această scurtătură de mai multe ori';
+
+  @override
+  String get repeatCount => 'Număr repetări';
+
+  @override
+  String get separator => 'Separator';
+
+  @override
+  String get newLine => 'Linie nouă';
+
+  @override
+  String get noSeparator => 'Niciunul';
+
+  @override
+  String get space => 'Spațiu';
+
+  @override
+  String get nbspSpace => 'Neîntrerupt';
+
+  @override
+  String get blankLine => 'Linie goală';
+
+  @override
+  String get comma => 'Virgulă';
+
+  @override
+  String get pipe => 'Bară';
+
+  @override
+  String get incrementDateOnRepeat => 'Incrementează data la repetare';
+
+  @override
+  String get incrementByEachRepeat => 'Incrementare pentru fiecare repetare:';
 }
