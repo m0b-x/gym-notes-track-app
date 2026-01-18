@@ -159,10 +159,7 @@ class SettingsService {
 
   // Editor settings - Word wrap
   Future<bool> getWordWrap() async {
-    return _getBool(
-      SettingsKeys.wordWrap,
-      SettingsKeys.defaultWordWrap,
-    );
+    return _getBool(SettingsKeys.wordWrap, SettingsKeys.defaultWordWrap);
   }
 
   Future<void> setWordWrap(bool value) async {
@@ -179,6 +176,18 @@ class SettingsService {
 
   Future<void> setShowCursorLine(bool value) async {
     await _setBool(SettingsKeys.showCursorLine, value);
+  }
+
+  // Preview performance - Lines per chunk
+  Future<int> getPreviewLinesPerChunk() async {
+    return _getInt(
+      SettingsKeys.previewLinesPerChunk,
+      SettingsKeys.defaultPreviewLinesPerChunk,
+    );
+  }
+
+  Future<void> setPreviewLinesPerChunk(int value) async {
+    await _setInt(SettingsKeys.previewLinesPerChunk, value);
   }
 
   Future<bool> isOnboardingCompleted() async {

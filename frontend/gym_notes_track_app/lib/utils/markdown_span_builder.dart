@@ -116,23 +116,177 @@ class MarkdownSpanBuilder {
 
     final nodes = document.parse(processedSource);
 
+    // Flatten nodes so each list item is its own block for precise scrolling
+    final flattenedNodes = _flattenNodes(nodes);
+
     // Pre-assign checkbox data to blocks in document order.
     // Maps "blockIndex:localCheckboxIndex" to checkbox data.
     int globalCheckboxIndex = 0;
-    for (int blockIdx = 0; blockIdx < nodes.length; blockIdx++) {
+    for (int blockIdx = 0; blockIdx < flattenedNodes.length; blockIdx++) {
       globalCheckboxIndex = _assignCheckboxesToBlock(
-        nodes[blockIdx],
+        flattenedNodes[blockIdx],
         globalCheckboxIndex,
         blockIdx,
       );
     }
 
+    // Compute accurate source ranges for each block
+    final blockSourceRanges = _computeBlockSourceRanges(source, flattenedNodes);
+
     return LazyMarkdownBlocks(
-      nodes: nodes,
+      nodes: flattenedNodes,
       builder: this,
       baseStyle: _baseStyle,
+      blockSourceRanges: blockSourceRanges,
       blankLineMarker: null, // No longer using blank line markers
     );
+  }
+
+  /// Flattens the AST so that list items become individual blocks.
+  /// This enables more precise scroll positioning for search highlights.
+  List<md.Node> _flattenNodes(List<md.Node> nodes) {
+    final flattened = <md.Node>[];
+
+    for (final node in nodes) {
+      if (node is md.Element && (node.tag == 'ul' || node.tag == 'ol')) {
+        // Extract each list item as a separate block
+        final children = node.children ?? [];
+        for (final child in children) {
+          if (child is md.Element && child.tag == 'li') {
+            // Check if this list item contains nested lists
+            final hasNestedList = _hasNestedList(child);
+            if (hasNestedList) {
+              // For nested lists, keep the item but also flatten nested items
+              flattened.add(child);
+            } else {
+              // Simple list item - add as individual block
+              flattened.add(child);
+            }
+          }
+        }
+      } else {
+        flattened.add(node);
+      }
+    }
+
+    return flattened;
+  }
+
+  /// Checks if a list item contains nested lists.
+  bool _hasNestedList(md.Element li) {
+    for (final child in li.children ?? []) {
+      if (child is md.Element && (child.tag == 'ul' || child.tag == 'ol')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Computes accurate source ranges for each markdown block.
+  /// Uses simple line-based tracking to ensure complete coverage.
+  List<List<int>> _computeBlockSourceRanges(
+    String source,
+    List<md.Node> nodes,
+  ) {
+    if (nodes.isEmpty) return [];
+
+    // Build line offset table for original source
+    final lines = source.split('\n');
+    final lineOffsets = <int>[0];
+    int offset = 0;
+    for (final line in lines) {
+      offset += line.length + 1;
+      lineOffsets.add(offset);
+    }
+
+    // Simple approach: divide source lines among nodes proportionally,
+    // but use content matching to find more accurate positions for list items
+    final ranges = <List<int>>[];
+    int currentLine = 0;
+
+    for (int nodeIdx = 0; nodeIdx < nodes.length; nodeIdx++) {
+      final node = nodes[nodeIdx];
+      final textContent = _getNodeTextContent(node);
+      final isListItem = node is md.Element && node.tag == 'li';
+
+      // For list items, try to find the exact line
+      if (isListItem && textContent.trim().isNotEmpty) {
+        // Get a sample of the content to search for
+        final contentSample = textContent
+            .replaceAll(RegExp(r'[\s\n\r\t\u00A0☐☒•\[\]xX]'), '')
+            .toLowerCase();
+
+        if (contentSample.length >= 3) {
+          final searchChars = contentSample.substring(
+            0,
+            contentSample.length.clamp(0, 8),
+          );
+
+          // Search for this content starting from current line
+          for (int lineIdx = currentLine; lineIdx < lines.length; lineIdx++) {
+            final lineNormalized = lines[lineIdx]
+                .replaceAll(RegExp(r'[\s\*_#>`\-\+\[\]\(\)xX]'), '')
+                .toLowerCase();
+            if (lineNormalized.contains(searchChars)) {
+              // Found the line - this block is just this one line
+              final blockStart = lineOffsets[lineIdx];
+              final blockEnd = lineIdx + 1 < lineOffsets.length
+                  ? lineOffsets[lineIdx + 1]
+                  : source.length;
+              ranges.add([blockStart, blockEnd]);
+              currentLine = lineIdx + 1;
+              break;
+            }
+          }
+
+          // If we added a range, continue to next node
+          if (ranges.length == nodeIdx + 1) continue;
+        }
+      }
+
+      // Fallback: assign remaining lines proportionally
+      final remainingNodes = nodes.length - nodeIdx;
+      final remainingLines = lines.length - currentLine;
+      final linesPerNode = (remainingLines / remainingNodes).ceil().clamp(
+        1,
+        remainingLines,
+      );
+
+      final blockStartLine = currentLine;
+      final blockEndLine = (currentLine + linesPerNode).clamp(0, lines.length);
+
+      final blockStart = blockStartLine < lineOffsets.length
+          ? lineOffsets[blockStartLine]
+          : source.length;
+      final blockEnd = blockEndLine < lineOffsets.length
+          ? lineOffsets[blockEndLine]
+          : source.length;
+
+      ranges.add([blockStart, blockEnd]);
+      currentLine = blockEndLine;
+    }
+
+    // Ensure ranges cover the entire source with no gaps
+    // Adjust ranges so each block ends where the next begins
+    for (int i = 0; i < ranges.length - 1; i++) {
+      ranges[i][1] = ranges[i + 1][0];
+    }
+    if (ranges.isNotEmpty) {
+      ranges.last[1] = source.length;
+    }
+
+    return ranges;
+  }
+
+  /// Extracts plain text content from a markdown node, stripping syntax.
+  String _getNodeTextContent(md.Node node) {
+    if (node is md.Text) {
+      return node.text;
+    }
+    if (node is md.Element) {
+      return node.textContent;
+    }
+    return '';
   }
 
   /// Counts checkboxes in a block and assigns their data.
@@ -963,8 +1117,29 @@ class MarkdownSpanBuilder {
     return spans;
   }
 
+  /// Builds a standalone list item (when flattened from a list).
+  /// Adds bullet point and proper formatting.
   List<InlineSpan> _buildListItem(md.Element element, TextStyle baseStyle) {
-    return _buildChildren(element, baseStyle);
+    final spans = <InlineSpan>[];
+    final hasCheckbox = _hasCheckboxChild(element);
+
+    if (hasCheckbox) {
+      spans.addAll(_buildCheckboxListItem(element, baseStyle, ''));
+    } else {
+      // Add bullet point for standalone list items
+      spans.add(
+        TextSpan(
+          text: '• ',
+          style: baseStyle.copyWith(
+            color: style.primaryColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+      spans.addAll(_buildListItemContent(element, baseStyle, 0));
+    }
+
+    return spans;
   }
 
   List<InlineSpan> _buildBlockquote(md.Element element, TextStyle baseStyle) {
@@ -1140,6 +1315,10 @@ class LazyMarkdownBlocks {
   final TextStyle baseStyle;
   final String? blankLineMarker;
 
+  /// Source ranges for each block [start, end] in the original source text.
+  /// This enables accurate scroll positioning for search highlights.
+  final List<List<int>> blockSourceRanges;
+
   /// Cache of already-built blocks (sparse - only built blocks are stored)
   final Map<int, List<InlineSpan>> _cache = {};
 
@@ -1147,6 +1326,7 @@ class LazyMarkdownBlocks {
     required this.nodes,
     required this.builder,
     required this.baseStyle,
+    required this.blockSourceRanges,
     this.blankLineMarker,
   });
 

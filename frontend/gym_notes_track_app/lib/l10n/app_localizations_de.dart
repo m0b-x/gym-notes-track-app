@@ -999,6 +999,17 @@ class AppLocalizationsDe extends AppLocalizations {
       'Die Zeile hervorheben, in der sich der Cursor befindet';
 
   @override
+  String get previewPerformanceSection => 'Vorschau-Leistung';
+
+  @override
+  String get previewLinesPerChunk => 'Zeilen pro Block';
+
+  @override
+  String previewLinesPerChunkDesc(int count) {
+    return '$count Zeilen pro Block (höher = bessere Leistung, niedriger = präziseres Scroll-Suchen)';
+  }
+
+  @override
   String get dateOffset => 'Datumsversatz';
 
   @override

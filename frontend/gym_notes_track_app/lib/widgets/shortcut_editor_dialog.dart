@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import '../l10n/app_localizations.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../widgets/markdown_toolbar.dart';
 import '../widgets/overlay_snackbar.dart';
 import '../utils/markdown_settings_utils.dart';
-import '../widgets/full_markdown_view.dart';
+import '../widgets/simple_markdown_preview.dart';
 import '../constants/settings_keys.dart';
 import '../utils/icon_utils.dart';
 import '../widgets/icon_picker_dialog.dart';
@@ -1346,23 +1345,9 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                               ).colorScheme.outlineVariant,
                             ),
                           ),
-                          child: FullMarkdownView(
+                          child: SimpleMarkdownPreview(
                             data: _generatePreviewText(),
-                            styleSheet: MarkdownStyleSheet(
-                              p: const TextStyle(fontSize: 14),
-                              h1: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              h2: const TextStyle(
-                                fontSize: 21,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              h3: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            fontSize: 14,
                           ),
                         ),
                       ],

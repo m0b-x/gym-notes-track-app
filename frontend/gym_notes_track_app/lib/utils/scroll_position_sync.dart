@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:re_editor/re_editor.dart';
 
 import '../constants/markdown_constants.dart';
+import '../widgets/source_mapped_markdown_view.dart';
 
 class ScrollPositionSync {
   final ScrollController previewScrollController;
@@ -30,6 +31,7 @@ class ScrollPositionSync {
     required double previewFontSize,
     required bool Function() isMounted,
     required CodeLineEditingController contentController,
+    GlobalKey<SourceMappedMarkdownViewState>? markdownViewKey,
   }) {
     if (switchingToPreviewMode) {
       _savedEditorSelection = contentController.selection;
@@ -37,12 +39,12 @@ class ScrollPositionSync {
       _savedEditorLineIndex = contentController.selection.baseIndex;
       _savedTotalLines = contentController.lineCount;
     } else {
-      // Currently no-op: we restore editor based on saved selection,
-      // not on preview scroll position
+      // When switching to editor, we rely on _savedEditorSelection
+      // which is already set when we switch to preview
     }
 
     if (switchingToPreviewMode) {
-      _restorePreviewFromEditorLine(isMounted);
+      _restorePreviewFromEditorLine(isMounted, markdownViewKey);
     } else {
       _restoreEditor(isMounted, contentController);
     }
@@ -50,11 +52,26 @@ class ScrollPositionSync {
 
   /// Restore preview scroll position based on editor line index.
   /// More accurate than offset-based restoration for varied content.
-  void _restorePreviewFromEditorLine(bool Function() isMounted) {
+  void _restorePreviewFromEditorLine(
+    bool Function() isMounted,
+    GlobalKey<SourceMappedMarkdownViewState>? markdownViewKey,
+  ) {
     void tryRestore() {
       if (!isMounted()) return;
-      if (!previewScrollController.hasClients) return;
       if (_savedTotalLines <= 1) return;
+
+      // Try line-based scroll first (more accurate)
+      if (markdownViewKey?.currentState != null) {
+        markdownViewKey!.currentState!.scrollToLineIndex(
+          _savedEditorLineIndex,
+          _savedTotalLines,
+          animate: false,
+        );
+        return;
+      }
+
+      // Fallback to ScrollController-based
+      if (!previewScrollController.hasClients) return;
 
       final maxScroll = previewScrollController.position.maxScrollExtent;
       if (maxScroll <= 0) return;

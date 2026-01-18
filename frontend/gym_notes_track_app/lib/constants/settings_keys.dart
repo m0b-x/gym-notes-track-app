@@ -34,6 +34,9 @@ class SettingsKeys {
   static const String wordWrap = 'word_wrap';
   static const String showCursorLine = 'show_cursor_line';
 
+  // Preview performance settings
+  static const String previewLinesPerChunk = 'preview_lines_per_chunk';
+
   // Note position (prefix for per-note storage)
   static const String notePositionPrefix = 'note_position_';
 
@@ -52,5 +55,7 @@ class SettingsKeys {
   static const bool defaultShowLineNumbers = false;
   static const bool defaultWordWrap = true;
   static const bool defaultShowCursorLine = false;
-}
 
+  // Default values for preview performance
+  static const int defaultPreviewLinesPerChunk = 10;
+}

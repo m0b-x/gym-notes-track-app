@@ -1930,6 +1930,24 @@ abstract class AppLocalizations {
   /// **'Highlight the line where the cursor is positioned'**
   String get showCursorLineDesc;
 
+  /// Preview performance settings section title
+  ///
+  /// In en, this message translates to:
+  /// **'Preview Performance'**
+  String get previewPerformanceSection;
+
+  /// Setting for number of lines per render chunk in preview
+  ///
+  /// In en, this message translates to:
+  /// **'Lines Per Chunk'**
+  String get previewLinesPerChunk;
+
+  /// Description for lines per chunk setting
+  ///
+  /// In en, this message translates to:
+  /// **'{count} lines per chunk (higher = better performance, lower = more precise search scroll)'**
+  String previewLinesPerChunkDesc(int count);
+
   /// Section title for date offset settings
   ///
   /// In en, this message translates to:

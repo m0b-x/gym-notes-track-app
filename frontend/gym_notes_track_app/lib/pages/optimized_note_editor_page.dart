@@ -80,6 +80,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _wordWrap = true;
   bool _showCursorLine = false;
 
+  // Preview performance settings
+  int _previewLinesPerChunk = 10;
+
+  // Preview scroll progress (for scrollbar when using ScrollablePositionedList)
+  final ValueNotifier<double> _previewScrollProgress = ValueNotifier(0.0);
+
   AutoSaveService? _autoSaveService;
   NotePositionService? _notePositionService;
   NotePositionData? _pendingPosition;
@@ -185,6 +191,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final showLineNumbers = await settings.getShowLineNumbers();
     final wordWrap = await settings.getWordWrap();
     final showCursorLine = await settings.getShowCursorLine();
+    final previewLinesPerChunk = await settings.getPreviewLinesPerChunk();
     if (mounted) {
       setState(() {
         _noteSwipeEnabled = noteSwipe;
@@ -192,6 +199,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         _showLineNumbers = showLineNumbers;
         _wordWrap = wordWrap;
         _showCursorLine = showCursorLine;
+        _previewLinesPerChunk = previewLinesPerChunk;
       });
     }
   }
@@ -304,6 +312,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       previewFontSize: _previewFontSize,
       isMounted: () => mounted,
       contentController: _contentController,
+      markdownViewKey: _markdownViewKey,
     );
 
     if (_searchController.isSearching && _searchController.query.isNotEmpty) {
@@ -416,6 +425,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _editorScrollController.dispose();
     _previewScrollController.dispose();
     _searchController.dispose();
+    _previewScrollProgress.dispose();
     super.dispose();
   }
 
@@ -816,6 +826,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         scrollController: _previewScrollController,
         padding: const EdgeInsets.all(AppSpacing.lg),
         onCheckboxToggle: _handleCheckboxToggle,
+        linesPerChunk: _previewLinesPerChunk,
+        onScrollProgress: (progress) {
+          _previewScrollProgress.value = progress;
+        },
         searchHighlights: _searchController.isSearching
             ? _searchController.matches
                   .map((m) => TextRange(start: m.start, end: m.end))
@@ -836,8 +850,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           top: 8,
           bottom: 8,
           right: 0,
-          child: ScrollProgressIndicator(
-            scrollController: _previewScrollController,
+          child: _PreviewScrollProgressIndicator(
+            progressNotifier: _previewScrollProgress,
           ),
         ),
       ],
@@ -1354,5 +1368,77 @@ class _HiddenFindPanel extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return const SizedBox.shrink();
+  }
+}
+
+/// A minimal scroll position indicator for preview mode.
+/// Simply shows current scroll position - no interaction, no dragging.
+/// Styled to match the main ScrollProgressIndicator.
+class _PreviewScrollProgressIndicator extends StatelessWidget {
+  final ValueNotifier<double> progressNotifier;
+
+  const _PreviewScrollProgressIndicator({required this.progressNotifier});
+
+  static const double _barWidth = 6.0;
+  static const double _thumbMinHeight = 20.0;
+  static const double _thumbMaxHeight = 50.0;
+  static const double _thumbHeightPercent = 0.10;
+  static const double _rightMargin = 2.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final baseColor = colorScheme.primary;
+
+    // Idle state colors (always visible but subtle)
+    final thumbColor = baseColor.withValues(alpha: 0.5);
+    final trackColor = colorScheme.onSurface.withValues(alpha: 0.08);
+
+    return ValueListenableBuilder<double>(
+      valueListenable: progressNotifier,
+      builder: (context, progress, _) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final trackHeight = constraints.maxHeight;
+
+            // Dynamic thumb height based on track (like original)
+            final thumbHeight = (trackHeight * _thumbHeightPercent).clamp(
+              _thumbMinHeight,
+              _thumbMaxHeight,
+            );
+
+            final maxOffset = trackHeight - thumbHeight;
+            final thumbTop = (progress * maxOffset).clamp(0.0, maxOffset);
+
+            return Container(
+              width: _barWidth,
+              margin: const EdgeInsets.only(right: _rightMargin),
+              decoration: BoxDecoration(
+                color: trackColor,
+                borderRadius: BorderRadius.circular(_barWidth),
+              ),
+              child: Stack(
+                children: [
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 80),
+                    curve: Curves.easeOut,
+                    top: thumbTop,
+                    left: 0,
+                    right: 0,
+                    height: thumbHeight,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: thumbColor,
+                        borderRadius: BorderRadius.circular(_barWidth),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }

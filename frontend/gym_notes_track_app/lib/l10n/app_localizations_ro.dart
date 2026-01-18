@@ -997,6 +997,17 @@ class AppLocalizationsRo extends AppLocalizations {
       'Evidențiază linia unde este poziționat cursorul';
 
   @override
+  String get previewPerformanceSection => 'Performanță Previzualizare';
+
+  @override
+  String get previewLinesPerChunk => 'Linii per Bucată';
+
+  @override
+  String previewLinesPerChunkDesc(int count) {
+    return '$count linii per bucată (mai mare = performanță mai bună, mai mic = derulare căutare mai precisă)';
+  }
+
+  @override
   String get dateOffset => 'Offset Dată';
 
   @override

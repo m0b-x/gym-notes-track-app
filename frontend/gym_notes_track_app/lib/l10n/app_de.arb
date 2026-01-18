@@ -1283,6 +1283,23 @@
   "@showCursorLineDesc": {
     "description": "Description for show cursor line setting"
   },
+  "previewPerformanceSection": "Vorschau-Leistung",
+  "@previewPerformanceSection": {
+    "description": "Preview performance settings section title"
+  },
+  "previewLinesPerChunk": "Zeilen pro Block",
+  "@previewLinesPerChunk": {
+    "description": "Setting for number of lines per render chunk in preview"
+  },
+  "previewLinesPerChunkDesc": "{count} Zeilen pro Block (höher = bessere Leistung, niedriger = präziseres Scroll-Suchen)",
+  "@previewLinesPerChunkDesc": {
+    "description": "Description for lines per chunk setting",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "dateOffset": "Datumsversatz",
   "@dateOffset": {
     "description": "Section title for date offset settings"

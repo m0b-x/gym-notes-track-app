@@ -990,6 +990,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Highlight the line where the cursor is positioned';
 
   @override
+  String get previewPerformanceSection => 'Preview Performance';
+
+  @override
+  String get previewLinesPerChunk => 'Lines Per Chunk';
+
+  @override
+  String previewLinesPerChunkDesc(int count) {
+    return '$count lines per chunk (higher = better performance, lower = more precise search scroll)';
+  }
+
+  @override
   String get dateOffset => 'Date Offset';
 
   @override

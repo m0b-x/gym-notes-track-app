@@ -32,6 +32,9 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
   bool _wordWrap = true;
   bool _showCursorLine = false;
 
+  // Preview performance settings
+  int _previewLinesPerChunk = 10;
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +54,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     final showLineNumbers = await settings.getShowLineNumbers();
     final wordWrap = await settings.getWordWrap();
     final showCursorLine = await settings.getShowCursorLine();
+    final previewLinesPerChunk = await settings.getPreviewLinesPerChunk();
 
     setState(() {
       _settings = settings;
@@ -65,6 +69,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showLineNumbers = showLineNumbers;
       _wordWrap = wordWrap;
       _showCursorLine = showCursorLine;
+      _previewLinesPerChunk = previewLinesPerChunk;
       _isLoading = false;
     });
   }
@@ -83,9 +88,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
 
     return Scaffold(
       drawer: const AppDrawer(),
-      appBar: SettingsAppBar(
-        title: l10n.controlsSettings,
-      ),
+      appBar: SettingsAppBar(title: l10n.controlsSettings),
       body: SafeArea(
         top: false,
         child: _isLoading
@@ -281,6 +284,37 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
                           _onHapticFeedback();
                           setState(() => _showCursorLine = value);
                           await _settings?.setShowCursorLine(value);
+                        },
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Preview Performance section
+                  _buildSectionCard(
+                    context: context,
+                    colorScheme: colorScheme,
+                    icon: Icons.speed_rounded,
+                    title: l10n.previewPerformanceSection,
+                    children: [
+                      _buildSliderTile(
+                        context: context,
+                        colorScheme: colorScheme,
+                        title: l10n.previewLinesPerChunk,
+                        subtitle: l10n.previewLinesPerChunkDesc(
+                          _previewLinesPerChunk,
+                        ),
+                        value: _previewLinesPerChunk.toDouble(),
+                        min: 1,
+                        max: 50,
+                        divisions: 49,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _previewLinesPerChunk = value.round());
+                          await _settings?.setPreviewLinesPerChunk(
+                            value.round(),
+                          );
                         },
                       ),
                     ],
