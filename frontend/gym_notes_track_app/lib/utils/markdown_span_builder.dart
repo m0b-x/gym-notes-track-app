@@ -77,6 +77,10 @@ class MarkdownSpanBuilder {
   /// Parse markdown and return AST nodes (cheap operation)
   /// Returns a LazyMarkdownBlocks that builds spans on demand
   LazyMarkdownBlocks buildLazy(String source) {
+    // Pre-process: convert consecutive blank lines to nbsp paragraphs
+    // This preserves intentional vertical spacing in the source
+    final processedSource = _preserveBlankLines(source);
+
     _source = source; // Keep original for checkbox position calculations
     _sourceOffset = 0;
     _checkboxes.clear();
@@ -89,7 +93,7 @@ class MarkdownSpanBuilder {
       encodeHtml: false,
     );
 
-    final nodes = document.parse(source);
+    final nodes = document.parse(processedSource);
 
     // Pre-assign checkbox data to blocks in document order.
     // Maps "blockIndex:localCheckboxIndex" to checkbox data.
@@ -179,6 +183,25 @@ class MarkdownSpanBuilder {
 
       offset += line.length + 1;
     }
+  }
+
+  /// Converts blank lines into nbsp placeholders.
+  /// This preserves intentional vertical spacing that markdown would collapse.
+  /// Each blank line becomes a visible space in the rendered output.
+  String _preserveBlankLines(String source) {
+    final lines = source.split('\n');
+    final result = <String>[];
+
+    for (final line in lines) {
+      if (line.trim().isEmpty) {
+        // Convert every blank line to nbsp paragraph for visible spacing
+        result.add('\u00A0');
+      } else {
+        result.add(line);
+      }
+    }
+
+    return result.join('\n');
   }
 
   TextStyle get _baseStyle => TextStyle(
@@ -331,9 +354,7 @@ class MarkdownSpanBuilder {
     final spans = <InlineSpan>[];
     spans.addAll(_buildChildren(element, blockStyle));
 
-    if (addNewline) {
-      spans.add(TextSpan(text: '\n\n', style: blockStyle));
-    }
+    // Don't add trailing newlines - ListView items provide natural separation
 
     return spans;
   }
@@ -355,6 +376,11 @@ class MarkdownSpanBuilder {
   }
 
   TextSpan _buildTextSpan(String text, TextStyle style) {
+    // Skip highlight logic for nbsp placeholders (blank line markers)
+    if (text == '\u00A0') {
+      return TextSpan(text: text, style: style);
+    }
+
     if (searchHighlights == null || searchHighlights!.isEmpty) {
       return TextSpan(text: text, style: style);
     }
