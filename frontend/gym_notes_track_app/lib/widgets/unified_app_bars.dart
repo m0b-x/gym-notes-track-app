@@ -58,11 +58,20 @@ class UnifiedAppBar extends StatelessWidget implements PreferredSizeWidget {
       AppBarStyle.main =>
         isDark
             ? (colorScheme.surface, colorScheme.surfaceContainerHighest)
-            : (colorScheme.inversePrimary, colorScheme.inversePrimary.withValues(alpha: 0.7)),
+            : (
+                colorScheme.inversePrimary,
+                colorScheme.inversePrimary.withValues(alpha: 0.7),
+              ),
       AppBarStyle.settings =>
         isDark
-            ? (colorScheme.surfaceContainerHigh, colorScheme.surfaceContainerHighest)
-            : (colorScheme.primaryContainer, colorScheme.primary.withValues(alpha: 0.5)),
+            ? (
+                colorScheme.surfaceContainerHigh,
+                colorScheme.surfaceContainerHighest,
+              )
+            : (
+                colorScheme.primaryContainer,
+                colorScheme.primary.withValues(alpha: 0.5),
+              ),
     };
 
     return Container(
@@ -99,10 +108,7 @@ class _IntegratedNavButtons extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onMenu;
 
-  const _IntegratedNavButtons({
-    required this.onBack,
-    required this.onMenu,
-  });
+  const _IntegratedNavButtons({required this.onBack, required this.onMenu});
 
   @override
   Widget build(BuildContext context) {
@@ -114,10 +120,7 @@ class _IntegratedNavButtons extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _NavButton(
-            icon: Icons.arrow_back_rounded,
-            onPressed: onBack,
-          ),
+          _NavButton(icon: Icons.arrow_back_rounded, onPressed: onBack),
           Container(
             width: 1,
             height: 20,
@@ -125,10 +128,7 @@ class _IntegratedNavButtons extends StatelessWidget {
                 ? colorScheme.outline.withValues(alpha: 0.3)
                 : colorScheme.onSurface.withValues(alpha: 0.15),
           ),
-          _NavButton(
-            icon: Icons.menu_rounded,
-            onPressed: onMenu,
-          ),
+          _NavButton(icon: Icons.menu_rounded, onPressed: onMenu),
         ],
       ),
     );
@@ -139,10 +139,7 @@ class _NavButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onPressed;
 
-  const _NavButton({
-    required this.icon,
-    required this.onPressed,
-  });
+  const _NavButton({required this.icon, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -191,10 +188,7 @@ class FolderAppBar extends StatelessWidget implements PreferredSizeWidget {
                 onMenu: onMenuPressed ?? () => Scaffold.of(ctx).openDrawer(),
               ),
             ),
-      title: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       actions: actions,
     );
   }
@@ -206,6 +200,7 @@ class NoteAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final VoidCallback? onBackPressed;
   final VoidCallback? onTitleTap;
+  final bool showMenuButton;
 
   const NoteAppBar({
     super.key,
@@ -214,6 +209,7 @@ class NoteAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.actions,
     this.onBackPressed,
     this.onTitleTap,
+    this.showMenuButton = true,
   });
 
   @override
@@ -223,10 +219,46 @@ class NoteAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return UnifiedAppBar.main(
       automaticallyImplyLeading: false,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: onBackPressed ?? () => Navigator.of(context).maybePop(),
-      ),
+      leadingWidth: showMenuButton ? 96 : null,
+      leading: showMenuButton
+          ? Builder(
+              builder: (ctx) => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 44,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed:
+                          onBackPressed ??
+                          () => Navigator.of(context).maybePop(),
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).backButtonTooltip,
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  SizedBox(
+                    width: 44,
+                    child: IconButton(
+                      icon: const Icon(Icons.menu),
+                      onPressed: () => Scaffold.of(ctx).openDrawer(),
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).openAppDrawerTooltip,
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed:
+                  onBackPressed ?? () => Navigator.of(context).maybePop(),
+            ),
       title: GestureDetector(
         onTap: onTitleTap,
         child: Row(
@@ -335,7 +367,7 @@ class _SearchAppBarState extends State<SearchAppBar> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return AppBar(
       title: TextField(
         controller: widget.controller,
@@ -351,13 +383,12 @@ class _SearchAppBarState extends State<SearchAppBar> {
         onChanged: widget.onChanged,
         onSubmitted: widget.onSubmitted,
       ),
-      backgroundColor: isDark ? colorScheme.surface : colorScheme.inversePrimary,
+      backgroundColor: isDark
+          ? colorScheme.surface
+          : colorScheme.inversePrimary,
       actions: [
         if (widget.controller.text.isNotEmpty)
-          IconButton(
-            icon: const Icon(Icons.clear),
-            onPressed: widget.onClear,
-          ),
+          IconButton(icon: const Icon(Icons.clear), onPressed: widget.onClear),
       ],
     );
   }

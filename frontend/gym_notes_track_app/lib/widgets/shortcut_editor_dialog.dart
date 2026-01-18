@@ -764,48 +764,40 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
           ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: TextEditingController(text: _beforeRepeatText),
-                onChanged: (value) => setState(() => _beforeRepeatText = value),
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.beforeAllRepeats,
-                  hintText: AppLocalizations.of(context)!.beforeAllRepeatsHint,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                ),
-                style: TextStyle(fontSize: 13),
-              ),
+        // Before all repeats - full width, multiline
+        TextField(
+          controller: TextEditingController(text: _beforeRepeatText),
+          onChanged: (value) => setState(() => _beforeRepeatText = value),
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.beforeAllRepeats,
+            hintText: AppLocalizations.of(context)!.beforeAllRepeatsHint,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: TextEditingController(text: _afterRepeatText),
-                onChanged: (value) => setState(() => _afterRepeatText = value),
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.afterAllRepeats,
-                  hintText: AppLocalizations.of(context)!.afterAllRepeatsHint,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                ),
-                style: TextStyle(fontSize: 13),
-              ),
+          ),
+          minLines: 2,
+          maxLines: 4,
+          style: const TextStyle(fontSize: 14),
+        ),
+        const SizedBox(height: 12),
+        // After all repeats - full width, multiline
+        TextField(
+          controller: TextEditingController(text: _afterRepeatText),
+          onChanged: (value) => setState(() => _afterRepeatText = value),
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.afterAllRepeats,
+            hintText: AppLocalizations.of(context)!.afterAllRepeatsHint,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
             ),
-          ],
+          ),
+          minLines: 2,
+          maxLines: 4,
+          style: const TextStyle(fontSize: 14),
         ),
       ],
     );

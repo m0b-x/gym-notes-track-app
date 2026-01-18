@@ -589,21 +589,33 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
   // ═══════════════════════════════════════════════════════════════════════════
 
   static const List<Color> _debugColors = [
-    Color(0x30FF5722), // orange
-    Color(0x302196F3), // blue
-    Color(0x304CAF50), // green
-    Color(0x309C27B0), // purple
-    Color(0x30FF9800), // amber
-    Color(0x3000BCD4), // cyan
+    Color(0x40E91E63), // pink 💖
+    Color(0x40FF5722), // deep orange
+    Color(0x40FF9800), // orange
+    Color(0x40FFEB3B), // yellow
+    Color(0x4000E676), // green accent
+    Color(0x4000BCD4), // cyan
+    Color(0x402196F3), // blue
+    Color(0x407C4DFF), // deep purple accent
+    Color(0x409C27B0), // purple
+    Color(0x40F50057), // pink accent
+    Color(0x4000E5FF), // cyan accent
+    Color(0x4076FF03), // lime accent
   ];
 
   static const List<Color> _debugBorderColors = [
-    Color(0xFFFF5722),
-    Color(0xFF2196F3),
-    Color(0xFF4CAF50),
-    Color(0xFF9C27B0),
-    Color(0xFFFF9800),
-    Color(0xFF00BCD4),
+    Color(0xFFE91E63), // pink 💖
+    Color(0xFFFF5722), // deep orange
+    Color(0xFFFF9800), // orange
+    Color(0xFFFFEB3B), // yellow
+    Color(0xFF00E676), // green accent
+    Color(0xFF00BCD4), // cyan
+    Color(0xFF2196F3), // blue
+    Color(0xFF7C4DFF), // deep purple accent
+    Color(0xFF9C27B0), // purple
+    Color(0xFFF50057), // pink accent
+    Color(0xFF00E5FF), // cyan accent
+    Color(0xFF76FF03), // lime accent
   ];
 
   static const BorderRadius _debugBorderRadius = BorderRadius.all(
