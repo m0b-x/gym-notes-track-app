@@ -440,12 +440,52 @@ class MarkdownSpanBuilder {
     return TextSpan(style: style, children: children);
   }
 
+  /// Pre-compiled regex for finding text after markdown syntax.
+  /// Matches text preceded by common markdown characters or word boundaries.
+  /// This covers: bold/italic (*, _), strikethrough (~~), code (`),
+  /// links ([), tables (|), headers (#), and general whitespace/punctuation.
+  static final _markdownPrefixPattern = RegExp(r'(?:^|[\*_~`\[\]|#>\-\+\s\n])');
+
+  /// Finds the source offset for rendered text, accounting for markdown syntax.
+  /// Returns the offset where the actual text content starts in the source.
+  ///
+  /// Performance: O(n) worst case where n = remaining source length.
+  /// Fast path (exact match) is O(n) with low constant factor.
+  /// Regex fallback only triggers for formatted text.
   int _findSourceOffset(String text) {
-    final index = _source.indexOf(text, _sourceOffset);
-    if (index != -1) {
-      _sourceOffset = index + text.length;
+    if (text.isEmpty) return -1;
+
+    // Fast path: exact match works for plain text (most common case)
+    final exactIndex = _source.indexOf(text, _sourceOffset);
+    if (exactIndex != -1) {
+      // Validate this isn't a false positive inside another word
+      // by checking if it's at start or preceded by valid markdown char
+      if (exactIndex == 0 ||
+          _markdownPrefixPattern.hasMatch(_source[exactIndex - 1])) {
+        _sourceOffset = exactIndex + text.length;
+        return exactIndex;
+      }
     }
-    return index;
+
+    // Fallback: search for text after any markdown syntax character
+    // This handles cases like **bold**, ~~strike~~, `code`, [link], |table|
+    final searchStart = _sourceOffset;
+    final sourceLen = _source.length;
+    final textLen = text.length;
+
+    // Scan through source looking for our text
+    for (int i = searchStart; i <= sourceLen - textLen; i++) {
+      // Check if text matches at position i
+      if (_source.substring(i, i + textLen) == text) {
+        // Verify it's preceded by markdown syntax or start of string
+        if (i == 0 || _markdownPrefixPattern.hasMatch(_source[i - 1])) {
+          _sourceOffset = i + textLen;
+          return i;
+        }
+      }
+    }
+
+    return -1;
   }
 
   List<InlineSpan> _buildInlineCode(md.Element element, TextStyle baseStyle) {
@@ -891,14 +931,13 @@ class MarkdownSpanBuilder {
                       ? BoxDecoration(color: style.codeBackground)
                       : null,
                   children: cells.map((cell) {
+                    final cellStyle = baseStyle.copyWith(
+                      fontWeight: isHeader ? FontWeight.bold : null,
+                    );
+                    // Use _buildTextSpan to support search highlighting in table cells
                     return Padding(
                       padding: const EdgeInsets.all(8),
-                      child: Text(
-                        cell,
-                        style: baseStyle.copyWith(
-                          fontWeight: isHeader ? FontWeight.bold : null,
-                        ),
-                      ),
+                      child: Text.rich(_buildTextSpan(cell, cellStyle)),
                     );
                   }).toList(),
                 );
