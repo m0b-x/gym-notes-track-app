@@ -661,22 +661,25 @@ class LineBasedMarkdownBuilder {
         if (indentStr.isNotEmpty) TextSpan(text: indentStr, style: baseStyle),
         WidgetSpan(
           alignment: PlaceholderAlignment.top,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              GestureDetector(
-                onTap: checkboxRecognizer?.onTap,
-                child: Text(
-                  '$checkboxChar ',
-                  style: baseStyle.copyWith(
-                    color: isChecked
-                        ? style.primaryColor
-                        : style.textColor.withValues(alpha: 0.7),
+          child: DefaultTextStyle(
+            style: baseStyle,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onTap: checkboxRecognizer?.onTap,
+                  child: Text(
+                    '$checkboxChar ',
+                    style: baseStyle.copyWith(
+                      color: isChecked
+                          ? style.primaryColor
+                          : style.textColor.withValues(alpha: 0.7),
+                    ),
                   ),
                 ),
-              ),
-              Expanded(child: Text.rich(contentSpan, style: contentStyle)),
-            ],
+                Expanded(child: Text.rich(contentSpan, style: contentStyle)),
+              ],
+            ),
           ),
         ),
       ],
@@ -712,18 +715,21 @@ class LineBasedMarkdownBuilder {
         if (indentStr.isNotEmpty) TextSpan(text: indentStr, style: baseStyle),
         WidgetSpan(
           alignment: PlaceholderAlignment.top,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$bullet ',
-                style: baseStyle.copyWith(
-                  color: style.primaryColor,
-                  fontWeight: FontWeight.bold,
+          child: DefaultTextStyle(
+            style: baseStyle,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$bullet ',
+                  style: baseStyle.copyWith(
+                    color: style.primaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              Expanded(child: Text.rich(contentSpan, style: baseStyle)),
-            ],
+                Expanded(child: Text.rich(contentSpan, style: baseStyle)),
+              ],
+            ),
           ),
         ),
       ],
@@ -758,18 +764,21 @@ class LineBasedMarkdownBuilder {
         if (indentStr.isNotEmpty) TextSpan(text: indentStr, style: baseStyle),
         WidgetSpan(
           alignment: PlaceholderAlignment.top,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$number. ',
-                style: baseStyle.copyWith(
-                  color: style.primaryColor,
-                  fontWeight: FontWeight.bold,
+          child: DefaultTextStyle(
+            style: baseStyle,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$number. ',
+                  style: baseStyle.copyWith(
+                    color: style.primaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              Expanded(child: Text.rich(contentSpan, style: baseStyle)),
-            ],
+                Expanded(child: Text.rich(contentSpan, style: baseStyle)),
+              ],
+            ),
           ),
         ),
       ],
