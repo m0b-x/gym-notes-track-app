@@ -149,7 +149,7 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
           tooltip: AppLocalizations.of(context)!.redo,
           onPressed: widget.canRedo ? widget.onRedo : null,
         ),
-        if (!widget.isPreviewMode && widget.onPaste != null) ...[        
+        if (!widget.isPreviewMode && widget.onPaste != null) ...[
           const SizedBox(width: 8),
           _buildVerticalDivider(context),
           const SizedBox(width: 8),
