@@ -107,6 +107,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   double _editorFontSize = FontConstants.defaultFontSize;
   List<CustomMarkdownShortcut> _allShortcuts = [];
   String _previousText = '';
+  String _cachedPreviewContent = '';
   bool _isProcessingTextChange = false;
   int _cachedLineCount = 1;
   int _cachedCharCount = 0;
@@ -355,6 +356,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
   void _togglePreviewMode() {
     final switchingToPreview = !_isPreviewMode;
+    final totalLines = _contentController.lineCount;
+    final isLargeNote = totalLines > AppConstants.previewPreloadLineThreshold;
 
     // Save the scroll offset before switching
     if (!switchingToPreview) {
@@ -363,8 +366,93 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       }
     }
 
+    // Update cached preview content BEFORE switching
+    if (switchingToPreview) {
+      _cachedPreviewContent = _contentController.text;
+      final lineIndex = _contentController.selection.baseIndex;
+
+      if (isLargeNote) {
+        // LARGE NOTE: Switch immediately, scroll with short animation
+        // Preview builds lazily - no freeze from parsing all content at once
+        setState(() {
+          _isPreviewMode = true;
+        });
+
+        // Scroll after preview is visible with a quick animation
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _markdownViewKey.currentState?.scrollToLineIndex(
+            lineIndex,
+            totalLines,
+            animate: true,
+            duration: const Duration(milliseconds: 150),
+          );
+        });
+      } else {
+        // SMALL NOTE: Pre-scroll while offstage, then reveal (instant)
+        // First setState to rebuild preview with new content (still offstage)
+        setState(() {});
+
+        // After rebuild completes, scroll then reveal
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+
+          // Now scroll to position (preview is still offstage)
+          if (totalLines > 0) {
+            _markdownViewKey.currentState?.scrollToLineIndex(
+              lineIndex,
+              totalLines,
+              animate: false,
+            );
+          }
+
+          // After scroll completes, reveal the preview
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            setState(() {
+              _isPreviewMode = true;
+            });
+            _saveCurrentPosition();
+          });
+        });
+      }
+
+      // Handle search
+      if (_searchController.isSearching && _searchController.query.isNotEmpty) {
+        final currentQuery = _searchController.query;
+        _searchController.updateContent(_contentController.text);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _searchController.search(currentQuery);
+          }
+        });
+      }
+
+      if (!isLargeNote) {
+        return; // Early return for small notes - async callbacks handle the rest
+      }
+      _saveCurrentPosition();
+      return;
+    }
+
+    // Switching to editor mode
+    if (_searchController.isSearching && _searchController.query.isNotEmpty) {
+      final currentQuery = _searchController.query;
+      Future.microtask(() {
+        if (mounted) {
+          _searchController.search(currentQuery);
+        }
+      });
+    }
+
+    // Just flip the mode
+    setState(() {
+      _isPreviewMode = switchingToPreview;
+    });
+
+    // Sync scroll for editor mode (preview -> editor)
     _scrollPositionSync.syncScrollOnModeSwitch(
-      switchingToPreviewMode: switchingToPreview,
+      switchingToPreviewMode: false,
       content: _contentController.text,
       editorFontSize: _editorFontSize,
       previewFontSize: _previewFontSize,
@@ -372,43 +460,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       contentController: _contentController,
       markdownViewKey: _markdownViewKey,
     );
-
-    if (_searchController.isSearching && _searchController.query.isNotEmpty) {
-      final currentQuery = _searchController.query;
-      if (switchingToPreview) {
-        _searchController.updateContent(_contentController.text);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            _searchController.search(currentQuery);
-          }
-        });
-      } else {
-        Future.microtask(() {
-          if (mounted) {
-            _searchController.search(currentQuery);
-          }
-        });
-      }
-    }
-
-    setState(() {
-      _isPreviewMode = switchingToPreview;
-      if (switchingToPreview) {
-        // Always use the last known offset
-        double initialOffset = _previewScrollController.hasClients
-            ? _previewScrollController.offset
-            : _pendingPreviewScrollOffset;
-        _previewScrollController.dispose();
-        _previewScrollController = ScrollController(
-          initialScrollOffset: initialOffset,
-        );
-        // Re-attach to sync util
-        _scrollPositionSync = ScrollPositionSync(
-          previewScrollController: _previewScrollController,
-          editorScrollController: _editorScrollController,
-        );
-      }
-    });
 
     _saveCurrentPosition();
   }
@@ -1016,16 +1067,24 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   Widget _buildPreview() {
-    if (!_isPreviewMode) {
-      // If not in preview mode, skip building the preview entirely
+    // For large notes, don't pre-build preview to avoid memory/CPU overhead
+    // The preview will build when actually needed (when switching to preview mode)
+    final isLargeNote =
+        _cachedLineCount > AppConstants.previewPreloadLineThreshold;
+    if (!_isPreviewMode && isLargeNote) {
       return const SizedBox.shrink();
     }
-    final content = _contentController.text.isEmpty
+
+    // Use cached content to avoid re-parsing on every keystroke
+    // Content is updated only when switching to preview mode
+    final content = _cachedPreviewContent.isEmpty
         ? AppLocalizations.of(context)!.noContentYet
-        : _contentController.text;
+        : _cachedPreviewContent;
 
     // Only update search content when we're actually in preview mode
-    _searchController.updateContent(content);
+    if (_isPreviewMode) {
+      _searchController.updateContent(content);
+    }
 
     // Use Listenable.merge to listen to both search and dev options changes
     final markdownView = ListenableBuilder(
@@ -1041,12 +1100,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         onScrollProgress: (progress) {
           _previewScrollProgress.value = progress;
         },
-        searchHighlights: _searchController.isSearching
+        searchHighlights: _isPreviewMode && _searchController.isSearching
             ? _searchController.matches
                   .map((m) => TextRange(start: m.start, end: m.end))
                   .toList()
             : null,
-        currentHighlightIndex: _searchController.isSearching
+        currentHighlightIndex: _isPreviewMode && _searchController.isSearching
             ? _searchController.currentMatchIndex
             : null,
       ),

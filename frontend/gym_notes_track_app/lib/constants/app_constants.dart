@@ -54,6 +54,13 @@ class AppConstants {
   // ============================================================
   static const int maxRecentSearches = 10;
   static const int maxSearchMatches = 1000;
+
+  // ============================================================
+  // PREVIEW CONSTANTS
+  // ============================================================
+  /// Notes under this line count get instant preview switching (pre-loaded offstage).
+  /// Larger notes use lazy loading with a short scroll animation to avoid memory overhead.
+  static const int previewPreloadLineThreshold = 3000;
   
   AppConstants._();
 }
