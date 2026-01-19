@@ -386,6 +386,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get redo => 'Wiederholen';
 
   @override
+  String get paste => 'Paste';
+
+  @override
   String get decreaseFontSize => 'Schriftgröße verkleinern';
 
   @override

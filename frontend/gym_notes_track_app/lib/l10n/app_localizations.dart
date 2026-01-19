@@ -802,6 +802,12 @@ abstract class AppLocalizations {
   /// **'Redo'**
   String get redo;
 
+  /// Paste button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get paste;
+
   /// Decrease font size button tooltip
   ///
   /// In en, this message translates to:

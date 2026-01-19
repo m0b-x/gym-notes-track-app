@@ -384,6 +384,9 @@ class AppLocalizationsRo extends AppLocalizations {
   String get redo => 'Refă';
 
   @override
+  String get paste => 'Paste';
+
+  @override
   String get decreaseFontSize => 'Micșorează Fontul';
 
   @override

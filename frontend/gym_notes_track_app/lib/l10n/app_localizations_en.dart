@@ -382,6 +382,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get redo => 'Redo';
 
   @override
+  String get paste => 'Paste';
+
+  @override
   String get decreaseFontSize => 'Decrease Font Size';
 
   @override

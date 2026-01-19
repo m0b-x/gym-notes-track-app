@@ -880,6 +880,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                                   : _editorFontSize,
                               onUndo: () => _contentController.undo(),
                               onRedo: () => _contentController.redo(),
+                              onPaste: () => _contentController.paste(),
                               onDecreaseFontSize: () {
                                 setState(() {
                                   if (_isPreviewMode) {
@@ -1474,10 +1475,15 @@ class _ModernEditorWrapper extends StatefulWidget {
 }
 
 class _ModernEditorWrapperState extends State<_ModernEditorWrapper> {
+  late final SelectionToolbarController _toolbarController;
+
   @override
   void initState() {
     super.initState();
     widget.controller.addListener(_onControllerChanged);
+    _toolbarController = MobileSelectionToolbarController(
+      builder: _buildSelectionToolbar,
+    );
   }
 
   @override
@@ -1485,6 +1491,58 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper> {
     widget.searchController.clearFindController();
     widget.controller.removeListener(_onControllerChanged);
     super.dispose();
+  }
+
+  Widget _buildSelectionToolbar({
+    required BuildContext context,
+    required TextSelectionToolbarAnchors anchors,
+    required CodeLineEditingController controller,
+    required VoidCallback onDismiss,
+    required VoidCallback onRefresh,
+  }) {
+    final isCollapsed = controller.selection.isCollapsed;
+
+    // Build button items based on selection state
+    final buttonItems = <ContextMenuButtonItem>[
+      // Cut and Copy only when text is selected
+      if (!isCollapsed) ...[
+        ContextMenuButtonItem(
+          label: MaterialLocalizations.of(context).cutButtonLabel,
+          onPressed: () {
+            controller.cut();
+            onDismiss();
+          },
+        ),
+        ContextMenuButtonItem(
+          label: MaterialLocalizations.of(context).copyButtonLabel,
+          onPressed: () {
+            controller.copy();
+            onDismiss();
+          },
+        ),
+      ],
+      // Paste is always available
+      ContextMenuButtonItem(
+        label: MaterialLocalizations.of(context).pasteButtonLabel,
+        onPressed: () {
+          controller.paste();
+          onDismiss();
+        },
+      ),
+      // Select All is always available
+      ContextMenuButtonItem(
+        label: MaterialLocalizations.of(context).selectAllButtonLabel,
+        onPressed: () {
+          controller.selectAll();
+          onRefresh();
+        },
+      ),
+    ];
+
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: anchors,
+      buttonItems: buttonItems,
+    );
   }
 
   void _onControllerChanged() {
@@ -1530,52 +1588,7 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper> {
         focusNode: widget.focusNode,
         scrollController: widget.scrollController,
         // Enable mobile selection toolbar (copy/paste/cut/select all)
-        toolbarController: MobileSelectionToolbarController(
-          builder:
-              ({
-                required context,
-                required anchors,
-                required controller,
-                required onDismiss,
-                required onRefresh,
-              }) {
-                return AdaptiveTextSelectionToolbar.buttonItems(
-                  anchors: anchors,
-                  buttonItems: [
-                    ContextMenuButtonItem(
-                      label: MaterialLocalizations.of(context).cutButtonLabel,
-                      onPressed: () {
-                        controller.cut();
-                        onDismiss();
-                      },
-                    ),
-                    ContextMenuButtonItem(
-                      label: MaterialLocalizations.of(context).copyButtonLabel,
-                      onPressed: () {
-                        controller.copy();
-                        onDismiss();
-                      },
-                    ),
-                    ContextMenuButtonItem(
-                      label: MaterialLocalizations.of(context).pasteButtonLabel,
-                      onPressed: () {
-                        controller.paste();
-                        onDismiss();
-                      },
-                    ),
-                    ContextMenuButtonItem(
-                      label: MaterialLocalizations.of(
-                        context,
-                      ).selectAllButtonLabel,
-                      onPressed: () {
-                        controller.selectAll();
-                        onRefresh();
-                      },
-                    ),
-                  ],
-                );
-              },
-        ),
+        toolbarController: _toolbarController,
         style: CodeEditorStyle(
           fontSize: widget.editorFontSize,
           fontHeight: MarkdownConstants.lineHeight,

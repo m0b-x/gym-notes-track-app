@@ -521,6 +521,10 @@
   "@redo": {
     "description": "Redo button tooltip"
   },
+  "paste": "Paste",
+  "@paste": {
+    "description": "Paste button tooltip"
+  },
   "decreaseFontSize": "Decrease Font Size",
   "@decreaseFontSize": {
     "description": "Decrease font size button tooltip"

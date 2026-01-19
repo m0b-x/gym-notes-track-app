@@ -17,6 +17,7 @@ class MarkdownToolbar extends StatefulWidget {
   final double previewFontSize;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
+  final VoidCallback? onPaste;
   final VoidCallback onDecreaseFontSize;
   final VoidCallback onIncreaseFontSize;
   final VoidCallback onSettings;
@@ -36,6 +37,7 @@ class MarkdownToolbar extends StatefulWidget {
     required this.previewFontSize,
     required this.onUndo,
     required this.onRedo,
+    this.onPaste,
     required this.onDecreaseFontSize,
     required this.onIncreaseFontSize,
     required this.onSettings,
@@ -147,6 +149,16 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
           tooltip: AppLocalizations.of(context)!.redo,
           onPressed: widget.canRedo ? widget.onRedo : null,
         ),
+        if (!widget.isPreviewMode && widget.onPaste != null) ...[        
+          const SizedBox(width: 8),
+          _buildVerticalDivider(context),
+          const SizedBox(width: 8),
+          _ToolbarButton(
+            icon: Icons.content_paste,
+            tooltip: AppLocalizations.of(context)!.paste,
+            onPressed: widget.onPaste,
+          ),
+        ],
         const SizedBox(width: 8),
         _ToolbarButton(
           icon: Icons.text_decrease,
