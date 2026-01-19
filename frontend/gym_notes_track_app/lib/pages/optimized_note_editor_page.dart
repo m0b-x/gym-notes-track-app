@@ -26,7 +26,6 @@ import '../widgets/markdown_toolbar.dart';
 import '../widgets/full_markdown_view.dart';
 import '../widgets/source_mapped_markdown_view.dart';
 import '../widgets/scroll_progress_indicator.dart';
-import '../widgets/scroll_zone_mixin.dart';
 import '../widgets/note_search_bar.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/unified_app_bars.dart';
@@ -1474,14 +1473,10 @@ class _ModernEditorWrapper extends StatefulWidget {
   State<_ModernEditorWrapper> createState() => _ModernEditorWrapperState();
 }
 
-class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
-    with SingleTickerProviderStateMixin, ScrollZoneMixin {
-  static const double _scrollZoneWidth = 80.0;
-
+class _ModernEditorWrapperState extends State<_ModernEditorWrapper> {
   @override
   void initState() {
     super.initState();
-    initScrollZone();
     widget.controller.addListener(_onControllerChanged);
   }
 
@@ -1489,17 +1484,12 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
   void dispose() {
     widget.searchController.clearFindController();
     widget.controller.removeListener(_onControllerChanged);
-    disposeScrollZone();
     super.dispose();
   }
 
   void _onControllerChanged() {
     widget.onTextChanged();
   }
-
-  @override
-  ScrollController getScrollController() =>
-      widget.scrollController.verticalScroller;
 
   @override
   Widget build(BuildContext context) {
@@ -1514,7 +1504,7 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
           ),
           child: _buildCodeEditor(context),
         ),
-        buildScrollZone(width: _scrollZoneWidth),
+        // Scrollbar positioned on the right - uses IgnorePointer except for the thumb area
         Positioned(
           top: 8,
           bottom: 8,
@@ -1539,6 +1529,53 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
         controller: widget.controller,
         focusNode: widget.focusNode,
         scrollController: widget.scrollController,
+        // Enable mobile selection toolbar (copy/paste/cut/select all)
+        toolbarController: MobileSelectionToolbarController(
+          builder:
+              ({
+                required context,
+                required anchors,
+                required controller,
+                required onDismiss,
+                required onRefresh,
+              }) {
+                return AdaptiveTextSelectionToolbar.buttonItems(
+                  anchors: anchors,
+                  buttonItems: [
+                    ContextMenuButtonItem(
+                      label: MaterialLocalizations.of(context).cutButtonLabel,
+                      onPressed: () {
+                        controller.cut();
+                        onDismiss();
+                      },
+                    ),
+                    ContextMenuButtonItem(
+                      label: MaterialLocalizations.of(context).copyButtonLabel,
+                      onPressed: () {
+                        controller.copy();
+                        onDismiss();
+                      },
+                    ),
+                    ContextMenuButtonItem(
+                      label: MaterialLocalizations.of(context).pasteButtonLabel,
+                      onPressed: () {
+                        controller.paste();
+                        onDismiss();
+                      },
+                    ),
+                    ContextMenuButtonItem(
+                      label: MaterialLocalizations.of(
+                        context,
+                      ).selectAllButtonLabel,
+                      onPressed: () {
+                        controller.selectAll();
+                        onRefresh();
+                      },
+                    ),
+                  ],
+                );
+              },
+        ),
         style: CodeEditorStyle(
           fontSize: widget.editorFontSize,
           fontHeight: MarkdownConstants.lineHeight,
@@ -1555,11 +1592,11 @@ class _ModernEditorWrapperState extends State<_ModernEditorWrapper>
         readOnly: false,
         autofocus: false,
         chunkAnalyzer: const NonCodeChunkAnalyzer(),
-        // Add extra right padding to account for scrollbar (44px touch area + some margin)
+        // Add small right padding for visible scrollbar (6-12px width)
         padding: const EdgeInsets.only(
           left: AppSpacing.lg,
           top: AppSpacing.lg,
-          right: AppSpacing.lg + 48,
+          right: AppSpacing.lg + 16,
           bottom: AppSpacing.lg,
         ),
         indicatorBuilder: widget.showLineNumbers

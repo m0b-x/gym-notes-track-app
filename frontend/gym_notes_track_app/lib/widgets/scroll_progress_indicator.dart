@@ -39,10 +39,10 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
 
   // Smoothing state for reducing jiggle
   double _smoothedProgress = 0;
-  
+
   // Scroll stabilization state
   bool _isStabilizing = false;
-  bool _isTapping = false; 
+  bool _isTapping = false;
 
   @override
   void initState() {
@@ -55,56 +55,70 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
   void _startMetricsCheck() {
     _metricsCheckTimer?.cancel();
     _metricsCheckTimer = Timer.periodic(
-      const Duration(milliseconds: ScrollIndicatorConstants.metricsCheckIntervalMs),
+      const Duration(
+        milliseconds: ScrollIndicatorConstants.metricsCheckIntervalMs,
+      ),
       (_) {
-      if (!mounted) return;
-      if (widget.scrollController.hasClients) {
-        // Use positions (plural) to safely handle multiple attached views
-        for (final pos in widget.scrollController.positions) {
-          if (pos.hasContentDimensions) {
-            final newMaxScroll = pos.maxScrollExtent;
-            if (newMaxScroll != _maxScroll && _maxScroll > 0 && newMaxScroll > 0) {
-              // Scroll extent changed - stabilize position to reduce content jumping
-              final currentOffset = pos.pixels;
-              final currentPercentage = currentOffset / _maxScroll;
-              
-              // Only stabilize if not at edges and change is significant
-              final extentChange = (newMaxScroll - _maxScroll).abs() / _maxScroll;
-              if (extentChange > ScrollIndicatorConstants.minExtentChangeThreshold &&
-                  extentChange < ScrollIndicatorConstants.maxExtentChangeThreshold &&
-                  currentPercentage > ScrollIndicatorConstants.minScrollPercentageForStabilization &&
-                  currentPercentage < ScrollIndicatorConstants.maxScrollPercentageForStabilization &&
-                  !_isDragging &&
-                  !_isTapping &&
-                  !_isStabilizing) {
-                // Calculate what offset would maintain same relative position
-                final targetOffset = currentPercentage * newMaxScroll;
-                final offsetDelta = (targetOffset - currentOffset).abs();
-                
-                // Only correct if the jump would be noticeable but not too large
-                if (offsetDelta > ScrollIndicatorConstants.minOffsetDeltaToCorrect &&
-                    offsetDelta < ScrollIndicatorConstants.maxOffsetDeltaToCorrect) {
-                  _isStabilizing = true;
-                  pos.correctPixels(targetOffset);
-                  Future.microtask(() {
-                    if (mounted) _isStabilizing = false;
-                  });
+        if (!mounted) return;
+        if (widget.scrollController.hasClients) {
+          // Use positions (plural) to safely handle multiple attached views
+          for (final pos in widget.scrollController.positions) {
+            if (pos.hasContentDimensions) {
+              final newMaxScroll = pos.maxScrollExtent;
+              if (newMaxScroll != _maxScroll &&
+                  _maxScroll > 0 &&
+                  newMaxScroll > 0) {
+                // Scroll extent changed - stabilize position to reduce content jumping
+                final currentOffset = pos.pixels;
+                final currentPercentage = currentOffset / _maxScroll;
+
+                // Only stabilize if not at edges and change is significant
+                final extentChange =
+                    (newMaxScroll - _maxScroll).abs() / _maxScroll;
+                if (extentChange >
+                        ScrollIndicatorConstants.minExtentChangeThreshold &&
+                    extentChange <
+                        ScrollIndicatorConstants.maxExtentChangeThreshold &&
+                    currentPercentage >
+                        ScrollIndicatorConstants
+                            .minScrollPercentageForStabilization &&
+                    currentPercentage <
+                        ScrollIndicatorConstants
+                            .maxScrollPercentageForStabilization &&
+                    !_isDragging &&
+                    !_isTapping &&
+                    !_isStabilizing) {
+                  // Calculate what offset would maintain same relative position
+                  final targetOffset = currentPercentage * newMaxScroll;
+                  final offsetDelta = (targetOffset - currentOffset).abs();
+
+                  // Only correct if the jump would be noticeable but not too large
+                  if (offsetDelta >
+                          ScrollIndicatorConstants.minOffsetDeltaToCorrect &&
+                      offsetDelta <
+                          ScrollIndicatorConstants.maxOffsetDeltaToCorrect) {
+                    _isStabilizing = true;
+                    pos.correctPixels(targetOffset);
+                    Future.microtask(() {
+                      if (mounted) _isStabilizing = false;
+                    });
+                  }
                 }
+
+                setState(() {
+                  _maxScroll = newMaxScroll;
+                });
+              } else if (newMaxScroll != _maxScroll) {
+                setState(() {
+                  _maxScroll = newMaxScroll;
+                });
               }
-              
-              setState(() {
-                _maxScroll = newMaxScroll;
-              });
-            } else if (newMaxScroll != _maxScroll) {
-              setState(() {
-                _maxScroll = newMaxScroll;
-              });
+              break;
             }
-            break;
           }
         }
-      }
-    });
+      },
+    );
   }
 
   @override
@@ -143,10 +157,11 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
     _collapseTimer = Timer(
       const Duration(milliseconds: ScrollIndicatorConstants.collapseDelayMs),
       () {
-      if (mounted && !_isDragging) {
-        setState(() => _isExpanded = false);
-      }
-    });
+        if (mounted && !_isDragging) {
+          setState(() => _isExpanded = false);
+        }
+      },
+    );
   }
 
   void _scrollToPosition(double localY) {
@@ -203,8 +218,9 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
     Future.delayed(
       const Duration(milliseconds: ScrollIndicatorConstants.tapResetDelayMs),
       () {
-      if (mounted) setState(() => _isTapping = false);
-    });
+        if (mounted) setState(() => _isTapping = false);
+      },
+    );
     _expandTemporarily();
   }
 
@@ -222,29 +238,30 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
     final thumbColor = _isDragging
         ? baseColor
         : _isExpanded
-            ? baseColor.withValues(
-                alpha: ScrollIndicatorConstants.expandedThumbOpacity,
-              )
-            : baseColor.withValues(
-                alpha: ScrollIndicatorConstants.idleThumbOpacity,
-              );
+        ? baseColor.withValues(
+            alpha: ScrollIndicatorConstants.expandedThumbOpacity,
+          )
+        : baseColor.withValues(
+            alpha: ScrollIndicatorConstants.idleThumbOpacity,
+          );
 
     final trackColor = _isDragging || _isExpanded
         ? Theme.of(context).colorScheme.onSurface.withValues(
-              alpha: ScrollIndicatorConstants.expandedTrackOpacity,
-            )
+            alpha: ScrollIndicatorConstants.expandedTrackOpacity,
+          )
         : Theme.of(context).colorScheme.onSurface.withValues(
-              alpha: ScrollIndicatorConstants.idleTrackOpacity,
-            );
+            alpha: ScrollIndicatorConstants.idleTrackOpacity,
+          );
 
     return LayoutBuilder(
       builder: (context, constraints) {
         _trackHeight = constraints.maxHeight;
-        _thumbHeight = (_trackHeight * ScrollIndicatorConstants.thumbHeightPercentage)
-            .clamp(
-              ScrollIndicatorConstants.minThumbHeight,
-              ScrollIndicatorConstants.maxThumbHeight,
-            );
+        _thumbHeight =
+            (_trackHeight * ScrollIndicatorConstants.thumbHeightPercentage)
+                .clamp(
+                  ScrollIndicatorConstants.minThumbHeight,
+                  ScrollIndicatorConstants.maxThumbHeight,
+                );
         final maxTop = _trackHeight - _thumbHeight;
 
         return AnimatedBuilder(
@@ -269,26 +286,36 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
                 _maxScroll = maxScroll; // Update for drag operations
 
                 if (maxScroll > 0) {
-                  final rawProgress = (currentOffset / maxScroll).clamp(0.0, 1.0);
-                  
+                  final rawProgress = (currentOffset / maxScroll).clamp(
+                    0.0,
+                    1.0,
+                  );
+
                   // Apply smoothing to reduce jiggle from dynamic maxScrollExtent changes
                   // When dragging, use faster smoothing for responsiveness
                   if (_isDragging) {
                     // Snap to edges immediately when dragging
-                    if (rawProgress <= ScrollIndicatorConstants.dragEdgeSnapThreshold) {
+                    if (rawProgress <=
+                        ScrollIndicatorConstants.dragEdgeSnapThreshold) {
                       _smoothedProgress = 0;
-                    } else if (rawProgress >= 1 - ScrollIndicatorConstants.dragEdgeSnapThreshold) {
+                    } else if (rawProgress >=
+                        1 - ScrollIndicatorConstants.dragEdgeSnapThreshold) {
                       _smoothedProgress = 1;
                     } else {
-                      _smoothedProgress = _smoothedProgress +
+                      _smoothedProgress =
+                          _smoothedProgress +
                           ScrollIndicatorConstants.dragSmoothingFactor *
                               (rawProgress - _smoothedProgress);
                     }
                   } else {
                     // Snap to edges when at the very beginning or end
-                    if (rawProgress <= ScrollIndicatorConstants.immediateEdgeSnapThreshold) {
+                    if (rawProgress <=
+                        ScrollIndicatorConstants.immediateEdgeSnapThreshold) {
                       _smoothedProgress = 0;
-                    } else if (rawProgress >= 1 - ScrollIndicatorConstants.immediateEdgeSnapThreshold) {
+                    } else if (rawProgress >=
+                        1 -
+                            ScrollIndicatorConstants
+                                .immediateEdgeSnapThreshold) {
                       _smoothedProgress = 1;
                     } else {
                       // Exponential smoothing: smoothed = smoothed + factor * (raw - smoothed)
@@ -297,18 +324,30 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
 
                       // Use faster smoothing for large jumps, slower for small jitter
                       final adaptiveFactor =
-                          delta > ScrollIndicatorConstants.fastSmoothingDeltaThreshold
-                              ? ScrollIndicatorConstants.fastSmoothingFactor
-                              : ScrollIndicatorConstants.smoothingFactor;
-                      _smoothedProgress = _smoothedProgress +
+                          delta >
+                              ScrollIndicatorConstants
+                                  .fastSmoothingDeltaThreshold
+                          ? ScrollIndicatorConstants.fastSmoothingFactor
+                          : ScrollIndicatorConstants.smoothingFactor;
+                      _smoothedProgress =
+                          _smoothedProgress +
                           adaptiveFactor * (rawProgress - _smoothedProgress);
 
                       // Snap to edges when very close
-                      if (_smoothedProgress < ScrollIndicatorConstants.nearEdgeSmoothedThreshold &&
-                          rawProgress < ScrollIndicatorConstants.nearEdgeRawThreshold) {
+                      if (_smoothedProgress <
+                              ScrollIndicatorConstants
+                                  .nearEdgeSmoothedThreshold &&
+                          rawProgress <
+                              ScrollIndicatorConstants.nearEdgeRawThreshold) {
                         _smoothedProgress = 0;
-                      } else if (_smoothedProgress > 1 - ScrollIndicatorConstants.nearEdgeSmoothedThreshold &&
-                          rawProgress > 1 - ScrollIndicatorConstants.nearEdgeRawThreshold) {
+                      } else if (_smoothedProgress >
+                              1 -
+                                  ScrollIndicatorConstants
+                                      .nearEdgeSmoothedThreshold &&
+                          rawProgress >
+                              1 -
+                                  ScrollIndicatorConstants
+                                      .nearEdgeRawThreshold) {
                         _smoothedProgress = 1;
                       }
                     }
@@ -319,60 +358,72 @@ class _ScrollProgressIndicatorState extends State<ScrollProgressIndicator> {
             }
             final top = progress * maxTop;
 
-            return GestureDetector(
-              onTapUp: _onTap,
-              onVerticalDragStart: _onDragStart,
-              onVerticalDragUpdate: _onDragUpdate,
-              onVerticalDragEnd: _onDragEnd,
-              onHorizontalDragStart: (_) {
-                setState(() => _isExpanded = true);
-              },
-              behavior: HitTestBehavior.translucent,
-              child: Container(
-                width: widget.touchAreaWidth,
-                color: Colors.transparent,
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: AnimatedContainer(
-                    duration: widget.animationDuration,
-                    curve: Curves.easeOut,
-                    width: barWidth,
-                    margin: const EdgeInsets.only(
-                      right: ScrollIndicatorConstants.rightMargin,
-                    ),
-                    decoration: BoxDecoration(
-                      color: trackColor,
-                      borderRadius: BorderRadius.circular(barWidth),
-                    ),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          top: top,
-                          left: 0,
-                          right: 0,
-                          child: AnimatedContainer(
-                            duration: const Duration(
-                              milliseconds: ScrollIndicatorConstants.thumbAnimationMs,
-                            ),
-                            height: _thumbHeight,
-                            decoration: BoxDecoration(
-                              color: thumbColor,
-                              borderRadius: BorderRadius.circular(barWidth),
-                              boxShadow: _isDragging
-                                  ? [
-                                      BoxShadow(
-                                        color: baseColor.withValues(
-                                          alpha: ScrollIndicatorConstants.dragShadowOpacity,
+            // Use a narrower touch area that only covers the visible scrollbar
+            // This prevents blocking touches on the editor content
+            final effectiveTouchWidth =
+                barWidth + 12; // Visible bar + small touch margin
+
+            return Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTapUp: _onTap,
+                onVerticalDragStart: _onDragStart,
+                onVerticalDragUpdate: _onDragUpdate,
+                onVerticalDragEnd: _onDragEnd,
+                onHorizontalDragStart: (_) {
+                  setState(() => _isExpanded = true);
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: effectiveTouchWidth,
+                  color: Colors.transparent,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: AnimatedContainer(
+                      duration: widget.animationDuration,
+                      curve: Curves.easeOut,
+                      width: barWidth,
+                      margin: const EdgeInsets.only(
+                        right: ScrollIndicatorConstants.rightMargin,
+                      ),
+                      decoration: BoxDecoration(
+                        color: trackColor,
+                        borderRadius: BorderRadius.circular(barWidth),
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            top: top,
+                            left: 0,
+                            right: 0,
+                            child: AnimatedContainer(
+                              duration: const Duration(
+                                milliseconds:
+                                    ScrollIndicatorConstants.thumbAnimationMs,
+                              ),
+                              height: _thumbHeight,
+                              decoration: BoxDecoration(
+                                color: thumbColor,
+                                borderRadius: BorderRadius.circular(barWidth),
+                                boxShadow: _isDragging
+                                    ? [
+                                        BoxShadow(
+                                          color: baseColor.withValues(
+                                            alpha: ScrollIndicatorConstants
+                                                .dragShadowOpacity,
+                                          ),
+                                          blurRadius: ScrollIndicatorConstants
+                                              .dragShadowBlurRadius,
+                                          spreadRadius: ScrollIndicatorConstants
+                                              .dragShadowSpreadRadius,
                                         ),
-                                        blurRadius: ScrollIndicatorConstants.dragShadowBlurRadius,
-                                        spreadRadius: ScrollIndicatorConstants.dragShadowSpreadRadius,
-                                      ),
-                                    ]
-                                  : null,
+                                      ]
+                                    : null,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
