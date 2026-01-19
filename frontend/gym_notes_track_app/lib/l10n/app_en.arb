@@ -1357,6 +1357,14 @@
   "@previewWhenKeyboardHiddenDesc": {
     "description": "Description for preview when keyboard hidden setting"
   },
+  "scrollCursorOnKeyboard": "Scroll Cursor on Keyboard",
+  "@scrollCursorOnKeyboard": {
+    "description": "Setting to scroll cursor into view when keyboard appears"
+  },
+  "scrollCursorOnKeyboardDesc": "Automatically scroll to keep the cursor visible when the keyboard appears.",
+  "@scrollCursorOnKeyboardDesc": {
+    "description": "Description for scroll cursor on keyboard setting"
+  },
   "linesFormatted": "{count, plural, =1{1 long line was formatted} other{{count} long lines were formatted}}",
   "@linesFormatted": {
     "description": "Toast message when lines are formatted on paste",

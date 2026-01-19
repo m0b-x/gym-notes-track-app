@@ -1014,6 +1014,13 @@ class AppLocalizationsRo extends AppLocalizations {
       'Show rendered markdown preview when the keyboard is hidden. The editor appears when you tap to type.';
 
   @override
+  String get scrollCursorOnKeyboard => 'Scroll Cursor on Keyboard';
+
+  @override
+  String get scrollCursorOnKeyboardDesc =>
+      'Automatically scroll to keep the cursor visible when the keyboard appears.';
+
+  @override
   String linesFormatted(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

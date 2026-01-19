@@ -1960,6 +1960,18 @@ abstract class AppLocalizations {
   /// **'Show rendered markdown preview when the keyboard is hidden. The editor appears when you tap to type.'**
   String get previewWhenKeyboardHiddenDesc;
 
+  /// Setting to scroll cursor into view when keyboard appears
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll Cursor on Keyboard'**
+  String get scrollCursorOnKeyboard;
+
+  /// Description for scroll cursor on keyboard setting
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically scroll to keep the cursor visible when the keyboard appears.'**
+  String get scrollCursorOnKeyboardDesc;
+
   /// Toast message when lines are formatted on paste
   ///
   /// In en, this message translates to:

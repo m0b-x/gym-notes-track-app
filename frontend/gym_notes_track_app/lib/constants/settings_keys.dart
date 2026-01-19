@@ -36,6 +36,7 @@ class SettingsKeys {
   static const String autoBreakLongLines = 'auto_break_long_lines';
   static const String previewWhenKeyboardHidden =
       'preview_when_keyboard_hidden';
+  static const String scrollCursorOnKeyboard = 'scroll_cursor_on_keyboard';
 
   // Preview settings
   static const String showPreviewScrollbar = 'show_preview_scrollbar';
@@ -63,6 +64,7 @@ class SettingsKeys {
   static const bool defaultShowCursorLine = false;
   static const bool defaultAutoBreakLongLines = true;
   static const bool defaultPreviewWhenKeyboardHidden = false;
+  static const bool defaultScrollCursorOnKeyboard = false;
 
   // Default values for preview settings
   static const bool defaultShowPreviewScrollbar = false;

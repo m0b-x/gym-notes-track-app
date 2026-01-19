@@ -202,6 +202,18 @@ class SettingsService {
     await _setBool(SettingsKeys.previewWhenKeyboardHidden, value);
   }
 
+  // Editor settings - Scroll cursor into view when keyboard appears
+  Future<bool> getScrollCursorOnKeyboard() async {
+    return _getBool(
+      SettingsKeys.scrollCursorOnKeyboard,
+      SettingsKeys.defaultScrollCursorOnKeyboard,
+    );
+  }
+
+  Future<void> setScrollCursorOnKeyboard(bool value) async {
+    await _setBool(SettingsKeys.scrollCursorOnKeyboard, value);
+  }
+
   // Preview settings - Show scrollbar
   Future<bool> getShowPreviewScrollbar() async {
     return _getBool(

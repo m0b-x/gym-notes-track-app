@@ -88,6 +88,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   bool _showCursorLine = false;
   bool _autoBreakLongLines = true;
   bool _previewWhenKeyboardHidden = false;
+  bool _scrollCursorOnKeyboard = false;
 
   // Preview settings
   bool _showPreviewScrollbar = false;
@@ -115,6 +116,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
   Timer? _lineCountDebounceTimer;
   int _lastLineCountTextLength = 0;
+  double _previousKeyboardHeight = 0;
 
   @override
   void initState() {
@@ -149,6 +151,24 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _initializeAutoSave();
     _loadFontSizes();
     _initializePositionService();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Track keyboard visibility to scroll cursor into view when keyboard appears
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    if (_scrollCursorOnKeyboard &&
+        keyboardHeight > _previousKeyboardHeight &&
+        keyboardHeight > 0) {
+      // Keyboard just appeared - scroll to make cursor visible
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_isPreviewMode) {
+          _contentController.makeCursorVisible();
+        }
+      });
+    }
+    _previousKeyboardHeight = keyboardHeight;
   }
 
   Future<void> _initializePositionService() async {
@@ -212,6 +232,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final autoBreakLongLines = await settings.getAutoBreakLongLines();
     final previewWhenKeyboardHidden = await settings
         .getPreviewWhenKeyboardHidden();
+    final scrollCursorOnKeyboard = await settings.getScrollCursorOnKeyboard();
     if (mounted) {
       setState(() {
         _noteSwipeEnabled = noteSwipe;
@@ -223,6 +244,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         _previewLinesPerChunk = previewLinesPerChunk;
         _autoBreakLongLines = autoBreakLongLines;
         _previewWhenKeyboardHidden = previewWhenKeyboardHidden;
+        _scrollCursorOnKeyboard = scrollCursorOnKeyboard;
       });
     }
   }

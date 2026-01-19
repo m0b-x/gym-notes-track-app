@@ -33,6 +33,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
   bool _showCursorLine = false;
   bool _autoBreakLongLines = true;
   bool _previewWhenKeyboardHidden = false;
+  bool _scrollCursorOnKeyboard = false;
 
   // Preview settings
   bool _showPreviewScrollbar = false;
@@ -62,6 +63,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     final autoBreakLongLines = await settings.getAutoBreakLongLines();
     final previewWhenKeyboardHidden = await settings
         .getPreviewWhenKeyboardHidden();
+    final scrollCursorOnKeyboard = await settings.getScrollCursorOnKeyboard();
     final showPreviewScrollbar = await settings.getShowPreviewScrollbar();
     final previewLinesPerChunk = await settings.getPreviewLinesPerChunk();
 
@@ -80,6 +82,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showCursorLine = showCursorLine;
       _autoBreakLongLines = autoBreakLongLines;
       _previewWhenKeyboardHidden = previewWhenKeyboardHidden;
+      _scrollCursorOnKeyboard = scrollCursorOnKeyboard;
       _showPreviewScrollbar = showPreviewScrollbar;
       _previewLinesPerChunk = previewLinesPerChunk;
       _isLoading = false;
@@ -320,6 +323,18 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
                           _onHapticFeedback();
                           setState(() => _previewWhenKeyboardHidden = value);
                           await _settings?.setPreviewWhenKeyboardHidden(value);
+                        },
+                      ),
+                      const Divider(height: 1),
+                      _buildSwitchTile(
+                        context: context,
+                        title: l10n.scrollCursorOnKeyboard,
+                        subtitle: l10n.scrollCursorOnKeyboardDesc,
+                        value: _scrollCursorOnKeyboard,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _scrollCursorOnKeyboard = value);
+                          await _settings?.setScrollCursorOnKeyboard(value);
                         },
                       ),
                     ],
