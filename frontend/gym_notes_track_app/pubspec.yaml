@@ -76,6 +76,10 @@ dev_dependencies:
   drift_dev: ^2.30.0
   build_runner: ^2.4.15
 
+dependency_overrides:
+  re_editor:
+    path: packages/re_editor
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
