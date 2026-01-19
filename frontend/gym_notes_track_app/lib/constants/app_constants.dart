@@ -61,6 +61,6 @@ class AppConstants {
   /// Notes under this line count get instant preview switching (pre-loaded offstage).
   /// Larger notes use lazy loading with a short scroll animation to avoid memory overhead.
   static const int previewPreloadLineThreshold = 3000;
-  
+
   AppConstants._();
 }
