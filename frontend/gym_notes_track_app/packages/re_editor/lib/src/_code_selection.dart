@@ -201,7 +201,8 @@ class _CodeSelectionGestureDetectorState
       _pointerTapTimestamp = now;
       _pointerTapPosition = position;
       _selectPosition(position, _SelectionChangedCause.tapUp);
-      widget.selectionOverlayController.hideHandle();
+      //widget.selectionOverlayController.hideHandle(); Commented to always show handle on tap up on Android
+      widget.selectionOverlayController.showHandle(context);
       widget.selectionOverlayController.hideToolbar();
     }
     widget.inputController.ensureInput();

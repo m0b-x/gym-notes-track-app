@@ -59,7 +59,8 @@ dependencies:
   stream_transform: ^2.1.0
   
   # High-performance text editor
-  re_editor: ^0.8.0
+  re_editor:
+    path: packages/re_editor
   
   # File picker for backup import
   file_picker: ^9.2.0
