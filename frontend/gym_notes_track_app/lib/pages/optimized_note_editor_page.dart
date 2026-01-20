@@ -585,8 +585,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _contentController.replaceSelection(info.replacement);
     _hasChanges = true;
 
-    // Force rebuild preview to reflect checkbox state change
     if (_isPreviewMode) {
+      _cachedPreviewContent = _contentController.text;
       setState(() {});
     }
   }
@@ -752,6 +752,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           setState(() {
             _contentController.text = content;
             _previousText = content;
+            _cachedPreviewContent = content;
             _cachedLineCount = '\n'.allMatches(content).length + 1;
             _cachedCharCount = content.length;
             _isLoading = false;
