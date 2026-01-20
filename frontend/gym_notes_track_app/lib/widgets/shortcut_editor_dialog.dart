@@ -55,8 +55,8 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
   late int _dateIncrementMonths;
   late int _dateIncrementYears;
   late String _repeatSeparator;
-  late String _beforeRepeatText;
-  late String _afterRepeatText;
+  late TextEditingController _beforeRepeatController;
+  late TextEditingController _afterRepeatController;
 
   static const List<String> _dateFormats = [
     'MMMM d, yyyy',
@@ -139,8 +139,12 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     _dateIncrementMonths = repeatConfig?.dateIncrementMonths ?? 0;
     _dateIncrementYears = repeatConfig?.dateIncrementYears ?? 0;
     _repeatSeparator = repeatConfig?.separator ?? '\n';
-    _beforeRepeatText = repeatConfig?.beforeRepeatText ?? '';
-    _afterRepeatText = repeatConfig?.afterRepeatText ?? '';
+    _beforeRepeatController = TextEditingController(
+      text: repeatConfig?.beforeRepeatText ?? '',
+    );
+    _afterRepeatController = TextEditingController(
+      text: repeatConfig?.afterRepeatText ?? '',
+    );
 
     // Auto-enable advanced mode if any advanced features are configured
     _isAdvancedMode = _hasAdvancedFeatures();
@@ -153,8 +157,8 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
         _dateOffsetDays != 0 ||
         _dateOffsetMonths != 0 ||
         _dateOffsetYears != 0 ||
-        _beforeRepeatText.isNotEmpty ||
-        _afterRepeatText.isNotEmpty;
+        _beforeRepeatController.text.isNotEmpty ||
+        _afterRepeatController.text.isNotEmpty;
   }
 
   void _resetAdvancedFeatures() {
@@ -165,8 +169,8 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
       _dateIncrementMonths = 0;
       _dateIncrementYears = 0;
       _repeatSeparator = '\n';
-      _beforeRepeatText = '';
-      _afterRepeatText = '';
+      _beforeRepeatController.clear();
+      _afterRepeatController.clear();
       _dateOffsetDays = 0;
       _dateOffsetMonths = 0;
       _dateOffsetYears = 0;
@@ -178,6 +182,8 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     _labelController.dispose();
     _beforeController.dispose();
     _afterController.dispose();
+    _beforeRepeatController.dispose();
+    _afterRepeatController.dispose();
     _beforeFocusNode.dispose();
     _afterFocusNode.dispose();
     super.dispose();
@@ -416,8 +422,8 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     // Build repeat config if repeat count > 1 or wrapper text is set
     RepeatConfig? repeatConfig;
     if (_repeatCount > 1 ||
-        _beforeRepeatText.isNotEmpty ||
-        _afterRepeatText.isNotEmpty) {
+        _beforeRepeatController.text.isNotEmpty ||
+        _afterRepeatController.text.isNotEmpty) {
       repeatConfig = RepeatConfig(
         count: _repeatCount,
         incrementDate: _incrementDateOnRepeat,
@@ -425,8 +431,8 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
         dateIncrementMonths: _dateIncrementMonths,
         dateIncrementYears: _dateIncrementYears,
         separator: _repeatSeparator,
-        beforeRepeatText: _beforeRepeatText,
-        afterRepeatText: _afterRepeatText,
+        beforeRepeatText: _beforeRepeatController.text,
+        afterRepeatText: _afterRepeatController.text,
       );
     }
 
@@ -766,8 +772,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
         const SizedBox(height: 12),
         // Before all repeats - full width, multiline
         TextField(
-          controller: TextEditingController(text: _beforeRepeatText),
-          onChanged: (value) => setState(() => _beforeRepeatText = value),
+          controller: _beforeRepeatController,
           decoration: InputDecoration(
             labelText: AppLocalizations.of(context)!.beforeAllRepeats,
             hintText: AppLocalizations.of(context)!.beforeAllRepeatsHint,
@@ -784,8 +789,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
         const SizedBox(height: 12),
         // After all repeats - full width, multiline
         TextField(
-          controller: TextEditingController(text: _afterRepeatText),
-          onChanged: (value) => setState(() => _afterRepeatText = value),
+          controller: _afterRepeatController,
           decoration: InputDecoration(
             labelText: AppLocalizations.of(context)!.afterAllRepeats,
             hintText: AppLocalizations.of(context)!.afterAllRepeatsHint,
@@ -987,8 +991,10 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     }
 
     // Apply wrapper text around all repeated items
-    if (_beforeRepeatText.isNotEmpty || _afterRepeatText.isNotEmpty) {
-      result = '$_beforeRepeatText$result$_afterRepeatText';
+    if (_beforeRepeatController.text.isNotEmpty ||
+        _afterRepeatController.text.isNotEmpty) {
+      result =
+          '${_beforeRepeatController.text}$result${_afterRepeatController.text}';
     }
 
     return result;
