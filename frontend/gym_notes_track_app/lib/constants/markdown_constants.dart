@@ -31,6 +31,19 @@ class MarkdownConstants {
   static const double h5Scale = 1.0;
   static const double h6Scale = 0.875;
 
+  // Line height scales (for height calculations)
+  /// Scale for normal text lines (baseline)
+  static const double normalLineScale = 1.0;
+
+  /// Scale for empty lines (renders at half height)
+  static const double emptyLineScale = 0.5;
+
+  /// Scale for horizontal rule lines
+  static const double horizontalRuleScale = 0.5;
+
+  /// Scale for code block text (slightly smaller than normal)
+  static const double codeBlockScale = 0.9;
+
   // Checkbox
   /// Multiplier for checkbox icon size relative to font size
   static const double checkboxIconScale = 1.25;

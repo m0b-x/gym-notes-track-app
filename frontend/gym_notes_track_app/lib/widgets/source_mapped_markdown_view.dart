@@ -7,6 +7,7 @@ import '../constants/app_spacing.dart';
 import '../constants/markdown_constants.dart';
 import '../models/dev_options.dart';
 import '../utils/line_based_markdown_builder.dart';
+import 'double_tap_line_detector.dart';
 import 'full_markdown_view.dart';
 
 typedef LinkTapCallback = void Function(String url);
@@ -14,6 +15,7 @@ typedef LinkTapCallback = void Function(String url);
 /// Line-based markdown view for precise scroll positioning.
 /// Lines are grouped into small chunks for better performance
 /// while maintaining accurate search scroll positioning.
+
 class SourceMappedMarkdownView extends StatefulWidget {
   final String data;
   final double fontSize;
@@ -27,6 +29,9 @@ class SourceMappedMarkdownView extends StatefulWidget {
 
   /// Callback to receive scroll progress updates (0.0 to 1.0)
   final ValueChanged<double>? onScrollProgress;
+
+  /// Callback when user double-taps to navigate to source line
+  final DoubleTapLineCallback? onDoubleTapLine;
 
   /// Lines per chunk for preview performance (higher = better performance, lower = more precise scroll)
   final int linesPerChunk;
@@ -42,6 +47,7 @@ class SourceMappedMarkdownView extends StatefulWidget {
     this.currentHighlightIndex,
     this.onTapLink,
     this.onScrollProgress,
+    this.onDoubleTapLine,
     this.linesPerChunk = 10,
   });
 
@@ -504,83 +510,99 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
     final showBorders = devOptions.showBlockBoundaries;
     final debugEnabled = showColors || showBorders;
 
-    return ScrollablePositionedList.builder(
-      itemScrollController: _itemScrollController,
-      itemPositionsListener: _itemPositionsListener,
-      padding: widget.padding ?? const EdgeInsets.all(AppSpacing.lg),
-      itemCount: itemCount,
-      itemBuilder: (context, index) {
-        // Spacer item - fills remaining space to prevent centering
-        if (isShortContent && index == chunkCount) {
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              // Get viewport height and create spacer to fill it
-              final viewportHeight = MediaQuery.of(context).size.height;
-              return SizedBox(height: viewportHeight * 0.7);
-            },
+    // SelectionArea enables text selection across all chunks
+    return SelectionArea(
+      child: ScrollablePositionedList.builder(
+        itemScrollController: _itemScrollController,
+        itemPositionsListener: _itemPositionsListener,
+        padding: widget.padding ?? const EdgeInsets.all(AppSpacing.lg),
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          // Spacer item - fills remaining space to prevent centering
+          if (isShortContent && index == chunkCount) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                // Get viewport height and create spacer to fill it
+                final viewportHeight = MediaQuery.of(context).size.height;
+                return SizedBox(height: viewportHeight * 0.7);
+              },
+            );
+          }
+
+          if (_builder == null || index >= chunkCount) {
+            return const SizedBox.shrink();
+          }
+
+          // Build chunk spans (cached internally)
+          final chunkSpans = _builder!.buildChunk(index);
+
+          // Build the text widget
+          Widget chunkWidget = Text.rich(
+            TextSpan(style: baseStyle, children: chunkSpans),
           );
-        }
 
-        if (_builder == null || index >= chunkCount) {
-          return const SizedBox.shrink();
-        }
+          // Wrap with double-tap detector if callback is provided
+          if (widget.onDoubleTapLine != null) {
+            chunkWidget = DoubleTapLineDetector(
+              chunkIndex: index,
+              linesPerChunk: _builder!.linesPerChunk,
+              totalLines: _builder!.lineCount,
+              fontSize: widget.fontSize,
+              onDoubleTapLine: widget.onDoubleTapLine!,
+              lineHeightScales: _builder!.getLineHeightScales(index),
+              child: chunkWidget,
+            );
+          }
 
-        // Build chunk spans (cached internally)
-        final chunkSpans = _builder!.buildChunk(index);
+          // Early exit if debug disabled - no extra work
+          if (!debugEnabled) {
+            return RepaintBoundary(child: chunkWidget);
+          }
 
-        // Build the text widget
-        Widget chunkWidget = Text.rich(
-          TextSpan(style: baseStyle, children: chunkSpans),
-        );
+          // Debug mode: wrap in colored/bordered container
+          final colorIndex = index % _debugColors.length;
 
-        // Early exit if debug disabled - no extra work
-        if (!debugEnabled) {
-          return RepaintBoundary(child: chunkWidget);
-        }
-
-        // Debug mode: wrap in colored/bordered container
-        final colorIndex = index % _debugColors.length;
-
-        if (showBorders) {
-          // Full debug with borders and label
-          chunkWidget = Container(
-            decoration: BoxDecoration(
-              color: showColors ? _debugColors[colorIndex] : null,
-              border: Border.all(
-                color: _debugBorderColors[colorIndex],
-                width: 2,
-              ),
-              borderRadius: _debugBorderRadius,
-            ),
-            padding: _debugPadding,
-            margin: _debugMargin,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: _debugLabelPadding,
-                  margin: _debugLabelMargin,
-                  decoration: BoxDecoration(
-                    color: _debugBorderColors[colorIndex],
-                    borderRadius: _debugLabelBorderRadius,
-                  ),
-                  child: Text('Chunk $index', style: _debugLabelStyle),
+          if (showBorders) {
+            // Full debug with borders and label
+            chunkWidget = Container(
+              decoration: BoxDecoration(
+                color: showColors ? _debugColors[colorIndex] : null,
+                border: Border.all(
+                  color: _debugBorderColors[colorIndex],
+                  width: 2,
                 ),
-                chunkWidget,
-              ],
-            ),
-          );
-        } else if (showColors) {
-          // Just background color, minimal overhead
-          chunkWidget = Container(
-            color: _debugColors[colorIndex],
-            child: chunkWidget,
-          );
-        }
+                borderRadius: _debugBorderRadius,
+              ),
+              padding: _debugPadding,
+              margin: _debugMargin,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: _debugLabelPadding,
+                    margin: _debugLabelMargin,
+                    decoration: BoxDecoration(
+                      color: _debugBorderColors[colorIndex],
+                      borderRadius: _debugLabelBorderRadius,
+                    ),
+                    child: Text('Chunk $index', style: _debugLabelStyle),
+                  ),
+                  chunkWidget,
+                ],
+              ),
+            );
+          } else if (showColors) {
+            // Just background color, minimal overhead
+            chunkWidget = Container(
+              color: _debugColors[colorIndex],
+              child: chunkWidget,
+            );
+          }
 
-        // RepaintBoundary isolates repaints to this chunk only
-        return RepaintBoundary(child: chunkWidget);
-      },
+          // RepaintBoundary isolates repaints to this chunk only
+          return RepaintBoundary(child: chunkWidget);
+        },
+      ),
     );
   }
 

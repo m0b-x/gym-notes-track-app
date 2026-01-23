@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../constants/markdown_constants.dart';
+import 'markdown_line_height_calculator.dart';
 
 typedef LinkTapCallback = void Function(String url);
 typedef CheckboxTapCallback = void Function(int start, int end, bool isChecked);
@@ -384,6 +385,31 @@ class LineBasedMarkdownBuilder {
     clearCache();
   }
 
+  /// Get the relative height scale for each line in a chunk.
+  /// Returns a list of scales representing actual rendered height ratios.
+  /// Normal text = 1.0, H1 = 2.0, empty lines = 0.5, etc.
+  /// These are actual height ratios, not font size multipliers.
+  /// Used for accurate double-tap line detection.
+  List<double> getLineHeightScales(int chunkIndex) {
+    final startLine = chunkIndex * linesPerChunk;
+    final endLine = ((chunkIndex + 1) * linesPerChunk).clamp(0, _lineCount);
+    final scales = <double>[];
+
+    for (int i = startLine; i < endLine; i++) {
+      if (i >= _lineCount) break;
+      final line = _getLine(i);
+      final isInCodeBlock = _isLineInCodeBlock(i, chunkIndex);
+      scales.add(
+        MarkdownLineHeightCalculator.getLineHeightScale(
+          line,
+          isInsideCodeBlock: isInCodeBlock,
+        ),
+      );
+    }
+
+    return scales;
+  }
+
   /// Build a TextSpan for a single line with inline markdown formatting.
   TextSpan buildLine(String line, int lineIndex, [int? chunkIndex]) {
     final lineStart = lineIndex < _lineOffsets.length - 1
@@ -415,7 +441,9 @@ class LineBasedMarkdownBuilder {
       // Empty line - render as minimal height spacer
       return TextSpan(
         text: ' ',
-        style: baseStyle.copyWith(fontSize: style.baseFontSize * 0.5),
+        style: baseStyle.copyWith(
+          fontSize: style.baseFontSize * MarkdownConstants.emptyLineScale,
+        ),
       );
     }
 
@@ -822,7 +850,7 @@ class LineBasedMarkdownBuilder {
     return TextSpan(
       text: '─' * 40,
       style: TextStyle(
-        fontSize: style.baseFontSize * 0.5,
+        fontSize: style.baseFontSize * MarkdownConstants.horizontalRuleScale,
         color: style.textColor.withValues(alpha: 0.3),
         letterSpacing: 2,
       ),
@@ -837,7 +865,7 @@ class LineBasedMarkdownBuilder {
     int lineEnd,
   ) {
     final codeStyle = TextStyle(
-      fontSize: style.baseFontSize * 0.9,
+      fontSize: style.baseFontSize * MarkdownConstants.codeBlockScale,
       height: MarkdownConstants.lineHeight,
       fontFamily: 'monospace',
       color: style.textColor,
@@ -850,7 +878,9 @@ class LineBasedMarkdownBuilder {
       return TextSpan(
         text: language.isNotEmpty ? '// $language' : '',
         style: codeStyle.copyWith(
-          color: style.textColor.withValues(alpha: 0.5),
+          color: style.textColor.withValues(
+            alpha: MarkdownConstants.checkedTextOpacity,
+          ),
           fontStyle: FontStyle.italic,
         ),
       );

@@ -22,10 +22,11 @@ import '../services/dev_options_service.dart';
 import '../services/note_position_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/debug_overlays.dart';
+import '../widgets/interactive_preview_scrollbar.dart';
 import '../widgets/markdown_toolbar.dart';
+import '../widgets/modern_editor_wrapper.dart';
 import '../widgets/full_markdown_view.dart';
 import '../widgets/source_mapped_markdown_view.dart';
-import '../widgets/scroll_progress_indicator.dart';
 import '../widgets/note_search_bar.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/unified_app_bars.dart';
@@ -588,6 +589,49 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _markdownViewKey.currentState?.scrollToSourceOffset(charOffset);
   }
 
+  /// Handle double-tap on preview to navigate to source line in editor
+  void _handleDoubleTapLine(int lineIndex, int columnOffset) {
+    if (!_isPreviewMode) return;
+
+    final lineCount = _contentController.lineCount;
+    if (lineCount == 0) return;
+
+    // Clamp line index to valid range
+    final clampedLineIndex = lineIndex.clamp(0, lineCount - 1);
+
+    // Get the line text and set cursor at the end of the line
+    final lineText = clampedLineIndex < _contentController.codeLines.length
+        ? _contentController.codeLines[clampedLineIndex].text
+        : '';
+    final endOfLineOffset = lineText.length;
+
+    // Switch to editor mode
+    setState(() {
+      _isPreviewMode = false;
+    });
+
+    // Navigate to the line after mode switch completes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      // Set cursor position at end of line
+      _contentController.selection = CodeLineSelection.collapsed(
+        index: clampedLineIndex,
+        offset: endOfLineOffset,
+      );
+
+      // Scroll to make the line visible (centered if possible)
+      _editorScrollController.makeCenterIfInvisible(
+        CodeLinePosition(index: clampedLineIndex, offset: endOfLineOffset),
+      );
+
+      // Focus the editor
+      _contentFocusNode.requestFocus();
+    });
+
+    _saveCurrentPosition();
+  }
+
   void _handleSearchReplace(String _, String newContent) {
     // Note: Replace is handled by CodeFindController internally
     // The newContent parameter is kept for API compatibility
@@ -1092,6 +1136,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         onScrollProgress: (progress) {
           _previewScrollProgress.value = progress;
         },
+        onDoubleTapLine: _handleDoubleTapLine,
         searchHighlights: _isPreviewMode && _searchController.isSearching
             ? _searchController.matches
                   .map((m) => TextRange(start: m.start, end: m.end))
@@ -1117,7 +1162,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
           top: 8,
           bottom: 8,
           right: 0,
-          child: _InteractivePreviewScrollbar(
+          child: InteractivePreviewScrollbar(
             progressNotifier: _previewScrollProgress,
             markdownViewKey: _markdownViewKey,
           ),
@@ -1129,7 +1174,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   Widget _buildEditor() {
     return KeyedSubtree(
       key: _editorWrapperKey,
-      child: _ModernEditorWrapper(
+      child: ModernEditorWrapper(
         key: const ValueKey('editor'),
         controller: _contentController,
         focusNode: _contentFocusNode,
@@ -1511,397 +1556,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final shortcuts = await MarkdownSettingsUtils.loadShortcuts();
     if (mounted) {
       setState(() => _allShortcuts = shortcuts);
-    }
-  }
-}
-
-class _ModernEditorWrapper extends StatefulWidget {
-  final CodeLineEditingController controller;
-  final FocusNode focusNode;
-  final CodeScrollController scrollController;
-  final ReEditorSearchController searchController;
-  final double editorFontSize;
-  final VoidCallback onTextChanged;
-  final bool showLineNumbers;
-  final bool wordWrap;
-  final bool showCursorLine;
-  final GlobalKey? lineNumbersKey;
-  final GlobalKey? scrollIndicatorKey;
-
-  const _ModernEditorWrapper({
-    super.key,
-    required this.controller,
-    required this.focusNode,
-    required this.scrollController,
-    required this.searchController,
-    required this.editorFontSize,
-    required this.onTextChanged,
-    this.showLineNumbers = false,
-    this.wordWrap = true,
-    this.showCursorLine = false,
-    this.lineNumbersKey,
-    this.scrollIndicatorKey,
-  });
-
-  @override
-  State<_ModernEditorWrapper> createState() => _ModernEditorWrapperState();
-}
-
-class _ModernEditorWrapperState extends State<_ModernEditorWrapper> {
-  late final SelectionToolbarController _toolbarController;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.controller.addListener(_onControllerChanged);
-    _toolbarController = MobileSelectionToolbarController(
-      builder: _buildSelectionToolbar,
-    );
-  }
-
-  @override
-  void dispose() {
-    widget.searchController.clearFindController();
-    widget.controller.removeListener(_onControllerChanged);
-    super.dispose();
-  }
-
-  Widget _buildSelectionToolbar({
-    required BuildContext context,
-    required TextSelectionToolbarAnchors anchors,
-    required CodeLineEditingController controller,
-    required VoidCallback onDismiss,
-    required VoidCallback onRefresh,
-  }) {
-    final isCollapsed = controller.selection.isCollapsed;
-
-    // Build button items based on selection state
-    final buttonItems = <ContextMenuButtonItem>[
-      // Cut and Copy only when text is selected
-      if (!isCollapsed) ...[
-        ContextMenuButtonItem(
-          label: MaterialLocalizations.of(context).cutButtonLabel,
-          onPressed: () {
-            controller.cut();
-            onDismiss();
-          },
-        ),
-        ContextMenuButtonItem(
-          label: MaterialLocalizations.of(context).copyButtonLabel,
-          onPressed: () {
-            controller.copy();
-            onDismiss();
-          },
-        ),
-      ],
-      // Paste is always available
-      ContextMenuButtonItem(
-        label: MaterialLocalizations.of(context).pasteButtonLabel,
-        onPressed: () {
-          controller.paste();
-          onDismiss();
-        },
-      ),
-      // Select All is always available
-      ContextMenuButtonItem(
-        label: MaterialLocalizations.of(context).selectAllButtonLabel,
-        onPressed: () {
-          controller.selectAll();
-          onRefresh();
-        },
-      ),
-    ];
-
-    return AdaptiveTextSelectionToolbar.buttonItems(
-      anchors: anchors,
-      buttonItems: buttonItems,
-    );
-  }
-
-  void _onControllerChanged() {
-    widget.onTextChanged();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Stack(
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: _buildCodeEditor(context),
-        ),
-        // Scrollbar positioned on the right - uses IgnorePointer except for the thumb area
-        Positioned(
-          top: 8,
-          bottom: 8,
-          right: 0,
-          child: KeyedSubtree(
-            key: widget.scrollIndicatorKey,
-            child: ScrollProgressIndicator(
-              scrollController: widget.scrollController.verticalScroller,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCodeEditor(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-      child: CodeEditor(
-        controller: widget.controller,
-        focusNode: widget.focusNode,
-        scrollController: widget.scrollController,
-        // Enable mobile selection toolbar (copy/paste/cut/select all)
-        toolbarController: _toolbarController,
-        style: CodeEditorStyle(
-          fontSize: widget.editorFontSize,
-          fontHeight: MarkdownConstants.lineHeight,
-          textColor: theme.textTheme.bodyLarge?.color,
-          backgroundColor: Colors.transparent,
-          cursorColor: theme.colorScheme.primary,
-          cursorWidth: 2.5,
-          cursorLineColor: widget.showCursorLine
-              ? theme.colorScheme.primary.withValues(alpha: 0.1)
-              : null,
-          selectionColor: theme.colorScheme.primary.withValues(alpha: 0.3),
-        ),
-        wordWrap: widget.wordWrap,
-        readOnly: false,
-        autofocus: false,
-        chunkAnalyzer: const NonCodeChunkAnalyzer(),
-        // Add small right padding for visible scrollbar (6-12px width)
-        padding: const EdgeInsets.only(
-          left: AppSpacing.lg,
-          top: AppSpacing.lg,
-          right: AppSpacing.lg + 16,
-          bottom: AppSpacing.lg,
-        ),
-        indicatorBuilder: widget.showLineNumbers
-            ? (context, editingController, chunkController, notifier) {
-                return KeyedSubtree(
-                  key: widget.lineNumbersKey,
-                  child: DefaultCodeLineNumber(
-                    controller: editingController,
-                    notifier: notifier,
-                  ),
-                );
-              }
-            : null,
-        scrollbarBuilder: (context, child, details) => child,
-        findBuilder: (context, controller, readOnly) {
-          widget.searchController.setFindController(controller);
-          return _HiddenFindPanel(controller: controller);
-        },
-      ),
-    );
-  }
-}
-
-/// A hidden find panel widget that implements PreferredSizeWidget.
-/// This allows us to use re_editor's native search highlighting
-/// while using our own NoteSearchBar UI for the search interface.
-class _HiddenFindPanel extends StatelessWidget implements PreferredSizeWidget {
-  final CodeFindController? controller;
-
-  const _HiddenFindPanel({required this.controller});
-
-  @override
-  Size get preferredSize => Size.zero;
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox.shrink();
-  }
-}
-
-/// Interactive scrollbar for preview mode that works with ScrollablePositionedList.
-/// Supports both display of current position AND dragging to scroll.
-class _InteractivePreviewScrollbar extends StatefulWidget {
-  final ValueNotifier<double> progressNotifier;
-  final GlobalKey<SourceMappedMarkdownViewState> markdownViewKey;
-
-  const _InteractivePreviewScrollbar({
-    required this.progressNotifier,
-    required this.markdownViewKey,
-  });
-
-  @override
-  State<_InteractivePreviewScrollbar> createState() =>
-      _InteractivePreviewScrollbarState();
-}
-
-class _InteractivePreviewScrollbarState
-    extends State<_InteractivePreviewScrollbar> {
-  static const double _barWidth = 6.0;
-  static const double _expandedWidth = 12.0;
-  static const double _touchAreaWidth = 44.0;
-  static const double _thumbMinHeight = 20.0;
-  static const double _thumbMaxHeight = 50.0;
-  static const double _thumbHeightPercent = 0.10;
-  static const double _rightMargin = 2.0;
-
-  bool _isDragging = false;
-  bool _isHovering = false;
-  double _smoothedProgress = 0.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _smoothedProgress = widget.progressNotifier.value;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final baseColor = colorScheme.primary;
-
-    return ValueListenableBuilder<double>(
-      valueListenable: widget.progressNotifier,
-      builder: (context, progress, _) {
-        // When dragging, use the smooth progress we control
-        // When not dragging, use the notifier's progress
-        final targetProgress = _isDragging ? _smoothedProgress : progress;
-
-        final isActive = _isDragging || _isHovering;
-        final barWidth = isActive ? _expandedWidth : _barWidth;
-        final thumbColor = isActive
-            ? baseColor.withValues(alpha: 0.8)
-            : baseColor.withValues(alpha: 0.5);
-        final trackColor = isActive
-            ? colorScheme.onSurface.withValues(alpha: 0.15)
-            : colorScheme.onSurface.withValues(alpha: 0.08);
-
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onVerticalDragStart: _onDragStart,
-          onVerticalDragUpdate: _onDragUpdate,
-          onVerticalDragEnd: _onDragEnd,
-          onTapDown: _onTapDown,
-          child: MouseRegion(
-            onEnter: (_) => setState(() => _isHovering = true),
-            onExit: (_) => setState(() => _isHovering = false),
-            child: Container(
-              width: _touchAreaWidth,
-              alignment: Alignment.centerRight,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final trackHeight = constraints.maxHeight;
-
-                  // Dynamic thumb height based on track
-                  final thumbHeight = (trackHeight * _thumbHeightPercent).clamp(
-                    _thumbMinHeight,
-                    _thumbMaxHeight,
-                  );
-
-                  final maxOffset = trackHeight - thumbHeight;
-
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    width: barWidth,
-                    margin: const EdgeInsets.only(right: _rightMargin),
-                    decoration: BoxDecoration(
-                      color: trackColor,
-                      borderRadius: BorderRadius.circular(barWidth),
-                    ),
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: targetProgress, end: targetProgress),
-                      duration: _isDragging
-                          ? Duration.zero
-                          : const Duration(milliseconds: 200),
-                      curve: Curves.easeOutCubic,
-                      builder: (context, animatedProgress, child) {
-                        final thumbTop = (animatedProgress * maxOffset).clamp(
-                          0.0,
-                          maxOffset,
-                        );
-                        return Stack(
-                          children: [
-                            Positioned(
-                              top: thumbTop,
-                              left: 0,
-                              right: 0,
-                              height: thumbHeight,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 150),
-                                decoration: BoxDecoration(
-                                  color: thumbColor,
-                                  borderRadius: BorderRadius.circular(barWidth),
-                                  boxShadow: _isDragging
-                                      ? [
-                                          BoxShadow(
-                                            color: baseColor.withValues(
-                                              alpha: 0.3,
-                                            ),
-                                            blurRadius: 4,
-                                            spreadRadius: 1,
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _onDragStart(DragStartDetails details) {
-    _smoothedProgress = widget.progressNotifier.value;
-    setState(() => _isDragging = true);
-  }
-
-  void _onDragUpdate(DragUpdateDetails details) {
-    _scrollToPosition(details.localPosition.dy);
-  }
-
-  void _onDragEnd(DragEndDetails details) {
-    setState(() => _isDragging = false);
-  }
-
-  void _onTapDown(TapDownDetails details) {
-    _scrollToPosition(details.localPosition.dy);
-  }
-
-  void _scrollToPosition(double localY) {
-    final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-
-    final trackHeight = renderBox.size.height;
-    final thumbHeight = (trackHeight * _thumbHeightPercent).clamp(
-      _thumbMinHeight,
-      _thumbMaxHeight,
-    );
-
-    // Calculate progress, accounting for thumb size
-    final maxOffset = trackHeight - thumbHeight;
-    final adjustedY = localY - (thumbHeight / 2);
-    final progress = (adjustedY / maxOffset).clamp(0.0, 1.0);
-
-    // Update smoothed progress for drag feedback
-    setState(() => _smoothedProgress = progress);
-
-    // Scroll the markdown view
-    final markdownState = widget.markdownViewKey.currentState;
-    if (markdownState != null) {
-      markdownState.scrollToProgress(progress);
     }
   }
 }
