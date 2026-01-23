@@ -67,8 +67,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   late CodeLineEditingController _contentController;
   late FocusNode _contentFocusNode;
   late CodeScrollController _editorScrollController;
-  ScrollController _previewScrollController = ScrollController();
-  double _pendingPreviewScrollOffset = 0.0;
+  final ScrollController _previewScrollController = ScrollController();
   late ReEditorSearchController _searchController;
   late ScrollPositionSync _scrollPositionSync;
   final GlobalKey<SourceMappedMarkdownViewState> _markdownViewKey = GlobalKey();
@@ -180,7 +179,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         setState(() {
           _pendingPosition = position;
           _isPreviewMode = position.isPreviewMode;
-          _pendingPreviewScrollOffset = position.previewScrollOffset;
         });
       }
     }
@@ -358,13 +356,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final switchingToPreview = !_isPreviewMode;
     final totalLines = _contentController.lineCount;
     final isLargeNote = totalLines > AppConstants.previewPreloadLineThreshold;
-
-    // Save the scroll offset before switching
-    if (!switchingToPreview) {
-      if (_previewScrollController.hasClients) {
-        _pendingPreviewScrollOffset = _previewScrollController.offset;
-      }
-    }
 
     // Update cached preview content BEFORE switching
     if (switchingToPreview) {
