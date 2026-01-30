@@ -1172,6 +1172,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   Widget _buildEditor() {
+    final devOptions = DevOptions.instance;
+    final showChunkDebug = devOptions.showChunkIndicators;
+
     return KeyedSubtree(
       key: _editorWrapperKey,
       child: ModernEditorWrapper(
@@ -1187,6 +1190,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         showCursorLine: _showCursorLine,
         lineNumbersKey: _lineNumbersKey,
         scrollIndicatorKey: _scrollIndicatorKey,
+        // Chunk debug visualization (matches preview mode)
+        linesPerChunk: _previewLinesPerChunk,
+        showChunkColors: showChunkDebug && devOptions.colorMarkdownBlocks,
+        showChunkBorders: showChunkDebug && devOptions.showBlockBoundaries,
       ),
     );
   }

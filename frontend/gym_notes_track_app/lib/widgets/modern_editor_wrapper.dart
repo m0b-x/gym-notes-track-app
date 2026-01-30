@@ -4,6 +4,7 @@ import 'package:re_editor/re_editor.dart';
 import '../constants/app_spacing.dart';
 import '../constants/markdown_constants.dart';
 import '../utils/re_editor_search_controller.dart';
+import 'editor_chunk_overlay.dart';
 import 'scroll_progress_indicator.dart';
 
 /// Wraps the CodeEditor with custom toolbar and scroll indicator.
@@ -20,6 +21,15 @@ class ModernEditorWrapper extends StatefulWidget {
   final GlobalKey? lineNumbersKey;
   final GlobalKey? scrollIndicatorKey;
 
+  /// Number of lines per chunk for debug visualization (matches preview mode)
+  final int linesPerChunk;
+
+  /// Whether to show colored backgrounds for chunks (debug mode)
+  final bool showChunkColors;
+
+  /// Whether to show borders around chunks (debug mode)
+  final bool showChunkBorders;
+
   const ModernEditorWrapper({
     super.key,
     required this.controller,
@@ -33,6 +43,9 @@ class ModernEditorWrapper extends StatefulWidget {
     this.showCursorLine = false,
     this.lineNumbersKey,
     this.scrollIndicatorKey,
+    this.linesPerChunk = 10,
+    this.showChunkColors = false,
+    this.showChunkBorders = false,
   });
 
   @override
@@ -117,6 +130,9 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final showDebugOverlay = widget.showChunkColors || widget.showChunkBorders;
+    // Account for bottom system navigation bar (gesture bar on phones)
+    final bottomSafeArea = MediaQuery.of(context).viewPadding.bottom;
 
     return Stack(
       children: [
@@ -127,6 +143,27 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
           ),
           child: _buildCodeEditor(context),
         ),
+        // Chunk debug overlay - positioned behind scrollbar but above editor
+        if (showDebugOverlay)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: EditorChunkOverlay(
+                scrollController: widget.scrollController,
+                editingController: widget.controller,
+                linesPerChunk: widget.linesPerChunk,
+                fontSize: widget.editorFontSize,
+                lineHeight: MarkdownConstants.lineHeight,
+                showColors: widget.showChunkColors,
+                showBorders: widget.showChunkBorders,
+                editorPadding: EdgeInsets.only(
+                  left: AppSpacing.lg,
+                  top: AppSpacing.lg,
+                  right: AppSpacing.lg + 16,
+                  bottom: AppSpacing.lg + bottomSafeArea,
+                ),
+              ),
+            ),
+          ),
         // Scrollbar positioned on the right - uses IgnorePointer except for the thumb area
         Positioned(
           top: 8,
@@ -145,6 +182,8 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
 
   Widget _buildCodeEditor(BuildContext context) {
     final theme = Theme.of(context);
+    // Account for bottom system navigation bar (gesture bar on phones)
+    final bottomSafeArea = MediaQuery.of(context).viewPadding.bottom;
 
     return ScrollConfiguration(
       behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
@@ -171,11 +210,12 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
         autofocus: false,
         chunkAnalyzer: const NonCodeChunkAnalyzer(),
         // Add small right padding for visible scrollbar (6-12px width)
-        padding: const EdgeInsets.only(
+        // Add bottom safe area to account for phone navigation bar
+        padding: EdgeInsets.only(
           left: AppSpacing.lg,
           top: AppSpacing.lg,
           right: AppSpacing.lg + 16,
-          bottom: AppSpacing.lg,
+          bottom: AppSpacing.lg + bottomSafeArea,
         ),
         indicatorBuilder: widget.showLineNumbers
             ? (context, editingController, chunkController, notifier) {
