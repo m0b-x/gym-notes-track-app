@@ -65,14 +65,122 @@ class ContentChunkDao extends DatabaseAccessor<AppDatabase>
     required String noteId,
     required String content,
   }) async {
-    // Hard delete old chunks when replacing content (not sync-relevant)
-    await hardDeleteChunksForNote(noteId);
+    // Split new content into raw (unprocessed) slices.
+    final rawSlices = _splitRaw(content);
+    final newCount = rawSlices.length;
 
-    final newChunks = _splitIntoChunks(noteId, content);
+    // Fetch existing chunks ordered by chunkIndex.
+    final existing = await getChunksForNote(noteId);
 
-    await batch((batch) {
-      batch.insertAll(contentChunks, newChunks);
+    // Fast path: nothing changed in chunk count, check content equality.
+    // Build a map of old chunks by index for O(1) lookup.
+    final oldByIndex = <int, ContentChunk>{};
+    for (final chunk in existing) {
+      oldByIndex[chunk.chunkIndex] = chunk;
+    }
+
+    // Collect DB operations.
+    final toInsert = <ContentChunksCompanion>[];
+    final toUpdate = <ContentChunksCompanion>[];
+    final toDeleteIds = <String>[];
+
+    for (int i = 0; i < newCount; i++) {
+      final rawContent = rawSlices[i];
+      final old = oldByIndex[i];
+
+      if (old != null) {
+        // Compare raw content against what's stored.
+        // For uncompressed chunks the stored content IS the raw text.
+        // For compressed chunks we must decompress to compare.
+        final oldRaw = old.isCompressed
+            ? CompressionUtils.decompressFromBase64(old.content)
+            : old.content;
+
+        if (oldRaw == rawContent) {
+          continue; // Chunk unchanged — skip.
+        }
+
+        // Chunk changed — process and update.
+        final shouldCompress = rawContent.length > compressionThreshold;
+        final processedContent = shouldCompress
+            ? CompressionUtils.compressToBase64(rawContent)
+            : rawContent;
+        final hlc = db.generateHlc();
+
+        toUpdate.add(ContentChunksCompanion(
+          id: Value(old.id),
+          noteId: Value(old.noteId),
+          chunkIndex: Value(old.chunkIndex),
+          content: Value(processedContent),
+          isCompressed: Value(shouldCompress),
+          hlcTimestamp: Value(hlc),
+          deviceId: Value(db.deviceId),
+          version: const Value(1),
+          isDeleted: const Value(false),
+        ));
+      } else {
+        // New chunk at this index — insert.
+        final shouldCompress = rawContent.length > compressionThreshold;
+        final processedContent = shouldCompress
+            ? CompressionUtils.compressToBase64(rawContent)
+            : rawContent;
+        final hlc = db.generateHlc();
+
+        toInsert.add(ContentChunksCompanion(
+          id: Value('${noteId}_chunk_$i'),
+          noteId: Value(noteId),
+          chunkIndex: Value(i),
+          content: Value(processedContent),
+          isCompressed: Value(shouldCompress),
+          hlcTimestamp: Value(hlc),
+          deviceId: Value(db.deviceId),
+          version: const Value(1),
+          isDeleted: const Value(false),
+        ));
+      }
+    }
+
+    // Chunks beyond the new count need to be removed.
+    for (final old in existing) {
+      if (old.chunkIndex >= newCount) {
+        toDeleteIds.add(old.id);
+      }
+    }
+
+    // Nothing changed at all — skip the DB round-trip entirely.
+    if (toInsert.isEmpty && toUpdate.isEmpty && toDeleteIds.isEmpty) {
+      return;
+    }
+
+    // Apply all changes in a single batch for atomicity and speed.
+    await batch((b) {
+      if (toInsert.isNotEmpty) {
+        b.insertAll(contentChunks, toInsert);
+      }
+
+      for (final companion in toUpdate) {
+        b.replace(contentChunks, companion);
+      }
+
+      for (final id in toDeleteIds) {
+        b.deleteWhere(contentChunks, (c) => c.id.equals(id));
+      }
     });
+  }
+
+  /// Splits [content] into raw string slices of [defaultChunkSize] characters.
+  /// No compression or processing — just the plain text for each chunk position.
+  List<String> _splitRaw(String content) {
+    if (content.isEmpty) return const [];
+
+    final slices = <String>[];
+    int position = 0;
+    while (position < content.length) {
+      final end = (position + defaultChunkSize).clamp(0, content.length);
+      slices.add(content.substring(position, end));
+      position = end;
+    }
+    return slices;
   }
 
   /// Soft delete chunks for CRDT sync (marks as deleted but preserves for sync)
@@ -95,46 +203,6 @@ class ContentChunkDao extends DatabaseAccessor<AppDatabase>
   @Deprecated('Use softDeleteChunksForNote or hardDeleteChunksForNote instead')
   Future<void> deleteChunksForNote(String noteId) async {
     await hardDeleteChunksForNote(noteId);
-  }
-
-  List<ContentChunksCompanion> _splitIntoChunks(String noteId, String content) {
-    final chunks = <ContentChunksCompanion>[];
-
-    if (content.isEmpty) return chunks;
-
-    int index = 0;
-    int position = 0;
-
-    while (position < content.length) {
-      final end = (position + defaultChunkSize).clamp(0, content.length);
-      final chunkContent = content.substring(position, end);
-
-      final shouldCompress = chunkContent.length > compressionThreshold;
-      final processedContent = shouldCompress
-          ? CompressionUtils.compressToBase64(chunkContent)
-          : chunkContent;
-
-      final hlc = db.generateHlc();
-
-      chunks.add(
-        ContentChunksCompanion(
-          id: Value('${noteId}_chunk_$index'),
-          noteId: Value(noteId),
-          chunkIndex: Value(index),
-          content: Value(processedContent),
-          isCompressed: Value(shouldCompress),
-          hlcTimestamp: Value(hlc),
-          deviceId: Value(db.deviceId),
-          version: const Value(1),
-          isDeleted: const Value(false),
-        ),
-      );
-
-      position = end;
-      index++;
-    }
-
-    return chunks;
   }
 
   Future<List<ContentChunk>> getChunksSince(String hlcTimestamp) {
