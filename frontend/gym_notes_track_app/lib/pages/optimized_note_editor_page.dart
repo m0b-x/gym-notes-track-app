@@ -180,14 +180,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   /// auto-save service; for brand-new notes that haven't been persisted
   /// yet we trigger an early create.
   void _saveOnLifecycleEvent() {
-    final title = _titleController.text.trim();
-    final content = _contentController.text.trim();
-    if (title.isEmpty && content.isEmpty) return;
-
     final noteId = _effectiveNoteId;
     if (noteId != null) {
-      // Existing (or already-created) note – force save
-      _autoSaveService?.forceSave(noteId, title, content);
+      // Existing (or already-created) note – force save via provider
+      _autoSaveService?.forceSave(noteId, title: _titleController.text);
     } else {
       // Brand-new note never saved – create it now
       _createNewNoteEarly();
@@ -333,6 +329,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         _effectiveNoteId!,
         _titleController.text,
         _contentController.text,
+        contentProvider: () => _contentController.text,
       );
     }
   }
@@ -358,12 +355,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _autoSaveService?.resetRetries();
 
     if (_effectiveNoteId != null) {
-      // Compute text once — auto-save stores and diffs it.
-      final contentText = _contentController.text;
+      // Notify auto-save — content is read lazily from the provider
+      // only when a save actually fires, avoiding a full .text copy here.
       _autoSaveService?.onContentChanged(
         _effectiveNoteId!,
         _titleController.text,
-        contentText,
       );
     } else {
       // New note: create early once there's meaningful content
@@ -441,8 +437,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     if (switchingToPreview && _effectiveNoteId != null) {
       _autoSaveService?.forceSave(
         _effectiveNoteId!,
-        _titleController.text,
-        currentText!,
+        title: _titleController.text,
+        content: currentText!,
       );
     }
 
@@ -901,7 +897,16 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   Widget build(BuildContext context) {
     return BlocListener<OptimizedNoteBloc, OptimizedNoteState>(
       listener: (context, state) {
-        if (state is OptimizedNoteContentLoaded) {
+        if (state is OptimizedNoteCreated) {
+          _effectiveNoteId = state.metadata.id;
+          _isCreatingNewNote = false;
+          _autoSaveService?.startTracking(
+            state.metadata.id,
+            _titleController.text,
+            _contentController.text,
+            contentProvider: () => _contentController.text,
+          );
+        } else if (state is OptimizedNoteContentLoaded) {
           final content = state.note.content ?? '';
           setState(() {
             _contentController.text = content;
@@ -1332,25 +1337,16 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
     await _saveCurrentPosition();
 
-    final title = _titleController.text.trim();
-    final content = _contentController.text.trim();
-
-    if (title.isEmpty && content.isEmpty) {
-      return;
-    }
-
-    if (_effectiveNoteId == null) {
-      // Note was never persisted – create it now
-      if (!mounted) return;
-      context.read<OptimizedNoteBloc>().add(
-        CreateOptimizedNote(
-          folderId: widget.folderId,
-          title: title,
-          content: content,
-        ),
+    if (_effectiveNoteId != null) {
+      await _autoSaveService?.forceSave(
+        _effectiveNoteId!,
+        title: _titleController.text,
       );
-    } else {
-      await _autoSaveService?.forceSave(_effectiveNoteId!, title, content);
+    } else if (!_isCreatingNewNote) {
+      final title = _titleController.text.trim();
+      final content = _contentController.text.trim();
+      if (title.isEmpty && content.isEmpty) return;
+      _createNewNoteEarly();
     }
   }
 

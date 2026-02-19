@@ -180,6 +180,7 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
 
       await _searchService.updateIndex(metadata.id, event.title, event.content);
 
+      emit(OptimizedNoteCreated(metadata: metadata));
       add(RefreshNotes(folderId: event.folderId));
     } catch (e, stackTrace) {
       _logError('Failed to create note', e, stackTrace);

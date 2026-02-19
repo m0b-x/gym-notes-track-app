@@ -1,175 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import '../utils/isolate_worker.dart';
 
-// ---------------------------------------------------------------------------
-// Save status
-// ---------------------------------------------------------------------------
-
-/// Represents the current save state of a note.
-enum SaveStatus {
-  /// All changes are persisted – nothing to save.
-  saved,
-
-  /// The user has made edits that have not been persisted yet.
-  unsaved,
-
-  /// A save operation is in progress right now.
-  saving,
-
-  /// The last save attempt failed. A retry is scheduled.
-  error,
-}
-
-// ---------------------------------------------------------------------------
-// Diff helpers (unchanged)
-// ---------------------------------------------------------------------------
-
-class DiffResult {
-  final bool hasChanges;
-  final List<DiffChange> changes;
-  final int originalLength;
-  final int modifiedLength;
-
-  const DiffResult({
-    required this.hasChanges,
-    this.changes = const [],
-    this.originalLength = 0,
-    this.modifiedLength = 0,
-  });
-
-  int get changeCount => changes.length;
-
-  double get changeRatio {
-    if (originalLength == 0 && modifiedLength == 0) return 0.0;
-    final total = originalLength + modifiedLength;
-    return changes.length / (total / 2);
-  }
-}
-
-class DiffChange {
-  final DiffChangeType type;
-  final int line;
-  final String content;
-  final String? originalContent;
-
-  const DiffChange({
-    required this.type,
-    required this.line,
-    required this.content,
-    this.originalContent,
-  });
-}
-
-enum DiffChangeType { add, remove, modify }
-
-class DiffService {
-  IsolatePool? _isolatePool;
-  bool _isInitialized = false;
-
-  DiffService({IsolatePool? isolatePool}) : _isolatePool = isolatePool;
-
-  Future<void> _ensureInitialized() async {
-    if (_isInitialized) return;
-    _isolatePool ??= IsolatePool();
-    await _isolatePool!.initialize();
-    _isInitialized = true;
-  }
-
-  Future<DiffResult> computeDiff(String original, String modified) async {
-    if (original == modified) {
-      return const DiffResult(hasChanges: false);
-    }
-
-    await _ensureInitialized();
-    final result = await _isolatePool!.execute<Map<String, dynamic>>(
-      'computeDiff',
-      {'original': original, 'modified': modified},
-    );
-
-    if (!result.isSuccess || result.data == null) {
-      return DiffResult(
-        hasChanges: original != modified,
-        originalLength: original.length,
-        modifiedLength: modified.length,
-      );
-    }
-
-    final data = result.data!;
-
-    if (data['hasChanges'] != true) {
-      return const DiffResult(hasChanges: false);
-    }
-
-    final changesData = data['changes'] as List<dynamic>? ?? [];
-    final changes = changesData.map((c) {
-      final changeMap = c as Map<String, dynamic>;
-      return DiffChange(
-        type: _parseChangeType(changeMap['type'] as String),
-        line:
-            changeMap['line'] as int? ?? changeMap['modifiedLine'] as int? ?? 0,
-        content:
-            changeMap['content'] as String? ??
-            changeMap['modified'] as String? ??
-            '',
-        originalContent: changeMap['original'] as String?,
-      );
-    }).toList();
-
-    return DiffResult(
-      hasChanges: true,
-      changes: changes,
-      originalLength: data['originalLength'] as int? ?? original.length,
-      modifiedLength: data['modifiedLength'] as int? ?? modified.length,
-    );
-  }
-
-  DiffChangeType _parseChangeType(String type) {
-    switch (type) {
-      case 'add':
-        return DiffChangeType.add;
-      case 'remove':
-        return DiffChangeType.remove;
-      case 'modify':
-        return DiffChangeType.modify;
-      default:
-        return DiffChangeType.modify;
-    }
-  }
-
-  bool quickHasChanges(String original, String modified) {
-    return original != modified;
-  }
-
-  int quickChangeCount(String original, String modified) {
-    if (original == modified) return 0;
-
-    final originalLines = original.split('\n');
-    final modifiedLines = modified.split('\n');
-
-    int changes = (originalLines.length - modifiedLines.length).abs();
-
-    final minLength = originalLines.length < modifiedLines.length
-        ? originalLines.length
-        : modifiedLines.length;
-
-    for (int i = 0; i < minLength; i++) {
-      if (originalLines[i] != modifiedLines[i]) {
-        changes++;
-      }
-    }
-
-    return changes;
-  }
-
-  void dispose() {
-    _isolatePool?.dispose();
-  }
-}
-
-// ---------------------------------------------------------------------------
-// AutoSaveService
-// ---------------------------------------------------------------------------
+enum SaveStatus { saved, unsaved, saving, error }
 
 class AutoSaveService {
   final Duration saveInterval;
@@ -178,8 +10,9 @@ class AutoSaveService {
   onSave;
   final void Function(String noteId, bool hasChanges)? onChangeDetected;
 
-  final DiffService _diffService;
-  final Map<String, String> _originalContent = {};
+  // Fingerprint of the last-saved content — avoids storing a full copy.
+  final Map<String, int> _originalContentHash = {};
+  final Map<String, int> _originalContentLength = {};
   final Map<String, String> _originalTitle = {};
   final Map<String, Timer> _debounceTimers = {};
   final Map<String, Timer> _intervalTimers = {};
@@ -197,25 +30,31 @@ class AutoSaveService {
   int _retryCount = 0;
   _PendingSave? _lastFailedSave;
 
-  // Track the latest content so lifecycle / retry saves use fresh data
+  // Lazy content providers — content is only materialised when a save fires,
+  // not on every keystroke.  This avoids keeping a full content copy in RAM.
+  final Map<String, String Function()> _contentProviders = {};
   final Map<String, String> _latestTitle = {};
-  final Map<String, String> _latestContent = {};
 
   AutoSaveService({
     required this.onSave,
     this.onChangeDetected,
     this.saveInterval = const Duration(seconds: 30),
     this.debounceDelay = const Duration(seconds: 5),
-    DiffService? diffService,
-  }) : _diffService = diffService ?? DiffService();
+  });
 
   // ---- Tracking lifecycle ----
 
-  void startTracking(String noteId, String title, String content) {
+  void startTracking(
+    String noteId,
+    String title,
+    String content, {
+    required String Function() contentProvider,
+  }) {
     _originalTitle[noteId] = title;
-    _originalContent[noteId] = content;
+    _originalContentHash[noteId] = content.hashCode;
+    _originalContentLength[noteId] = content.length;
+    _contentProviders[noteId] = contentProvider;
     _latestTitle[noteId] = title;
-    _latestContent[noteId] = content;
     _hasPendingChanges[noteId] = false;
 
     _intervalTimers[noteId]?.cancel();
@@ -230,46 +69,30 @@ class AutoSaveService {
     _debounceTimers.remove(noteId);
     _intervalTimers.remove(noteId);
     _originalTitle.remove(noteId);
-    _originalContent.remove(noteId);
+    _originalContentHash.remove(noteId);
+    _originalContentLength.remove(noteId);
+    _contentProviders.remove(noteId);
     _latestTitle.remove(noteId);
-    _latestContent.remove(noteId);
     _hasPendingChanges.remove(noteId);
   }
 
   // ---- Content changed (called on every keystroke) ----
 
-  void onContentChanged(
-    String noteId,
-    String currentTitle,
-    String currentContent,
-  ) {
-    // Always keep track of the very latest content for lifecycle saves.
+  /// Notify that the user edited content.  No content string is required —
+  /// the actual text is read lazily from the [contentProvider] only when a
+  /// save is triggered (debounce / periodic / force).  This avoids a 500 KB+
+  /// String allocation on every keystroke.
+  void onContentChanged(String noteId, String currentTitle) {
     _latestTitle[noteId] = currentTitle;
-    _latestContent[noteId] = currentContent;
 
-    final originalTitle = _originalTitle[noteId] ?? '';
-    final originalContent = _originalContent[noteId] ?? '';
-
-    final titleChanged = currentTitle != originalTitle;
-    final contentChanged = _diffService.quickHasChanges(
-      originalContent,
-      currentContent,
-    );
-
-    final hasChanges = titleChanged || contentChanged;
-    _hasPendingChanges[noteId] = hasChanges;
-
-    if (hasChanges) {
-      _updateStatus(SaveStatus.unsaved);
-    }
-
-    onChangeDetected?.call(noteId, hasChanges);
-
-    if (!hasChanges) return;
+    // Mark dirty — actual change detection happens at save time.
+    _hasPendingChanges[noteId] = true;
+    _updateStatus(SaveStatus.unsaved);
+    onChangeDetected?.call(noteId, true);
 
     _debounceTimers[noteId]?.cancel();
     _debounceTimers[noteId] = Timer(debounceDelay, () async {
-      await _performSave(noteId, currentTitle, currentContent);
+      await _checkAndSave(noteId);
     });
   }
 
@@ -279,7 +102,7 @@ class AutoSaveService {
     if (_hasPendingChanges[noteId] != true) return;
 
     final currentTitle = _latestTitle[noteId];
-    final currentContent = _latestContent[noteId];
+    final currentContent = _contentProviders[noteId]?.call();
 
     if (currentTitle == null || currentContent == null) return;
 
@@ -293,12 +116,18 @@ class AutoSaveService {
     String currentContent,
   ) async {
     final originalTitle = _originalTitle[noteId] ?? '';
-    final originalContent = _originalContent[noteId] ?? '';
-
     final titleChanged = currentTitle != originalTitle;
-    final contentChanged = currentContent != originalContent;
+    final contentChanged =
+        currentContent.length != (_originalContentLength[noteId] ?? 0) ||
+        currentContent.hashCode != (_originalContentHash[noteId] ?? 0);
 
-    if (!titleChanged && !contentChanged) return;
+    if (!titleChanged && !contentChanged) {
+      // Content matches the last-saved fingerprint — nothing to persist.
+      _hasPendingChanges[noteId] = false;
+      _updateStatus(SaveStatus.saved);
+      onChangeDetected?.call(noteId, false);
+      return;
+    }
 
     _updateStatus(SaveStatus.saving);
 
@@ -310,7 +139,8 @@ class AutoSaveService {
       );
 
       _originalTitle[noteId] = currentTitle;
-      _originalContent[noteId] = currentContent;
+      _originalContentHash[noteId] = currentContent.hashCode;
+      _originalContentLength[noteId] = currentContent.length;
       _hasPendingChanges[noteId] = false;
       _retryCount = 0;
       _lastFailedSave = null;
@@ -356,12 +186,21 @@ class AutoSaveService {
   // ---- Public API ----
 
   /// Force an immediate save – used on back‑navigation and lifecycle events.
-  Future<void> forceSave(String noteId, String title, String content) async {
+  ///
+  /// When [content] is omitted the content provider registered in
+  /// [startTracking] is called to obtain the current text, avoiding an
+  /// extra allocation by the caller.
+  Future<void> forceSave(
+    String noteId, {
+    String? title,
+    String? content,
+  }) async {
     _debounceTimers[noteId]?.cancel();
-    // Update latest so lifecycle calls always use fresh data
-    _latestTitle[noteId] = title;
-    _latestContent[noteId] = content;
-    await _performSave(noteId, title, content);
+    final saveTitle = title ?? _latestTitle[noteId];
+    final saveContent = content ?? _contentProviders[noteId]?.call();
+    if (saveTitle == null || saveContent == null) return;
+    _latestTitle[noteId] = saveTitle;
+    await _performSave(noteId, saveTitle, saveContent);
   }
 
   /// Flush all tracked notes that have pending changes.
@@ -371,15 +210,10 @@ class AutoSaveService {
     for (final noteId in _hasPendingChanges.keys.toList()) {
       if (_hasPendingChanges[noteId] != true) continue;
       final title = _latestTitle[noteId];
-      final content = _latestContent[noteId];
+      final content = _contentProviders[noteId]?.call();
       if (title == null || content == null) continue;
       await _performSave(noteId, title, content);
     }
-  }
-
-  Future<DiffResult> getDiff(String noteId, String currentContent) async {
-    final originalContent = _originalContent[noteId] ?? '';
-    return _diffService.computeDiff(originalContent, currentContent);
   }
 
   bool hasChanges(String noteId) {
@@ -415,12 +249,12 @@ class AutoSaveService {
     _debounceTimers.clear();
     _intervalTimers.clear();
     _originalTitle.clear();
-    _originalContent.clear();
+    _originalContentHash.clear();
+    _originalContentLength.clear();
+    _contentProviders.clear();
     _latestTitle.clear();
-    _latestContent.clear();
     _hasPendingChanges.clear();
     saveStatusNotifier.dispose();
-    _diffService.dispose();
   }
 }
 

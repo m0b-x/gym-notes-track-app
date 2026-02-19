@@ -106,6 +106,16 @@ final class OptimizedNoteSearchResults extends OptimizedNoteState {
   List<Object?> get props => [results, query, isSearching];
 }
 
+/// Emitted when a brand-new note has been persisted for the first time.
+final class OptimizedNoteCreated extends OptimizedNoteState {
+  final NoteMetadata metadata;
+
+  const OptimizedNoteCreated({required this.metadata});
+
+  @override
+  List<Object?> get props => [metadata];
+}
+
 /// Error state with typed error information
 final class OptimizedNoteError extends OptimizedNoteState {
   final String message;
