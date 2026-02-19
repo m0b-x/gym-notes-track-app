@@ -34,6 +34,7 @@ import '../utils/editor_width_calculator.dart';
 import '../utils/custom_snackbar.dart';
 import '../utils/re_editor_search_controller.dart';
 import '../utils/scroll_position_sync.dart';
+import '../utils/text_history_observer.dart';
 import '../utils/text_position_utils.dart';
 import '../utils/markdown_list_utils.dart';
 import '../config/default_markdown_shortcuts.dart';
@@ -63,11 +64,13 @@ class OptimizedNoteEditorPage extends StatefulWidget {
       _OptimizedNoteEditorPageState();
 }
 
-class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
+class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
+    with WidgetsBindingObserver {
   late TextEditingController _titleController;
   late CodeLineEditingController _contentController;
   late FocusNode _contentFocusNode;
   late CodeScrollController _editorScrollController;
+  late TextHistoryObserver _historyObserver;
   final ScrollController _previewScrollController = ScrollController();
   late ReEditorSearchController _searchController;
   late ScrollPositionSync _scrollPositionSync;
@@ -103,6 +106,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   NotePositionService? _notePositionService;
   NotePositionData? _pendingPosition;
 
+  /// For new notes: becomes non-null once the note is persisted for the first time.
+  String? _effectiveNoteId;
+  bool _isCreatingNewNote = false;
+
   double _previewFontSize = FontConstants.defaultFontSize;
   double _editorFontSize = FontConstants.defaultFontSize;
   List<CustomMarkdownShortcut> _allShortcuts = [];
@@ -122,6 +129,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _effectiveNoteId = widget.noteId;
     _loadSwipeSetting();
     _initDevOptions();
 
@@ -129,6 +138,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       text: widget.metadata?.title ?? '',
     );
     _contentController = CodeLineEditingController();
+    _historyObserver = TextHistoryObserver(_contentController);
     _previousText = '';
     _contentFocusNode = FocusNode();
     _editorScrollController = CodeScrollController();
@@ -152,6 +162,36 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     _initializeAutoSave();
     _loadFontSizes();
     _initializePositionService();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Save immediately when the app loses focus (backgrounded, switched, etc.)
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      _saveOnLifecycleEvent();
+    }
+  }
+
+  /// Performs a synchronous-as-possible save when the OS is about to
+  /// suspend / kill the app.  For existing notes we force-save via the
+  /// auto-save service; for brand-new notes that haven't been persisted
+  /// yet we trigger an early create.
+  void _saveOnLifecycleEvent() {
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+    if (title.isEmpty && content.isEmpty) return;
+
+    final noteId = _effectiveNoteId;
+    if (noteId != null) {
+      // Existing (or already-created) note – force save
+      _autoSaveService?.forceSave(noteId, title, content);
+    } else {
+      // Brand-new note never saved – create it now
+      _createNewNoteEarly();
+    }
   }
 
   @override
@@ -265,10 +305,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   void _initializeAutoSave() {
     _autoSaveService = AutoSaveService(
       onSave: (noteId, title, content) async {
-        if (widget.noteId != null) {
+        if (_effectiveNoteId != null) {
           context.read<OptimizedNoteBloc>().add(
             UpdateOptimizedNote(
-              noteId: widget.noteId!,
+              noteId: _effectiveNoteId!,
               title: title,
               content: content,
             ),
@@ -288,9 +328,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       },
     );
 
-    if (widget.noteId != null) {
+    if (_effectiveNoteId != null) {
       _autoSaveService?.startTracking(
-        widget.noteId!,
+        _effectiveNoteId!,
         _titleController.text,
         _contentController.text,
       );
@@ -314,13 +354,47 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
     _debouncedLineCountUpdate();
 
-    if (widget.noteId != null) {
+    // Reset retry budget on every fresh user edit
+    _autoSaveService?.resetRetries();
+
+    if (_effectiveNoteId != null) {
       _autoSaveService?.onContentChanged(
-        widget.noteId!,
+        _effectiveNoteId!,
         _titleController.text,
         _contentController.text,
       );
+    } else {
+      // New note: create early once there's meaningful content
+      _maybeCreateNewNoteEarly();
     }
+  }
+
+  /// Triggers early creation as soon as the note has any title or content.
+  void _maybeCreateNewNoteEarly() {
+    if (_effectiveNoteId != null || _isCreatingNewNote) return;
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+    if (title.isNotEmpty || content.isNotEmpty) {
+      _createNewNoteEarly();
+    }
+  }
+
+  /// Immediately persists a brand-new note and switches to update mode.
+  void _createNewNoteEarly() {
+    if (_effectiveNoteId != null || _isCreatingNewNote) return;
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+    if (title.isEmpty && content.isEmpty) return;
+
+    _isCreatingNewNote = true;
+    if (!mounted) return;
+    context.read<OptimizedNoteBloc>().add(
+      CreateOptimizedNote(
+        folderId: widget.folderId,
+        title: title,
+        content: content,
+      ),
+    );
   }
 
   void _debouncedLineCountUpdate() {
@@ -357,6 +431,15 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final switchingToPreview = !_isPreviewMode;
     final totalLines = _contentController.lineCount;
     final isLargeNote = totalLines > AppConstants.previewPreloadLineThreshold;
+
+    // Force-save when switching to preview – a natural checkpoint
+    if (switchingToPreview && _effectiveNoteId != null) {
+      _autoSaveService?.forceSave(
+        _effectiveNoteId!,
+        _titleController.text,
+        _contentController.text,
+      );
+    }
 
     // Update cached preview content BEFORE switching
     if (switchingToPreview) {
@@ -501,7 +584,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   Future<void> _saveCurrentPosition() async {
-    if (widget.noteId == null || _notePositionService == null) return;
+    final noteId = _effectiveNoteId ?? widget.noteId;
+    if (noteId == null || _notePositionService == null) return;
 
     final position = NotePositionData(
       isPreviewMode: _isPreviewMode,
@@ -512,16 +596,18 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       editorColumnOffset: _contentController.selection.baseOffset,
     );
 
-    await _notePositionService!.savePosition(widget.noteId!, position);
+    await _notePositionService!.savePosition(noteId, position);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     DevOptions.instance.removeListener(_onDevOptionsChanged);
     _lineCountDebounceTimer?.cancel();
-    _autoSaveService?.stopTracking(widget.noteId ?? '');
+    _autoSaveService?.stopTracking(_effectiveNoteId ?? widget.noteId ?? '');
     _autoSaveService?.dispose();
     _titleController.dispose();
+    _historyObserver.dispose();
     _contentController.dispose();
     _contentFocusNode.dispose();
     _editorScrollController.dispose();
@@ -565,16 +651,16 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     final endLine = TextPositionUtils.getLineFromOffset(text, info.end);
     final endCol = TextPositionUtils.getColumnFromOffset(text, info.end);
 
-    // Select the checkbox bracket range [x] or [ ]
-    _contentController.selection = CodeLineSelection(
-      baseIndex: startLine,
-      baseOffset: startCol,
-      extentIndex: endLine,
-      extentOffset: endCol,
-    );
-
-    // Replace only the selected range
-    _contentController.replaceSelection(info.replacement);
+    // Select the checkbox bracket range [x] or [ ] and replace atomically
+    _contentController.runRevocableOp(() {
+      _contentController.selection = CodeLineSelection(
+        baseIndex: startLine,
+        baseOffset: startCol,
+        extentIndex: endLine,
+        extentOffset: endCol,
+      );
+      _contentController.replaceSelection(info.replacement);
+    });
     _hasChanges = true;
 
     if (_isPreviewMode) {
@@ -655,7 +741,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
     if (!textLengthIncreased) return;
 
-    // Handle paste: break long lines to fit editor width
+    // Handle paste: break long lines to fit editor width.
+    // _handlePasteLineBreaking sets controller.value directly (bypassing
+    // runRevocableOp) so the reformatting overwrites the paste's undo
+    // node — making paste + reformat a single undo entry.
     if (isPaste) {
       _handlePasteLineBreaking();
       return;
@@ -674,16 +763,19 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       final prevLine = _contentController.codeLines[prevLineIndex].text;
 
       if (MarkdownListUtils.isEmptyListItem(prevLine.trim())) {
-        // Remove the empty list item line
+        // Remove the empty list item line — merge with the Enter undo node
+        // by setting value directly (bypasses runRevocableOp).
         final newText = text.replaceRange(
           _getLineStartOffset(prevLineIndex),
           _getLineStartOffset(currentLineIndex),
           '',
         );
-        _contentController.text = newText;
-        _contentController.selection = CodeLineSelection.collapsed(
-          index: prevLineIndex,
-          offset: 0,
+        _contentController.value = CodeLineEditingValue(
+          codeLines: newText.codeLines,
+          selection: CodeLineSelection.collapsed(
+            index: prevLineIndex,
+            offset: 0,
+          ),
         );
         _previousText = newText;
         _isProcessingTextChange = false;
@@ -692,8 +784,24 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
       String? listPrefix = MarkdownListUtils.getListPrefix(prevLine);
       if (listPrefix != null) {
-        // Insert the list prefix at the current position
-        _contentController.replaceSelection(listPrefix);
+        // Insert the list prefix — merge with the Enter undo node
+        // by setting value directly (bypasses runRevocableOp).
+        final currentLine = _contentController.codeLines[currentLineIndex];
+        final newLineText = '$listPrefix${currentLine.text}';
+        final newCodeLines = CodeLines.of([
+          for (int i = 0; i < _contentController.codeLines.length; i++)
+            if (i == currentLineIndex)
+              CodeLine(newLineText)
+            else
+              _contentController.codeLines[i],
+        ]);
+        _contentController.value = CodeLineEditingValue(
+          codeLines: newCodeLines,
+          selection: CodeLineSelection.collapsed(
+            index: currentLineIndex,
+            offset: listPrefix.length,
+          ),
+        );
         _previousText = _contentController.text;
       }
       _isProcessingTextChange = false;
@@ -747,11 +855,15 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
     if (result.linesModified > 0) {
       final newText = result.lines.join('\n');
       if (newText != _contentController.text) {
-        // Preserve cursor at end of pasted content
-        _contentController.text = newText;
-        _contentController.selection = CodeLineSelection.collapsed(
-          index: result.lines.length - 1,
-          offset: result.lines.last.length,
+        // Set value directly (not via `set text`) to bypass runRevocableOp.
+        // This makes the reformatting overwrite the paste's undo node
+        // so that paste + line-breaking is a single undo entry.
+        _contentController.value = CodeLineEditingValue(
+          codeLines: newText.codeLines,
+          selection: CodeLineSelection.collapsed(
+            index: result.lines.length - 1,
+            offset: result.lines.last.length,
+          ),
         );
         _previousText = newText;
 
@@ -813,6 +925,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                 ? AppLocalizations.of(context)!.newNote
                 : _titleController.text,
             hasChanges: _hasChanges,
+            saveStatusNotifier: _autoSaveService?.saveStatusNotifier,
             onTitleTap: _editTitle,
             actions: [
               IconButton(
@@ -982,13 +1095,13 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
                             MarkdownToolbar(
                               shortcuts: _allShortcuts,
                               isPreviewMode: _isPreviewMode,
-                              canUndo: _contentController.canUndo,
-                              canRedo: _contentController.canRedo,
+                              canUndo: _historyObserver.canUndo,
+                              canRedo: _historyObserver.canRedo,
                               previewFontSize: _isPreviewMode
                                   ? _previewFontSize
                                   : _editorFontSize,
-                              onUndo: () => _contentController.undo(),
-                              onRedo: () => _contentController.redo(),
+                              onUndo: () => _historyObserver.undo(),
+                              onRedo: () => _historyObserver.redo(),
                               onPaste: () => _contentController.paste(),
                               onDecreaseFontSize: () {
                                 setState(() {
@@ -1219,7 +1332,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
       return;
     }
 
-    if (widget.noteId == null) {
+    if (_effectiveNoteId == null) {
+      // Note was never persisted – create it now
       if (!mounted) return;
       context.read<OptimizedNoteBloc>().add(
         CreateOptimizedNote(
@@ -1229,7 +1343,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
         ),
       );
     } else {
-      await _autoSaveService?.forceSave(widget.noteId!, title, content);
+      await _autoSaveService?.forceSave(_effectiveNoteId!, title, content);
     }
   }
 
@@ -1387,6 +1501,21 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
   }
 
   void _handleShortcut(CustomMarkdownShortcut shortcut) {
+    // Wrap the entire shortcut operation in an atomic undo entry
+    // so that e.g. date insertion + repeat + wrapper text all revert together.
+    _contentController.runRevocableOp(() {
+      _applyShortcut(shortcut);
+    });
+
+    _onTextChanged();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _contentController.makeCursorVisible();
+      }
+    });
+  }
+
+  void _applyShortcut(CustomMarkdownShortcut shortcut) {
     final selectedText = _contentController.selectedText;
     final repeatCount = shortcut.repeatConfig?.count ?? 1;
     final separator = shortcut.repeatConfig?.separator ?? '\n';
@@ -1487,13 +1616,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage> {
 
       _contentController.replaceSelection(wrapped);
     }
-
-    _onTextChanged();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _contentController.makeCursorVisible();
-      }
-    });
   }
 
   Future<void> _loadCustomShortcuts() async {

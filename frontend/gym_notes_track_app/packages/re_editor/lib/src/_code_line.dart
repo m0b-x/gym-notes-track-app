@@ -2016,10 +2016,12 @@ class _CodeLineEditingCache {
       return;
     }
     if (_node.isInitial) {
+      _markNewRecord = false;
       _appendNewNode();
       return;
     }
     if (!_node.isTail) {
+      _markNewRecord = false;
       _appendNewNode();
       return;
     }
