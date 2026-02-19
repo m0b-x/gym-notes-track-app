@@ -113,6 +113,13 @@ class _CodeLineEditingControllerImpl extends ValueNotifier<CodeLineEditingValue>
   String get text => codeLines.asString(lineBreak);
 
   @override
+  int get textLength {
+    final int lc = codeLines.lineCount;
+    if (lc == 0) return 0;
+    return codeLines.charCount + (lc - 1) * lineBreak.value.length;
+  }
+
+  @override
   String get selectedText {
     final StringBuffer sb = StringBuffer();
     if (selection.isSameLine) {
@@ -2128,6 +2135,9 @@ class _CodeLineEditingControllerDelegate implements CodeLineEditingController {
 
   @override
   String get text => _delegate.text;
+
+  @override
+  int get textLength => _delegate.textLength;
 
   @override
   set text(String value) {

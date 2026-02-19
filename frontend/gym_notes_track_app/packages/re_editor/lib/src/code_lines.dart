@@ -57,6 +57,8 @@ class CodeLines {
 
   int get lineCount => segments.fold(0, (previousValue, element) => previousValue += element.lineCount);
 
+  int get charCount => segments.fold(0, (previousValue, element) => previousValue += element.charCount);
+
   CodeLine operator [](int index) {
     int offset = 0;
     for (final CodeLineSegment segment in segments) {
@@ -389,6 +391,8 @@ class CodeLineSegment with ListMixin<CodeLine> {
   int get length  => codeLines.length;
 
   int get lineCount => codeLines.fold(0, (previousValue, element) => previousValue += element.lineCount);
+
+  int get charCount => codeLines.fold(0, (previousValue, element) => previousValue += element.charCount);
 
   @override
   CodeLine operator [](int index) {

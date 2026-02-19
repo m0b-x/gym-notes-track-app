@@ -136,6 +136,11 @@ abstract class CodeLineEditingController extends ValueNotifier<CodeLineEditingVa
   /// This Will convert all the code lines into a whole text.
   String get text;
 
+  /// The length of [text] without allocating the string.
+  ///
+  /// Equivalent to `text.length` but O(segments) instead of O(chars).
+  int get textLength;
+
   /// The current text being selected.
   String get selectedText;
 

@@ -113,7 +113,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   double _previewFontSize = FontConstants.defaultFontSize;
   double _editorFontSize = FontConstants.defaultFontSize;
   List<CustomMarkdownShortcut> _allShortcuts = [];
-  String _previousText = '';
+  int _previousTextLength = 0;
   String _cachedPreviewContent = '';
   bool _isProcessingTextChange = false;
   int _cachedLineCount = 1;
@@ -139,7 +139,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     );
     _contentController = CodeLineEditingController();
     _historyObserver = TextHistoryObserver(_contentController);
-    _previousText = '';
+    _previousTextLength = 0;
     _contentFocusNode = FocusNode();
     _editorScrollController = CodeScrollController();
     _searchController = ReEditorSearchController();
@@ -358,10 +358,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _autoSaveService?.resetRetries();
 
     if (_effectiveNoteId != null) {
+      // Compute text once — auto-save stores and diffs it.
+      final contentText = _contentController.text;
       _autoSaveService?.onContentChanged(
         _effectiveNoteId!,
         _titleController.text,
-        _contentController.text,
+        contentText,
       );
     } else {
       // New note: create early once there's meaningful content
@@ -398,7 +400,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   }
 
   void _debouncedLineCountUpdate() {
-    final currentLength = _contentController.text.length;
+    final currentLength = _contentController.textLength;
     final lengthDelta = (currentLength - _lastLineCountTextLength).abs();
 
     if (lengthDelta > MarkdownConstants.contentChangeDeltaThreshold) {
@@ -411,12 +413,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _lineCountDebounceTimer?.cancel();
     _lineCountDebounceTimer = Timer(const Duration(milliseconds: 300), () {
       _updateCachedStats();
-      _lastLineCountTextLength = _contentController.text.length;
+      _lastLineCountTextLength = _contentController.textLength;
     });
   }
 
   void _updateCachedStats() {
-    final newCharCount = _contentController.text.length;
+    final newCharCount = _contentController.textLength;
     // Use re_editor's built-in lineCount for efficiency
     final newLineCount = _contentController.lineCount;
     if (newLineCount != _cachedLineCount || newCharCount != _cachedCharCount) {
@@ -433,17 +435,20 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     final isLargeNote = totalLines > AppConstants.previewPreloadLineThreshold;
 
     // Force-save when switching to preview – a natural checkpoint
+    // Compute text once — reused for force-save, cached preview, and search.
+    final currentText = switchingToPreview ? _contentController.text : null;
+
     if (switchingToPreview && _effectiveNoteId != null) {
       _autoSaveService?.forceSave(
         _effectiveNoteId!,
         _titleController.text,
-        _contentController.text,
+        currentText!,
       );
     }
 
     // Update cached preview content BEFORE switching
     if (switchingToPreview) {
-      _cachedPreviewContent = _contentController.text;
+      _cachedPreviewContent = currentText!;
       final lineIndex = _contentController.selection.baseIndex;
 
       if (isLargeNote) {
@@ -495,7 +500,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       // Handle search
       if (_searchController.isSearching && _searchController.query.isNotEmpty) {
         final currentQuery = _searchController.query;
-        _searchController.updateContent(_contentController.text);
+        _searchController.updateContent(currentText);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _searchController.search(currentQuery);
@@ -630,12 +635,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     final match = _searchController.currentMatch;
     if (match == null) return;
 
-    final text = _contentController.text;
-    if (text.isEmpty ||
+    final textLen = _contentController.textLength;
+    if (textLen == 0 ||
         match.start < 0 ||
         match.end < 0 ||
-        match.start > text.length ||
-        match.end > text.length) {
+        match.start > textLen ||
+        match.end > textLen) {
       return;
     }
 
@@ -728,16 +733,16 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   void _handleTextChange() {
     if (_isProcessingTextChange) return;
 
-    final text = _contentController.text;
     final selection = _contentController.selection;
 
-    final textLengthDiff = text.length - _previousText.length;
+    final currentTextLength = _contentController.textLength;
+    final textLengthDiff = currentTextLength - _previousTextLength;
     final textLengthIncreased = textLengthDiff > 0;
 
     // Detect paste: large text additions
     final isPaste = textLengthDiff > _pasteThreshold;
 
-    _previousText = text;
+    _previousTextLength = currentTextLength;
 
     if (!textLengthIncreased) return;
 
@@ -765,6 +770,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       if (MarkdownListUtils.isEmptyListItem(prevLine.trim())) {
         // Remove the empty list item line — merge with the Enter undo node
         // by setting value directly (bypasses runRevocableOp).
+        // Need full text here for replaceRange (rare path: Enter on empty list item).
+        final text = _contentController.text;
         final newText = text.replaceRange(
           _getLineStartOffset(prevLineIndex),
           _getLineStartOffset(currentLineIndex),
@@ -777,7 +784,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
             offset: 0,
           ),
         );
-        _previousText = newText;
+        _previousTextLength = _contentController.textLength;
         _isProcessingTextChange = false;
         return;
       }
@@ -802,7 +809,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
             offset: listPrefix.length,
           ),
         );
-        _previousText = _contentController.text;
+        _previousTextLength = _contentController.textLength;
       }
       _isProcessingTextChange = false;
     }
@@ -865,7 +872,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
             offset: result.lines.last.length,
           ),
         );
-        _previousText = newText;
+        _previousTextLength = newText.length;
 
         // Show toast notification
         if (mounted) {
@@ -898,7 +905,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
           final content = state.note.content ?? '';
           setState(() {
             _contentController.text = content;
-            _previousText = content;
+            _previousTextLength = content.length;
             _cachedPreviewContent = content;
             _cachedLineCount = '\n'.allMatches(content).length + 1;
             _cachedCharCount = content.length;
@@ -1057,7 +1064,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                                 selEnd = baseOff;
                               }
                             }
-                            final noteSize = _contentController.text.length;
+                            final noteSize = _contentController.textLength;
 
                             return DebugOverlayStack(
                               cursorLine: cursorLine,
