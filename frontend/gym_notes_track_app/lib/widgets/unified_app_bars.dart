@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/auto_save_service.dart';
 
 enum AppBarStyle { main, settings }
 
@@ -197,6 +198,7 @@ class FolderAppBar extends StatelessWidget implements PreferredSizeWidget {
 class NoteAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final bool hasChanges;
+  final ValueNotifier<SaveStatus>? saveStatusNotifier;
   final List<Widget>? actions;
   final VoidCallback? onBackPressed;
   final VoidCallback? onTitleTap;
@@ -206,6 +208,7 @@ class NoteAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.title,
     this.hasChanges = false,
+    this.saveStatusNotifier,
     this.actions,
     this.onBackPressed,
     this.onTitleTap,
@@ -270,20 +273,161 @@ class NoteAppBar extends StatelessWidget implements PreferredSizeWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (hasChanges)
-              Container(
-                margin: const EdgeInsets.only(left: 8),
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
+            _SaveStatusIndicator(
+              hasChanges: hasChanges,
+              saveStatusNotifier: saveStatusNotifier,
+            ),
           ],
         ),
       ),
       actions: actions,
+    );
+  }
+}
+
+/// Animated save-status chip shown next to the note title.
+///
+/// Listens to the [SaveStatus] value notifier and cross-fades between
+/// states.  Keeps the widget tree lightweight – only rebuilds this subtree
+/// when the status actually changes.
+class _SaveStatusIndicator extends StatelessWidget {
+  final bool hasChanges;
+  final ValueNotifier<SaveStatus>? saveStatusNotifier;
+
+  const _SaveStatusIndicator({
+    required this.hasChanges,
+    this.saveStatusNotifier,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final notifier = saveStatusNotifier;
+    if (notifier == null) {
+      // Fallback: no notifier → show simple dot when unsaved
+      return hasChanges ? _dot(context) : const SizedBox.shrink();
+    }
+
+    return ValueListenableBuilder<SaveStatus>(
+      valueListenable: notifier,
+      builder: (context, status, _) {
+        // Determine effective status – if hasChanges is true but service
+        // still reports saved (e.g. new note not yet tracked), show unsaved.
+        final effective = hasChanges && status == SaveStatus.saved
+            ? SaveStatus.unsaved
+            : status;
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          child: _buildIcon(context, effective),
+        );
+      },
+    );
+  }
+
+  Widget _buildIcon(BuildContext context, SaveStatus status) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    switch (status) {
+      case SaveStatus.saved:
+        return _icon(
+          key: const ValueKey('saved'),
+          icon: Icons.cloud_done_outlined,
+          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+        );
+      case SaveStatus.unsaved:
+        return _icon(
+          key: const ValueKey('unsaved'),
+          icon: Icons.circle,
+          color: colorScheme.primary,
+          size: 8,
+        );
+      case SaveStatus.saving:
+        return _icon(
+          key: const ValueKey('saving'),
+          icon: Icons.sync,
+          color: colorScheme.tertiary,
+          spinning: true,
+        );
+      case SaveStatus.error:
+        return _icon(
+          key: const ValueKey('error'),
+          icon: Icons.error_outline,
+          color: colorScheme.error,
+        );
+    }
+  }
+
+  Widget _icon({
+    required Key key,
+    required IconData icon,
+    required Color color,
+    double size = 14,
+    bool spinning = false,
+  }) {
+    Widget child = Icon(icon, size: size, color: color);
+    if (spinning) {
+      child = _SpinningIcon(icon: icon, size: size, color: color);
+    }
+    return Padding(
+      key: key,
+      padding: const EdgeInsets.only(left: 8),
+      child: child,
+    );
+  }
+
+  Widget _dot(BuildContext context) {
+    return Container(
+      key: const ValueKey('dot'),
+      margin: const EdgeInsets.only(left: 8),
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+/// A continuously rotating icon used for the "Saving…" state.
+class _SpinningIcon extends StatefulWidget {
+  final IconData icon;
+  final double size;
+  final Color color;
+
+  const _SpinningIcon({
+    required this.icon,
+    required this.size,
+    required this.color,
+  });
+
+  @override
+  State<_SpinningIcon> createState() => _SpinningIconState();
+}
+
+class _SpinningIconState extends State<_SpinningIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RotationTransition(
+      turns: _controller,
+      child: Icon(widget.icon, size: widget.size, color: widget.color),
     );
   }
 }

@@ -2391,6 +2391,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Query count and cache information'**
   String get showDatabaseStatsDesc;
+
+  /// Indicator label when note is fully saved
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get saveStatusSaved;
+
+  /// Indicator label when note has unsaved changes
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved'**
+  String get saveStatusUnsaved;
+
+  /// Indicator label when note is being saved
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get saveStatusSaving;
+
+  /// Indicator label when the last save attempt failed
+  ///
+  /// In en, this message translates to:
+  /// **'Save failed'**
+  String get saveStatusError;
 }
 
 class _AppLocalizationsDelegate

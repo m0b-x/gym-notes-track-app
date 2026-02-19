@@ -1659,5 +1659,21 @@
   "showDatabaseStatsDesc": "Query count and cache information",
   "@showDatabaseStatsDesc": {
     "description": "Description for show database stats option"
+  },
+  "saveStatusSaved": "Saved",
+  "@saveStatusSaved": {
+    "description": "Indicator label when note is fully saved"
+  },
+  "saveStatusUnsaved": "Unsaved",
+  "@saveStatusUnsaved": {
+    "description": "Indicator label when note has unsaved changes"
+  },
+  "saveStatusSaving": "Saving…",
+  "@saveStatusSaving": {
+    "description": "Indicator label when note is being saved"
+  },
+  "saveStatusError": "Save failed",
+  "@saveStatusError": {
+    "description": "Indicator label when the last save attempt failed"
   }
 }

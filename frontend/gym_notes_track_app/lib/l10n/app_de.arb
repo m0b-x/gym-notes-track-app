@@ -1391,5 +1391,21 @@
   "advancedOptionsDescription": "Datumsversatz, Wiederholung und mehr",
   "@advancedOptionsDescription": {
     "description": "Description for advanced options toggle"
+  },
+  "saveStatusSaved": "Gespeichert",
+  "@saveStatusSaved": {
+    "description": "Indicator label when note is fully saved"
+  },
+  "saveStatusUnsaved": "Ungespeichert",
+  "@saveStatusUnsaved": {
+    "description": "Indicator label when note has unsaved changes"
+  },
+  "saveStatusSaving": "Speichern…",
+  "@saveStatusSaving": {
+    "description": "Indicator label when note is being saved"
+  },
+  "saveStatusError": "Speichern fehlgeschlagen",
+  "@saveStatusError": {
+    "description": "Indicator label when the last save attempt failed"
   }
 }

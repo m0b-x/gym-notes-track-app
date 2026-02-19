@@ -1242,4 +1242,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get showDatabaseStatsDesc => 'Query count and cache information';
+
+  @override
+  String get saveStatusSaved => 'Saved';
+
+  @override
+  String get saveStatusUnsaved => 'Unsaved';
+
+  @override
+  String get saveStatusSaving => 'Saving…';
+
+  @override
+  String get saveStatusError => 'Save failed';
 }
