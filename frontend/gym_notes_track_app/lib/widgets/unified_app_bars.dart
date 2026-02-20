@@ -310,13 +310,37 @@ class _SaveStatusIndicator extends StatelessWidget {
     return ValueListenableBuilder<SaveStatus>(
       valueListenable: notifier,
       builder: (context, status, _) {
-        // Determine effective status – if hasChanges is true but service
-        // still reports saved (e.g. new note not yet tracked), show unsaved.
         final effective = hasChanges && status == SaveStatus.saved
             ? SaveStatus.unsaved
             : status;
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 250),
+          layoutBuilder: (currentChild, previousChildren) {
+            // Deduplicate all children by key - current child takes precedence
+            final allChildren = [
+              ...previousChildren,
+              if (currentChild != null) currentChild,
+            ];
+            final seenKeys = <Key>{};
+            final uniqueChildren = <Widget>[];
+            
+            // Process in reverse so current child wins over previous
+            for (final child in allChildren.reversed) {
+              final key = child.key;
+              if (key != null && !seenKeys.contains(key)) {
+                seenKeys.add(key);
+                uniqueChildren.insert(0, child);
+              } else if (key == null) {
+                uniqueChildren.insert(0, child);
+              }
+            }
+            
+            return Stack(
+              fit: StackFit.passthrough,
+              alignment: Alignment.center,
+              children: uniqueChildren,
+            );
+          },
           child: _buildIcon(context, effective),
         );
       },

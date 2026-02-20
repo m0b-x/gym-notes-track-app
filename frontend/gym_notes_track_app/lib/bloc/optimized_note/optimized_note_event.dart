@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import '../../services/note_storage_service.dart';
 
@@ -62,8 +64,15 @@ class UpdateOptimizedNote extends OptimizedNoteEvent {
   final String noteId;
   final String? title;
   final String? content;
+  final Completer<void>? completer;
 
-  const UpdateOptimizedNote({required this.noteId, this.title, this.content});
+  // ignore: prefer_const_constructors_in_immutables
+  UpdateOptimizedNote({
+    required this.noteId,
+    this.title,
+    this.content,
+    this.completer,
+  });
 
   @override
   List<Object?> get props => [noteId, title, content];

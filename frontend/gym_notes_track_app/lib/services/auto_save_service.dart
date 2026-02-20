@@ -6,34 +6,31 @@ enum SaveStatus { saved, unsaved, saving, error }
 class AutoSaveService {
   final Duration saveInterval;
   final Duration debounceDelay;
-  final Future<void> Function(String noteId, String? title, String? content)
-  onSave;
-  final void Function(String noteId, bool hasChanges)? onChangeDetected;
+  final Future<void> Function(String? title, String? content) onSave;
+  final void Function(bool hasChanges)? onChangeDetected;
 
-  // Fingerprint of the last-saved content — avoids storing a full copy.
-  final Map<String, int> _originalContentHash = {};
-  final Map<String, int> _originalContentLength = {};
-  final Map<String, String> _originalTitle = {};
-  final Map<String, Timer> _debounceTimers = {};
-  final Map<String, Timer> _intervalTimers = {};
-  final Map<String, bool> _hasPendingChanges = {};
+  String _savedTitle = '';
+  int _savedContentHash = 0;
+  int _savedContentLength = 0;
+  bool _hasPendingChanges = false;
 
-  // --- Save‑status tracking ---
+  String Function()? _contentProvider;
+  String _latestTitle = '';
+
+  Timer? _debounceTimer;
+  Timer? _intervalTimer;
+  bool _isSaving = false;
+  bool _disposed = false;
+  Completer<void>? _inFlightSave;
+
   final ValueNotifier<SaveStatus> saveStatusNotifier = ValueNotifier(
     SaveStatus.saved,
   );
 
-  // --- Retry state ---
   static const int _maxRetries = 3;
   static const Duration _initialRetryDelay = Duration(seconds: 2);
   Timer? _retryTimer;
   int _retryCount = 0;
-  _PendingSave? _lastFailedSave;
-
-  // Lazy content providers — content is only materialised when a save fires,
-  // not on every keystroke.  This avoids keeping a full content copy in RAM.
-  final Map<String, String Function()> _contentProviders = {};
-  final Map<String, String> _latestTitle = {};
 
   AutoSaveService({
     required this.onSave,
@@ -42,185 +39,133 @@ class AutoSaveService {
     this.debounceDelay = const Duration(seconds: 5),
   });
 
-  // ---- Tracking lifecycle ----
-
   void startTracking(
-    String noteId,
     String title,
     String content, {
     required String Function() contentProvider,
   }) {
-    _originalTitle[noteId] = title;
-    _originalContentHash[noteId] = content.hashCode;
-    _originalContentLength[noteId] = content.length;
-    _contentProviders[noteId] = contentProvider;
-    _latestTitle[noteId] = title;
-    _hasPendingChanges[noteId] = false;
+    stopTracking();
 
-    _intervalTimers[noteId]?.cancel();
-    _intervalTimers[noteId] = Timer.periodic(saveInterval, (_) {
-      _checkAndSave(noteId);
+    _savedTitle = title;
+    _savedContentHash = content.hashCode;
+    _savedContentLength = content.length;
+    _contentProvider = contentProvider;
+    _latestTitle = title;
+    _hasPendingChanges = false;
+
+    _intervalTimer = Timer.periodic(saveInterval, (_) {
+      _checkAndSave();
     });
   }
 
-  void stopTracking(String noteId) {
-    _debounceTimers[noteId]?.cancel();
-    _intervalTimers[noteId]?.cancel();
-    _debounceTimers.remove(noteId);
-    _intervalTimers.remove(noteId);
-    _originalTitle.remove(noteId);
-    _originalContentHash.remove(noteId);
-    _originalContentLength.remove(noteId);
-    _contentProviders.remove(noteId);
-    _latestTitle.remove(noteId);
-    _hasPendingChanges.remove(noteId);
+  void stopTracking() {
+    _debounceTimer?.cancel();
+    _intervalTimer?.cancel();
+    _retryTimer?.cancel();
+    _debounceTimer = null;
+    _intervalTimer = null;
+    _retryTimer = null;
+    _retryCount = 0;
   }
 
-  // ---- Content changed (called on every keystroke) ----
-
-  /// Notify that the user edited content.  No content string is required —
-  /// the actual text is read lazily from the [contentProvider] only when a
-  /// save is triggered (debounce / periodic / force).  This avoids a 500 KB+
-  /// String allocation on every keystroke.
-  void onContentChanged(String noteId, String currentTitle) {
-    _latestTitle[noteId] = currentTitle;
-
-    // Mark dirty — actual change detection happens at save time.
-    _hasPendingChanges[noteId] = true;
+  void onContentChanged(String currentTitle) {
+    _latestTitle = currentTitle;
+    _hasPendingChanges = true;
     _updateStatus(SaveStatus.unsaved);
-    onChangeDetected?.call(noteId, true);
+    onChangeDetected?.call(true);
 
-    _debounceTimers[noteId]?.cancel();
-    _debounceTimers[noteId] = Timer(debounceDelay, () async {
-      await _checkAndSave(noteId);
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(debounceDelay, () async {
+      await _checkAndSave();
     });
   }
 
-  // ---- Internal save helpers ----
+  Future<void> _checkAndSave() async {
+    if (!_hasPendingChanges) return;
 
-  Future<void> _checkAndSave(String noteId) async {
-    if (_hasPendingChanges[noteId] != true) return;
+    final currentContent = _contentProvider?.call();
+    if (currentContent == null) return;
 
-    final currentTitle = _latestTitle[noteId];
-    final currentContent = _contentProviders[noteId]?.call();
-
-    if (currentTitle == null || currentContent == null) return;
-
-    await _performSave(noteId, currentTitle, currentContent);
+    await _performSave(_latestTitle, currentContent);
   }
 
-  /// Central save method – handles status updates and error recovery.
-  Future<void> _performSave(
-    String noteId,
-    String currentTitle,
-    String currentContent,
-  ) async {
-    final originalTitle = _originalTitle[noteId] ?? '';
-    final titleChanged = currentTitle != originalTitle;
+  Future<void> _performSave(String currentTitle, String currentContent) async {
+    if (_isSaving || _disposed) return;
+
+    final titleChanged = currentTitle != _savedTitle;
     final contentChanged =
-        currentContent.length != (_originalContentLength[noteId] ?? 0) ||
-        currentContent.hashCode != (_originalContentHash[noteId] ?? 0);
+        currentContent.length != _savedContentLength ||
+        currentContent.hashCode != _savedContentHash;
 
     if (!titleChanged && !contentChanged) {
-      // Content matches the last-saved fingerprint — nothing to persist.
-      _hasPendingChanges[noteId] = false;
+      _hasPendingChanges = false;
       _updateStatus(SaveStatus.saved);
-      onChangeDetected?.call(noteId, false);
+      onChangeDetected?.call(false);
       return;
     }
 
+    _isSaving = true;
+    _inFlightSave = Completer<void>();
     _updateStatus(SaveStatus.saving);
 
     try {
       await onSave(
-        noteId,
         titleChanged ? currentTitle : null,
         contentChanged ? currentContent : null,
       );
 
-      _originalTitle[noteId] = currentTitle;
-      _originalContentHash[noteId] = currentContent.hashCode;
-      _originalContentLength[noteId] = currentContent.length;
-      _hasPendingChanges[noteId] = false;
+      _savedTitle = currentTitle;
+      _savedContentHash = currentContent.hashCode;
+      _savedContentLength = currentContent.length;
+      _hasPendingChanges = false;
       _retryCount = 0;
-      _lastFailedSave = null;
       _retryTimer?.cancel();
 
       _updateStatus(SaveStatus.saved);
-      onChangeDetected?.call(noteId, false);
+      onChangeDetected?.call(false);
     } catch (e, stackTrace) {
       debugPrint('[AutoSaveService] Save failed: $e');
       debugPrintStack(stackTrace: stackTrace, maxFrames: 5);
 
-      _lastFailedSave = _PendingSave(noteId, currentTitle, currentContent);
       _updateStatus(SaveStatus.error);
       _scheduleRetry();
+    } finally {
+      _isSaving = false;
+      _inFlightSave?.complete();
+      _inFlightSave = null;
     }
   }
-
-  // ---- Retry with exponential back‑off ----
 
   void _scheduleRetry() {
     if (_retryCount >= _maxRetries) {
       debugPrint(
-        '[AutoSaveService] Max retries ($_maxRetries) reached – giving up until next edit.',
+        '[AutoSaveService] Max retries ($_maxRetries) reached.',
       );
       return;
     }
 
-    final delay = _initialRetryDelay * (1 << _retryCount); // 2s, 4s, 8s
+    final delay = _initialRetryDelay * (1 << _retryCount);
     _retryCount++;
-
-    debugPrint(
-      '[AutoSaveService] Scheduling retry #$_retryCount in ${delay.inSeconds}s',
-    );
 
     _retryTimer?.cancel();
     _retryTimer = Timer(delay, () async {
-      final pending = _lastFailedSave;
-      if (pending == null) return;
-      await _performSave(pending.noteId, pending.title, pending.content);
+      await _checkAndSave();
     });
   }
 
-  // ---- Public API ----
-
-  /// Force an immediate save – used on back‑navigation and lifecycle events.
-  ///
-  /// When [content] is omitted the content provider registered in
-  /// [startTracking] is called to obtain the current text, avoiding an
-  /// extra allocation by the caller.
-  Future<void> forceSave(
-    String noteId, {
-    String? title,
-    String? content,
-  }) async {
-    _debounceTimers[noteId]?.cancel();
-    final saveTitle = title ?? _latestTitle[noteId];
-    final saveContent = content ?? _contentProviders[noteId]?.call();
-    if (saveTitle == null || saveContent == null) return;
-    _latestTitle[noteId] = saveTitle;
-    await _performSave(noteId, saveTitle, saveContent);
+  Future<void> forceSave({String? title, String? content}) async {
+    _debounceTimer?.cancel();
+    final saveTitle = title ?? _latestTitle;
+    final saveContent = content ?? _contentProvider?.call();
+    if (saveContent == null) return;
+    _latestTitle = saveTitle;
+    // Wait for any in-progress save to finish before forcing our own,
+    // otherwise _performSave's _isSaving guard would silently drop this.
+    if (_isSaving) await _inFlightSave?.future;
+    await _performSave(saveTitle, saveContent);
   }
 
-  /// Flush all tracked notes that have pending changes.
-  /// Ideal for app‑lifecycle events (pause / detach) where you don't know
-  /// which specific noteId is dirty.
-  Future<void> flushAll() async {
-    for (final noteId in _hasPendingChanges.keys.toList()) {
-      if (_hasPendingChanges[noteId] != true) continue;
-      final title = _latestTitle[noteId];
-      final content = _contentProviders[noteId]?.call();
-      if (title == null || content == null) continue;
-      await _performSave(noteId, title, content);
-    }
-  }
-
-  bool hasChanges(String noteId) {
-    return _hasPendingChanges[noteId] ?? false;
-  }
-
-  // ---- Status helpers ----
+  bool get hasPendingChanges => _hasPendingChanges;
 
   void _updateStatus(SaveStatus status) {
     if (saveStatusNotifier.value != status) {
@@ -228,40 +173,11 @@ class AutoSaveService {
     }
   }
 
-  /// Resets the retry counter – call after the user makes a new edit so that
-  /// a previously exhausted retry budget is refreshed.
-  void resetRetries() {
-    _retryCount = 0;
-    _lastFailedSave = null;
-    _retryTimer?.cancel();
-  }
-
-  // ---- Dispose ----
-
   void dispose() {
+    _disposed = true;
     _retryTimer?.cancel();
-    for (final timer in _debounceTimers.values) {
-      timer.cancel();
-    }
-    for (final timer in _intervalTimers.values) {
-      timer.cancel();
-    }
-    _debounceTimers.clear();
-    _intervalTimers.clear();
-    _originalTitle.clear();
-    _originalContentHash.clear();
-    _originalContentLength.clear();
-    _contentProviders.clear();
-    _latestTitle.clear();
-    _hasPendingChanges.clear();
+    _debounceTimer?.cancel();
+    _intervalTimer?.cancel();
     saveStatusNotifier.dispose();
   }
-}
-
-/// Internal helper to remember a failed save for retry.
-class _PendingSave {
-  final String noteId;
-  final String title;
-  final String content;
-  const _PendingSave(this.noteId, this.title, this.content);
 }

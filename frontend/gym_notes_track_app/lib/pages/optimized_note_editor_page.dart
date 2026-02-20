@@ -193,7 +193,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     final noteId = _effectiveNoteId;
     if (noteId != null) {
       // Existing (or already-created) note – force save via provider
-      _autoSaveService?.forceSave(noteId, title: _titleController.text);
+      _autoSaveService?.forceSave(title: _titleController.text);
     } else {
       // Brand-new note never saved – create it now
       _createNewNoteEarly();
@@ -316,18 +316,21 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
   void _initializeAutoSave() {
     _autoSaveService = AutoSaveService(
-      onSave: (noteId, title, content) async {
+      onSave: (title, content) async {
         if (_effectiveNoteId != null) {
+          final completer = Completer<void>();
           context.read<OptimizedNoteBloc>().add(
             UpdateOptimizedNote(
               noteId: _effectiveNoteId!,
               title: title,
               content: content,
+              completer: completer,
             ),
           );
+          await completer.future;
         }
       },
-      onChangeDetected: (noteId, hasChanges) {
+      onChangeDetected: (hasChanges) {
         if (mounted) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
@@ -342,7 +345,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
     if (_effectiveNoteId != null) {
       _autoSaveService?.startTracking(
-        _effectiveNoteId!,
         _titleController.text,
         _contentController.text,
         contentProvider: () => _contentController.text,
@@ -367,14 +369,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
     _debouncedLineCountUpdate();
 
-    // Reset retry budget on every fresh user edit
-    _autoSaveService?.resetRetries();
-
     if (_effectiveNoteId != null) {
-      // Notify auto-save — content is read lazily from the provider
-      // only when a save actually fires, avoiding a full .text copy here.
       _autoSaveService?.onContentChanged(
-        _effectiveNoteId!,
         _titleController.text,
       );
     } else {
@@ -452,7 +448,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
     if (switchingToPreview && _effectiveNoteId != null) {
       _autoSaveService?.forceSave(
-        _effectiveNoteId!,
         title: _titleController.text,
         content: currentText!,
       );
@@ -621,7 +616,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     WidgetsBinding.instance.removeObserver(this);
     DevOptions.instance.removeListener(_onDevOptionsChanged);
     _lineCountDebounceTimer?.cancel();
-    _autoSaveService?.stopTracking(_effectiveNoteId ?? widget.noteId ?? '');
     _autoSaveService?.dispose();
     _titleController.dispose();
     _historyObserver.dispose();
@@ -993,7 +987,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
           _effectiveNoteId = state.metadata.id;
           _isCreatingNewNote = false;
           _autoSaveService?.startTracking(
-            state.metadata.id,
             _titleController.text,
             _contentController.text,
             contentProvider: () => _contentController.text,
@@ -1444,7 +1437,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
     if (_effectiveNoteId != null) {
       await _autoSaveService?.forceSave(
-        _effectiveNoteId!,
         title: _titleController.text,
       );
     } else if (!_isCreatingNewNote) {

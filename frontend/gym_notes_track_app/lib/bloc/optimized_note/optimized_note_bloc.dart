@@ -214,8 +214,11 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
       if (_currentFolderId != null) {
         add(RefreshNotes(folderId: _currentFolderId));
       }
+
+      event.completer?.complete();
     } catch (e, stackTrace) {
       _logError('Failed to update note', e, stackTrace);
+      event.completer?.completeError(e, stackTrace);
       emit(
         OptimizedNoteError(
           'Failed to update note: $e',
