@@ -6,6 +6,11 @@ class FontConstants {
   static const double maxFontSize = 30.0;
   static const double fontSizeStep = 2.0;
 
+  /// The font family used by the code editor (re_editor).
+  /// When null, the platform default font is used.
+  /// Must match the fontFamily set on CodeEditorStyle in ModernEditorWrapper.
+  static const String? editorFontFamily = null;
+
   // Markdown header font sizes
   static const double h1 = 32.0;
   static const double h2 = 24.0;

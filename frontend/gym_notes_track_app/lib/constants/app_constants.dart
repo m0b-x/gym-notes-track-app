@@ -56,6 +56,13 @@ class AppConstants {
   static const int maxSearchMatches = 1000;
 
   // ============================================================
+  // EDITOR LAYOUT CONSTANTS
+  // ============================================================
+  /// Extra right padding added to the code editor to reserve space
+  /// for the scroll-progress indicator overlay.
+  static const double editorScrollbarPadding = 16.0;
+
+  // ============================================================
   // PREVIEW CONSTANTS
   // ============================================================
   /// Notes under this line count get instant preview switching (pre-loaded offstage).

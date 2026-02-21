@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:re_editor/re_editor.dart';
 
+import '../constants/app_constants.dart';
 import '../constants/app_spacing.dart';
+import '../constants/font_constants.dart';
 import '../constants/markdown_constants.dart';
 import '../utils/re_editor_search_controller.dart';
 import 'editor_chunk_overlay.dart';
@@ -158,7 +160,7 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
                 editorPadding: EdgeInsets.only(
                   left: AppSpacing.lg,
                   top: AppSpacing.lg,
-                  right: AppSpacing.lg + 16,
+                  right: AppSpacing.lg + AppConstants.editorScrollbarPadding,
                   bottom: AppSpacing.lg + bottomSafeArea,
                 ),
               ),
@@ -195,6 +197,7 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
         toolbarController: _toolbarController,
         style: CodeEditorStyle(
           fontSize: widget.editorFontSize,
+          fontFamily: FontConstants.editorFontFamily,
           fontHeight: MarkdownConstants.lineHeight,
           textColor: theme.textTheme.bodyLarge?.color,
           backgroundColor: Colors.transparent,
@@ -214,7 +217,7 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
         padding: EdgeInsets.only(
           left: AppSpacing.lg,
           top: AppSpacing.lg,
-          right: AppSpacing.lg + 16,
+          right: AppSpacing.lg + AppConstants.editorScrollbarPadding,
           bottom: AppSpacing.lg + bottomSafeArea,
         ),
         indicatorBuilder: widget.showLineNumbers

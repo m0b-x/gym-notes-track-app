@@ -12,6 +12,10 @@ class EditorWidthConfig {
   final double fontSize;
   final double lineHeight;
 
+  /// Font family to use for text measurement.
+  /// Must match the font family used by the code editor (re_editor).
+  final String? fontFamily;
+
   /// Additional safety margin for font rendering differences
   final double safetyMargin;
 
@@ -21,7 +25,8 @@ class EditorWidthConfig {
     this.scrollIndicatorKey,
     required this.fontSize,
     this.lineHeight = MarkdownConstants.lineHeight,
-    this.safetyMargin = 10.0,
+    this.fontFamily,
+    this.safetyMargin = 2.0,
   });
 }
 
@@ -54,10 +59,15 @@ class EditorWidthCalculator {
   static final _italicPattern = RegExp(r'\*[^*]+\*|_[^_]+_');
   static final _codeBlockFencePattern = RegExp(r'^```');
 
-  const EditorWidthCalculator({
-    required this.config,
-    required this.editorPadding,
-  });
+  /// Cached TextPainter reused across measurements to avoid re-allocation.
+  late final TextPainter _textPainter;
+
+  EditorWidthCalculator({required this.config, required this.editorPadding})
+    : _textPainter = TextPainter(
+        text: const TextSpan(text: ''),
+        textDirection: ui.TextDirection.ltr,
+        maxLines: 1,
+      );
 
   /// Get the available width for text in the editor by measuring actual widget sizes
   double? getAvailableTextWidth() {
@@ -70,18 +80,14 @@ class EditorWidthCalculator {
         ? _measureWidgetWidth(config.lineNumbersKey!) ?? 0.0
         : 0.0;
 
-    // Measure scroll indicator width (if key provided and widget exists)
-    final scrollIndicatorWidth = config.scrollIndicatorKey != null
-        ? _measureWidgetWidth(config.scrollIndicatorKey!) ?? 0.0
-        : 0.0;
+    // NOTE: Scroll indicator width is NOT deducted here because the
+    // editor's right padding (editorScrollbarPadding) already reserves
+    // space for the scroll-progress indicator overlay.
 
     // Calculate total deduction
     final horizontalPadding = editorPadding.left + editorPadding.right;
     final totalDeduction =
-        lineNumbersWidth +
-        horizontalPadding +
-        scrollIndicatorWidth +
-        config.safetyMargin;
+        lineNumbersWidth + horizontalPadding + config.safetyMargin;
 
     final availableWidth = containerWidth - totalDeduction;
 
@@ -90,13 +96,9 @@ class EditorWidthCalculator {
 
   /// Measure the pixel width of a string using the editor's font
   double measureTextWidth(String text) {
-    final textPainter = TextPainter(
-      text: TextSpan(text: text, style: _getTextStyle()),
-      textDirection: ui.TextDirection.ltr,
-      maxLines: 1,
-    );
-    textPainter.layout();
-    return textPainter.width;
+    _textPainter.text = TextSpan(text: text, style: _getTextStyle());
+    _textPainter.layout();
+    return _textPainter.width;
   }
 
   /// Check if a line exceeds the available width
@@ -295,7 +297,11 @@ class EditorWidthCalculator {
   }
 
   TextStyle _getTextStyle() {
-    return TextStyle(fontSize: config.fontSize, height: config.lineHeight);
+    return TextStyle(
+      fontSize: config.fontSize,
+      height: config.lineHeight,
+      fontFamily: config.fontFamily,
+    );
   }
 
   double? _measureWidgetWidth(GlobalKey key) {

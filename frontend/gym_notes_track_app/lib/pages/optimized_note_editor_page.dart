@@ -738,6 +738,17 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     // Detect paste: large text additions
     final isPaste = textLengthDiff > _pasteThreshold;
 
+    // Calculate paste location before updating _previousTextLength
+    int? pasteStartOffset;
+    int? pasteEndOffset;
+    if (isPaste && textLengthIncreased) {
+      // The selection end is where the paste ended
+      pasteEndOffset = _getOffsetFromSelection(selection.extent);
+      // The paste started textLengthDiff characters before the end
+      pasteStartOffset = pasteEndOffset - textLengthDiff;
+      if (pasteStartOffset < 0) pasteStartOffset = 0;
+    }
+
     _previousTextLength = currentTextLength;
 
     if (!textLengthIncreased) return;
@@ -746,8 +757,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     // _handlePasteLineBreaking sets controller.value directly (bypassing
     // runRevocableOp) so the reformatting overwrites the paste's undo
     // node — making paste + reformat a single undo entry.
-    if (isPaste) {
-      _handlePasteLineBreaking();
+    if (isPaste && pasteStartOffset != null && pasteEndOffset != null) {
+      _handlePasteLineBreaking(pasteStartOffset, pasteEndOffset);
       return;
     }
 
@@ -819,11 +830,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         lineNumbersKey: _showLineNumbers ? _lineNumbersKey : null,
         scrollIndicatorKey: _scrollIndicatorKey,
         fontSize: _editorFontSize,
+        fontFamily: FontConstants.editorFontFamily,
       ),
       editorPadding: EdgeInsets.only(
         left: AppSpacing.lg,
         top: AppSpacing.lg,
-        right: AppSpacing.lg + 48,
+        right: AppSpacing.lg + AppConstants.editorScrollbarPadding,
         bottom: AppSpacing.lg,
       ),
     );
@@ -831,7 +843,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
   /// Handle paste by breaking long lines to fit editor width.
   /// Respects markdown syntax and skips code blocks.
-  void _handlePasteLineBreaking() {
+  /// Only formats lines within the pasted range.
+  void _handlePasteLineBreaking(int pasteStartOffset, int pasteEndOffset) {
     // Check if feature is enabled
     if (!_autoBreakLongLines) return;
 
@@ -839,33 +852,76 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
     final calculator = _createWidthCalculator();
     final availableWidth = calculator.getAvailableTextWidth();
-    if (availableWidth == null) {
+    if (availableWidth == null || availableWidth <= 0) {
       _isProcessingTextChange = false;
       return;
     }
 
-    // Get all lines as strings
+    final text = _contentController.text;
     final codeLines = _contentController.codeLines;
     final lineCount = codeLines.length;
-    final lines = <String>[];
-    for (int i = 0; i < lineCount; i++) {
-      lines.add(codeLines[i].text);
+
+    // Find which lines contain the pasted text
+    final pasteStartLine = TextPositionUtils.getLineFromOffset(
+      text,
+      pasteStartOffset,
+    );
+    final pasteEndLine = TextPositionUtils.getLineFromOffset(
+      text,
+      pasteEndOffset,
+    );
+
+    // Only process the pasted lines
+    final linesToProcess = <String>[];
+    for (int i = pasteStartLine; i <= pasteEndLine && i < lineCount; i++) {
+      linesToProcess.add(codeLines[i].text);
     }
 
-    // Use smart line breaking that respects code blocks and markdown syntax
-    final result = calculator.breakLinesSmartly(lines, availableWidth);
+    // Use smart line breaking on pasted lines only
+    final result = calculator.breakLinesSmartly(linesToProcess, availableWidth);
 
     if (result.linesModified > 0) {
-      final newText = result.lines.join('\n');
+      // Reconstruct the full text with only the pasted portion modified
+      final beforePaste = <String>[];
+      for (int i = 0; i < pasteStartLine; i++) {
+        beforePaste.add(codeLines[i].text);
+      }
+
+      final afterPaste = <String>[];
+      for (int i = pasteEndLine + 1; i < lineCount; i++) {
+        afterPaste.add(codeLines[i].text);
+      }
+
+      final newText = [
+        ...beforePaste,
+        ...result.lines,
+        ...afterPaste,
+      ].join('\n');
+
       if (newText != _contentController.text) {
+        // Calculate new cursor position after formatting
+        final beforePasteLength =
+            beforePaste.join('\n').length + (beforePaste.isNotEmpty ? 1 : 0);
+        final formattedPasteLength = result.lines.join('\n').length;
+        final newCursorOffset = beforePasteLength + formattedPasteLength;
+
+        final newCursorLine = TextPositionUtils.getLineFromOffset(
+          newText,
+          newCursorOffset,
+        );
+        final newCursorCol = TextPositionUtils.getColumnFromOffset(
+          newText,
+          newCursorOffset,
+        );
+
         // Set value directly (not via `set text`) to bypass runRevocableOp.
         // This makes the reformatting overwrite the paste's undo node
         // so that paste + line-breaking is a single undo entry.
         _contentController.value = CodeLineEditingValue(
           codeLines: newText.codeLines,
           selection: CodeLineSelection.collapsed(
-            index: result.lines.length - 1,
-            offset: result.lines.last.length,
+            index: newCursorLine,
+            offset: newCursorCol,
           ),
         );
         _previousTextLength = newText.length;
@@ -890,6 +946,26 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     for (int i = 0; i < lineIndex && i < codeLines.length; i++) {
       offset += codeLines[i].text.length + 1;
     }
+    return offset;
+  }
+
+  /// Convert a CodeLinePosition to a character offset in the full text
+  int _getOffsetFromSelection(CodeLinePosition position) {
+    int offset = 0;
+    final codeLines = _contentController.codeLines;
+    final lineIndex = position.index.clamp(0, codeLines.length - 1);
+
+    // Add length of all lines before the target line
+    for (int i = 0; i < lineIndex; i++) {
+      offset += codeLines[i].text.length + 1; // +1 for newline
+    }
+
+    // Add column offset within the target line
+    if (lineIndex < codeLines.length) {
+      final lineLength = codeLines[lineIndex].text.length;
+      offset += position.offset.clamp(0, lineLength);
+    }
+
     return offset;
   }
 
@@ -1504,13 +1580,44 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   }
 
   void _handleShortcut(CustomMarkdownShortcut shortcut) {
+    // Store length before applying the shortcut to calculate inserted range
+    final beforeLength = _contentController.textLength;
+
+    // Prevent _handleTextChange from running during runRevocableOp.
+    // Without this, replaceSelection fires notifyListeners synchronously
+    // which triggers _handleTextChange → _handlePasteLineBreaking inside
+    // the revocable op, then we'd call _handlePasteLineBreaking again
+    // below — double-formatting with stale offsets.
+    _isProcessingTextChange = true;
+
     // Wrap the entire shortcut operation in an atomic undo entry
     // so that e.g. date insertion + repeat + wrapper text all revert together.
     _contentController.runRevocableOp(() {
       _applyShortcut(shortcut);
     });
 
+    _isProcessingTextChange = false;
+
+    // Sync _previousTextLength so subsequent edits diff correctly
+    _previousTextLength = _contentController.textLength;
+
     _onTextChanged();
+
+    // Format the inserted text if auto-break is enabled
+    if (_autoBreakLongLines) {
+      final afterLength = _contentController.textLength;
+      final textLengthDiff = afterLength - beforeLength;
+      if (textLengthDiff > 0) {
+        final afterSelection = _contentController.selection;
+        final insertEndOffset = _getOffsetFromSelection(afterSelection.extent);
+        final insertStartOffset = insertEndOffset - textLengthDiff;
+
+        if (insertStartOffset >= 0 && insertEndOffset <= afterLength) {
+          _handlePasteLineBreaking(insertStartOffset, insertEndOffset);
+        }
+      }
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _contentController.makeCursorVisible();
