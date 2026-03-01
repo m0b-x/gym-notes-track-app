@@ -7,6 +7,7 @@ import 'package:re_editor/re_editor.dart';
 import '../constants/app_constants.dart';
 import '../l10n/app_localizations.dart';
 import '../models/custom_markdown_shortcut.dart';
+import '../models/utility_button_config.dart';
 import '../utils/icon_utils.dart';
 
 class MarkdownToolbar extends StatefulWidget {
@@ -28,6 +29,18 @@ class MarkdownToolbar extends StatefulWidget {
   final bool showBackground;
   final bool showReorder;
 
+  /// Ratio of toolbar width allocated to the shortcuts section (0.0–1.0).
+  /// The utility section (undo/redo/settings/etc.) gets (1 - shortcutRatio).
+  final double shortcutRatio;
+
+  /// When true, toolbar is split into two independently scrollable sections.
+  /// When false, all buttons are in a single horizontally scrollable row.
+  final bool splitEnabled;
+
+  /// Configuration for utility button visibility and order.
+  /// When null, all utility buttons are shown in the default order.
+  final List<UtilityButtonConfig>? utilityConfigs;
+
   const MarkdownToolbar({
     super.key,
     required this.shortcuts,
@@ -47,6 +60,9 @@ class MarkdownToolbar extends StatefulWidget {
     this.showSettings = true,
     this.showBackground = true,
     this.showReorder = true,
+    this.shortcutRatio = 0.7,
+    this.splitEnabled = true,
+    this.utilityConfigs,
   });
 
   @override
@@ -119,116 +135,198 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
         .where((s) => s.isVisible)
         .toList();
 
-    final toolbarContent = Row(
+    // Build the utility buttons driven by config (order + visibility).
+    final configs = widget.utilityConfigs ?? UtilityButtonConfig.defaults();
+    final utilityButtons = <Widget>[];
+    for (final config in configs) {
+      if (!config.isVisible) continue;
+      final button = _buildUtilityButtonWidget(context, config.id);
+      if (button != null) {
+        if (utilityButtons.isNotEmpty) {
+          utilityButtons.add(const SizedBox(width: 4));
+        }
+        utilityButtons.add(button);
+      }
+    }
+
+    final utilityContent = Row(
       mainAxisSize: MainAxisSize.min,
-      children: [
-        if (!widget.isPreviewMode) ...[
-          ...visibleShortcuts.map(
-            (shortcut) => _ShortcutButton(
-              shortcut: shortcut,
-              onTap: () {
-                if (shortcut.id == 'default_header') {
-                  _showHeaderMenu(context);
-                } else {
-                  widget.onShortcutPressed(shortcut);
-                }
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-          _buildVerticalDivider(context),
-          const SizedBox(width: 8),
-        ],
-        _ToolbarButton(
-          icon: Icons.undo,
-          tooltip: AppLocalizations.of(context)!.undo,
-          onPressed: widget.canUndo ? widget.onUndo : null,
+      children: utilityButtons,
+    );
+
+    final decoration = widget.showBackground
+        ? BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 4,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          )
+        : null;
+
+    // In preview mode, no shortcut buttons — utility section expands to full width
+    if (widget.isPreviewMode) {
+      return Container(
+        decoration: decoration,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: AppConstants.markdownToolbarPadding,
         ),
-        _ToolbarButton(
-          icon: Icons.redo,
-          tooltip: AppLocalizations.of(context)!.redo,
-          onPressed: widget.canRedo ? widget.onRedo : null,
+        child: Center(child: utilityContent),
+      );
+    }
+
+    // Build shortcut buttons
+    final shortcutButtons = visibleShortcuts
+        .map(
+          (shortcut) => _ShortcutButton(
+            shortcut: shortcut,
+            onTap: () {
+              if (shortcut.id == 'default_header') {
+                _showHeaderMenu(context);
+              } else {
+                widget.onShortcutPressed(shortcut);
+              }
+            },
+          ),
+        )
+        .toList();
+
+    // Classic mode: single horizontally scrollable row with all buttons
+    if (!widget.splitEnabled) {
+      return Container(
+        decoration: decoration,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: AppConstants.markdownToolbarPadding,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ...shortcutButtons,
+              const SizedBox(width: 8),
+              _buildVerticalDivider(context),
+              const SizedBox(width: 8),
+              ...utilityButtons,
+            ],
+          ),
         ),
-        if (!widget.isPreviewMode && widget.onPaste != null) ...[
-          const SizedBox(width: 8),
-          _buildVerticalDivider(context),
-          const SizedBox(width: 8),
-          _ToolbarButton(
-            icon: Icons.content_paste,
-            tooltip: AppLocalizations.of(context)!.paste,
-            onPressed: widget.onPaste,
-          ),
-        ],
-        const SizedBox(width: 8),
-        _ToolbarButton(
-          icon: Icons.text_decrease,
-          tooltip: AppLocalizations.of(context)!.decreaseFontSize,
-          onPressed: widget.onDecreaseFontSize,
-        ),
-        _ToolbarButton(
-          icon: Icons.text_increase,
-          tooltip: AppLocalizations.of(context)!.increaseFontSize,
-          onPressed: widget.onIncreaseFontSize,
-        ),
-        const SizedBox(width: 16),
-        if (widget.showReorder &&
-            !widget.isPreviewMode &&
-            widget.onReorderComplete != null)
-          _ToolbarButton(
-            icon: Icons.swap_horiz,
-            tooltip: AppLocalizations.of(context)!.reorderShortcuts,
-            onPressed: _enterReorderMode,
-          ),
-        if (widget.isPreviewMode && widget.onShare != null)
-          _ToolbarButton(
-            icon: Icons.share,
-            tooltip: AppLocalizations.of(context)!.shareNote,
-            onPressed: widget.onShare,
-          ),
-        if (widget.showSettings)
-          _ToolbarButton(
-            icon: Icons.settings,
-            tooltip: AppLocalizations.of(context)!.settings,
-            onPressed: widget.onSettings,
-          ),
-        if (!widget.isPreviewMode) const SizedBox(width: 8),
-      ],
+      );
+    }
+
+    // Split mode: left = shortcuts, right = utility
+    // Each section scrolls horizontally independently.
+    final ratio = widget.shortcutRatio.clamp(
+      AppConstants.minToolbarRatio,
+      AppConstants.maxToolbarRatio,
     );
 
     return Container(
-      decoration: widget.showBackground
-          ? BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            )
-          : null,
-      child: widget.isPreviewMode
-          ? SingleChildScrollView(
+      decoration: decoration,
+      padding: const EdgeInsets.symmetric(
+        vertical: AppConstants.markdownToolbarPadding,
+      ),
+      child: Row(
+        children: [
+          // Left section: markdown shortcuts (scrolls independently)
+          Expanded(
+            flex: (ratio * 100).round(),
+            child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: Container(
-                width: MediaQuery.of(context).size.width,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: AppConstants.markdownToolbarPadding,
-                ),
-                child: Center(child: toolbarContent),
+              padding: const EdgeInsets.only(left: 12),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: shortcutButtons,
               ),
-            )
-          : SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: AppConstants.markdownToolbarPadding,
-              ),
-              child: toolbarContent,
             ),
+          ),
+          // Divider between sections
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: _buildVerticalDivider(context),
+          ),
+          // Right section: utility buttons (scrolls independently)
+          Expanded(
+            flex: ((1.0 - ratio) * 100).round(),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(right: 12),
+              child: utilityContent,
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  /// Builds a single utility button widget for the given [id],
+  /// or returns null if contextual conditions prevent showing it.
+  Widget? _buildUtilityButtonWidget(BuildContext context, String id) {
+    switch (id) {
+      case UtilityButtonId.undo:
+        return _ToolbarButton(
+          icon: Icons.undo,
+          tooltip: AppLocalizations.of(context)!.undo,
+          onPressed: widget.canUndo ? widget.onUndo : null,
+        );
+      case UtilityButtonId.redo:
+        return _ToolbarButton(
+          icon: Icons.redo,
+          tooltip: AppLocalizations.of(context)!.redo,
+          onPressed: widget.canRedo ? widget.onRedo : null,
+        );
+      case UtilityButtonId.paste:
+        if (widget.isPreviewMode || widget.onPaste == null) return null;
+        return _ToolbarButton(
+          icon: Icons.content_paste,
+          tooltip: AppLocalizations.of(context)!.paste,
+          onPressed: widget.onPaste,
+        );
+      case UtilityButtonId.decreaseFont:
+        return _ToolbarButton(
+          icon: Icons.text_decrease,
+          tooltip: AppLocalizations.of(context)!.decreaseFontSize,
+          onPressed: widget.onDecreaseFontSize,
+        );
+      case UtilityButtonId.increaseFont:
+        return _ToolbarButton(
+          icon: Icons.text_increase,
+          tooltip: AppLocalizations.of(context)!.increaseFontSize,
+          onPressed: widget.onIncreaseFontSize,
+        );
+      case UtilityButtonId.reorder:
+        if (!widget.showReorder ||
+            widget.isPreviewMode ||
+            widget.onReorderComplete == null) {
+          return null;
+        }
+        return _ToolbarButton(
+          icon: Icons.swap_horiz,
+          tooltip: AppLocalizations.of(context)!.reorderShortcuts,
+          onPressed: _enterReorderMode,
+        );
+      case UtilityButtonId.share:
+        if (!widget.isPreviewMode || widget.onShare == null) return null;
+        return _ToolbarButton(
+          icon: Icons.share,
+          tooltip: AppLocalizations.of(context)!.shareNote,
+          onPressed: widget.onShare,
+        );
+      case UtilityButtonId.settings:
+        if (!widget.showSettings) return null;
+        return _ToolbarButton(
+          icon: Icons.settings,
+          tooltip: AppLocalizations.of(context)!.settings,
+          onPressed: widget.onSettings,
+        );
+      default:
+        return null;
+    }
   }
 
   void _showHeaderMenu(BuildContext context) {

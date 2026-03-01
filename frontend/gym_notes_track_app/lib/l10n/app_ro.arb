@@ -329,5 +329,11 @@
   "incrementDateOnRepeat": "Incrementează data la repetare",
   "incrementByEachRepeat": "Incrementare pentru fiecare repetare:",
   "advancedOptions": "Opțiuni Avansate",
-  "advancedOptionsDescription": "Offset dată, repetare și altele"
+  "advancedOptionsDescription": "Offset dată, repetare și altele",
+  "toolbarLayout": "Aspect bară de instrumente",
+  "shortcuts": "Scurtături",
+  "utilities": "Utilități",
+  "splitToolbar": "Împarte bara de instrumente",
+  "utilityButtons": "Butoane utilitare",
+  "utilityButtonsHint": "Comutați vizibilitatea și trageți pentru a reordona"
 }

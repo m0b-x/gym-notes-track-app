@@ -29,6 +29,12 @@ class AppConstants {
   static const double markdownToolbarIconSize = 20.0;
   static const double markdownToolbarTextSize = 16.0;
 
+  /// Minimum toolbar shortcut ratio (30%).
+  static const double minToolbarRatio = 0.3;
+
+  /// Maximum toolbar shortcut ratio (80%).
+  static const double maxToolbarRatio = 0.8;
+
   // ============================================================
   // PAGINATION CONSTANTS
   // ============================================================

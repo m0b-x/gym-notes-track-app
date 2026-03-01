@@ -41,6 +41,11 @@ class SettingsKeys {
   // Preview settings
   static const String showPreviewScrollbar = 'show_preview_scrollbar';
 
+  // Toolbar settings
+  static const String toolbarShortcutRatio = 'toolbar_shortcut_ratio';
+  static const String toolbarSplitEnabled = 'toolbar_split_enabled';
+  static const String toolbarUtilityConfig = 'toolbar_utility_config';
+
   // Preview performance settings
   static const String previewLinesPerChunk = 'preview_lines_per_chunk';
 
@@ -68,6 +73,11 @@ class SettingsKeys {
 
   // Default values for preview settings
   static const bool defaultShowPreviewScrollbar = false;
+
+  // Default values for toolbar settings
+  /// Default ratio of shortcuts section width (0.0–1.0). 0.7 = 70% shortcuts.
+  static const double defaultToolbarShortcutRatio = 0.7;
+  static const bool defaultToolbarSplitEnabled = true;
 
   // Default values for preview performance
   static const int defaultPreviewLinesPerChunk = 10;

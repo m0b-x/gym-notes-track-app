@@ -1264,4 +1264,23 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get saveStatusError => 'Speichern fehlgeschlagen';
+
+  @override
+  String get toolbarLayout => 'Toolbar-Layout';
+
+  @override
+  String get shortcuts => 'Kurzbefehle';
+
+  @override
+  String get utilities => 'Werkzeuge';
+
+  @override
+  String get splitToolbar => 'Toolbar teilen';
+
+  @override
+  String get utilityButtons => 'Hilfsschaltflächen';
+
+  @override
+  String get utilityButtonsHint =>
+      'Sichtbarkeit umschalten und zum Neuordnen ziehen';
 }

@@ -2415,6 +2415,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save failed'**
   String get saveStatusError;
+
+  /// Section header for toolbar ratio adjuster
+  ///
+  /// In en, this message translates to:
+  /// **'Toolbar Layout'**
+  String get toolbarLayout;
+
+  /// Label for the shortcuts section of the toolbar
+  ///
+  /// In en, this message translates to:
+  /// **'Shortcuts'**
+  String get shortcuts;
+
+  /// Label for the utilities section of the toolbar
+  ///
+  /// In en, this message translates to:
+  /// **'Utilities'**
+  String get utilities;
+
+  /// Toggle label for split toolbar mode
+  ///
+  /// In en, this message translates to:
+  /// **'Split toolbar'**
+  String get splitToolbar;
+
+  /// Section header for utility button customization
+  ///
+  /// In en, this message translates to:
+  /// **'Utility Buttons'**
+  String get utilityButtons;
+
+  /// Hint text for utility button customization section
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle visibility and drag to reorder'**
+  String get utilityButtonsHint;
 }
 
 class _AppLocalizationsDelegate

@@ -1407,5 +1407,11 @@
   "saveStatusError": "Speichern fehlgeschlagen",
   "@saveStatusError": {
     "description": "Indicator label when the last save attempt failed"
-  }
+  },
+  "toolbarLayout": "Toolbar-Layout",
+  "shortcuts": "Kurzbefehle",
+  "utilities": "Werkzeuge",
+  "splitToolbar": "Toolbar teilen",
+  "utilityButtons": "Hilfsschaltflächen",
+  "utilityButtonsHint": "Sichtbarkeit umschalten und zum Neuordnen ziehen"
 }

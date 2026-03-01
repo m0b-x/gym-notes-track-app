@@ -17,6 +17,7 @@ import '../bloc/optimized_note/optimized_note_state.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/dev_options.dart';
 import '../models/note_metadata.dart';
+import '../models/utility_button_config.dart';
 import '../services/auto_save_service.dart';
 import '../services/dev_options_service.dart';
 import '../services/note_position_service.dart';
@@ -99,6 +100,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   // Preview performance settings
   int _previewLinesPerChunk = 10;
 
+  // Toolbar settings
+  double _toolbarShortcutRatio = SettingsKeys.defaultToolbarShortcutRatio;
+  bool _toolbarSplitEnabled = SettingsKeys.defaultToolbarSplitEnabled;
+  List<UtilityButtonConfig> _utilityConfigs = UtilityButtonConfig.defaults();
+
   // Preview scroll progress (for scrollbar when using ScrollablePositionedList)
   final ValueNotifier<double> _previewScrollProgress = ValueNotifier(0.0);
 
@@ -131,7 +137,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _effectiveNoteId = widget.noteId;
-    _loadSwipeSetting();
+    _loadEditorSettings();
     _initDevOptions();
 
     _titleController = TextEditingController(
@@ -256,7 +262,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     );
   }
 
-  Future<void> _loadSwipeSetting() async {
+  Future<void> _loadEditorSettings() async {
     final settings = await SettingsService.getInstance();
     final noteSwipe = await settings.getNoteSwipeEnabled();
     final showStats = await settings.getShowStatsBar();
@@ -269,6 +275,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     final previewWhenKeyboardHidden = await settings
         .getPreviewWhenKeyboardHidden();
     final scrollCursorOnKeyboard = await settings.getScrollCursorOnKeyboard();
+    final toolbarRatio = await settings.getToolbarShortcutRatio();
+    final toolbarSplit = await settings.getToolbarSplitEnabled();
+    final utilityConfigs = await settings.getToolbarUtilityConfig();
     if (mounted) {
       setState(() {
         _noteSwipeEnabled = noteSwipe;
@@ -281,6 +290,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         _autoBreakLongLines = autoBreakLongLines;
         _previewWhenKeyboardHidden = previewWhenKeyboardHidden;
         _scrollCursorOnKeyboard = scrollCursorOnKeyboard;
+        _toolbarShortcutRatio = toolbarRatio;
+        _toolbarSplitEnabled = toolbarSplit;
+        _utilityConfigs = utilityConfigs;
       });
     }
   }
@@ -1058,6 +1070,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                           canUndo: false,
                           canRedo: false,
                           previewFontSize: _previewFontSize,
+                          shortcutRatio: _toolbarShortcutRatio,
+                          splitEnabled: _toolbarSplitEnabled,
+                          utilityConfigs: _utilityConfigs,
                           onUndo: () {},
                           onRedo: () {},
                           onDecreaseFontSize: () {},
@@ -1188,6 +1203,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                               previewFontSize: _isPreviewMode
                                   ? _previewFontSize
                                   : _editorFontSize,
+                              shortcutRatio: _toolbarShortcutRatio,
+                              splitEnabled: _toolbarSplitEnabled,
+                              utilityConfigs: _utilityConfigs,
                               onUndo: () => _historyObserver.undo(),
                               onRedo: () => _historyObserver.redo(),
                               onPaste: () => _contentController.paste(),
@@ -1793,8 +1811,18 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
     // Reload shortcuts from database (they are saved immediately in settings page)
     final shortcuts = await MarkdownSettingsUtils.loadShortcuts();
+    // Reload toolbar settings in case user adjusted them
+    final settings = await SettingsService.getInstance();
+    final ratio = await settings.getToolbarShortcutRatio();
+    final splitEnabled = await settings.getToolbarSplitEnabled();
+    final utilityConfigs = await settings.getToolbarUtilityConfig();
     if (mounted) {
-      setState(() => _allShortcuts = shortcuts);
+      setState(() {
+        _allShortcuts = shortcuts;
+        _toolbarShortcutRatio = ratio;
+        _toolbarSplitEnabled = splitEnabled;
+        _utilityConfigs = utilityConfigs;
+      });
     }
   }
 }

@@ -1254,4 +1254,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get saveStatusError => 'Save failed';
+
+  @override
+  String get toolbarLayout => 'Toolbar Layout';
+
+  @override
+  String get shortcuts => 'Shortcuts';
+
+  @override
+  String get utilities => 'Utilities';
+
+  @override
+  String get splitToolbar => 'Split toolbar';
+
+  @override
+  String get utilityButtons => 'Utility Buttons';
+
+  @override
+  String get utilityButtonsHint => 'Toggle visibility and drag to reorder';
 }

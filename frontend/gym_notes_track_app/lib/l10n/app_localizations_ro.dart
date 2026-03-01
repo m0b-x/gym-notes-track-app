@@ -1262,4 +1262,23 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get saveStatusError => 'Save failed';
+
+  @override
+  String get toolbarLayout => 'Aspect bară de instrumente';
+
+  @override
+  String get shortcuts => 'Scurtături';
+
+  @override
+  String get utilities => 'Utilități';
+
+  @override
+  String get splitToolbar => 'Împarte bara de instrumente';
+
+  @override
+  String get utilityButtons => 'Butoane utilitare';
+
+  @override
+  String get utilityButtonsHint =>
+      'Comutați vizibilitatea și trageți pentru a reordona';
 }

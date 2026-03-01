@@ -1675,5 +1675,29 @@
   "saveStatusError": "Save failed",
   "@saveStatusError": {
     "description": "Indicator label when the last save attempt failed"
+  },
+  "toolbarLayout": "Toolbar Layout",
+  "@toolbarLayout": {
+    "description": "Section header for toolbar ratio adjuster"
+  },
+  "shortcuts": "Shortcuts",
+  "@shortcuts": {
+    "description": "Label for the shortcuts section of the toolbar"
+  },
+  "utilities": "Utilities",
+  "@utilities": {
+    "description": "Label for the utilities section of the toolbar"
+  },
+  "splitToolbar": "Split toolbar",
+  "@splitToolbar": {
+    "description": "Toggle label for split toolbar mode"
+  },
+  "utilityButtons": "Utility Buttons",
+  "@utilityButtons": {
+    "description": "Section header for utility button customization"
+  },
+  "utilityButtonsHint": "Toggle visibility and drag to reorder",
+  "@utilityButtonsHint": {
+    "description": "Hint text for utility button customization section"
   }
 }

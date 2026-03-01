@@ -1,5 +1,6 @@
 import '../constants/settings_keys.dart';
 import '../database/database.dart';
+import '../models/utility_button_config.dart';
 
 /// Service for managing app settings using SQLite database
 class SettingsService {
@@ -236,6 +237,51 @@ class SettingsService {
 
   Future<void> setPreviewLinesPerChunk(int value) async {
     await _setInt(SettingsKeys.previewLinesPerChunk, value);
+  }
+
+  // Toolbar settings - Shortcut/utility ratio
+  Future<double> getToolbarShortcutRatio() async {
+    final value = await _db.userSettingsDao.getValue(
+      SettingsKeys.toolbarShortcutRatio,
+    );
+    if (value == null) return SettingsKeys.defaultToolbarShortcutRatio;
+    return double.tryParse(value) ?? SettingsKeys.defaultToolbarShortcutRatio;
+  }
+
+  Future<void> setToolbarShortcutRatio(double value) async {
+    await _db.userSettingsDao.setValue(
+      SettingsKeys.toolbarShortcutRatio,
+      value.toString(),
+    );
+  }
+
+  Future<bool> getToolbarSplitEnabled() async {
+    return _getBool(
+      SettingsKeys.toolbarSplitEnabled,
+      SettingsKeys.defaultToolbarSplitEnabled,
+    );
+  }
+
+  Future<void> setToolbarSplitEnabled(bool value) async {
+    await _setBool(SettingsKeys.toolbarSplitEnabled, value);
+  }
+
+  // Toolbar utility buttons config
+  Future<List<UtilityButtonConfig>> getToolbarUtilityConfig() async {
+    final value = await _db.userSettingsDao.getValue(
+      SettingsKeys.toolbarUtilityConfig,
+    );
+    if (value == null) return UtilityButtonConfig.defaults();
+    return UtilityButtonConfig.decode(value);
+  }
+
+  Future<void> setToolbarUtilityConfig(
+    List<UtilityButtonConfig> configs,
+  ) async {
+    await _db.userSettingsDao.setValue(
+      SettingsKeys.toolbarUtilityConfig,
+      UtilityButtonConfig.encode(configs),
+    );
   }
 
   Future<bool> isOnboardingCompleted() async {
