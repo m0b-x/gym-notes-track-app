@@ -432,11 +432,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.tune,
-                size: 20,
-                color: theme.colorScheme.primary,
-              ),
+              Icon(Icons.tune, size: 20, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
               Text(
                 l10n.utilityButtons,
@@ -512,9 +508,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                               size: 20,
                             ),
                             onPressed: () => _toggleUtilityVisibility(index),
-                            tooltip: config.isVisible
-                                ? l10n.hide
-                                : l10n.show,
+                            tooltip: config.isVisible ? l10n.hide : l10n.show,
                           ),
                   ),
                 ),

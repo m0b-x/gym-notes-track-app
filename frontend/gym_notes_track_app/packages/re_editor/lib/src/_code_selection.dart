@@ -334,7 +334,7 @@ class _CodeSelectionGestureDetectorState
     final CodeLineSelection? selection = render.extendPositionTo(
       oldSelection: widget.controller.selection,
       position: offset,
-      anchor: _isMobile ? null : _anchorSelection,
+      anchor: _anchorSelection, //fix half word selection bug
       allowOverflow: cause == _SelectionChangedCause.drag,
     );
     if (selection == null) {
@@ -441,12 +441,11 @@ abstract class _SelectionOverlayController {
   void dispose();
 }
 
-typedef OnToolbarShow =
-    void Function(
-      BuildContext context,
-      TextSelectionToolbarAnchors anchors,
-      Rect? renderRect,
-    );
+typedef OnToolbarShow = void Function(
+  BuildContext context,
+  TextSelectionToolbarAnchors anchors,
+  Rect? renderRect,
+);
 
 class _DesktopSelectionOverlayController
     implements _SelectionOverlayController {
@@ -589,23 +588,21 @@ class _MobileSelectionOverlayController implements _SelectionOverlayController {
     final TextSelectionToolbarAnchors anchors;
     if (selection.isCollapsed) {
       anchors = TextSelectionToolbarAnchors(
-        primaryAnchor:
-            ensureRender.calculateTextPositionScreenOffset(
+        primaryAnchor: ensureRender.calculateTextPositionScreenOffset(
               selection.start,
               false,
             ) ??
             globalPosition,
       );
     } else {
-      Offset startPosition =
-          ensureRender.calculateTextPositionScreenOffset(
+      Offset startPosition = ensureRender.calculateTextPositionScreenOffset(
             selection.start,
             false,
           ) ??
           editingRegion.topLeft;
       Offset endPosition =
           ensureRender.calculateTextPositionScreenOffset(selection.end, true) ??
-          editingRegion.bottomRight;
+              editingRegion.bottomRight;
       if (startPosition.dy < editingRegion.top) {
         startPosition = Offset(startPosition.dx, editingRegion.top);
       }
@@ -753,11 +750,11 @@ class _MobileSelectionOverlayController implements _SelectionOverlayController {
           type: type,
           handleLayerLink: startHandleLayerLink,
           onSelectionHandleTapped: () {
-            final Offset? position = ensureRender
-                .calculateTextPositionScreenOffset(
-                  controller.selection.start,
-                  false,
-                );
+            final Offset? position =
+                ensureRender.calculateTextPositionScreenOffset(
+              controller.selection.start,
+              false,
+            );
             if (position == null) {
               return;
             }
@@ -789,11 +786,11 @@ class _MobileSelectionOverlayController implements _SelectionOverlayController {
         type: type,
         handleLayerLink: endHandleLayerLink,
         onSelectionHandleTapped: () {
-          final Offset? position = ensureRender
-              .calculateTextPositionScreenOffset(
-                controller.selection.end,
-                false,
-              );
+          final Offset? position =
+              ensureRender.calculateTextPositionScreenOffset(
+            controller.selection.end,
+            false,
+          );
           if (position == null) {
             return;
           }
@@ -1021,8 +1018,7 @@ class _MobileSelectionOverlayController implements _SelectionOverlayController {
   double _getHandleDy(double dragDy, double handleDy) {
     final double distanceDragged = dragDy - handleDy;
     final int dragDirection = distanceDragged < 0.0 ? -1 : 1;
-    final int linesDragged =
-        dragDirection *
+    final int linesDragged = dragDirection *
         (distanceDragged.abs() / ensureRender.lineHeight).floor();
     return handleDy + linesDragged * ensureRender.lineHeight;
   }
@@ -1156,24 +1152,24 @@ class _SelectionHandleOverlayState extends State<_SelectionHandleOverlay>
             gestures: <Type, GestureRecognizerFactory>{
               PanGestureRecognizer:
                   GestureRecognizerFactoryWithHandlers<PanGestureRecognizer>(
-                    () => PanGestureRecognizer(
-                      debugOwner: this,
-                      // Mouse events select the text and do not drag the cursor.
-                      supportedDevices: <PointerDeviceKind>{
-                        PointerDeviceKind.touch,
-                        PointerDeviceKind.stylus,
-                        PointerDeviceKind.unknown,
-                      },
-                    ),
-                    (PanGestureRecognizer instance) {
-                      instance
-                        ..dragStartBehavior = DragStartBehavior.start
-                        ..onStart = widget.onSelectionHandleDragStart
-                        ..onUpdate = widget.onSelectionHandleDragUpdate
-                        ..onCancel = widget.onSelectionHandleDragCancel
-                        ..onEnd = widget.onSelectionHandleDragEnd;
-                    },
-                  ),
+                () => PanGestureRecognizer(
+                  debugOwner: this,
+                  // Mouse events select the text and do not drag the cursor.
+                  supportedDevices: <PointerDeviceKind>{
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.stylus,
+                    PointerDeviceKind.unknown,
+                  },
+                ),
+                (PanGestureRecognizer instance) {
+                  instance
+                    ..dragStartBehavior = DragStartBehavior.start
+                    ..onStart = widget.onSelectionHandleDragStart
+                    ..onUpdate = widget.onSelectionHandleDragUpdate
+                    ..onCancel = widget.onSelectionHandleDragCancel
+                    ..onEnd = widget.onSelectionHandleDragEnd;
+                },
+              ),
             },
             child: Padding(
               padding: EdgeInsets.only(
