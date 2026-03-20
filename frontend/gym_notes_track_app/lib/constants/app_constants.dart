@@ -75,5 +75,8 @@ class AppConstants {
   /// Larger notes use lazy loading with a short scroll animation to avoid memory overhead.
   static const int previewPreloadLineThreshold = 3000;
 
+  /// Maximum allowed length for markdown bar profile names.
+  static const int maxBarProfileNameLength = 30;
+
   AppConstants._();
 }

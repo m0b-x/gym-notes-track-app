@@ -1283,4 +1283,89 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get utilityButtonsHint =>
       'Sichtbarkeit umschalten und zum Neuordnen ziehen';
+
+  @override
+  String get markdownBars => 'Markdown-Leisten';
+
+  @override
+  String get activeBar => 'Aktive Leiste';
+
+  @override
+  String get editingBar => 'Leiste bearbeiten';
+
+  @override
+  String get addBar => 'Leiste hinzufügen';
+
+  @override
+  String get deleteBar => 'Leiste löschen';
+
+  @override
+  String get deleteBarConfirm =>
+      'Möchten Sie diese Leiste wirklich löschen? Notizen, die sie verwenden, fallen auf die globale aktive Leiste zurück.';
+
+  @override
+  String get renameBar => 'Leiste umbenennen';
+
+  @override
+  String get duplicateBar => 'Leiste duplizieren';
+
+  @override
+  String get barName => 'Leistenname';
+
+  @override
+  String get defaultBar => 'Standard';
+
+  @override
+  String get switchBar => 'Leiste wechseln';
+
+  @override
+  String get searchBars => 'Leisten suchen...';
+
+  @override
+  String get noMatchingBars => 'Keine passenden Leisten';
+
+  @override
+  String get perNoteBarAssignment => 'Notiz-Leisten-Zuweisung';
+
+  @override
+  String get perNoteBarHint =>
+      'Weisen Sie einzelnen Notizen eine bestimmte Leiste zu. Notizen ohne Zuweisung verwenden die globale aktive Leiste.';
+
+  @override
+  String get useGlobalBar => 'Globale Leiste verwenden';
+
+  @override
+  String get cannotDeleteDefault =>
+      'Die Standardleiste kann nicht gelöscht werden';
+
+  @override
+  String get cannotRenameDefault =>
+      'Die Standardleiste kann nicht umbenannt werden';
+
+  @override
+  String get barSwitcherTitle => 'Markdown-Leiste auswählen';
+
+  @override
+  String get noteBarOverride => 'Notiz-Überschreibung';
+
+  @override
+  String get clearOverride => 'Überschreibung entfernen';
+
+  @override
+  String get manageBarProfiles => 'Leistenprofile verwalten';
+
+  @override
+  String get alwaysVisible => 'Immer sichtbar';
+
+  @override
+  String get visible => 'Sichtbar';
+
+  @override
+  String get goToTop => 'Zum Anfang';
+
+  @override
+  String get goToBottom => 'Zum Ende';
+
+  @override
+  String get hidden => 'Ausgeblendet';
 }

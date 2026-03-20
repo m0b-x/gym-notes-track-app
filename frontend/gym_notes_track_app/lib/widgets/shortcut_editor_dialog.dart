@@ -4,9 +4,9 @@ import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../l10n/app_localizations.dart';
 import '../models/custom_markdown_shortcut.dart';
+import '../services/markdown_bar_service.dart';
 import '../widgets/markdown_toolbar.dart';
 import '../widgets/overlay_snackbar.dart';
-import '../utils/markdown_settings_utils.dart';
 import '../widgets/simple_markdown_preview.dart';
 import '../constants/settings_keys.dart';
 import '../utils/icon_utils.dart';
@@ -203,7 +203,10 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
   }
 
   Future<void> _loadShortcuts() async {
-    final loaded = await MarkdownSettingsUtils.loadShortcuts();
+    final svc = await MarkdownBarService.getInstance();
+    final loaded = List<CustomMarkdownShortcut>.from(
+      svc.activeProfile.shortcuts,
+    );
     if (!mounted) return;
     setState(() {
       _shortcuts = loaded;

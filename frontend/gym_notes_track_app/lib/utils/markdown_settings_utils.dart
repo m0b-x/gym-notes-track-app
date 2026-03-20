@@ -1,147 +1,14 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import '../models/custom_markdown_shortcut.dart';
-import '../database/database.dart';
+
 import '../l10n/app_localizations.dart';
+import '../models/custom_markdown_shortcut.dart';
 import 'icon_utils.dart';
 
+/// UI helpers for displaying and transforming markdown shortcuts.
+///
+/// All persistence is handled by [MarkdownBarService]. This class contains
+/// only stateless, presentation-layer utilities.
 class MarkdownSettingsUtils {
-  static const String _shortcutsKey = 'markdown_shortcuts';
-
-  static Future<void> saveShortcuts(
-    List<CustomMarkdownShortcut> shortcuts,
-  ) async {
-    final db = await AppDatabase.getInstance();
-    final shortcutsJson = shortcuts
-        .map((shortcut) => shortcut.toJson())
-        .toList();
-    await db.userSettingsDao.setValue(_shortcutsKey, jsonEncode(shortcutsJson));
-  }
-
-  static List<CustomMarkdownShortcut> getDefaultShortcuts() {
-    return [
-      CustomMarkdownShortcut(
-        id: 'default_bold',
-        label: 'Bold',
-        iconCodePoint: Icons.format_bold.codePoint,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '**',
-        afterText: '**',
-        isDefault: true,
-      ),
-      CustomMarkdownShortcut(
-        id: 'default_italic',
-        label: 'Italic',
-        iconCodePoint: Icons.format_italic.codePoint,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '_',
-        afterText: '_',
-        isDefault: true,
-      ),
-      CustomMarkdownShortcut(
-        id: 'default_header',
-        label: 'Headers',
-        iconCodePoint: Icons.tag.codePoint,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '# ',
-        afterText: '',
-        isDefault: true,
-        insertType: 'header',
-      ),
-      CustomMarkdownShortcut(
-        id: 'default_point_list',
-        label: 'Point List',
-        iconCodePoint: Icons.circle.codePoint,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '• ',
-        afterText: '',
-        isDefault: true,
-      ),
-      CustomMarkdownShortcut(
-        id: 'default_strikethrough',
-        label: 'Strikethrough',
-        iconCodePoint: Icons.strikethrough_s.codePoint,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '~~',
-        afterText: '~~',
-        isDefault: true,
-      ),
-      CustomMarkdownShortcut(
-        id: 'default_bullet_list',
-        label: 'Bullet List',
-        iconCodePoint: Icons.format_list_bulleted.codePoint,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '- ',
-        afterText: '',
-        isDefault: true,
-      ),
-      CustomMarkdownShortcut(
-        id: 'default_numbered_list',
-        label: 'Numbered List',
-        iconCodePoint: Icons.format_list_numbered.codePoint,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '1. ',
-        afterText: '',
-        isDefault: true,
-      ),
-      CustomMarkdownShortcut(
-        id: 'default_checkbox',
-        label: 'Checkbox',
-        iconCodePoint: Icons.check_box_outline_blank.codePoint,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '- [ ] ',
-        afterText: '',
-        isDefault: true,
-      ),
-      CustomMarkdownShortcut(
-        id: 'default_quote',
-        label: 'Quote',
-        iconCodePoint: Icons.format_quote.codePoint,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '> ',
-        afterText: '',
-        isDefault: true,
-      ),
-      CustomMarkdownShortcut(
-        id: 'default_inline_code',
-        label: 'Inline Code',
-        iconCodePoint: Icons.code.codePoint,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '`',
-        afterText: '`',
-        isDefault: true,
-      ),
-      CustomMarkdownShortcut(
-        id: 'default_code_block',
-        label: 'Code Block',
-        iconCodePoint: Icons.code.codePoint,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '```\n',
-        afterText: '\n```',
-        isDefault: true,
-      ),
-      CustomMarkdownShortcut(
-        id: 'default_link',
-        label: 'Link',
-        iconCodePoint: Icons.link.codePoint,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '[',
-        afterText: '](url)',
-        isDefault: true,
-      ),
-      CustomMarkdownShortcut(
-        id: 'default_date',
-        label: 'Current Date',
-        iconCodePoint: Icons.today.codePoint,
-        iconFontFamily: 'MaterialIcons',
-        beforeText: '',
-        afterText: '',
-        isDefault: true,
-        insertType: 'date',
-      ),
-    ];
-  }
-
   static Widget buildShortcutIcon(
     BuildContext context,
     CustomMarkdownShortcut shortcut,
@@ -167,6 +34,7 @@ class MarkdownSettingsUtils {
         shortcut.iconCodePoint,
         shortcut.iconFontFamily,
       ),
+      size: 24,
     );
   }
 
@@ -217,46 +85,6 @@ class MarkdownSettingsUtils {
       return escaped;
     }
     return '${escaped.substring(0, maxLength)}…';
-  }
-
-  static Future<List<CustomMarkdownShortcut>> loadShortcuts() async {
-    final db = await AppDatabase.getInstance();
-    final shortcutsJson = await db.userSettingsDao.getValue(_shortcutsKey);
-
-    final defaults = getDefaultShortcuts();
-    final defaultsMap = {for (var d in defaults) d.id: d};
-
-    if (shortcutsJson != null) {
-      final List<dynamic> decoded = jsonDecode(shortcutsJson);
-      final loaded = decoded
-          .map((json) => CustomMarkdownShortcut.fromJson(json))
-          .toList();
-
-      final migrated = loaded.map((shortcut) {
-        if (shortcut.isDefault && defaultsMap.containsKey(shortcut.id)) {
-          final defaultShortcut = defaultsMap[shortcut.id]!;
-          return shortcut.copyWith(
-            iconCodePoint: defaultShortcut.iconCodePoint,
-            iconFontFamily: defaultShortcut.iconFontFamily,
-          );
-        }
-        return shortcut;
-      }).toList();
-
-      return migrated;
-    }
-
-    return defaults;
-  }
-
-  static List<CustomMarkdownShortcut> resetToDefault(
-    List<CustomMarkdownShortcut> currentShortcuts,
-  ) {
-    final defaults = getDefaultShortcuts();
-    final customShortcuts = currentShortcuts
-        .where((s) => !s.isDefault)
-        .toList();
-    return [...defaults, ...customShortcuts];
   }
 
   static List<CustomMarkdownShortcut> removeAllCustom(

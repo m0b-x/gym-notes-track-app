@@ -1281,4 +1281,87 @@ class AppLocalizationsRo extends AppLocalizations {
   @override
   String get utilityButtonsHint =>
       'Comutați vizibilitatea și trageți pentru a reordona';
+
+  @override
+  String get markdownBars => 'Bare Markdown';
+
+  @override
+  String get activeBar => 'Bara Activă';
+
+  @override
+  String get editingBar => 'Editare Bară';
+
+  @override
+  String get addBar => 'Adaugă Bară';
+
+  @override
+  String get deleteBar => 'Șterge Bara';
+
+  @override
+  String get deleteBarConfirm =>
+      'Sigur doriți să ștergeți această bară? Notele care o folosesc vor folosi bara activă globală.';
+
+  @override
+  String get renameBar => 'Redenumire Bară';
+
+  @override
+  String get duplicateBar => 'Duplicare Bară';
+
+  @override
+  String get barName => 'Nume Bară';
+
+  @override
+  String get defaultBar => 'Implicit';
+
+  @override
+  String get switchBar => 'Schimbă Bara';
+
+  @override
+  String get searchBars => 'Caută bare...';
+
+  @override
+  String get noMatchingBars => 'Nicio bară potrivită';
+
+  @override
+  String get perNoteBarAssignment => 'Alocare Bară per Notiță';
+
+  @override
+  String get perNoteBarHint =>
+      'Alocați o bară specifică pentru note individuale. Notele fără o alocare folosesc bara activă globală.';
+
+  @override
+  String get useGlobalBar => 'Folosește Bara Globală';
+
+  @override
+  String get cannotDeleteDefault => 'Nu se poate șterge bara implicită';
+
+  @override
+  String get cannotRenameDefault => 'Nu se poate redenumi bara implicită';
+
+  @override
+  String get barSwitcherTitle => 'Selectare Bară Markdown';
+
+  @override
+  String get noteBarOverride => 'Suprascriere Notiță';
+
+  @override
+  String get clearOverride => 'Șterge Suprascrierea';
+
+  @override
+  String get manageBarProfiles => 'Gestionare Profile Bară';
+
+  @override
+  String get alwaysVisible => 'Întotdeauna vizibil';
+
+  @override
+  String get visible => 'Vizibil';
+
+  @override
+  String get goToTop => 'Mergi sus';
+
+  @override
+  String get goToBottom => 'Mergi jos';
+
+  @override
+  String get hidden => 'Ascuns';
 }

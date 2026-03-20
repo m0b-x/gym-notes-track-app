@@ -9,8 +9,8 @@ import '../pages/controls_settings_page.dart';
 import '../pages/developer_options_page.dart';
 import '../pages/markdown_settings_page.dart';
 import '../services/dev_options_service.dart';
+import '../services/markdown_bar_service.dart';
 import '../utils/custom_snackbar.dart';
-import '../utils/markdown_settings_utils.dart';
 
 /// Global navigation drawer for app-wide settings
 class AppDrawer extends StatefulWidget {
@@ -135,8 +135,8 @@ class _AppDrawerState extends State<AppDrawer> {
                   subtitle: AppLocalizations.of(context)!.markdownShortcutsDesc,
                   onTap: () async {
                     Navigator.pop(context);
-                    final shortcuts =
-                        await MarkdownSettingsUtils.loadShortcuts();
+                    final svc = await MarkdownBarService.getInstance();
+                    final shortcuts = svc.activeProfile.shortcuts;
                     if (context.mounted) {
                       Navigator.push<String>(
                         context,

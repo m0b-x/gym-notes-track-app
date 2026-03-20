@@ -8,6 +8,7 @@ import '../constants/app_constants.dart';
 import '../l10n/app_localizations.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/utility_button_config.dart';
+import '../models/utility_button_definition.dart';
 import '../utils/icon_utils.dart';
 
 class MarkdownToolbar extends StatefulWidget {
@@ -23,6 +24,9 @@ class MarkdownToolbar extends StatefulWidget {
   final VoidCallback onIncreaseFontSize;
   final VoidCallback onSettings;
   final VoidCallback? onShare;
+  final VoidCallback? onSwitchBar;
+  final VoidCallback? onScrollToTop;
+  final VoidCallback? onScrollToBottom;
   final Function(CustomMarkdownShortcut) onShortcutPressed;
   final Function(List<CustomMarkdownShortcut>)? onReorderComplete;
   final bool showSettings;
@@ -56,6 +60,9 @@ class MarkdownToolbar extends StatefulWidget {
     required this.onSettings,
     required this.onShortcutPressed,
     this.onShare,
+    this.onSwitchBar,
+    this.onScrollToTop,
+    this.onScrollToBottom,
     this.onReorderComplete,
     this.showSettings = true,
     this.showBackground = true,
@@ -171,11 +178,14 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
     if (widget.isPreviewMode) {
       return Container(
         decoration: decoration,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: AppConstants.markdownToolbarPadding,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: AppConstants.markdownToolbarPadding,
+          ),
+          child: utilityContent,
         ),
-        child: Center(child: utilityContent),
       );
     }
 
@@ -267,66 +277,54 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
   /// Builds a single utility button widget for the given [id],
   /// or returns null if contextual conditions prevent showing it.
   Widget? _buildUtilityButtonWidget(BuildContext context, String id) {
+    final def = UtilityButtonDefinition.getById(id);
+    if (def == null) return null;
+
+    final l10n = AppLocalizations.of(context)!;
+
+    // Per-button visibility gate and callback resolution.
+    final VoidCallback? onPressed;
     switch (id) {
       case UtilityButtonId.undo:
-        return _ToolbarButton(
-          icon: Icons.undo,
-          tooltip: AppLocalizations.of(context)!.undo,
-          onPressed: widget.canUndo ? widget.onUndo : null,
-        );
+        onPressed = widget.canUndo ? widget.onUndo : null;
       case UtilityButtonId.redo:
-        return _ToolbarButton(
-          icon: Icons.redo,
-          tooltip: AppLocalizations.of(context)!.redo,
-          onPressed: widget.canRedo ? widget.onRedo : null,
-        );
+        onPressed = widget.canRedo ? widget.onRedo : null;
       case UtilityButtonId.paste:
         if (widget.isPreviewMode || widget.onPaste == null) return null;
-        return _ToolbarButton(
-          icon: Icons.content_paste,
-          tooltip: AppLocalizations.of(context)!.paste,
-          onPressed: widget.onPaste,
-        );
+        onPressed = widget.onPaste;
       case UtilityButtonId.decreaseFont:
-        return _ToolbarButton(
-          icon: Icons.text_decrease,
-          tooltip: AppLocalizations.of(context)!.decreaseFontSize,
-          onPressed: widget.onDecreaseFontSize,
-        );
+        onPressed = widget.onDecreaseFontSize;
       case UtilityButtonId.increaseFont:
-        return _ToolbarButton(
-          icon: Icons.text_increase,
-          tooltip: AppLocalizations.of(context)!.increaseFontSize,
-          onPressed: widget.onIncreaseFontSize,
-        );
+        onPressed = widget.onIncreaseFontSize;
       case UtilityButtonId.reorder:
         if (!widget.showReorder ||
             widget.isPreviewMode ||
             widget.onReorderComplete == null) {
           return null;
         }
-        return _ToolbarButton(
-          icon: Icons.swap_horiz,
-          tooltip: AppLocalizations.of(context)!.reorderShortcuts,
-          onPressed: _enterReorderMode,
-        );
+        onPressed = _enterReorderMode;
       case UtilityButtonId.share:
         if (!widget.isPreviewMode || widget.onShare == null) return null;
-        return _ToolbarButton(
-          icon: Icons.share,
-          tooltip: AppLocalizations.of(context)!.shareNote,
-          onPressed: widget.onShare,
-        );
+        onPressed = widget.onShare;
+      case UtilityButtonId.switchBar:
+        if (widget.onSwitchBar == null) return null;
+        onPressed = widget.onSwitchBar;
       case UtilityButtonId.settings:
         if (!widget.showSettings) return null;
-        return _ToolbarButton(
-          icon: Icons.settings,
-          tooltip: AppLocalizations.of(context)!.settings,
-          onPressed: widget.onSettings,
-        );
+        onPressed = widget.onSettings;
+      case UtilityButtonId.scrollToTop:
+        onPressed = widget.onScrollToTop;
+      case UtilityButtonId.scrollToBottom:
+        onPressed = widget.onScrollToBottom;
       default:
         return null;
     }
+
+    return _ToolbarButton(
+      icon: def.icon,
+      tooltip: def.label(l10n),
+      onPressed: onPressed,
+    );
   }
 
   void _showHeaderMenu(BuildContext context) {

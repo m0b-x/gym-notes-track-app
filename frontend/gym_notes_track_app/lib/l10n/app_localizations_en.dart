@@ -1272,4 +1272,87 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get utilityButtonsHint => 'Toggle visibility and drag to reorder';
+
+  @override
+  String get markdownBars => 'Markdown Bars';
+
+  @override
+  String get activeBar => 'Active Bar';
+
+  @override
+  String get editingBar => 'Editing Bar';
+
+  @override
+  String get addBar => 'Add Bar';
+
+  @override
+  String get deleteBar => 'Delete Bar';
+
+  @override
+  String get deleteBarConfirm =>
+      'Are you sure you want to delete this bar? Notes using it will fall back to the global active bar.';
+
+  @override
+  String get renameBar => 'Rename Bar';
+
+  @override
+  String get duplicateBar => 'Duplicate Bar';
+
+  @override
+  String get barName => 'Bar Name';
+
+  @override
+  String get defaultBar => 'Default';
+
+  @override
+  String get switchBar => 'Switch Bar';
+
+  @override
+  String get searchBars => 'Search bars...';
+
+  @override
+  String get noMatchingBars => 'No matching bars';
+
+  @override
+  String get perNoteBarAssignment => 'Per-Note Bar Assignment';
+
+  @override
+  String get perNoteBarHint =>
+      'Assign a specific bar to individual notes. Notes without an override use the global active bar.';
+
+  @override
+  String get useGlobalBar => 'Use Global Bar';
+
+  @override
+  String get cannotDeleteDefault => 'Cannot delete the default bar';
+
+  @override
+  String get cannotRenameDefault => 'Cannot rename the default bar';
+
+  @override
+  String get barSwitcherTitle => 'Select Markdown Bar';
+
+  @override
+  String get noteBarOverride => 'Note Override';
+
+  @override
+  String get clearOverride => 'Clear Override';
+
+  @override
+  String get manageBarProfiles => 'Manage Bar Profiles';
+
+  @override
+  String get alwaysVisible => 'Always visible';
+
+  @override
+  String get visible => 'Visible';
+
+  @override
+  String get goToTop => 'Go to Top';
+
+  @override
+  String get goToBottom => 'Go to Bottom';
+
+  @override
+  String get hidden => 'Hidden';
 }

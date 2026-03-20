@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:gym_notes_track_app/utils/markdown_settings_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:re_editor/re_editor.dart';
 import 'package:share_plus/share_plus.dart';
@@ -16,12 +15,15 @@ import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/dev_options.dart';
+import '../models/markdown_bar_profile.dart';
 import '../models/note_metadata.dart';
 import '../models/utility_button_config.dart';
 import '../services/auto_save_service.dart';
 import '../services/dev_options_service.dart';
+import '../services/markdown_bar_service.dart';
 import '../services/note_position_service.dart';
 import '../services/settings_service.dart';
+import '../widgets/bar_switcher_sheet.dart';
 import '../widgets/debug_overlays.dart';
 import '../widgets/interactive_preview_scrollbar.dart';
 import '../widgets/markdown_toolbar.dart';
@@ -38,7 +40,6 @@ import '../utils/scroll_position_sync.dart';
 import '../utils/text_history_observer.dart';
 import '../utils/text_position_utils.dart';
 import '../utils/markdown_list_utils.dart';
-import '../config/default_markdown_shortcuts.dart';
 import '../database/database.dart';
 import '../constants/app_constants.dart';
 import '../constants/app_spacing.dart';
@@ -104,6 +105,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   double _toolbarShortcutRatio = SettingsKeys.defaultToolbarShortcutRatio;
   bool _toolbarSplitEnabled = SettingsKeys.defaultToolbarSplitEnabled;
   List<UtilityButtonConfig> _utilityConfigs = UtilityButtonConfig.defaults();
+
+  /// The resolved bar profile currently active for this note.
+  String _activeBarProfileId = MarkdownBarProfile.defaultProfileId;
 
   // Preview scroll progress (for scrollbar when using ScrollablePositionedList)
   final ValueNotifier<double> _previewScrollProgress = ValueNotifier(0.0);
@@ -1078,6 +1082,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                           onDecreaseFontSize: () {},
                           onIncreaseFontSize: () {},
                           onSettings: () {},
+                          onSwitchBar: _showBarSwitcher,
+                          onScrollToTop: () => _scrollToEdge(toTop: true),
+                          onScrollToBottom: () => _scrollToEdge(toTop: false),
                           onShortcutPressed: (_) {},
                           onReorderComplete: (_) {},
                         ),
@@ -1209,6 +1216,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                               onUndo: () => _historyObserver.undo(),
                               onRedo: () => _historyObserver.redo(),
                               onPaste: () => _contentController.paste(),
+                              onSwitchBar: _showBarSwitcher,
                               onDecreaseFontSize: () {
                                 setState(() {
                                   if (_isPreviewMode) {
@@ -1257,6 +1265,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                               onShortcutPressed: _handleShortcut,
                               onReorderComplete: _handleReorderComplete,
                               onShare: _showExportFormatDialog,
+                              onScrollToTop: () => _scrollToEdge(toTop: true),
+                              onScrollToBottom: () =>
+                                  _scrollToEdge(toTop: false),
                             ),
                             SizedBox(
                               height: MediaQuery.of(context).padding.bottom,
@@ -1597,6 +1608,36 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     );
   }
 
+  void _scrollToEdge({required bool toTop}) {
+    if (_isPreviewMode) {
+      if (_previewScrollController.hasClients) {
+        _previewScrollController.animateTo(
+          toTop ? 0.0 : _previewScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    } else {
+      if (toTop) {
+        _contentController.selection = CodeLineSelection.collapsed(
+          index: 0,
+          offset: 0,
+        );
+      } else {
+        final lastIndex = _contentController.codeLines.length - 1;
+        final lastLineLength =
+            _contentController.codeLines[lastIndex].text.length;
+        _contentController.selection = CodeLineSelection.collapsed(
+          index: lastIndex,
+          offset: lastLineLength,
+        );
+      }
+      _editorScrollController.makeCenterIfInvisible(
+        _contentController.selection.extent,
+      );
+    }
+  }
+
   void _handleShortcut(CustomMarkdownShortcut shortcut) {
     // Store length before applying the shortcut to calculate inserted range
     final beforeLength = _contentController.textLength;
@@ -1747,58 +1788,67 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   }
 
   Future<void> _loadCustomShortcuts() async {
-    final db = await AppDatabase.getInstance();
-    final shortcutsJson = await db.userSettingsDao.getValue(
-      SettingsKeys.markdownShortcuts,
+    final svc = await MarkdownBarService.getInstance();
+    final profile = await svc.resolveProfileForNote(
+      _effectiveNoteId ?? widget.noteId,
     );
 
-    final defaults = DefaultMarkdownShortcuts.shortcuts;
-    final defaultsMap = {for (var d in defaults) d.id: d};
-
-    if (shortcutsJson != null) {
-      final List<dynamic> decoded = jsonDecode(shortcutsJson);
-      final loaded = decoded
-          .map((json) => CustomMarkdownShortcut.fromJson(json))
-          .toList();
-
-      final loadedIds = loaded.map((s) => s.id).toSet();
-
-      final migrated = loaded.map((shortcut) {
-        if (shortcut.isDefault && defaultsMap.containsKey(shortcut.id)) {
-          final defaultShortcut = defaultsMap[shortcut.id]!;
-          return shortcut.copyWith(
-            iconCodePoint: defaultShortcut.iconCodePoint,
-            iconFontFamily: defaultShortcut.iconFontFamily,
-          );
-        }
-        return shortcut;
-      }).toList();
-
-      final mergedShortcuts = List<CustomMarkdownShortcut>.from(migrated);
-
-      for (var defaultShortcut in defaults) {
-        if (!loadedIds.contains(defaultShortcut.id)) {
-          mergedShortcuts.add(defaultShortcut);
-        }
-      }
-
+    if (mounted) {
       setState(() {
-        _allShortcuts = mergedShortcuts;
-      });
-    } else {
-      setState(() {
-        _allShortcuts = defaults;
+        _activeBarProfileId = profile.id;
+        _allShortcuts = List.from(profile.shortcuts);
       });
     }
   }
 
   Future<void> _saveShortcutsOrder() async {
-    final db = await AppDatabase.getInstance();
-    final shortcutsJson = _allShortcuts.map((s) => s.toJson()).toList();
-    await db.userSettingsDao.setValue(
-      SettingsKeys.markdownShortcuts,
-      jsonEncode(shortcutsJson),
+    final svc = await MarkdownBarService.getInstance();
+    await svc.updateShortcuts(_activeBarProfileId, _allShortcuts);
+  }
+
+  /// Opens the bar switcher bottom sheet and applies the selection.
+  Future<void> _showBarSwitcher() async {
+    final result = await BarSwitcherSheet.show(
+      context,
+      currentProfileId: _activeBarProfileId,
+      noteId: _effectiveNoteId ?? widget.noteId,
     );
+    if (result == null) return;
+
+    final svc = await MarkdownBarService.getInstance();
+
+    if (result.clearedOverride) {
+      // Remove per-note override → fall back to global active bar.
+      final noteId = _effectiveNoteId ?? widget.noteId;
+      if (noteId != null) {
+        await svc.setNoteBarId(noteId, null);
+      }
+      final profile = await svc.resolveProfileForNote(noteId);
+      if (mounted) {
+        setState(() {
+          _activeBarProfileId = profile.id;
+          _allShortcuts = List.from(profile.shortcuts);
+        });
+      }
+      return;
+    }
+
+    if (result.profile != null) {
+      final selected = result.profile!;
+      // Set per-note override if we have a note ID, otherwise just switch globally.
+      final noteId = _effectiveNoteId ?? widget.noteId;
+      if (noteId != null) {
+        await svc.setNoteBarId(noteId, selected.id);
+      } else {
+        await svc.setActiveProfile(selected.id);
+      }
+      if (mounted) {
+        setState(() {
+          _activeBarProfileId = selected.id;
+          _allShortcuts = List.from(selected.shortcuts);
+        });
+      }
+    }
   }
 
   Future<void> _openMarkdownSettings() async {
@@ -1809,8 +1859,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       ),
     );
 
-    // Reload shortcuts from database (they are saved immediately in settings page)
-    final shortcuts = await MarkdownSettingsUtils.loadShortcuts();
+    // Reload the resolved profile for this note (it may have changed in settings).
+    final svc = await MarkdownBarService.getInstance();
+    final profile = await svc.resolveProfileForNote(
+      _effectiveNoteId ?? widget.noteId,
+    );
     // Reload toolbar settings in case user adjusted them
     final settings = await SettingsService.getInstance();
     final ratio = await settings.getToolbarShortcutRatio();
@@ -1818,7 +1871,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     final utilityConfigs = await settings.getToolbarUtilityConfig();
     if (mounted) {
       setState(() {
-        _allShortcuts = shortcuts;
+        _activeBarProfileId = profile.id;
+        _allShortcuts = List.from(profile.shortcuts);
         _toolbarShortcutRatio = ratio;
         _toolbarSplitEnabled = splitEnabled;
         _utilityConfigs = utilityConfigs;

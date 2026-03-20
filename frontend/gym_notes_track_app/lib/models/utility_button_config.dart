@@ -16,7 +16,10 @@ class UtilityButtonId {
   static const String increaseFont = 'increase_font';
   static const String reorder = 'reorder';
   static const String share = 'share';
+  static const String switchBar = 'switch_bar';
   static const String settings = 'settings';
+  static const String scrollToTop = 'scroll_to_top';
+  static const String scrollToBottom = 'scroll_to_bottom';
 
   /// Ordered list of all known utility button IDs (default order).
   static const List<String> defaultOrder = [
@@ -25,8 +28,11 @@ class UtilityButtonId {
     paste,
     decreaseFont,
     increaseFont,
-    reorder,
     share,
+    switchBar,
+    scrollToTop,
+    scrollToBottom,
+    reorder,
     settings,
   ];
 
@@ -42,16 +48,10 @@ class UtilityButtonConfig extends Equatable {
   const UtilityButtonConfig({required this.id, this.isVisible = true});
 
   UtilityButtonConfig copyWith({bool? isVisible}) {
-    return UtilityButtonConfig(
-      id: id,
-      isVisible: isVisible ?? this.isVisible,
-    );
+    return UtilityButtonConfig(id: id, isVisible: isVisible ?? this.isVisible);
   }
 
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'isVisible': isVisible,
-  };
+  Map<String, dynamic> toJson() => {'id': id, 'isVisible': isVisible};
 
   factory UtilityButtonConfig.fromJson(Map<String, dynamic> json) {
     return UtilityButtonConfig(

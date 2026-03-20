@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import '../config/default_markdown_shortcuts.dart';
 import '../constants/app_constants.dart';
 import '../constants/settings_keys.dart';
 import '../l10n/app_localizations.dart';
 import '../models/custom_markdown_shortcut.dart';
+import '../models/markdown_bar_profile.dart';
 import '../models/utility_button_config.dart';
+import '../models/utility_button_definition.dart';
+import '../services/markdown_bar_service.dart';
 import '../services/settings_service.dart';
 import '../utils/markdown_settings_utils.dart';
 import '../widgets/app_drawer.dart';
@@ -11,6 +15,7 @@ import '../widgets/app_loading_bar.dart';
 import '../widgets/markdown_toolbar.dart';
 import '../widgets/unified_app_bars.dart';
 import '../widgets/shortcut_editor_dialog.dart';
+import 'note_bar_assignment_page.dart';
 
 class MarkdownSettingsPage extends StatefulWidget {
   final List<CustomMarkdownShortcut> allShortcuts;
@@ -26,17 +31,163 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
   double _toolbarRatio = SettingsKeys.defaultToolbarShortcutRatio;
   bool _toolbarSplitEnabled = SettingsKeys.defaultToolbarSplitEnabled;
   List<UtilityButtonConfig> _utilityConfigs = UtilityButtonConfig.defaults();
+  bool _profileExpanded = true;
+  bool _utilityExpanded = true;
+  bool _shortcutsExpanded = true;
+  bool _toolbarExpanded = true;
   SettingsService? _settingsService;
+  MarkdownBarService? _barService;
+
+  /// All available bar profiles.
+  List<MarkdownBarProfile> _profiles = [];
+
+  /// The profile currently being edited in this settings page.
+  String _editingProfileId = MarkdownBarProfile.defaultProfileId;
 
   @override
   void initState() {
     super.initState();
     _shortcuts = List.from(widget.allShortcuts);
     _loadToolbarSettings();
+    _loadBarProfiles();
   }
 
   Future<SettingsService> _getSettingsService() async {
     return _settingsService ??= await SettingsService.getInstance();
+  }
+
+  Future<MarkdownBarService> _getBarService() async {
+    return _barService ??= await MarkdownBarService.getInstance();
+  }
+
+  Future<void> _loadBarProfiles() async {
+    final svc = await _getBarService();
+    if (mounted) {
+      setState(() {
+        _profiles = svc.profiles;
+        _editingProfileId = svc.activeProfileId;
+        // Load shortcuts for the active profile.
+        _shortcuts = svc.getShortcuts(_editingProfileId);
+      });
+    }
+  }
+
+  void _switchEditingProfile(String profileId) {
+    if (_barService == null) return;
+    setState(() {
+      _editingProfileId = profileId;
+      _shortcuts = _barService!.getShortcuts(profileId);
+    });
+  }
+
+  Future<void> _addBarProfile() async {
+    final name = await _showNameDialog(
+      title: AppLocalizations.of(context)!.addBar,
+    );
+    if (name == null || name.trim().isEmpty) return;
+    final svc = await _getBarService();
+    final newId = await svc.addProfile(name);
+    setState(() {
+      _profiles = svc.profiles;
+      _editingProfileId = newId;
+      _shortcuts = svc.getShortcuts(newId);
+    });
+  }
+
+  Future<void> _renameBarProfile(String profileId) async {
+    final profile = _profiles.firstWhere((p) => p.id == profileId);
+    if (profile.isDefault) return;
+    final name = await _showNameDialog(
+      title: AppLocalizations.of(context)!.renameBar,
+      initialValue: profile.name,
+    );
+    if (name == null || name.trim().isEmpty) return;
+    final svc = await _getBarService();
+    await svc.renameProfile(profileId, name);
+    setState(() {
+      _profiles = svc.profiles;
+    });
+  }
+
+  Future<void> _duplicateBarProfile(String profileId) async {
+    final profile = _profiles.firstWhere((p) => p.id == profileId);
+    final name = await _showNameDialog(
+      title: AppLocalizations.of(context)!.duplicateBar,
+      initialValue: '${profile.name} (copy)',
+    );
+    if (name == null || name.trim().isEmpty) return;
+    final svc = await _getBarService();
+    final newId = await svc.duplicateProfile(profileId, name);
+    setState(() {
+      _profiles = svc.profiles;
+      _editingProfileId = newId;
+      _shortcuts = svc.getShortcuts(newId);
+    });
+  }
+
+  Future<void> _deleteBarProfile(String profileId) async {
+    final profile = _profiles.firstWhere((p) => p.id == profileId);
+    if (profile.isDefault) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(AppLocalizations.of(ctx)!.deleteBar),
+        content: Text(AppLocalizations.of(ctx)!.deleteBarConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(AppLocalizations.of(ctx)!.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              AppLocalizations.of(ctx)!.delete,
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final svc = await _getBarService();
+    await svc.deleteProfile(profileId);
+    setState(() {
+      _profiles = svc.profiles;
+      _editingProfileId = svc.activeProfileId;
+      _shortcuts = svc.getShortcuts(_editingProfileId);
+    });
+  }
+
+  Future<String?> _showNameDialog({
+    required String title,
+    String initialValue = '',
+  }) {
+    final controller = TextEditingController(text: initialValue);
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: AppConstants.maxBarProfileNameLength,
+          decoration: InputDecoration(
+            hintText: AppLocalizations.of(ctx)!.barName,
+          ),
+          onSubmitted: (val) => Navigator.pop(ctx, val),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(AppLocalizations.of(ctx)!.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: Text(AppLocalizations.of(ctx)!.save),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadToolbarSettings() async {
@@ -71,7 +222,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
   void _toggleUtilityVisibility(int index) {
     final config = _utilityConfigs[index];
     // Prevent hiding locked buttons (e.g. settings).
-    if (UtilityButtonId.locked.contains(config.id)) return;
+    if (UtilityButtonDefinition.getById(config.id)?.isLocked ?? false) return;
     setState(() {
       _utilityConfigs[index] = config.copyWith(isVisible: !config.isVisible);
     });
@@ -89,58 +240,24 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
 
   /// Returns a user-friendly label for a utility button ID.
   String _utilityLabel(String id) {
-    final l10n = AppLocalizations.of(context)!;
-    switch (id) {
-      case UtilityButtonId.undo:
-        return l10n.undo;
-      case UtilityButtonId.redo:
-        return l10n.redo;
-      case UtilityButtonId.paste:
-        return l10n.paste;
-      case UtilityButtonId.decreaseFont:
-        return l10n.decreaseFontSize;
-      case UtilityButtonId.increaseFont:
-        return l10n.increaseFontSize;
-      case UtilityButtonId.reorder:
-        return l10n.reorderShortcuts;
-      case UtilityButtonId.share:
-        return l10n.shareNote;
-      case UtilityButtonId.settings:
-        return l10n.settings;
-      default:
-        return id;
-    }
+    final def = UtilityButtonDefinition.getById(id);
+    if (def != null) return def.label(AppLocalizations.of(context)!);
+    return id;
   }
 
   /// Returns the icon for a utility button ID.
   IconData _utilityIcon(String id) {
-    switch (id) {
-      case UtilityButtonId.undo:
-        return Icons.undo;
-      case UtilityButtonId.redo:
-        return Icons.redo;
-      case UtilityButtonId.paste:
-        return Icons.content_paste;
-      case UtilityButtonId.decreaseFont:
-        return Icons.text_decrease;
-      case UtilityButtonId.increaseFont:
-        return Icons.text_increase;
-      case UtilityButtonId.reorder:
-        return Icons.swap_horiz;
-      case UtilityButtonId.share:
-        return Icons.share;
-      case UtilityButtonId.settings:
-        return Icons.settings;
-      default:
-        return Icons.help_outline;
-    }
+    return UtilityButtonDefinition.getById(id)?.icon ?? Icons.help_outline;
   }
 
   Future<void> _saveShortcuts() async {
     try {
-      await MarkdownSettingsUtils.saveShortcuts(_shortcuts);
+      // Save shortcuts to the current profile via MarkdownBarService.
+      final svc = await _getBarService();
+      await svc.updateShortcuts(_editingProfileId, _shortcuts);
+
       debugPrint(
-        '[MarkdownSettings] Shortcuts saved successfully (${_shortcuts.length} items)',
+        '[MarkdownSettings] Shortcuts saved to profile $_editingProfileId (${_shortcuts.length} items)',
       );
     } catch (e, stackTrace) {
       debugPrint('[MarkdownSettings] ERROR saving shortcuts: $e');
@@ -275,8 +392,10 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
   }
 
   Future<void> _resetToDefault() async {
+    // Keep custom shortcuts, replace default ones with the canonical set.
+    final customShortcuts = _shortcuts.where((s) => !s.isDefault).toList();
     setState(() {
-      _shortcuts = MarkdownSettingsUtils.resetToDefault(_shortcuts);
+      _shortcuts = [...DefaultMarkdownShortcuts.shortcuts, ...customShortcuts];
     });
     await _saveShortcuts();
   }
@@ -286,6 +405,311 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       _shortcuts = MarkdownSettingsUtils.removeAllCustom(_shortcuts);
     });
     await _saveShortcuts();
+  }
+
+  void _showProfilePickerMenu(BuildContext context, RenderBox box) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    const itemHeight = 48.0;
+    const maxVisible = 5;
+
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        box.localToGlobal(Offset(0, box.size.height), ancestor: overlay),
+        box.localToGlobal(
+          Offset(box.size.width, box.size.height),
+          ancestor: overlay,
+        ),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    showMenu<String>(
+      context: context,
+      position: position,
+      constraints: BoxConstraints(
+        maxHeight: itemHeight * maxVisible,
+        minWidth: box.size.width,
+      ),
+      items: _profiles.map((p) {
+        final isSelected = p.id == _editingProfileId;
+        return PopupMenuItem<String>(
+          value: p.id,
+          height: itemHeight,
+          child: Row(
+            children: [
+              Icon(
+                p.isDefault ? Icons.view_day : Icons.dashboard_customize,
+                size: 18,
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  p.name,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                    color: isSelected ? theme.colorScheme.primary : null,
+                  ),
+                ),
+              ),
+              if (p.isDefault)
+                Container(
+                  margin: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    l10n.defaultBar,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+              if (isSelected)
+                Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
+            ],
+          ),
+        );
+      }).toList(),
+    ).then((id) {
+      if (id != null) _switchEditingProfile(id);
+    });
+  }
+
+  Widget _buildProfileSelector(BuildContext context) {
+    // Guard: service hasn't loaded yet.
+    if (_profiles.isEmpty) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final editingProfile = _profiles.firstWhere(
+      (p) => p.id == _editingProfileId,
+      orElse: () => _profiles.first,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _profileExpanded = !_profileExpanded),
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.dashboard_customize,
+                  size: 26,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.manageBarProfiles,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 17,
+                  ),
+                ),
+                const Spacer(),
+                AnimatedRotation(
+                  turns: _profileExpanded ? 0.0 : 0.5,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(Icons.expand_more),
+                ),
+              ],
+            ),
+          ),
+          TweenAnimationBuilder<double>(
+            tween: Tween(end: _profileExpanded ? 1.0 : 0.0),
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            builder: (context, value, child) => ClipRect(
+              child: Align(
+                alignment: Alignment.topCenter,
+                heightFactor: value,
+                child: child,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                // Profile selector row
+                Row(
+                  children: [
+                    Expanded(
+                      child: Builder(
+                        builder: (selectorContext) => InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () {
+                            final box =
+                                selectorContext.findRenderObject()!
+                                    as RenderBox;
+                            _showProfilePickerMenu(selectorContext, box);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  editingProfile.isDefault
+                                      ? Icons.view_day
+                                      : Icons.dashboard_customize,
+                                  size: 18,
+                                  color: theme.colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    editingProfile.name,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                if (editingProfile.isDefault)
+                                  Container(
+                                    margin: const EdgeInsets.only(right: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 1,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primary
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      l10n.defaultBar,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                Icon(
+                                  Icons.unfold_more,
+                                  size: 18,
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add, size: 20),
+                      tooltip: l10n.addBar,
+                      onPressed: _addBarProfile,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, size: 20),
+                      tooltip: '',
+                      onSelected: (action) {
+                        switch (action) {
+                          case 'rename':
+                            _renameBarProfile(_editingProfileId);
+                            break;
+                          case 'duplicate':
+                            _duplicateBarProfile(_editingProfileId);
+                            break;
+                          case 'assign':
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const NoteBarAssignmentPage(),
+                              ),
+                            );
+                            break;
+                          case 'delete':
+                            _deleteBarProfile(_editingProfileId);
+                            break;
+                        }
+                      },
+                      itemBuilder: (ctx) => [
+                        if (!editingProfile.isDefault) ...[
+                          PopupMenuItem(
+                            value: 'rename',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.edit, size: 18),
+                                const SizedBox(width: 8),
+                                Text(l10n.renameBar),
+                              ],
+                            ),
+                          ),
+                        ],
+                        PopupMenuItem(
+                          value: 'duplicate',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.copy, size: 18),
+                              const SizedBox(width: 8),
+                              Text(l10n.duplicateBar),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'assign',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.link, size: 18),
+                              const SizedBox(width: 8),
+                              Text(l10n.perNoteBarAssignment),
+                            ],
+                          ),
+                        ),
+                        if (!editingProfile.isDefault)
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.delete,
+                                  size: 18,
+                                  color: Colors.red,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  l10n.deleteBar,
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Divider(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+        ],
+      ),
+    );
   }
 
   Widget _buildToolbarRatioAdjuster(BuildContext context) {
@@ -299,122 +723,153 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     final percentRight = 100 - percentLeft;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.view_column,
-                size: 20,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                l10n.toolbarLayout,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              // Split toolbar toggle
-              Text(
-                l10n.splitToolbar,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(width: 4),
-              SizedBox(
-                height: 24,
-                child: Switch(
-                  value: _toolbarSplitEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _toolbarSplitEnabled = value;
-                    });
-                    _saveToolbarSplitEnabled(value);
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Live toolbar preview
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: theme.colorScheme.outline.withValues(alpha: 0.3),
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: MarkdownToolbar(
-              shortcuts: _shortcuts,
-              isPreviewMode: false,
-              canUndo: true,
-              canRedo: false,
-              previewFontSize: 14,
-              shortcutRatio: ratio,
-              splitEnabled: _toolbarSplitEnabled,
-              utilityConfigs: _utilityConfigs,
-              showBackground: false,
-              showReorder: false,
-              showSettings: true,
-              onUndo: () {},
-              onRedo: () {},
-              onDecreaseFontSize: () {},
-              onIncreaseFontSize: () {},
-              onSettings: () {},
-              onShortcutPressed: (_) {},
-              onReorderComplete: (_) {},
-            ),
-          ),
-          // Show ratio adjuster only when split mode is enabled
-          if (_toolbarSplitEnabled) ...[
-            const SizedBox(height: 12),
-            // Ratio label
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+          InkWell(
+            onTap: () => setState(() => _toolbarExpanded = !_toolbarExpanded),
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
               children: [
+                Icon(
+                  Icons.view_column,
+                  size: 26,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
                 Text(
-                  '${l10n.shortcuts} $percentLeft%  ·  ${l10n.utilities} $percentRight%',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  l10n.toolbarLayout,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 17,
                   ),
+                ),
+                const Spacer(),
+                AnimatedRotation(
+                  turns: _toolbarExpanded ? 0.0 : 0.5,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(Icons.expand_more),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            // Slider for ratio adjustment
-            SliderTheme(
-              data: SliderThemeData(
-                trackHeight: 4,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
-                activeTrackColor: theme.colorScheme.primary,
-                inactiveTrackColor: theme.colorScheme.outline.withValues(
-                  alpha: 0.2,
-                ),
-                thumbColor: theme.colorScheme.primary,
-              ),
-              child: Slider(
-                value: ratio,
-                min: AppConstants.minToolbarRatio,
-                max: AppConstants.maxToolbarRatio,
-                onChanged: (value) {
-                  setState(() {
-                    _toolbarRatio = value;
-                  });
-                },
-                onChangeEnd: (value) {
-                  _saveToolbarRatio(value);
-                },
+          ),
+          TweenAnimationBuilder<double>(
+            tween: Tween(end: _toolbarExpanded ? 1.0 : 0.0),
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            builder: (context, value, child) => ClipRect(
+              child: Align(
+                alignment: Alignment.topCenter,
+                heightFactor: value,
+                child: child,
               ),
             ),
-          ],
-          const SizedBox(height: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                // Split toolbar toggle row
+                Row(
+                  children: [
+                    Text(l10n.splitToolbar, style: theme.textTheme.bodyLarge),
+                    const Spacer(),
+                    Transform.scale(
+                      scale: 0.8,
+                      child: Switch(
+                        value: _toolbarSplitEnabled,
+                        onChanged: (value) {
+                          setState(() {
+                            _toolbarSplitEnabled = value;
+                          });
+                          _saveToolbarSplitEnabled(value);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Live toolbar preview
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: MarkdownToolbar(
+                    shortcuts: _shortcuts,
+                    isPreviewMode: false,
+                    canUndo: true,
+                    canRedo: false,
+                    previewFontSize: 14,
+                    shortcutRatio: ratio,
+                    splitEnabled: _toolbarSplitEnabled,
+                    utilityConfigs: _utilityConfigs,
+                    showBackground: false,
+                    showReorder: false,
+                    showSettings: true,
+                    onUndo: () {},
+                    onRedo: () {},
+                    onDecreaseFontSize: () {},
+                    onIncreaseFontSize: () {},
+                    onSettings: () {},
+                    onShortcutPressed: (_) {},
+                    onReorderComplete: (_) {},
+                  ),
+                ),
+                // Ratio adjuster — only when split mode is enabled
+                if (_toolbarSplitEnabled) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${l10n.shortcuts} $percentLeft%  ·  ${l10n.utilities} $percentRight%',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  SliderTheme(
+                    data: SliderThemeData(
+                      trackHeight: 4,
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 8,
+                      ),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 16,
+                      ),
+                      activeTrackColor: theme.colorScheme.primary,
+                      inactiveTrackColor: theme.colorScheme.outline.withValues(
+                        alpha: 0.2,
+                      ),
+                      thumbColor: theme.colorScheme.primary,
+                    ),
+                    child: Slider(
+                      value: ratio,
+                      min: AppConstants.minToolbarRatio,
+                      max: AppConstants.maxToolbarRatio,
+                      onChanged: (value) {
+                        setState(() {
+                          _toolbarRatio = value;
+                        });
+                      },
+                      onChangeEnd: (value) {
+                        _saveToolbarRatio(value);
+                      },
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 4),
+              ],
+            ),
+          ),
           Divider(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
         ],
       ),
@@ -430,92 +885,338 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.tune, size: 20, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                l10n.utilityButtons,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
+          InkWell(
+            onTap: () => setState(() => _utilityExpanded = !_utilityExpanded),
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
+              children: [
+                Icon(Icons.tune, size: 26, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.utilityButtons,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 17,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            l10n.utilityButtonsHint,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                const Spacer(),
+                AnimatedRotation(
+                  turns: _utilityExpanded ? 0.0 : 0.5,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(Icons.expand_more),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          ReorderableListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _utilityConfigs.length,
-            onReorder: _reorderUtility,
-            itemBuilder: (context, index) {
-              final config = _utilityConfigs[index];
-              final isLocked = UtilityButtonId.locked.contains(config.id);
-              return Opacity(
-                key: ValueKey(config.id),
-                opacity: config.isVisible ? 1.0 : 0.5,
-                child: Card(
-                  margin: const EdgeInsets.only(bottom: 4),
-                  child: ListTile(
-                    dense: true,
-                    visualDensity: VisualDensity.compact,
-                    leading: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.drag_handle,
-                          size: 20,
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.4,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          _utilityIcon(config.id),
-                          size: 20,
-                          color: config.isVisible
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface.withValues(
+          TweenAnimationBuilder<double>(
+            tween: Tween(end: _utilityExpanded ? 1.0 : 0.0),
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            builder: (context, value, child) => ClipRect(
+              child: Align(
+                alignment: Alignment.topCenter,
+                heightFactor: value,
+                child: child,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  l10n.utilityButtonsHint,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ReorderableListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _utilityConfigs.length,
+                  onReorder: _reorderUtility,
+                  itemBuilder: (context, index) {
+                    final config = _utilityConfigs[index];
+                    final isLocked =
+                        UtilityButtonDefinition.getById(config.id)?.isLocked ??
+                        false;
+                    return Opacity(
+                      key: ValueKey(config.id),
+                      opacity: config.isVisible ? 1.0 : 0.5,
+                      child: Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          minLeadingWidth: 0,
+                          leading: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.drag_handle,
+                                size: 24,
+                                color: theme.colorScheme.onSurface.withValues(
                                   alpha: 0.4,
                                 ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                _utilityIcon(config.id),
+                                size: 24,
+                                color: config.isVisible
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface.withValues(
+                                        alpha: 0.4,
+                                      ),
+                              ),
+                            ],
+                          ),
+                          title: Text(_utilityLabel(config.id)),
+                          subtitle: Text(
+                            isLocked
+                                ? l10n.alwaysVisible
+                                : (config.isVisible
+                                      ? l10n.visible
+                                      : l10n.hidden),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                          trailing: isLocked
+                              ? Icon(
+                                  Icons.lock,
+                                  size: 18,
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                )
+                              : IconButton(
+                                  icon: Icon(
+                                    config.isVisible
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                  ),
+                                  onPressed: () =>
+                                      _toggleUtilityVisibility(index),
+                                  tooltip: config.isVisible
+                                      ? l10n.hide
+                                      : l10n.show,
+                                ),
                         ),
-                      ],
-                    ),
-                    title: Text(
-                      _utilityLabel(config.id),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    trailing: isLocked
-                        ? Icon(
-                            Icons.lock,
-                            size: 18,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Divider(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShortcutsSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () =>
+                setState(() => _shortcutsExpanded = !_shortcutsExpanded),
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.keyboard,
+                  size: 26,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.markdownShortcuts,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 17,
+                  ),
+                ),
+                const Spacer(),
+                AnimatedRotation(
+                  turns: _shortcutsExpanded ? 0.0 : 0.5,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(Icons.expand_more),
+                ),
+              ],
+            ),
+          ),
+          TweenAnimationBuilder<double>(
+            tween: Tween(end: _shortcutsExpanded ? 1.0 : 0.0),
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            builder: (context, value, child) => ClipRect(
+              child: Align(
+                alignment: Alignment.topCenter,
+                heightFactor: value,
+                child: child,
+              ),
+            ),
+            child: _shortcuts.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 48),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.keyboard,
+                            size: 64,
                             color: theme.colorScheme.onSurface.withValues(
                               alpha: 0.3,
                             ),
-                          )
-                        : IconButton(
-                            icon: Icon(
-                              config.isVisible
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              size: 20,
-                            ),
-                            onPressed: () => _toggleUtilityVisibility(index),
-                            tooltip: config.isVisible ? l10n.hide : l10n.show,
                           ),
+                          const SizedBox(height: 16),
+                          Text(
+                            l10n.noCustomShortcutsYet,
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            l10n.tapToAddShortcut,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ReorderableListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(
+                      top: 16,
+                      bottom: 110, // Extra space at bottom for FAB
+                    ),
+                    itemCount: _shortcuts.length,
+                    onReorder: (oldIndex, newIndex) async {
+                      setState(() {
+                        if (oldIndex < newIndex) newIndex -= 1;
+                        final item = _shortcuts.removeAt(oldIndex);
+                        _shortcuts.insert(newIndex, item);
+                      });
+                      await _saveShortcuts();
+                    },
+                    itemBuilder: (context, index) {
+                      final shortcut = _shortcuts[index];
+                      return Opacity(
+                        key: ValueKey(shortcut.id),
+                        opacity: shortcut.isVisible ? 1.0 : 0.5,
+                        child: Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            minLeadingWidth: 0,
+                            leading: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.drag_handle,
+                                  size: 24,
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.4,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                MarkdownSettingsUtils.buildShortcutIcon(
+                                  context,
+                                  shortcut,
+                                ),
+                              ],
+                            ),
+                            title: Row(
+                              children: [
+                                Text(shortcut.label),
+                                if (shortcut.isDefault) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primary
+                                          .withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      l10n.defaultLabel,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            subtitle: Text(
+                              MarkdownSettingsUtils.getShortcutSubtitle(
+                                context,
+                                shortcut,
+                              ),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
+                              ),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    shortcut.isVisible
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                  ),
+                                  onPressed: () => _toggleVisibility(index),
+                                  tooltip: shortcut.isVisible
+                                      ? l10n.hide
+                                      : l10n.show,
+                                ),
+                                if (!shortcut.isDefault) ...[
+                                  IconButton(
+                                    icon: const Icon(Icons.edit),
+                                    onPressed: () => _editShortcut(index),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete),
+                                    onPressed: () => _deleteShortcut(index),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                ),
-              );
-            },
           ),
-          const SizedBox(height: 4),
           Divider(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
         ],
       ),
@@ -563,165 +1264,16 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildToolbarRatioAdjuster(context),
-          _buildUtilityButtonsSection(context),
-          Expanded(
-            child: _shortcuts.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.keyboard,
-                          size: 64,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.3),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          AppLocalizations.of(context)!.noCustomShortcutsYet,
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.5),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          AppLocalizations.of(context)!.tapToAddShortcut,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ReorderableListView.builder(
-                    padding: const EdgeInsets.only(
-                      left: 16,
-                      right: 16,
-                      top: 16,
-                      bottom: 110, // Extra space at bottom for FAB
-                    ),
-                    itemCount: _shortcuts.length,
-                    onReorder: (oldIndex, newIndex) async {
-                      setState(() {
-                        if (oldIndex < newIndex) {
-                          newIndex -= 1;
-                        }
-                        final item = _shortcuts.removeAt(oldIndex);
-                        _shortcuts.insert(newIndex, item);
-                      });
-                      await _saveShortcuts();
-                    },
-                    itemBuilder: (context, index) {
-                      final shortcut = _shortcuts[index];
-                      return Opacity(
-                        key: ValueKey(shortcut.id),
-                        opacity: shortcut.isVisible ? 1.0 : 0.5,
-                        child: Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            leading: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.drag_handle,
-                                  color: Theme.of(context).colorScheme.onSurface
-                                      .withValues(alpha: 0.4),
-                                ),
-                                const SizedBox(width: 8),
-                                MarkdownSettingsUtils.buildShortcutIcon(
-                                  context,
-                                  shortcut,
-                                ),
-                              ],
-                            ),
-                            title: Row(
-                              children: [
-                                Text(shortcut.label),
-                                if (shortcut.isDefault) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary
-                                          .withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      AppLocalizations.of(
-                                        context,
-                                      )!.defaultLabel,
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.primary,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            subtitle: Text(
-                              MarkdownSettingsUtils.getShortcutSubtitle(
-                                context,
-                                shortcut,
-                              ),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withValues(alpha: 0.6),
-                              ),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: Icon(
-                                    shortcut.isVisible
-                                        ? Icons.visibility
-                                        : Icons.visibility_off,
-                                  ),
-                                  onPressed: () => _toggleVisibility(index),
-                                  tooltip: shortcut.isVisible
-                                      ? AppLocalizations.of(context)!.hide
-                                      : AppLocalizations.of(context)!.show,
-                                ),
-                                if (!shortcut.isDefault) ...[
-                                  IconButton(
-                                    icon: const Icon(Icons.edit),
-                                    onPressed: () => _editShortcut(index),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete),
-                                    onPressed: () => _deleteShortcut(index),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildProfileSelector(context),
+            _buildToolbarRatioAdjuster(context),
+            _buildUtilityButtonsSection(context),
+            _buildShortcutsSection(context),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addShortcut,

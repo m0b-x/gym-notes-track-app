@@ -2,13 +2,18 @@
 
 ## App Description
 Gym Notes is a mobile note-taking app designed for gym/workout tracking. It features:
-- **Folders**: Organize notes into folders with nested subfolders + manual reordering
-- **Rich Markdown Notes**: Full markdown support with custom shortcuts toolbar (reorderable)
-- **Auto-save**: Debounced saves to prevent data loss (5s debounce + 30s interval)
-- **Offline-first**: SQLite with CRDT for future sync support
-- **Search**: Full-text search across all notes with FTS5 + in-note search/replace
-- **Multi-database**: Create/switch between multiple databases
-- **Localization**: English, German, Romanian
+- **Folders**: Organize notes into folders with nested subfolders + manual reordering + per-folder sort preferences
+- **Rich Markdown Notes**: Full markdown support with custom shortcuts toolbar (reorderable, multiple profiles, per-note bar assignments)
+- **Auto-save**: Fingerprint-based change detection (hash + length) with debounced saves (5s) + periodic interval (30s) + retry with exponential backoff
+- **Offline-first**: SQLite with CRDT (Hybrid Logical Clock) for future sync support
+- **Search**: Full-text search across all notes with FTS5 + in-note search/replace with regex support + inverted index with isolate-based building
+- **Multi-database**: Create/switch/rename/delete multiple databases (DatabaseManager via SharedPreferences for active DB name)
+- **Localization**: English, German, Romanian (ARB files → flutter gen-l10n)
+- **Backup/Restore**: Full JSON export/import with v2 format (includes bar profiles + per-note assignments)
+- **Developer Options**: Hidden debug menu (swipe gym icon to unlock) with markdown block coloring, FPS counter, cursor info, database stats, repaint rainbow, etc.
+- **Note Position Persistence**: Saves and restores editor cursor position + preview scroll offset per note
+- **Markdown Preview**: Line-based chunked rendering with LRU caching, search highlighting, checkbox toggling, and source-line mapping for editor↔preview sync
+- **Custom Scroll Progress Indicator**: Touch-friendly scrollbar with smoothing, stabilization, edge snapping, and adaptive animations
 
 ## Current Work / TODO
 - **Scroll position**: Auto-scroll follows cursor when typing at bottom
@@ -22,7 +27,9 @@ Gym Notes is a mobile note-taking app designed for gym/workout tracking. It feat
 - USE modern designs only
 
 ## Stack
-flutter_bloc, drift, sqlite3_flutter_libs, path_provider, flutter_markdown_plus, uuid, equatable, flutter_localizations (EN/DE/RO), get_it, share_plus, shared_preferences, stream_transform, re_editor, file_picker
+flutter_bloc ^9.1.1, drift ^2.30.0, sqlite3_flutter_libs ^0.5.32, path_provider ^2.1.5, flutter_markdown_plus ^1.0.6, uuid ^4.5.2, equatable ^2.0.7, flutter_localizations (EN/DE/RO), get_it ^8.0.3, share_plus ^12.0.1, shared_preferences ^2.5.4, stream_transform ^2.1.0, re_editor (local: packages/re_editor), file_picker ^9.2.0, markdown ^7.3.0, scrollable_positioned_list ^0.3.8, intl (any)
+SDK: ^3.10.4
+Dev: drift_dev ^2.30.0, build_runner ^2.4.15
 
 ## Architecture
 ```
@@ -32,53 +39,166 @@ BLoC → Service → Repository (cached + reactive) → DAO → Database (isolat
 ## Structure
 ```
 lib/
-├── bloc/optimized_folder/    # FolderBloc, events, sealed states
-├── bloc/optimized_note/      # NoteBloc, events, sealed states
-├── bloc/app_settings/        # AppSettingsBloc (theme, locale)
+├── main.dart                          # Entry: WidgetsFlutterBinding → configureDependencies → MultiBlocProvider(AppSettings+Folder+Note) → MaterialApp with onboarding check
+├── bloc/
+│   ├── app_settings/
+│   │   └── app_settings_bloc.dart     # Manages locale + themeMode, persists via UserSettingsDao, events: LoadAppSettings/UpdateLocale/UpdateThemeMode
+│   ├── optimized_folder/
+│   │   ├── optimized_folder_bloc.dart # Handles Load/Create/Update/Delete/Reorder + pagination via FolderStorageService
+│   │   ├── optimized_folder_event.dart
+│   │   └── optimized_folder_state.dart # Sealed: Initial | Loading | Loaded(PaginatedFolders) | Error(FolderErrorType)
+│   └── optimized_note/
+│       ├── optimized_note_bloc.dart   # Handles Load/Create/Update/Delete/Search/Reorder + debounced quick search via stream_transform
+│       ├── optimized_note_event.dart
+│       └── optimized_note_state.dart  # Sealed: Initial | Loading | Loaded(PaginatedNotes) | ContentLoaded(LazyNote) | SearchResults | Created | Error(NoteErrorType)
 ├── core/
-│   ├── di/injection.dart     # get_it DI setup
-│   └── types/result.dart     # Sealed Result<T> type
+│   ├── di/injection.dart              # get_it setup: Database → Repositories → Services → BLoCs (factory for blocs, singleton for rest)
+│   └── types/result.dart              # Sealed Result<T> = Success<T>(data) | Failure<T>(AppError); AppError = Database|NotFound|Validation|Network|Cache|Permission|Unknown
 ├── constants/
-│   ├── app_constants.dart    # Centralized constants
-│   ├── search_constants.dart # Diacritics map
-│   ├── settings_keys.dart    # Settings keys for UserSettingsDao
-│   ├── app_colors.dart       # Color constants
-│   ├── app_spacing.dart      # Spacing constants
-│   ├── app_text_styles.dart  # Text style constants
-│   ├── font_constants.dart   # Font constants
-│   ├── json_keys.dart        # JSON serialization keys
-│   └── markdown_constants.dart # Markdown styling constants
-├── database/                 # Drift database, DAOs, CRDT
-│   ├── database.dart         # AppDatabase singleton (background isolate)
-│   ├── crdt/hlc.dart         # HybridLogicalClock, HlcTimestamp
-│   ├── tables/               # Drift table definitions
-│   ├── daos/                 # Data Access Objects
-│   └── migrations/           # Schema versions, migrations, indexes
-├── repositories/             # Cached + reactive data layer
-│   ├── note_repository.dart  # NoteRepository with streams
-│   └── folder_repository.dart
-├── models/                   # Folder, Note, NoteMetadata, CustomMarkdownShortcut, NoteIndexData
-├── services/                 # FolderStorage, NoteStorage, Search, AutoSave, Loading, Settings, DatabaseManager, LegacyNoteSearch, BackupService
-├── pages/                    # OptimizedFolderContentPage, OptimizedNoteEditorPage, SearchPage, MarkdownSettingsPage, DatabaseSettingsPage, ControlsSettingsPage, OnboardingPage
-├── widgets/                  # MarkdownToolbar, InfiniteScrollList, AppDrawer, UnifiedAppBars (FolderAppBar, NoteAppBar, SettingsAppBar, SearchAppBar), InteractiveMarkdown, NoteSearchBar, ScrollProgressIndicator, IconPickerDialog, ShortcutEditorDialog, etc.
-├── l10n/                     # app_en.arb, app_de.arb, app_ro.arb
-├── config/                   # default_markdown_shortcuts, available_icons
-├── handlers/                 # date/default/header_shortcut_handler
-├── utils/                    # compression, text_history, bloc_helpers, lru_cache, legacy_note_search_controller, re_editor_search_controller, markdown_settings_utils, scroll_position_sync, icon_utils, dialog_helpers, custom_snackbar, isolate_worker, text_position_utils, markdown_list_utils
-├── factories/                # shortcut_handler_factory
-└── main.dart
+│   ├── app_constants.dart             # Timing (autoSave 30s, debounce 5s/500ms), UI (edgeScroll 80px, autoScroll 10px, toolbar sizing), pagination (20), cache (200/50/100 entries, 5min expiry), content (10KB chunks, 5KB compression threshold), search (10 recent, 1000 max matches), editor (scrollbarPadding 16, previewPreloadLineThreshold 3000, maxBarProfileNameLength 30)
+│   ├── app_colors.dart                # Theme-aware utility: folderIcon/noteIcon/fabForeground/fabBackground + static deleteAction/dragHandle
+│   ├── app_icon_sizes.dart            # tiny(16)/small(20)/medium(24)/large(40)/extraLarge(48)
+│   ├── app_spacing.dart               # xxs(2)..xxl(32), pre-built EdgeInsets (cardPadding, listItemPadding, dialogPadding, buttonPadding, toolbarPadding, snackbarMargin w/ toolbarOffset=70)
+│   ├── app_text_styles.dart           # dialogTitle, subtitle(ctx), caption(ctx), label, error, title, body, small
+│   ├── font_constants.dart            # defaultFontSize=16, min=10, max=30, step=2, editorFontFamily=null(platform), h1=32..h6=14, UI text sizes
+│   ├── json_keys.dart                 # All JSON key constants for serialization (note fields, shortcut fields, date offset, repeat config)
+│   ├── markdown_constants.dart        # contentChangeDeltaThreshold=500, lineHeight=1.5, cacheExtent=500, heading scales h1=2.0..h6=0.875, line scales (normal/empty/hr/code), checkbox/indent/code/border/opacity constants
+│   ├── scroll_indicator_constants.dart # visibleWidth=6, touchArea=44, thumb sizing/animation/smoothing/stabilization/edge-snapping/opacity/shadow constants
+│   ├── search_constants.dart          # Full diacritics→ASCII map (À→A, ă→a, ß→ss, etc.) for search normalization
+│   └── settings_keys.dart             # All UserSettings keys + defaults: onboarding, fonts, locale, theme, date, markdown, controls (swipe/delete/autoSave/preview/stats/haptic), editor (lineNums/wordWrap/cursorLine/autoBreak/previewOnKeyboard/scrollCursor), preview (scrollbar), toolbar (ratio=0.7/split=true/utilityConfig), performance (linesPerChunk=10), notePositionPrefix
+├── database/
+│   ├── database.dart                  # AppDatabase extends DriftDatabase, singleton per DB name, HLC clock, LazyDatabase in background, LoadingQueryInterceptor, schema version 5
+│   ├── database.g.dart                # Generated Drift code
+│   ├── loading_interceptor.dart       # QueryInterceptor wrapping all DB ops with LoadingService start/stop for visual feedback
+│   ├── crdt/hlc.dart                  # HybridLogicalClock(nodeId) with now()/receive()/update(); HlcTimestamp(wallTime:logicalCounter:nodeId) - hex encoded, Comparable, parse/toString
+│   ├── tables/
+│   │   ├── folders_table.dart         # id, name(1-255), parentId?, position, createdAt, updatedAt, noteSortOrder?, subfolderSortOrder? + CRDT(hlcTimestamp, deviceId, version, isDeleted, deletedAt?)
+│   │   ├── notes_table.dart           # id, folderId, title(0-500), preview, contentLength, chunkCount, isCompressed, position, createdAt, updatedAt + CRDT
+│   │   ├── content_chunks_table.dart  # id, noteId, chunkIndex, content, isCompressed + CRDT (no deletedAt)
+│   │   ├── sync_metadata_table.dart   # key(PK), value, updatedAt (no CRDT)
+│   │   └── user_settings_table.dart   # key(PK), value, updatedAt (DataClassName: UserSetting, no CRDT)
+│   ├── daos/
+│   │   ├── content_chunk_dao.dart     # loadContent(reassemble+decompress), saveContent(diff-based: compare old chunks by hash, batch insert/update/delete changed only), softDelete/hardDelete, mergeChunk(CRDT), getContentStats
+│   │   ├── folder_dao.dart            # CRUD + paginated + soft/hard delete + cascade (softDeleteFolderWithDescendants), reorder (transaction), sort preferences, watch queries, merge(CRDT), getNoteCountWithDescendants
+│   │   ├── note_dao.dart              # CRUD + paginated + FTS5 index management (_addToFtsIndex/_updateFtsIndex/_removeFromFtsIndex), searchNotes(LIKE), fullTextSearch(FTS5 MATCH), softDelete w/ chunks (transaction), reorder, watch queries, merge(CRDT), deleteNotesInFolder
+│   │   ├── sync_dao.dart              # getLastSyncTimestamp/setLastSyncTimestamp
+│   │   └── user_settings_dao.dart     # getValue/setValue/deleteValue/getAllSettings + watch queries
+│   └── migrations/
+│       ├── database_schema.dart       # currentVersion=5, v1Initial..v5FolderSortPreferences
+│       ├── database_migrations.dart   # Step-by-step migration runner (v1→v2: user_settings, v2→v3: content_chunks.isDeleted, v3→v4: folders+notes.position, v4→v5: folders sort prefs)
+│       ├── database_indexes.dart      # FTS5 table creation (notes_fts) + B-tree indexes on folderId/parentId/updatedAt/position/isDeleted combinations
+│       └── migrations.dart            # Barrel export
+├── repositories/
+│   ├── repositories.dart              # Barrel export
+│   ├── note_repository.dart           # LRU cached (maxNote=200, maxContent=50), reactive (StreamController<NoteChange>), wraps NoteDao+ContentChunkDao, provides: paginated, search, FTS5, watch, reorder, create/update/delete with content
+│   └── folder_repository.dart         # LRU cached (maxFolder=100), reactive (StreamController<FolderChange>), wraps FolderDao, provides: paginated, hierarchy, watch, reorder, sort prefs, cascade delete with note count
+├── models/
+│   ├── custom_markdown_shortcut.dart  # Equatable: id, label, iconCodePoint, iconFontFamily, beforeText, afterText, isDefault, isVisible, insertType('wrap'|'header'|'date'), dateFormat?, dateOffset?(days/months/years), repeatConfig?(count/incrementDate/separator/before/afterRepeatText)
+│   ├── folder.dart                    # Equatable: id, name, parentId?, createdAt, noteSortOrder?, subfolderSortOrder? + JSON + copyWith
+│   ├── note.dart                      # Equatable: id, folderId, title, content, createdAt, updatedAt + JSON + copyWith
+│   ├── note_metadata.dart             # NoteMetadata (without content, has preview/contentLength/chunkCount/isCompressed), LazyNote (metadata + optional content), PaginatedNotes (notes + currentPage/totalPages/totalCount/hasMore)
+│   ├── isolate_data.dart              # NoteIndexData(id, title, content) for isolate search indexing
+│   ├── markdown_bar_profile.dart      # Equatable: id, name, isDefault, shortcuts[], updatedAt; defaultProfileId='default'; encodeList/decodeList for batch JSON
+│   ├── utility_button_config.dart     # UtilityButtonId (static const IDs + defaultOrder: undo/redo/paste/decreaseFont/increaseFont/share/switchBar/scrollToTop/scrollToBottom/reorder/settings + locked={settings}), UtilityButtonConfig (id+isVisible, Equatable, encode/decode with merge logic for new buttons)
+│   ├── utility_button_definition.dart # Registry: UtilityButtonDefinition(id, icon, labelResolver(AppLocalizations), isLocked); static all[] + _byId map + getById(). Single source of truth for toolbar icon/label/lock. Adding a button: 1) add ID to UtilityButtonId 2) add entry here
+│   └── dev_options.dart               # ChangeNotifier singleton: developerModeUnlocked, colorMarkdownBlocks, showBlockBoundaries, showWhitespace, showPreviewLineNumbers, showRenderTime, showFpsCounter, showChunkIndicators, showRepaintRainbow, showCursorInfo, showSelectionDetails, logParserEvents, showNoteSize, showDatabaseStats + loadFromMap/toMap for persistence
+├── services/
+│   ├── auto_save_service.dart         # Lazy content providers (avoid string copy per keystroke), fingerprint comparison (hash+length), debounce+interval timers, SaveStatus enum, retry with exponential backoff (2s/4s/8s, max 3), forceSave/flushAll for lifecycle
+│   ├── backup_service.dart            # Export v2 format (folders+notes+content+shortcuts+settings+barProfiles+activeBar+noteBarAssignments), import with restore, validate before import, share via share_plus
+│   ├── database_manager.dart          # Multi-DB management via SharedPreferences('active_database'), list/create/rename/delete .db files + WAL/SHM cleanup, name validation (alphanum/underscore/hyphen, max 50)
+│   ├── dev_options_service.dart       # Persists DevOptions to/from UserSettings as JSON
+│   ├── folder_search_service.dart     # SearchIndex (inverted index with binary search prefix matching), FolderSearchService (build index via compute() isolate for >50 notes, search/quickSearch with diacritics normalization + relevance scoring, recent searches in SharedPreferences)
+│   ├── folder_storage_service.dart    # FoldersSortOrder enum, PaginatedFolders, wraps FolderRepository with model conversion (DB Folder → model.Folder)
+│   ├── loading_service.dart           # Singleton with ValueNotifier<bool>, nested operation counter (startLoading/stopLoading), withLoading<T>() wrapper
+│   ├── markdown_bar_service.dart      # ChangeNotifier singleton: manages multiple MarkdownBarProfiles, per-note assignments (note_bar_<noteId>), CRUD + active profile + resolve per note, legacy migration from single 'markdown_shortcuts' key
+│   ├── note_position_service.dart     # Persists NotePositionData (isPreviewMode, previewScrollOffset, editorLineIndex, editorColumnOffset) per note in UserSettings, cleanup orphaned positions
+│   ├── note_storage_service.dart      # NotesSortOrder enum, wraps NoteRepository with model conversion (DB Note → NoteMetadata), handles compression detection + preview generation + chunk count calculation
+│   └── settings_service.dart          # Singleton wrapping UserSettingsDao with typed getters/setters for all app settings (controls, editor, preview, toolbar, fonts, onboarding), getUtilityConfig/setUtilityConfig for UtilityButtonConfig persistence
+├── pages/
+│   ├── optimized_folder_content_page.dart # Main folder page: two-section (subfolders + notes) with InfiniteScrollList, drag-to-reorder, FAB with speed dial (new note/new folder), sort selection, Dismissible swipe actions, folder breadcrumb navigation
+│   ├── optimized_note_editor_page.dart    # Main editor: re_editor CodeEditor + MarkdownToolbar, split mode (edit|preview|both), keyboard-aware preview toggle, auto-save integration, position persistence, NoteSearchBar overlay, scroll-to-top/bottom, font size management, share, debug overlays
+│   ├── search_page.dart                   # Full-text search with recent searches, debounced input, FolderSearchService integration, highlighted results
+│   ├── markdown_settings_page.dart        # Toolbar customization: reorderable shortcut list + utility button list, visibility toggles, add/edit/delete custom shortcuts, date format config, bar profile management (MarkdownBarService), toolbar ratio slider, split toggle
+│   ├── controls_settings_page.dart        # Settings: gestures, feedback, auto-save, display, editor options, preview options, preview performance (linesPerChunk), reset to defaults
+│   ├── database_settings_page.dart        # Multi-DB management: list databases, create/rename/delete, switch active, backup export/import (file_picker for import)
+│   ├── developer_options_page.dart        # Hidden dev settings: all DevOptions toggles, lock button, reset button
+│   ├── note_bar_assignment_page.dart      # Per-note bar profile assignment: shows all notes grouped by folder, select which bar profile each note uses
+│   └── onboarding_page.dart               # First-launch setup with PageView: welcome, import backup option, completion
+├── widgets/
+│   ├── markdown_toolbar.dart              # Split toolbar: left=shortcuts (draggable, scrollable), right=utility buttons (configurable order/visibility). Reorder mode with drag handles. Callbacks: onShortcutPressed, onScrollToTop/Bottom, onUndo/Redo, onShare, onSettings, onReorderComplete, onSwitchBar, onPaste, etc. Uses UtilityButtonDefinition registry for icons/tooltips.
+│   ├── unified_app_bars.dart              # FolderAppBar (menu/back + title + actions), NoteAppBar (back + title + save indicator dot + SpinningIcon animation), SettingsAppBar (menu + title), SearchAppBar (text field + clear)
+│   ├── app_drawer.dart                    # Navigation drawer: language selector, theme toggle (light/dark/system), developer options entry (if unlocked), settings links (controls, markdown, database)
+│   ├── app_loading_bar.dart               # AppLoadingBar (listens to LoadingService.isLoading), LoadingScaffold (Scaffold + AppLoadingBar on top)
+│   ├── bar_switcher_sheet.dart            # Bottom sheet for switching markdown bar profile: searchable list of profiles
+│   ├── debug_overlays.dart                # Conditional debug widgets: BlockColorOverlay, WhitespaceOverlay, LineNumberOverlay, RenderTimeOverlay, NoteSize/CursorInfo/ChunkIndicator overlays, FpsCounter
+│   ├── double_tap_line_detector.dart      # GestureDetector that translates double-tap Y position into a logical line index using weighted markdown line heights
+│   ├── editor_chunk_overlay.dart          # CustomPainter drawing colored chunk backgrounds in the code editor for debug visualization
+│   ├── full_markdown_view.dart            # Full markdown rendering with checkbox support for dialogs
+│   ├── icon_picker_dialog.dart            # Searchable icon picker with keyword-based search index (~170 icons from AvailableIcons)
+│   ├── infinite_scroll_list.dart          # Generic paginated list (InfiniteScrollList<T>, InfiniteScrollSliver<T>, PaginationInfo) with loadMore threshold
+│   ├── interactive_preview_scrollbar.dart # Draggable scrollbar for preview mode with tap-to-scroll
+│   ├── modern_editor_wrapper.dart         # Wraps re_editor CodeEditor with custom toolbar integration, scroll indicator, and debug chunk overlay
+│   ├── note_search_bar.dart               # In-note search/replace overlay: match count, prev/next navigation, case sensitivity, regex, whole-word toggles, replace/replaceAll
+│   ├── overlay_snackbar.dart              # Lightweight overlay-based snackbar
+│   ├── scroll_progress_indicator.dart     # Custom scrollbar with position smoothing, edge snapping, touch-drag, and adaptive animations
+│   ├── scroll_zone_mixin.dart             # Mixin for momentum-based scrolling with velocity tracking and animation
+│   ├── shortcut_editor_dialog.dart        # Full editor for creating/editing shortcuts: icon picker, before/after text, insertType, date format, date offset, repeat config with increments
+│   ├── simple_markdown_preview.dart       # Lightweight cached markdown preview widget
+│   └── source_mapped_markdown_view.dart   # Line-based chunked markdown view: splits content by lines, renders chunks lazily, search highlighting, checkbox toggle callbacks, scroll sync with editor via line mapping
+├── handlers/
+│   ├── date_shortcut_handler.dart         # Handles 'date' insertType: cached date format from UserSettings, date offset, repeat with date increments
+│   ├── default_shortcut_handler.dart      # Handles 'wrap' insertType: wraps selection with before/after text, optional repeat
+│   └── header_shortcut_handler.dart       # Handles 'header' insertType: shows popup menu for H1-H6 selection
+├── factories/
+│   └── shortcut_handler_factory.dart      # Maps insertType → handler: 'header'→HeaderShortcutHandler, 'date'→DateShortcutHandler, default→DefaultShortcutHandler
+├── interfaces/
+│   └── markdown_shortcut_handler.dart     # Abstract: execute({context, shortcut, controller, focusNode, onTextChanged})
+├── utils/
+│   ├── bloc_helpers.dart                  # Context-aware BLoC state filtering to prevent cross-page state pollution
+│   ├── compression_utils.dart             # zlib compress/decompress + base64 encoding for content chunks
+│   ├── custom_snackbar.dart               # showSuccess/showError/showInfo floating snackbars with toolbar offset awareness
+│   ├── dialog_helpers.dart                # confirmDialog, textInputDialog, alertDialog, loadingIndicator
+│   ├── editor_width_calculator.dart       # Calculates available text width accounting for line numbers, scrollbar padding; smart line breaking with markdown syntax awareness
+│   ├── icon_utils.dart                    # getIconDataFromCodePoint: maps icon codePoints to constant IconData refs for tree-shaking safety
+│   ├── isolate_worker.dart                # IsolateWorker + IsolatePool for offloading CPU-heavy operations
+│   ├── line_based_markdown_builder.dart   # Line-by-line markdown→Widget rendering with LRU cache, lazy code block detection, search highlighting, configurable chunk sizes
+│   ├── lru_cache.dart                     # Generic LruCache<K,V> using LinkedHashMap with maxSize eviction
+│   ├── markdown_line_height_calculator.dart # Maps markdown line content to height scale factors (H1-H6, empty, HR, code block)
+│   ├── markdown_list_utils.dart           # isEmptyListItem detection, list prefix generation
+│   ├── markdown_settings_utils.dart       # UI helpers for displaying shortcut info (subtitles) in settings pages
+│   ├── markdown_span_builder.dart         # Large-scale markdown→TextSpan converter with lazy block building, search highlighting, checkbox support, source range tracking
+│   ├── re_editor_search_controller.dart   # Wraps re_editor's CodeFindController: search/replace with case sensitivity, regex, whole-word; ReplaceResultState sealed (Success|Failure)
+│   ├── scroll_position_sync.dart          # Synchronizes scroll position between editor and preview during mode switches
+│   ├── text_history_observer.dart         # Atomic undo/redo grouping for multi-step editor operations
+│   └── text_position_utils.dart           # getLineFromOffset, getColumnFromOffset, getPosition(line+column) from text+offset
+├── l10n/
+│   ├── app_en.arb                         # English strings (primary)
+│   ├── app_de.arb                         # German strings
+│   ├── app_ro.arb                         # Romanian strings
+│   ├── app_localizations.dart             # Generated base class
+│   ├── app_localizations_en.dart          # Generated English
+│   ├── app_localizations_de.dart          # Generated German
+│   └── app_localizations_ro.dart          # Generated Romanian
+├── config/
+│   ├── default_markdown_shortcuts.dart    # DefaultMarkdownShortcuts.shortcuts: 17 defaults (bold, italic, header, point list, strikethrough, bullet list, numbered list, checkbox, quote, inline code, code block, link, checked checkbox, table, horizontal rule, image, date)
+│   └── available_icons.dart               # AvailableIcons.all: ~170 Material icons organized by category for shortcut icon picker
+└── packages/
+    └── re_editor/                         # Local fork of re_editor package (high-performance code editor with line virtualization)
 ```
 
 ## Dependency Injection (get_it)
 ```dart
 // Setup (in main.dart)
 await configureDependencies();
+// Registration order: Database(singleton) → Repositories(singleton) → Services(singleton, initialized) → BLoCs(factory)
 
 // Access
 final noteRepo = getIt<NoteRepository>();
 final noteBloc = getIt<OptimizedNoteBloc>();
 
-// Registration order: Database → Repositories → Services → BLoCs
+// Registered singletons: AppDatabase, NoteRepository, FolderRepository, FolderStorageService, NoteStorageService, FolderSearchService
+// Registered factories: OptimizedFolderBloc, OptimizedNoteBloc
+// NOT in DI (singleton pattern): SettingsService, BackupService, DatabaseManager, MarkdownBarService, NotePositionService, DevOptionsService, AutoSaveService, LoadingService
 ```
 
 ## Sealed Result Type
@@ -369,32 +489,42 @@ getIt<NoteRepository>().noteChanges.listen((change) {
 ```
 
 ## Key Classes
-- **AppDatabase**: Drift database singleton with HLC clock (background isolate)
+- **AppDatabase**: Drift database singleton with HLC clock (LazyDatabase in background, LoadingQueryInterceptor, schema v5, generateHlc/generateId/rebuildFtsIndex/vacuum)
 - **DatabaseSchema**: Schema version constants (currentVersion=5, v1-v5)
-- **DatabaseManager**: Manages multiple databases (create, switch, delete, rename)
-- **DatabaseMigrations**: Migration step runner for schema upgrades
-- **DatabaseIndexes**: Index and FTS table creation
-- **NoteRepository**: Cached note access with reactive streams
-- **FolderRepository**: Cached folder access with reactive streams
-- **Result<T>**: Sealed type for Success/Failure
-- **AppError**: Sealed error hierarchy
-- **HybridLogicalClock**: CRDT clock for causality ordering
-- **HlcTimestamp**: Comparable timestamp (wallTime:counter:nodeId)
-- **LazyNote**: metadata + content (from loadNoteWithContent)
-- **PaginatedNotes**: notes list + pagination info (hasMore, currentPage, totalCount)
-- **PaginatedFolders**: folders list + pagination info
-- **SearchResult**: metadata + matches + relevanceScore
-- **SearchMatch**: start/end indices + matchType (title/content)
-- **CheckboxToggleInfo**: start/end indices + replacement text for checkbox toggling
-- **LoadingService**: Global loading state for database operations
-- **AutoSaveService**: 5s debounced saves + 30s interval
-- **TextHistoryObserver**: undo/redo tracking
-- **ReEditorSearchController**: In-note search/replace with regex support (wraps re_editor's CodeFindController)
-- **NoteSearchController**: Legacy in-note search/replace (in legacy_note_search_controller.dart)
-- **FolderSearchService**: Cross-note full-text search with indexing
-- **SettingsService**: User preferences (swipe gestures, haptic feedback, auto-save, preview, theme, locale)
-- **CustomMarkdownShortcut**: User-configurable markdown toolbar shortcuts
-- **BackupService**: Full data export/import for backup and restore
+- **DatabaseManager**: Multiple .db file management via SharedPreferences (create, switch, delete, rename, list, path resolution, name validation)
+- **DatabaseMigrations**: Step-by-step schema migration runner
+- **DatabaseIndexes**: B-tree indexes + FTS5 table creation
+- **NoteRepository**: LRU cached (200 notes, 50 content) + reactive StreamController<NoteChange> (created/updated/deleted)
+- **FolderRepository**: LRU cached (100 folders) + reactive StreamController<FolderChange>
+- **Result<T>**: Sealed type (Success/Failure) with fold/map/dataOrNull extensions
+- **AppError**: Sealed error hierarchy (Database/NotFound/Validation/Network/Cache/Permission/Unknown)
+- **HybridLogicalClock**: CRDT clock (now/receive/update) for causality ordering
+- **HlcTimestamp**: Comparable timestamp (wallTime:counter:nodeId as hex)
+- **LazyNote**: NoteMetadata + optional content (withContent(), isContentLoaded)
+- **PaginatedNotes/PaginatedFolders**: Paginated list + currentPage/totalPages/totalCount/hasMore
+- **SearchResult**: NoteMetadata + SearchMatch[] + relevanceScore
+- **SearchMatch**: text context + startIndex/endIndex + type(title/content)
+- **SearchIndex**: Inverted index with binary search prefix matching, built in isolate for >50 notes
+- **CheckboxToggleInfo**: start/end indices + replacement text for checkbox toggling in preview
+- **LoadingService**: Singleton ValueNotifier<bool> with nested operation counter
+- **AutoSaveService**: Fingerprint-based (hash+length), lazy content providers (no string copy per keystroke), debounce+interval timers, SaveStatus enum (saved/unsaved/saving/error), retry w/ exponential backoff
+- **TextHistoryObserver**: Atomic undo/redo grouping for multi-step operations
+- **ReEditorSearchController**: Wraps CodeFindController with case/regex/wholeWord + replace (sealed ReplaceResultState)
+- **FolderSearchService**: Full-text search with SearchIndex, diacritics normalization, relevance scoring, recent searches
+- **SettingsService**: Typed getter/setter wrapper over UserSettingsDao for all app settings
+- **CustomMarkdownShortcut**: Equatable model with insertType ('wrap'|'header'|'date'), dateFormat, dateOffset, repeatConfig
+- **MarkdownBarProfile**: Named profile with shortcuts list, used by MarkdownBarService for multi-bar support
+- **MarkdownBarService**: ChangeNotifier singleton managing profiles + per-note assignments + legacy migration
+- **BackupService**: Export/import v2 JSON format (folders, notes w/ content, shortcuts, settings, bar profiles, note assignments)
+- **NotePositionService**: Per-note cursor/scroll position persistence in UserSettings
+- **UtilityButtonId**: Static const button IDs + defaultOrder + locked set
+- **UtilityButtonConfig**: Serializable per-button visibility + ordering + merge logic for new buttons
+- **UtilityButtonDefinition**: Registry pattern (all[] + getById) for button icon/label/lock metadata
+- **DevOptions**: ChangeNotifier singleton with 13+ debug toggles, persisted via DevOptionsService
+- **EditorWidthCalculator**: Calculates text width accounting for line numbers + scrollbar padding + markdown syntax-aware line breaking
+- **LineBasedMarkdownBuilder**: Line-by-line markdown→Widget with LRU cache, lazy code block detection, configurable chunk sizes
+- **MarkdownSpanBuilder**: Markdown→TextSpan converter with lazy block building, search highlighting, checkbox support, source range tracking
+- **ScrollProgressIndicator**: Custom scrollbar with position smoothing, stabilization, edge snapping, touch-drag
 
 ## Onboarding & Backup
 ```dart
@@ -470,20 +600,39 @@ final activeName = dbManager.getActiveDatabaseName();
 final settings = await SettingsService.getInstance();
 
 // Gesture controls
-settings.folderSwipeEnabled;  // Swipe to open drawer on folder page
-settings.noteSwipeEnabled;    // Swipe to open drawer on note editor
-await settings.setFolderSwipeEnabled(true);
+settings.folderSwipeEnabled;  // Swipe to open drawer on folder page (default: true)
+settings.noteSwipeEnabled;    // Swipe to open drawer on note editor (default: true)
 
 // Behavior
-settings.confirmDelete;       // Show confirmation before deleting
-settings.autoSaveEnabled;     // Enable/disable auto-save
-settings.autoSaveInterval;    // Auto-save interval in seconds
-await settings.setConfirmDelete(true);
+settings.confirmDelete;       // Show confirmation before deleting (default: true)
+settings.autoSaveEnabled;     // Enable/disable auto-save (default: true)
+settings.autoSaveInterval;    // Auto-save interval in seconds (default: 30)
+settings.hapticFeedback;      // Haptic feedback on interactions (default: true)
 
-// UI preferences
-settings.showNotePreview;     // Show note preview in lists
-settings.hapticFeedback;      // Haptic feedback on interactions
-await settings.setShowNotePreview(true);
+// UI / Display
+settings.showNotePreview;     // Show note preview in lists (default: true)
+settings.showNoteDate;        // Show date in note lists (default: true)
+
+// Editor
+settings.editorFontSize;      // Editor font size (default: 14.0)
+settings.showMarkdownToolbar;  // Show toolbar in editor (default: true)
+settings.toolbarShortcutRatio; // Ratio of toolbar width for shortcuts (default: 0.65)
+settings.showToolbarDivider;   // Show divider between shortcuts/utility (default: true)
+settings.enableSplitToolbar;   // Split toolbar left/right sections (default: true)
+
+// Preview
+settings.previewFontSize;     // Preview font size (default: 16.0)
+settings.linesPerChunk;       // Lines per render chunk (default: 100)
+
+// Onboarding
+settings.isOnboardingCompleted();
+await settings.setOnboardingCompleted(true);
+
+// Utility buttons (serialized as JSON)
+final configs = await settings.getUtilityConfig();
+await settings.setUtilityConfig(configs);
+
+// All keys defined in SettingsKeys class (lib/constants/settings_keys.dart)
 ```
 
 ## In-Note Search (ReEditorSearchController)
@@ -526,50 +675,93 @@ if (searchController.isSearching) {
 
 ## Markdown Shortcuts
 ```dart
-// Load shortcuts
-final shortcuts = await MarkdownSettingsUtils.loadShortcuts();
+// Shortcut system has three layers:
+// 1. CustomMarkdownShortcut (model) - data + serialization
+// 2. MarkdownShortcutHandler (interface) - execute() method
+// 3. ShortcutHandlerFactory - maps insertType to handler
 
-// Shortcuts include:
-// - Default: bold, italic, strikethrough, code, link, quote, list, header, date
-// - Custom: user-created shortcuts with custom icons and text
+// InsertTypes:
+// 'wrap' (default) → DefaultShortcutHandler: wraps selection with before/after text
+// 'header' → HeaderShortcutHandler: shows H1-H6 popup menu
+// 'date' → DateShortcutHandler: inserts formatted date, supports offset + repeat with increments
+
+// Bar profiles (multi-bar system via MarkdownBarService):
+final svc = await MarkdownBarService.getInstance();
+svc.profiles;                                        // All profiles
+svc.activeProfile;                                   // Currently active
+await svc.addProfile('My Bar');                      // Create with defaults
+await svc.duplicateProfile(sourceId, 'Copy');        // Clone
+await svc.setActiveProfile(profileId);               // Switch globally
+await svc.setNoteBarId(noteId, profileId);           // Per-note override
+final resolved = await svc.resolveProfileForNote(noteId); // Override → global
 
 // Shortcut properties
 shortcut.id;              // Unique identifier
 shortcut.label;           // Display text
+shortcut.iconCodePoint;   // Material icon code point
+shortcut.iconFontFamily;  // 'MaterialIcons'
 shortcut.beforeText;      // Text before selection
 shortcut.afterText;       // Text after selection
-shortcut.insertType;      // 'default', 'header', 'date'
+shortcut.insertType;      // 'wrap', 'header', 'date'
 shortcut.isVisible;       // Show in toolbar
 shortcut.isDefault;       // Can't be deleted
+shortcut.dateFormat;      // e.g. 'MMMM d, yyyy' (for date type)
+shortcut.dateOffset;      // DateOffset(days, months, years) offset from today
+shortcut.repeatConfig;    // RepeatConfig(count, incrementDate, separator, before/afterRepeatText)
 
-// Toolbar features:
-// - Reorderable (drag to rearrange)
-// - Visibility toggle per shortcut
-// - Custom date formats (configurable)
-// - Header levels (H1-H6)
+// Default shortcuts (17): bold, italic, header, point list, strikethrough, bullet list, numbered list, checkbox, quote, inline code, code block, link, checked checkbox, table, horizontal rule, image, date
+```
+
+## Utility Buttons (Toolbar Right Side)
+```dart
+// Three-tier system:
+// 1. UtilityButtonId - static const IDs + defaultOrder + locked set
+// 2. UtilityButtonConfig - per-user visibility/ordering (persisted in UserSettings as JSON)
+// 3. UtilityButtonDefinition - registry with icon, labelResolver, isLocked
+
+// Adding a new utility button:
+// 1. Add const ID to UtilityButtonId + add to defaultOrder list
+// 2. Add UtilityButtonDefinition entry in all[] list
+// 3. Add switch case in _buildUtilityButtonWidget (markdown_toolbar.dart) for callback
+// 4. Add callback to MarkdownToolbar widget + wire in editor page
+// 5. Add l10n string to all ARB files + run flutter gen-l10n
+
+// Current buttons (in default order):
+// undo, redo, paste, decreaseFont, increaseFont, share, switchBar, scrollToTop, scrollToBottom, reorder, settings
+// Locked (can't be hidden): settings
+
+// Settings persistence:
+final settings = await SettingsService.getInstance();
+final configs = await settings.getUtilityConfig();  // List<UtilityButtonConfig>
+await settings.setUtilityConfig(configs);            // Encoded as JSON in UserSettings
 ```
 
 ## Widget Highlights
 ```dart
-// MarkdownToolbar - customizable toolbar
+// MarkdownToolbar - customizable toolbar with shortcuts (left) + utility buttons (right)
 MarkdownToolbar(
-  shortcuts: shortcuts,
+  shortcuts: shortcuts,                              // Left side: CustomMarkdownShortcut list
   isPreviewMode: false,
   canUndo: true,
   canRedo: false,
   previewFontSize: 16.0,
   onUndo: () => {},
   onRedo: () => {},
+  onPaste: () => {},
   onDecreaseFontSize: () => {},
   onIncreaseFontSize: () => {},
   onSettings: () => {},
   onShortcutPressed: (shortcut) => _handleShortcut(shortcut),
   onReorderComplete: (reordered) => _saveOrder(reordered),
   onShare: () => {},
-  showSettings: true,
+  onSwitchBar: () => {},                             // Toggle to next bar profile
+  onScrollToTop: () => {},                           // Scroll editor/preview to top
+  onScrollToBottom: () => {},                        // Scroll editor/preview to bottom
   showBackground: true,
-  showReorder: true,
+  utilityConfigs: utilityConfigs,                     // Right side: UtilityButtonConfig list
 );
+// Utility buttons use UtilityButtonDefinition.getById() for icon/tooltip
+// In preview mode, utility Row is wrapped in SingleChildScrollView(horizontal)
 
 // InteractiveMarkdown - markdown preview with checkbox support
 InteractiveMarkdown(
@@ -577,8 +769,8 @@ InteractiveMarkdown(
   selectable: true,
   onCheckboxToggle: (CheckboxToggleInfo info) => {},
   styleSheet: MarkdownStyleSheet(...),
-  selectedLine: 5,
-  onLineTap: (lineNumber) => {},
+  selectedLine: 5,                                   // Highlights line in preview
+  onLineTap: (lineNumber) => {},                     // Tap line → jump to editor
 );
 
 // FolderAppBar - for folder navigation pages
@@ -586,8 +778,8 @@ FolderAppBar(
   title: 'Folder Name',
   isRootPage: true,          // Shows menu icon, false shows back arrow
   actions: [...],
-  onMenuPressed: () => {},   // Optional custom handler
-  onBackPressed: () => {},   // Optional custom handler
+  onMenuPressed: () => {},
+  onBackPressed: () => {},
 );
 
 // NoteAppBar - for note editor page
@@ -630,4 +822,12 @@ InfiniteScrollList<Item>(
   controller: scrollController,
   shrinkWrap: false,
 );
+
+// ScrollProgressIndicator - custom scrollbar overlay
+// Uses ValueNotifier<double> position/thumbHeight, smoothing via EMA,
+// stabilization threshold, edge snapping, touch-drag support
+// Positioned in Stack alongside editor/preview content
+
+// ConfirmationDialogs - reusable themed dialogs
+// ShowDeleteConfirmation, ShowConfirmation with consistent styling
 ```

@@ -2451,6 +2451,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Toggle visibility and drag to reorder'**
   String get utilityButtonsHint;
+
+  /// Title for markdown bar profiles section
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown Bars'**
+  String get markdownBars;
+
+  /// Label for the currently active markdown bar
+  ///
+  /// In en, this message translates to:
+  /// **'Active Bar'**
+  String get activeBar;
+
+  /// Label for the bar currently being edited in settings
+  ///
+  /// In en, this message translates to:
+  /// **'Editing Bar'**
+  String get editingBar;
+
+  /// Button text to create a new markdown bar
+  ///
+  /// In en, this message translates to:
+  /// **'Add Bar'**
+  String get addBar;
+
+  /// Button text to delete a markdown bar
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Bar'**
+  String get deleteBar;
+
+  /// Confirmation message when deleting a markdown bar
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this bar? Notes using it will fall back to the global active bar.'**
+  String get deleteBarConfirm;
+
+  /// Button text to rename a markdown bar
+  ///
+  /// In en, this message translates to:
+  /// **'Rename Bar'**
+  String get renameBar;
+
+  /// Button text to duplicate a markdown bar
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate Bar'**
+  String get duplicateBar;
+
+  /// Label for the bar name text field
+  ///
+  /// In en, this message translates to:
+  /// **'Bar Name'**
+  String get barName;
+
+  /// Name of the default markdown bar
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get defaultBar;
+
+  /// Tooltip for the bar switcher button in toolbar
+  ///
+  /// In en, this message translates to:
+  /// **'Switch Bar'**
+  String get switchBar;
+
+  /// Hint text for searching markdown bars
+  ///
+  /// In en, this message translates to:
+  /// **'Search bars...'**
+  String get searchBars;
+
+  /// Shown when bar search yields no results
+  ///
+  /// In en, this message translates to:
+  /// **'No matching bars'**
+  String get noMatchingBars;
+
+  /// Title for the per-note bar assignment page
+  ///
+  /// In en, this message translates to:
+  /// **'Per-Note Bar Assignment'**
+  String get perNoteBarAssignment;
+
+  /// Description for per-note bar assignment
+  ///
+  /// In en, this message translates to:
+  /// **'Assign a specific bar to individual notes. Notes without an override use the global active bar.'**
+  String get perNoteBarHint;
+
+  /// Option to use the global active bar for a note
+  ///
+  /// In en, this message translates to:
+  /// **'Use Global Bar'**
+  String get useGlobalBar;
+
+  /// Message when user tries to delete the default bar
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot delete the default bar'**
+  String get cannotDeleteDefault;
+
+  /// Message when user tries to rename the default bar
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot rename the default bar'**
+  String get cannotRenameDefault;
+
+  /// Title for the bar switcher bottom sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Select Markdown Bar'**
+  String get barSwitcherTitle;
+
+  /// Label indicating a per-note bar override is set
+  ///
+  /// In en, this message translates to:
+  /// **'Note Override'**
+  String get noteBarOverride;
+
+  /// Button to remove per-note bar override
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Override'**
+  String get clearOverride;
+
+  /// Link to open the per-note bar assignment page
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Bar Profiles'**
+  String get manageBarProfiles;
+
+  /// Subtitle for locked utility buttons that are always shown
+  ///
+  /// In en, this message translates to:
+  /// **'Always visible'**
+  String get alwaysVisible;
+
+  /// Status label when a utility button is visible
+  ///
+  /// In en, this message translates to:
+  /// **'Visible'**
+  String get visible;
+
+  /// Tooltip for the scroll-to-top utility button
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Top'**
+  String get goToTop;
+
+  /// Tooltip for the scroll-to-bottom utility button
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Bottom'**
+  String get goToBottom;
+
+  /// Status label when a utility button is hidden
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden'**
+  String get hidden;
 }
 
 class _AppLocalizationsDelegate
