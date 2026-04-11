@@ -20,8 +20,6 @@ class SourceMappedMarkdownView extends StatefulWidget {
   final String data;
   final double fontSize;
   final Function(CheckboxToggleInfo)? onCheckboxToggle;
-  final ScrollController?
-  scrollController; // Kept for API compatibility but not used internally
   final EdgeInsets? padding;
   final List<TextRange>? searchHighlights;
   final int? currentHighlightIndex;
@@ -41,7 +39,6 @@ class SourceMappedMarkdownView extends StatefulWidget {
     required this.data,
     this.fontSize = 16.0,
     this.onCheckboxToggle,
-    this.scrollController,
     this.padding,
     this.searchHighlights,
     this.currentHighlightIndex,
@@ -205,25 +202,6 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
       }
     }
     _lastFirstVisibleChunk = firstVisible.index;
-
-    // Also update the external scroll controller if provided (for compatibility)
-    if (widget.scrollController != null && _builder!.chunkCount > 0) {
-      // Approximate the scroll offset based on chunk position
-      final approximateOffset =
-          firstVisible.index *
-          widget.linesPerChunk *
-          widget.fontSize *
-          MarkdownConstants.lineHeight;
-      // Only notify if controller is attached
-      if (widget.scrollController!.hasClients) {
-        widget.scrollController!.jumpTo(
-          approximateOffset.clamp(
-            0.0,
-            widget.scrollController!.position.maxScrollExtent,
-          ),
-        );
-      }
-    }
   }
 
   /// Pre-warm cache for chunks in the scroll direction
@@ -355,8 +333,9 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
       return;
     }
     if (clampedProgress >= 1.0) {
-      // Scroll to the last chunk with alignment that puts it at the bottom
-      _itemScrollController.jumpTo(index: chunkCount - 1, alignment: 0.0);
+      // Scroll to the last chunk — alignment 1.0 places its leading edge
+      // at the bottom of the viewport, showing the very end of the content.
+      _itemScrollController.jumpTo(index: chunkCount - 1, alignment: 1.0);
       return;
     }
 
@@ -444,6 +423,10 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
       lineCount,
       widget.linesPerChunk,
     );
+
+    // Dispose the old builder to clean up gesture recognizers before
+    // creating a new one — prevents a memory leak on every content change.
+    _builder?.dispose();
 
     _builder = LineBasedMarkdownBuilder(
       style: mdStyle,

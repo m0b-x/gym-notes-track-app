@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 
-import 'source_mapped_markdown_view.dart';
+import '../controllers/preview_scroll_controller.dart';
 
 /// Interactive scrollbar for preview mode that works with ScrollablePositionedList.
 /// Supports both display of current position AND dragging to scroll.
 class InteractivePreviewScrollbar extends StatefulWidget {
-  final ValueNotifier<double> progressNotifier;
-  final GlobalKey<SourceMappedMarkdownViewState> markdownViewKey;
+  final PreviewScrollController controller;
 
   const InteractivePreviewScrollbar({
     super.key,
-    required this.progressNotifier,
-    required this.markdownViewKey,
+    required this.controller,
   });
 
   @override
@@ -36,7 +34,7 @@ class _InteractivePreviewScrollbarState
   @override
   void initState() {
     super.initState();
-    _smoothedProgress = widget.progressNotifier.value;
+    _smoothedProgress = widget.controller.progress.value;
   }
 
   @override
@@ -45,7 +43,7 @@ class _InteractivePreviewScrollbarState
     final baseColor = colorScheme.primary;
 
     return ValueListenableBuilder<double>(
-      valueListenable: widget.progressNotifier,
+      valueListenable: widget.controller.progress,
       builder: (context, progress, _) {
         // When dragging, use the smooth progress we control
         // When not dragging, use the notifier's progress
@@ -144,7 +142,7 @@ class _InteractivePreviewScrollbarState
   }
 
   void _onDragStart(DragStartDetails details) {
-    _smoothedProgress = widget.progressNotifier.value;
+    _smoothedProgress = widget.controller.progress.value;
     setState(() => _isDragging = true);
   }
 
@@ -178,10 +176,7 @@ class _InteractivePreviewScrollbarState
     // Update smoothed progress for drag feedback
     setState(() => _smoothedProgress = progress);
 
-    // Scroll the markdown view
-    final markdownState = widget.markdownViewKey.currentState;
-    if (markdownState != null) {
-      markdownState.scrollToProgress(progress);
-    }
+    // Scroll the markdown view via the controller
+    widget.controller.scrollToProgress(progress);
   }
 }

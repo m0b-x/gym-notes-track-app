@@ -40,10 +40,10 @@ import '../widgets/unified_app_bars.dart';
 import '../utils/editor_width_calculator.dart';
 import '../utils/custom_snackbar.dart';
 import '../utils/re_editor_search_controller.dart';
-import '../utils/scroll_position_sync.dart';
 import '../utils/text_history_observer.dart';
 import '../utils/text_position_utils.dart';
 import '../utils/markdown_list_utils.dart';
+import '../controllers/preview_scroll_controller.dart';
 import '../database/database.dart';
 import '../constants/app_constants.dart';
 import '../constants/app_spacing.dart';
@@ -77,10 +77,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   late FocusNode _contentFocusNode;
   late CodeScrollController _editorScrollController;
   late TextHistoryObserver _historyObserver;
-  final ScrollController _previewScrollController = ScrollController();
   late ReEditorSearchController _searchController;
-  late ScrollPositionSync _scrollPositionSync;
-  final GlobalKey<SourceMappedMarkdownViewState> _markdownViewKey = GlobalKey();
+  late PreviewScrollController _previewController;
   final GlobalKey _editorWrapperKey = GlobalKey();
   final GlobalKey _lineNumbersKey = GlobalKey();
   final GlobalKey _scrollIndicatorKey = GlobalKey();
@@ -113,8 +111,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   /// The resolved bar profile currently active for this note.
   String _activeBarProfileId = MarkdownBarProfile.defaultProfileId;
 
-  // Preview scroll progress (for scrollbar when using ScrollablePositionedList)
-  final ValueNotifier<double> _previewScrollProgress = ValueNotifier(0.0);
+  /// Saved editor selection for restoring cursor position after preview→editor.
+  CodeLineSelection? _savedEditorSelection;
 
   AutoSaveService? _autoSaveService;
   NotePositionService? _notePositionService;
@@ -137,8 +135,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   static const int _pasteThreshold = 20;
 
   Timer? _lineCountDebounceTimer;
+  Timer? _restorePositionTimer;
   int _lastLineCountTextLength = 0;
   double _previousKeyboardHeight = 0;
+  bool _isTogglingPreview = false;
 
   @override
   void initState() {
@@ -158,10 +158,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _editorScrollController = CodeScrollController();
     _searchController = ReEditorSearchController();
     _searchController.initialize(_contentController);
-    _scrollPositionSync = ScrollPositionSync(
-      previewScrollController: _previewScrollController,
-      editorScrollController: _editorScrollController,
-    );
+    _previewController = PreviewScrollController()
+      ..bindView(GlobalKey<SourceMappedMarkdownViewState>());
 
     _titleController.addListener(_onTextChanged);
     _contentController.addListener(_onTextChanged);
@@ -224,6 +222,16 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         }
       });
     }
+
+    // When keyboard dismisses and previewWhenKeyboardHidden is on,
+    // refresh the cached preview content so the auto-shown preview
+    // reflects the latest edits instead of stale text.
+    if (_previewWhenKeyboardHidden &&
+        _previousKeyboardHeight > 0 &&
+        keyboardHeight == 0) {
+      _cachedPreviewContent = _contentController.text;
+    }
+
     _previousKeyboardHeight = keyboardHeight;
   }
 
@@ -461,6 +469,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   }
 
   void _updateCachedStats() {
+    if (!mounted) return;
     final newCharCount = _contentController.textLength;
     // Use re_editor's built-in lineCount for efficiency
     final newLineCount = _contentController.lineCount;
@@ -473,6 +482,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   }
 
   void _togglePreviewMode() {
+    if (_isTogglingPreview) return;
     final switchingToPreview = !_isPreviewMode;
     final totalLines = _contentController.lineCount;
     final isLargeNote = totalLines > AppConstants.previewPreloadLineThreshold;
@@ -493,17 +503,22 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       _cachedPreviewContent = currentText!;
       final lineIndex = _contentController.selection.baseIndex;
 
+      // Save editor position so we can restore it when switching back.
+      _savedEditorSelection = _contentController.selection;
+
       if (isLargeNote) {
         // LARGE NOTE: Switch immediately, scroll with short animation
         // Preview builds lazily - no freeze from parsing all content at once
+        _isTogglingPreview = true;
         setState(() {
           _isPreviewMode = true;
         });
 
         // Scroll after preview is visible with a quick animation
         WidgetsBinding.instance.addPostFrameCallback((_) {
+          _isTogglingPreview = false;
           if (!mounted) return;
-          _markdownViewKey.currentState?.scrollToLineIndex(
+          _previewController.scrollToLineIndex(
             lineIndex,
             totalLines,
             animate: true,
@@ -513,15 +528,16 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       } else {
         // SMALL NOTE: Pre-scroll while offstage, then reveal (instant)
         // First setState to rebuild preview with new content (still offstage)
+        _isTogglingPreview = true;
         setState(() {});
 
         // After rebuild completes, scroll then reveal
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
+          if (!mounted) { _isTogglingPreview = false; return; }
 
           // Now scroll to position (preview is still offstage)
           if (totalLines > 0) {
-            _markdownViewKey.currentState?.scrollToLineIndex(
+            _previewController.scrollToLineIndex(
               lineIndex,
               totalLines,
               animate: false,
@@ -530,6 +546,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
           // After scroll completes, reveal the preview
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            _isTogglingPreview = false;
             if (!mounted) return;
             setState(() {
               _isPreviewMode = true;
@@ -572,16 +589,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       _isPreviewMode = switchingToPreview;
     });
 
-    // Sync scroll for editor mode (preview -> editor)
-    _scrollPositionSync.syncScrollOnModeSwitch(
-      switchingToPreviewMode: false,
-      content: _contentController.text,
-      editorFontSize: _editorFontSize,
-      previewFontSize: _previewFontSize,
-      isMounted: () => mounted,
-      contentController: _contentController,
-      markdownViewKey: _markdownViewKey,
-    );
+    // Restore editor scroll: ensure the cursor line is visible after
+    // the keyboard animation finishes.
+    _restoreEditorPosition();
 
     _saveCurrentPosition();
   }
@@ -595,14 +605,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       if (!mounted) return;
 
       if (position.isPreviewMode) {
-        Future.delayed(const Duration(milliseconds: 100), () {
-          if (!mounted) return;
-          if (_previewScrollController.hasClients) {
-            final maxScroll = _previewScrollController.position.maxScrollExtent;
-            final offset = position.previewScrollOffset.clamp(0.0, maxScroll);
-            _previewScrollController.jumpTo(offset);
-          }
-        });
+        // Restore preview scroll using progress ratio (0.0–1.0)
+        // via the PreviewScrollController's deferred restore.
+        _previewController.restoreProgress(
+          position.previewScrollProgress.clamp(0.0, 1.0),
+        );
       } else {
         final lineCount = _contentController.lineCount;
         final lineIndex = position.editorLineIndex.clamp(0, lineCount - 1);
@@ -620,7 +627,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
           offset: columnOffset,
         );
 
-        Future.delayed(const Duration(milliseconds: 100), () {
+        _restorePositionTimer?.cancel();
+        _restorePositionTimer = Timer(const Duration(milliseconds: 100), () {
           if (!mounted) return;
           _editorScrollController.makeCenterIfInvisible(
             CodeLinePosition(index: lineIndex, offset: columnOffset),
@@ -636,9 +644,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
     final position = NotePositionData(
       isPreviewMode: _isPreviewMode,
-      previewScrollOffset: _previewScrollController.hasClients
-          ? _previewScrollController.offset
-          : 0.0,
+      previewScrollProgress: _previewController.progress.value,
       editorLineIndex: _contentController.selection.baseIndex,
       editorColumnOffset: _contentController.selection.baseOffset,
     );
@@ -646,20 +652,44 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     await _notePositionService!.savePosition(noteId, position);
   }
 
+  /// Restores the editor cursor position after switching from preview mode.
+  /// Uses a delayed callback to account for the keyboard animation.
+  void _restoreEditorPosition() {
+    final selection = _savedEditorSelection;
+    if (selection == null) return;
+
+    final position = CodeLinePosition(
+      index: selection.baseIndex,
+      offset: selection.baseOffset,
+    );
+
+    // The keyboard may animate open when the editor regains focus.
+    // Wait for that animation before scrolling, otherwise the cursor
+    // might end up behind the keyboard.
+    _restorePositionTimer?.cancel();
+    _restorePositionTimer = Timer(
+      Duration(milliseconds: Platform.isIOS ? 300 : 350),
+      () {
+        if (!mounted) return;
+        _editorScrollController.makeCenterIfInvisible(position);
+      },
+    );
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     DevOptions.instance.removeListener(_onDevOptionsChanged);
     _lineCountDebounceTimer?.cancel();
+    _restorePositionTimer?.cancel();
+    _previewController.dispose();
     _autoSaveService?.dispose();
     _titleController.dispose();
     _historyObserver.dispose();
     _contentController.dispose();
     _contentFocusNode.dispose();
     _editorScrollController.dispose();
-    _previewScrollController.dispose();
     _searchController.dispose();
-    _previewScrollProgress.dispose();
     super.dispose();
   }
 
@@ -716,9 +746,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   }
 
   void _scrollToOffsetInPreview(int charOffset) {
-    // Use the SourceMappedMarkdownView's native scroll method
-    // which uses actual widget positions (not estimated line heights)
-    _markdownViewKey.currentState?.scrollToSourceOffset(charOffset);
+    // Use the PreviewScrollController which delegates to the
+    // SourceMappedMarkdownView's native scroll method.
+    _previewController.scrollToSourceOffset(charOffset);
   }
 
   /// Handle double-tap on preview to navigate to source line in editor
@@ -1248,10 +1278,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                         ),
                       ),
                     ),
-                    // Show toolbar only when keyboard is visible (edit mode) or in preview mode
-                    if (_isPreviewMode ||
-                        MediaQuery.of(context).viewInsets.bottom > 0)
-                      RepaintBoundary(
+                    // Always show toolbar — in preview mode it provides
+                    // utility actions; in edit mode it appears with keyboard.
+                    RepaintBoundary(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1367,16 +1396,18 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     final markdownView = ListenableBuilder(
       listenable: Listenable.merge([_searchController, DevOptions.instance]),
       builder: (context, _) => SourceMappedMarkdownView(
-        key: _markdownViewKey,
+        key: _previewController.viewKey,
         data: content,
         fontSize: _previewFontSize,
-        scrollController: _previewScrollController,
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.only(
+          left: AppSpacing.lg,
+          top: AppSpacing.lg,
+          right: AppSpacing.lg,
+          bottom: kToolbarHeight,
+        ),
         onCheckboxToggle: _handleCheckboxToggle,
         linesPerChunk: _previewLinesPerChunk,
-        onScrollProgress: (progress) {
-          _previewScrollProgress.value = progress;
-        },
+        onScrollProgress: _previewController.updateProgress,
         onDoubleTapLine: _handleDoubleTapLine,
         searchHighlights: _isPreviewMode && _searchController.isSearching
             ? _searchController.matches
@@ -1404,8 +1435,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
           bottom: 8,
           right: 0,
           child: InteractivePreviewScrollbar(
-            progressNotifier: _previewScrollProgress,
-            markdownViewKey: _markdownViewKey,
+            controller: _previewController,
           ),
         ),
       ],
@@ -1565,12 +1595,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
   void _scrollToEdge({required bool toTop}) {
     if (_isPreviewMode) {
-      if (_previewScrollController.hasClients) {
-        _previewScrollController.animateTo(
-          toTop ? 0.0 : _previewScrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
+      if (toTop) {
+        _previewController.scrollToTop();
+      } else {
+        _previewController.scrollToBottom();
       }
     } else {
       if (toTop) {

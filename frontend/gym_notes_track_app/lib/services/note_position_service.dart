@@ -5,20 +5,22 @@ import '../constants/settings_keys.dart';
 
 class NotePositionData {
   final bool isPreviewMode;
-  final double previewScrollOffset;
+  /// Preview scroll position as a 0.0–1.0 progress ratio.
+  final double previewScrollProgress;
   final int editorLineIndex;
   final int editorColumnOffset;
 
   const NotePositionData({
     required this.isPreviewMode,
-    required this.previewScrollOffset,
+    required this.previewScrollProgress,
     required this.editorLineIndex,
     required this.editorColumnOffset,
   });
 
   Map<String, dynamic> toJson() => {
     'isPreviewMode': isPreviewMode,
-    'previewScrollOffset': previewScrollOffset,
+    // JSON key kept for backwards-compatible deserialization.
+    'previewScrollOffset': previewScrollProgress,
     'editorLineIndex': editorLineIndex,
     'editorColumnOffset': editorColumnOffset,
   };
@@ -26,7 +28,7 @@ class NotePositionData {
   factory NotePositionData.fromJson(Map<String, dynamic> json) {
     return NotePositionData(
       isPreviewMode: json['isPreviewMode'] as bool? ?? false,
-      previewScrollOffset:
+      previewScrollProgress:
           (json['previewScrollOffset'] as num?)?.toDouble() ?? 0.0,
       editorLineIndex: json['editorLineIndex'] as int? ?? 0,
       editorColumnOffset: json['editorColumnOffset'] as int? ?? 0,
@@ -35,7 +37,7 @@ class NotePositionData {
 
   static const NotePositionData defaultPosition = NotePositionData(
     isPreviewMode: false,
-    previewScrollOffset: 0.0,
+    previewScrollProgress: 0.0,
     editorLineIndex: 0,
     editorColumnOffset: 0,
   );
