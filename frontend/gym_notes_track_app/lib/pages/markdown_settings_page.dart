@@ -15,8 +15,8 @@ import '../widgets/app_drawer.dart';
 import '../widgets/app_loading_bar.dart';
 import '../widgets/markdown_bar.dart';
 import '../widgets/unified_app_bars.dart';
-import '../widgets/shortcut_editor_dialog.dart';
 import 'note_bar_assignment_page.dart';
+import 'shortcut_editor_page.dart';
 
 class MarkdownSettingsPage extends StatefulWidget {
   final List<CustomMarkdownShortcut> allShortcuts;
@@ -29,6 +29,7 @@ class MarkdownSettingsPage extends StatefulWidget {
 
 class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
   late List<CustomMarkdownShortcut> _shortcuts;
+  final ScrollController _scrollController = ScrollController();
   double _toolbarRatio = SettingsKeys.defaultToolbarShortcutRatio;
   bool _toolbarSplitEnabled = SettingsKeys.defaultToolbarSplitEnabled;
   List<UtilityButtonConfig> _utilityConfigs = UtilityButtonConfig.defaults();
@@ -47,6 +48,12 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     _shortcuts = List.from(widget.allShortcuts);
     _loadToolbarSettings();
     _syncFromBlocState();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<SettingsService> _getSettingsService() async {
@@ -235,15 +242,17 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
   }
 
   void _addShortcut() {
-    showDialog(
-      context: context,
-      builder: (context) => ShortcutEditorDialog(
-        onSave: (shortcut) {
-          setState(() {
-            _shortcuts.add(shortcut);
-          });
-          _saveShortcuts();
-        },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ShortcutEditorPage(
+          onSave: (shortcut) {
+            setState(() {
+              _shortcuts.add(shortcut);
+            });
+            _saveShortcuts();
+          },
+        ),
       ),
     );
   }
@@ -255,16 +264,18 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       return;
     }
 
-    showDialog(
-      context: context,
-      builder: (context) => ShortcutEditorDialog(
-        shortcut: shortcut,
-        onSave: (updatedShortcut) {
-          setState(() {
-            _shortcuts[index] = updatedShortcut;
-          });
-          _saveShortcuts();
-        },
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ShortcutEditorPage(
+          shortcut: shortcut,
+          onSave: (updatedShortcut) {
+            setState(() {
+              _shortcuts[index] = updatedShortcut;
+            });
+            _saveShortcuts();
+          },
+        ),
       ),
     );
   }
@@ -900,6 +911,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                 ReorderableListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
+                  scrollController: _scrollController,
                   itemCount: _utilityConfigs.length,
                   onReorder: _reorderUtility,
                   itemBuilder: (context, index) {
@@ -1074,6 +1086,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                 : ReorderableListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
+                    scrollController: _scrollController,
                     padding: const EdgeInsets.only(
                       top: 16,
                       bottom: 110, // Extra space at bottom for FAB
@@ -1243,6 +1256,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
         ],
       ),
       body: SingleChildScrollView(
+        controller: _scrollController,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
