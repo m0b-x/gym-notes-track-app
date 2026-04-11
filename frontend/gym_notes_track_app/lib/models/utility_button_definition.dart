@@ -74,6 +74,11 @@ class UtilityButtonDefinition {
       labelResolver: (l) => l.goToBottom,
     ),
     UtilityButtonDefinition(
+      id: UtilityButtonId.counter,
+      icon: Icons.pin_rounded,
+      labelResolver: (l) => l.counterInsertTooltip,
+    ),
+    UtilityButtonDefinition(
       id: UtilityButtonId.reorder,
       icon: Icons.swap_horiz,
       labelResolver: (l) => l.reorderShortcuts,

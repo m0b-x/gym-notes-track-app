@@ -2709,6 +2709,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Counters'**
   String get counters;
+
+  /// Drawer menu title for the counter management page
+  ///
+  /// In en, this message translates to:
+  /// **'Counters'**
+  String get counterSettings;
+
+  /// Drawer menu subtitle for counter management
+  ///
+  /// In en, this message translates to:
+  /// **'Create and manage auto-increment counters'**
+  String get counterSettingsDesc;
+
+  /// Shows the current value of a counter
+  ///
+  /// In en, this message translates to:
+  /// **'Current: {value}'**
+  String counterCurrentValue(int value);
+
+  /// Shows the step increment value
+  ///
+  /// In en, this message translates to:
+  /// **'Step: {step}'**
+  String counterStepLabel(int step);
+
+  /// Empty state message on the counter management page
+  ///
+  /// In en, this message translates to:
+  /// **'No counters yet. Tap + to create one.'**
+  String get counterEmptyState;
+
+  /// Snackbar message after resetting a counter
+  ///
+  /// In en, this message translates to:
+  /// **'Counter reset to start value'**
+  String get counterResetSuccess;
+
+  /// Snackbar message after deleting a counter
+  ///
+  /// In en, this message translates to:
+  /// **'Counter deleted'**
+  String get counterDeleteSuccess;
+
+  /// Description for global counter scope
+  ///
+  /// In en, this message translates to:
+  /// **'Shared across all notes'**
+  String get counterScopeGlobalDesc;
+
+  /// Description for per-note counter scope
+  ///
+  /// In en, this message translates to:
+  /// **'Independent value per note'**
+  String get counterScopePerNoteDesc;
+
+  /// Title for the counter picker dialog in the toolbar
+  ///
+  /// In en, this message translates to:
+  /// **'Pick Counter'**
+  String get pickCounter;
+
+  /// Hint text for the search field in the counter picker dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Search counters…'**
+  String get searchCounters;
+
+  /// Empty state when counter search has no results
+  ///
+  /// In en, this message translates to:
+  /// **'No counters match your search'**
+  String get noCountersMatchSearch;
+
+  /// Tooltip for the counter utility button in the toolbar
+  ///
+  /// In en, this message translates to:
+  /// **'Insert counter value'**
+  String get counterInsertTooltip;
+
+  /// Button to create a new counter from the picker dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Create new counter'**
+  String get createCounterInline;
 }
 
 class _AppLocalizationsDelegate

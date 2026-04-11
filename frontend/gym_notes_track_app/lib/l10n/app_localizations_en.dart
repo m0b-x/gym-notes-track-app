@@ -1404,4 +1404,50 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get counters => 'Counters';
+
+  @override
+  String get counterSettings => 'Counters';
+
+  @override
+  String get counterSettingsDesc => 'Create and manage auto-increment counters';
+
+  @override
+  String counterCurrentValue(int value) {
+    return 'Current: $value';
+  }
+
+  @override
+  String counterStepLabel(int step) {
+    return 'Step: $step';
+  }
+
+  @override
+  String get counterEmptyState => 'No counters yet. Tap + to create one.';
+
+  @override
+  String get counterResetSuccess => 'Counter reset to start value';
+
+  @override
+  String get counterDeleteSuccess => 'Counter deleted';
+
+  @override
+  String get counterScopeGlobalDesc => 'Shared across all notes';
+
+  @override
+  String get counterScopePerNoteDesc => 'Independent value per note';
+
+  @override
+  String get pickCounter => 'Pick Counter';
+
+  @override
+  String get searchCounters => 'Search counters…';
+
+  @override
+  String get noCountersMatchSearch => 'No counters match your search';
+
+  @override
+  String get counterInsertTooltip => 'Insert counter value';
+
+  @override
+  String get createCounterInline => 'Create new counter';
 }

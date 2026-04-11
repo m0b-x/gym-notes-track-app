@@ -1414,4 +1414,52 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get counters => 'Contoare';
+
+  @override
+  String get counterSettings => 'Contoare';
+
+  @override
+  String get counterSettingsDesc =>
+      'Creează și gestionează contoare cu auto-incrementare';
+
+  @override
+  String counterCurrentValue(int value) {
+    return 'Curent: $value';
+  }
+
+  @override
+  String counterStepLabel(int step) {
+    return 'Pas: $step';
+  }
+
+  @override
+  String get counterEmptyState =>
+      'Niciun contor încă. Apasă + pentru a crea unul.';
+
+  @override
+  String get counterResetSuccess => 'Contor resetat la valoarea inițială';
+
+  @override
+  String get counterDeleteSuccess => 'Contor șters';
+
+  @override
+  String get counterScopeGlobalDesc => 'Partajat între toate notițele';
+
+  @override
+  String get counterScopePerNoteDesc => 'Valoare independentă per notiță';
+
+  @override
+  String get pickCounter => 'Alege Contor';
+
+  @override
+  String get searchCounters => 'Caută contoare…';
+
+  @override
+  String get noCountersMatchSearch => 'Niciun contor nu corespunde căutării';
+
+  @override
+  String get counterInsertTooltip => 'Inserează valoare contor';
+
+  @override
+  String get createCounterInline => 'Creează contor nou';
 }

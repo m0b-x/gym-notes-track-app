@@ -1418,4 +1418,52 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get counters => 'Zähler';
+
+  @override
+  String get counterSettings => 'Zähler';
+
+  @override
+  String get counterSettingsDesc =>
+      'Auto-Inkrement-Zähler erstellen und verwalten';
+
+  @override
+  String counterCurrentValue(int value) {
+    return 'Aktuell: $value';
+  }
+
+  @override
+  String counterStepLabel(int step) {
+    return 'Schritt: $step';
+  }
+
+  @override
+  String get counterEmptyState =>
+      'Noch keine Zähler. Tippe +, um einen zu erstellen.';
+
+  @override
+  String get counterResetSuccess => 'Zähler auf Startwert zurückgesetzt';
+
+  @override
+  String get counterDeleteSuccess => 'Zähler gelöscht';
+
+  @override
+  String get counterScopeGlobalDesc => 'Geteilt über alle Notizen';
+
+  @override
+  String get counterScopePerNoteDesc => 'Unabhängiger Wert pro Notiz';
+
+  @override
+  String get pickCounter => 'Zähler auswählen';
+
+  @override
+  String get searchCounters => 'Zähler suchen…';
+
+  @override
+  String get noCountersMatchSearch => 'Keine Zähler gefunden';
+
+  @override
+  String get counterInsertTooltip => 'Zählerwert einfügen';
+
+  @override
+  String get createCounterInline => 'Neuen Zähler erstellen';
 }

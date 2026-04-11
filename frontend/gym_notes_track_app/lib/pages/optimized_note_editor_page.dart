@@ -16,6 +16,7 @@ import '../bloc/optimized_note/optimized_note_bloc.dart';
 import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
 import '../bloc/markdown_bar/markdown_bar_bloc.dart';
+import '../models/counter.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/dev_options.dart';
 import '../models/markdown_bar_profile.dart';
@@ -28,6 +29,7 @@ import '../services/note_position_service.dart';
 import '../services/settings_service.dart';
 import '../factories/shortcut_handler_factory.dart';
 import '../widgets/bar_switcher_sheet.dart';
+import '../widgets/counter_picker_dialog.dart';
 import '../widgets/debug_overlays.dart';
 import '../widgets/interactive_preview_scrollbar.dart';
 import '../widgets/markdown_bar.dart';
@@ -1305,6 +1307,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                               onShortcutPressed: _handleShortcut,
                               onReorderComplete: _handleReorderComplete,
                               onShare: _showExportFormatDialog,
+                              onCounter: _showCounterPicker,
                               onScrollToTop: () => _scrollToEdge(toTop: true),
                               onScrollToBottom: () =>
                                   _scrollToEdge(toTop: false),
@@ -1621,6 +1624,64 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     }
   }
 
+  /// Increments the given counter and returns its current (pre-increment)
+  /// value as a string. Also refreshes counter state in the BLoC.
+  Future<int> _incrementCounter(String counterId) async {
+    final counterService = GetIt.I<CounterService>();
+    final noteId = _effectiveNoteId ?? widget.noteId;
+    final currentValue = await counterService.increment(
+      counterId,
+      noteId: noteId,
+    );
+    if (mounted) {
+      context.read<MarkdownBarBloc>().add(const RefreshCounters());
+    }
+    return currentValue;
+  }
+
+  Future<void> _showCounterPicker() async {
+    final blocState = context.read<MarkdownBarBloc>().state;
+    if (blocState is! MarkdownBarLoaded) return;
+
+    final selected = await showDialog<Counter>(
+      context: context,
+      builder: (ctx) => CounterPickerDialog(
+        counters: blocState.counters,
+        counterValues: blocState.counterValues,
+        onCounterCreated: (result) async {
+          final bloc = context.read<MarkdownBarBloc>();
+          bloc.add(
+            AddCounter(
+              name: result.name,
+              startValue: result.startValue,
+              step: result.step,
+              scope: result.scope,
+            ),
+          );
+          // Wait for the BLoC to emit the updated state rather than
+          // relying on an arbitrary delay.
+          final updated = await bloc.stream
+              .where((s) => s is MarkdownBarLoaded)
+              .first
+              .timeout(
+                const Duration(seconds: 2),
+                onTimeout: () => bloc.state,
+              );
+          if (updated is MarkdownBarLoaded) return updated.counters;
+          return blocState.counters;
+        },
+      ),
+    );
+
+    if (selected == null || !mounted) return;
+
+    final currentValue = await _incrementCounter(selected.id);
+    _contentController.runRevocableOp(() {
+      _contentController.replaceSelection(currentValue.toString());
+    });
+    _onTextChanged();
+  }
+
   void _handleShortcut(CustomMarkdownShortcut shortcut) {
     // Store length before applying the shortcut to calculate inserted range
     final beforeLength = _contentController.textLength;
@@ -1746,14 +1807,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       final counterId = shortcut.counterId;
       if (counterId == null) return;
       final counterService = GetIt.I<CounterService>();
-      final counter = counterService.getCounterById(counterId);
-      if (counter == null) return;
-      final noteId = _effectiveNoteId ?? widget.noteId;
-      final currentValue = await counterService.increment(
-        counterId,
-        noteId: noteId,
-      );
-      context.read<MarkdownBarBloc>().add(const RefreshCounters());
+      if (counterService.getCounterById(counterId) == null) return;
+      final currentValue = await _incrementCounter(counterId);
       final valueStr = currentValue.toString();
       final insertText =
           '${shortcut.beforeText}$valueStr${shortcut.afterText}';

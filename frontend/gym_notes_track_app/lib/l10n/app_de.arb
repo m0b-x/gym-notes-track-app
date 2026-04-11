@@ -1456,5 +1456,19 @@
   "deleteCounterConfirm": "Möchten Sie diesen Zähler wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
   "resetCounter": "Zähler zurücksetzen",
   "resetCounterConfirm": "Diesen Zähler auf den Startwert zurücksetzen?",
-  "counters": "Zähler"
+  "counters": "Zähler",
+  "counterSettings": "Zähler",
+  "counterSettingsDesc": "Auto-Inkrement-Zähler erstellen und verwalten",
+  "counterCurrentValue": "Aktuell: {value}",
+  "counterStepLabel": "Schritt: {step}",
+  "counterEmptyState": "Noch keine Zähler. Tippe +, um einen zu erstellen.",
+  "counterResetSuccess": "Zähler auf Startwert zurückgesetzt",
+  "counterDeleteSuccess": "Zähler gelöscht",
+  "counterScopeGlobalDesc": "Geteilt über alle Notizen",
+  "counterScopePerNoteDesc": "Unabhängiger Wert pro Notiz",
+  "pickCounter": "Zähler auswählen",
+  "searchCounters": "Zähler suchen…",
+  "noCountersMatchSearch": "Keine Zähler gefunden",
+  "counterInsertTooltip": "Zählerwert einfügen",
+  "createCounterInline": "Neuen Zähler erstellen"
 }

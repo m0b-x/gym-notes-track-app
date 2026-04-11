@@ -7,6 +7,7 @@ import '../l10n/app_localizations.dart';
 import 'app_dialogs.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/dev_options.dart';
+import '../pages/counter_management_page.dart';
 import '../pages/database_settings_page.dart';
 import '../pages/controls_settings_page.dart';
 import '../pages/developer_options_page.dart';
@@ -147,6 +148,27 @@ class _AppDrawerState extends State<AppDrawer> {
                       MaterialPageRoute(
                         builder: (_) =>
                             MarkdownSettingsPage(allShortcuts: shortcuts),
+                      ),
+                    ).then((result) {
+                      if (result == 'openDrawer' && context.mounted) {
+                        Scaffold.of(context).openDrawer();
+                      }
+                    });
+                  },
+                ),
+
+                // Counter management
+                _buildMenuItem(
+                  context: context,
+                  icon: Icons.pin_rounded,
+                  title: AppLocalizations.of(context)!.counterSettings,
+                  subtitle: AppLocalizations.of(context)!.counterSettingsDesc,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push<String>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CounterManagementPage(),
                       ),
                     ).then((result) {
                       if (result == 'openDrawer' && context.mounted) {

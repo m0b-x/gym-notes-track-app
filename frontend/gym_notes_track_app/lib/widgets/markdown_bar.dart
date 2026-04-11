@@ -27,6 +27,7 @@ class MarkdownBar extends StatefulWidget {
   final VoidCallback? onSwitchBar;
   final VoidCallback? onScrollToTop;
   final VoidCallback? onScrollToBottom;
+  final VoidCallback? onCounter;
   final Function(CustomMarkdownShortcut) onShortcutPressed;
   final Function(List<CustomMarkdownShortcut>)? onReorderComplete;
   final bool showSettings;
@@ -63,6 +64,7 @@ class MarkdownBar extends StatefulWidget {
     this.onSwitchBar,
     this.onScrollToTop,
     this.onScrollToBottom,
+    this.onCounter,
     this.onReorderComplete,
     this.showSettings = true,
     this.showBackground = true,
@@ -316,6 +318,9 @@ class _MarkdownBarState extends State<MarkdownBar> {
         onPressed = widget.onScrollToTop;
       case UtilityButtonId.scrollToBottom:
         onPressed = widget.onScrollToBottom;
+      case UtilityButtonId.counter:
+        if (widget.isPreviewMode || widget.onCounter == null) return null;
+        onPressed = widget.onCounter;
       default:
         return null;
     }

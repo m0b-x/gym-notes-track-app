@@ -1871,5 +1871,71 @@
   "counters": "Counters",
   "@counters": {
     "description": "Section title for counters"
+  },
+  "counterSettings": "Counters",
+  "@counterSettings": {
+    "description": "Drawer menu title for the counter management page"
+  },
+  "counterSettingsDesc": "Create and manage auto-increment counters",
+  "@counterSettingsDesc": {
+    "description": "Drawer menu subtitle for counter management"
+  },
+  "counterCurrentValue": "Current: {value}",
+  "@counterCurrentValue": {
+    "description": "Shows the current value of a counter",
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "counterStepLabel": "Step: {step}",
+  "@counterStepLabel": {
+    "description": "Shows the step increment value",
+    "placeholders": {
+      "step": {
+        "type": "int"
+      }
+    }
+  },
+  "counterEmptyState": "No counters yet. Tap + to create one.",
+  "@counterEmptyState": {
+    "description": "Empty state message on the counter management page"
+  },
+  "counterResetSuccess": "Counter reset to start value",
+  "@counterResetSuccess": {
+    "description": "Snackbar message after resetting a counter"
+  },
+  "counterDeleteSuccess": "Counter deleted",
+  "@counterDeleteSuccess": {
+    "description": "Snackbar message after deleting a counter"
+  },
+  "counterScopeGlobalDesc": "Shared across all notes",
+  "@counterScopeGlobalDesc": {
+    "description": "Description for global counter scope"
+  },
+  "counterScopePerNoteDesc": "Independent value per note",
+  "@counterScopePerNoteDesc": {
+    "description": "Description for per-note counter scope"
+  },
+  "pickCounter": "Pick Counter",
+  "@pickCounter": {
+    "description": "Title for the counter picker dialog in the toolbar"
+  },
+  "searchCounters": "Search counters…",
+  "@searchCounters": {
+    "description": "Hint text for the search field in the counter picker dialog"
+  },
+  "noCountersMatchSearch": "No counters match your search",
+  "@noCountersMatchSearch": {
+    "description": "Empty state when counter search has no results"
+  },
+  "counterInsertTooltip": "Insert counter value",
+  "@counterInsertTooltip": {
+    "description": "Tooltip for the counter utility button in the toolbar"
+  },
+  "createCounterInline": "Create new counter",
+  "@createCounterInline": {
+    "description": "Button to create a new counter from the picker dialog"
   }
 }

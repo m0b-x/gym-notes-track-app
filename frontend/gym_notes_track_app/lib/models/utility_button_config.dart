@@ -20,6 +20,7 @@ class UtilityButtonId {
   static const String settings = 'settings';
   static const String scrollToTop = 'scroll_to_top';
   static const String scrollToBottom = 'scroll_to_bottom';
+  static const String counter = 'counter';
 
   /// Ordered list of all known utility button IDs (default order).
   static const List<String> defaultOrder = [
@@ -30,6 +31,7 @@ class UtilityButtonId {
     increaseFont,
     share,
     switchBar,
+    counter,
     scrollToTop,
     scrollToBottom,
     reorder,
@@ -83,9 +85,6 @@ class UtilityButtonConfig extends Equatable {
     final loaded = decoded
         .map((json) => UtilityButtonConfig.fromJson(json))
         .toList();
-
-    // Build a map from loaded configs for quick lookup.
-    final loadedMap = {for (var c in loaded) c.id: c};
 
     // Preserve saved order for known buttons, then append any new defaults.
     final knownIds = UtilityButtonId.defaultOrder.toSet();

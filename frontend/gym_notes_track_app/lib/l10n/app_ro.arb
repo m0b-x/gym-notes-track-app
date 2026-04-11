@@ -378,5 +378,19 @@
   "deleteCounterConfirm": "Sigur doriți să ștergeți acest contor? Această acțiune nu poate fi anulată.",
   "resetCounter": "Resetează Contor",
   "resetCounterConfirm": "Resetați acest contor la valoarea inițială?",
-  "counters": "Contoare"
+  "counters": "Contoare",
+  "counterSettings": "Contoare",
+  "counterSettingsDesc": "Creează și gestionează contoare cu auto-incrementare",
+  "counterCurrentValue": "Curent: {value}",
+  "counterStepLabel": "Pas: {step}",
+  "counterEmptyState": "Niciun contor încă. Apasă + pentru a crea unul.",
+  "counterResetSuccess": "Contor resetat la valoarea inițială",
+  "counterDeleteSuccess": "Contor șters",
+  "counterScopeGlobalDesc": "Partajat între toate notițele",
+  "counterScopePerNoteDesc": "Valoare independentă per notiță",
+  "pickCounter": "Alege Contor",
+  "searchCounters": "Caută contoare…",
+  "noCountersMatchSearch": "Niciun contor nu corespunde căutării",
+  "counterInsertTooltip": "Inserează valoare contor",
+  "createCounterInline": "Creează contor nou"
 }

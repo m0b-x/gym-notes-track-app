@@ -13,6 +13,7 @@ import '../widgets/simple_markdown_preview.dart';
 import '../constants/settings_keys.dart';
 import '../utils/icon_utils.dart';
 import '../widgets/icon_picker_dialog.dart';
+import '../widgets/counter_form_dialog.dart';
 import '../widgets/unified_app_bars.dart';
 
 class ShortcutEditorPage extends StatefulWidget {
@@ -226,106 +227,33 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
   }
 
   Future<void> _showCreateCounterDialog() async {
-    final nameController = TextEditingController();
-    final startController = TextEditingController(text: '1');
-    final stepController = TextEditingController(text: '1');
-    var scope = CounterScope.global;
+    final result = await showCounterFormDialog(context);
+    if (result == null || !mounted) return;
 
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          final l10n = AppLocalizations.of(ctx)!;
-          return AlertDialog(
-            title: Text(l10n.addCounter),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration: InputDecoration(
-                      labelText: l10n.counterName,
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: startController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: InputDecoration(
-                      labelText: l10n.startValue,
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: stepController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    decoration: InputDecoration(
-                      labelText: l10n.step,
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<CounterScope>(
-                    value: scope,
-                    decoration: InputDecoration(
-                      labelText: l10n.counterScope,
-                      border: const OutlineInputBorder(),
-                    ),
-                    items: [
-                      DropdownMenuItem(
-                        value: CounterScope.global,
-                        child: Text(l10n.global),
-                      ),
-                      DropdownMenuItem(
-                        value: CounterScope.perNote,
-                        child: Text(l10n.perNote),
-                      ),
-                    ],
-                    onChanged: (v) {
-                      setDialogState(() => scope = v ?? CounterScope.global);
-                    },
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: Text(l10n.cancel),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: Text(l10n.save),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    if (result != true) return;
-    final name = nameController.text.trim();
-    if (name.isEmpty) return;
-
-    context.read<MarkdownBarBloc>().add(
+    final bloc = context.read<MarkdownBarBloc>();
+    bloc.add(
       AddCounter(
-        name: name,
-        startValue: int.tryParse(startController.text) ?? 1,
-        step: int.tryParse(stepController.text) ?? 1,
-        scope: scope,
+        name: result.name,
+        startValue: result.startValue,
+        step: result.step,
+        scope: result.scope,
       ),
     );
 
-    await Future.delayed(const Duration(milliseconds: 100));
-    _loadCounters();
-    if (_availableCounters.isNotEmpty && mounted) {
+    // Wait for the BLoC to actually emit the updated state.
+    final updated = await bloc.stream
+        .where((s) => s is MarkdownBarLoaded)
+        .first
+        .timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => bloc.state,
+        );
+    if (updated is MarkdownBarLoaded && mounted) {
       setState(() {
-        _selectedCounterId = _availableCounters.last.id;
+        _availableCounters = List.from(updated.counters);
+        if (_availableCounters.isNotEmpty) {
+          _selectedCounterId = _availableCounters.last.id;
+        }
       });
     }
   }
@@ -1266,7 +1194,7 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                         )
                       else
                         DropdownButtonFormField<String>(
-                          value: _selectedCounterId,
+                          initialValue: _selectedCounterId,
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
                             contentPadding: EdgeInsets.symmetric(
