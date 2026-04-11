@@ -73,15 +73,11 @@ void _registerBlocs() {
   );
 
   getIt.registerFactory<MarkdownBarBloc>(
-    () => MarkdownBarBloc(
-      barService: getIt<MarkdownBarService>(),
-    ),
+    () => MarkdownBarBloc(barService: getIt<MarkdownBarService>()),
   );
 
   getIt.registerFactory<CounterBloc>(
-    () => CounterBloc(
-      counterService: getIt<CounterService>(),
-    ),
+    () => CounterBloc(counterService: getIt<CounterService>()),
   );
 }
 

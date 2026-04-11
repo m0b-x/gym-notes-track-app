@@ -107,18 +107,13 @@ class _MyAppState extends State<MyApp> {
 
   Widget _buildHome() {
     if (_showOnboarding == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_showOnboarding!) {
       return OnboardingPage(onComplete: _onOnboardingComplete);
     }
 
-    return const OptimizedFolderContentPage(
-      folderId: null,
-      title: 'Gym Notes',
-    );
+    return const OptimizedFolderContentPage(folderId: null, title: 'Gym Notes');
   }
 }

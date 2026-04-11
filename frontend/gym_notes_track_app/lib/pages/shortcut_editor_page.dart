@@ -245,10 +245,7 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
     final updated = await bloc.stream
         .where((s) => s is CounterLoaded)
         .first
-        .timeout(
-          const Duration(seconds: 2),
-          onTimeout: () => bloc.state,
-        );
+        .timeout(const Duration(seconds: 2), onTimeout: () => bloc.state);
     if (updated is CounterLoaded && mounted) {
       setState(() {
         _availableCounters = List.from(updated.counters);
@@ -1187,10 +1184,9 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                           l10n.noCountersYet,
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withValues(alpha: 0.5),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.5),
                               ),
                         )
                       else
@@ -1271,12 +1267,8 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                                         ? Icons.radio_button_checked
                                         : Icons.radio_button_off,
                                     color: isSelected
-                                        ? Theme.of(
-                                            context,
-                                          ).colorScheme.primary
-                                        : Theme.of(
-                                            context,
-                                          ).colorScheme.outline,
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context).colorScheme.outline,
                                     size: 20,
                                   ),
                                   title: Text(
@@ -1342,18 +1334,13 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                       ],
                       // Repeat section (for all insert types)
                       const SizedBox(height: 16),
-                      _buildSectionHeader(
-                        l10n.repeatSettings,
-                        Icons.repeat,
-                      ),
+                      _buildSectionHeader(l10n.repeatSettings, Icons.repeat),
                       const SizedBox(height: 8),
                       Text(
                         l10n.repeatDescription,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -1373,10 +1360,9 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primaryContainer
-                            .withValues(alpha: 0.3),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: Theme.of(
@@ -1397,10 +1383,9 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                               l10n.markdownSpaceWarning,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withValues(alpha: 0.8),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.8),
                               ),
                             ),
                           ),
@@ -1514,13 +1499,12 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  _isPreviewExpanded
-                                      ? l10n.hide
-                                      : l10n.show,
+                                  _isPreviewExpanded ? l10n.hide : l10n.show,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                   ),
                                 ),
                                 const SizedBox(width: 4),
@@ -1530,8 +1514,9 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                                   child: Icon(
                                     Icons.expand_more_rounded,
                                     size: 18,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                   ),
                                 ),
                               ],
@@ -1553,9 +1538,7 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                         ).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.outlineVariant,
+                          color: Theme.of(context).colorScheme.outlineVariant,
                         ),
                       ),
                       child: SimpleMarkdownPreview(

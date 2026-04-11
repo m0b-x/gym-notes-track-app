@@ -136,67 +136,64 @@ class _NotePickerDialogState extends State<_NotePickerDialog> {
                       child: Center(child: CircularProgressIndicator()),
                     )
                   : _filtered.isEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _allNotes.isEmpty
-                                    ? Icons.note_outlined
-                                    : Icons.search_off_rounded,
-                                size: 40,
-                                color: colorScheme.onSurfaceVariant
-                                    .withValues(alpha: 0.4),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _allNotes.isEmpty
-                                    ? l10n.noNotesAvailable
-                                    : l10n.noNotesMatchSearch,
-                                style: TextStyle(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
+                  ? Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _allNotes.isEmpty
+                                ? Icons.note_outlined
+                                : Icons.search_off_rounded,
+                            size: 40,
+                            color: colorScheme.onSurfaceVariant.withValues(
+                              alpha: 0.4,
+                            ),
                           ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: _pageItems.length,
-                          itemBuilder: (context, index) {
-                            final note = _pageItems[index];
-                            return ListTile(
-                              leading: Icon(
-                                Icons.note_alt_rounded,
-                                color: colorScheme.primary,
-                              ),
-                              title: Text(
-                                note.title.isEmpty
-                                    ? l10n.untitledNote
-                                    : note.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              subtitle: note.preview.isNotEmpty
-                                  ? Text(
-                                      note.preview,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: colorScheme.onSurfaceVariant,
-                                      ),
-                                    )
-                                  : null,
-                              onTap: () => Navigator.pop(context, note),
-                            );
-                          },
-                        ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _allNotes.isEmpty
+                                ? l10n.noNotesAvailable
+                                : l10n.noNotesMatchSearch,
+                            style: TextStyle(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _pageItems.length,
+                      itemBuilder: (context, index) {
+                        final note = _pageItems[index];
+                        return ListTile(
+                          leading: Icon(
+                            Icons.note_alt_rounded,
+                            color: colorScheme.primary,
+                          ),
+                          title: Text(
+                            note.title.isEmpty ? l10n.untitledNote : note.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          subtitle: note.preview.isNotEmpty
+                              ? Text(
+                                  note.preview,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                )
+                              : null,
+                          onTap: () => Navigator.pop(context, note),
+                        );
+                      },
+                    ),
             ),
 
             // Pagination
@@ -208,10 +205,13 @@ class _NotePickerDialogState extends State<_NotePickerDialog> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.chevron_left_rounded, size: 22),
-                      onPressed: _page > 0 ? () => setState(() => _page--) : null,
+                      onPressed: _page > 0
+                          ? () => setState(() => _page--)
+                          : null,
                       visualDensity: VisualDensity.compact,
-                      tooltip: MaterialLocalizations.of(context)
-                          .previousPageTooltip,
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).previousPageTooltip,
                     ),
                     Text(
                       '${_page + 1} / $_totalPages',
@@ -223,8 +223,9 @@ class _NotePickerDialogState extends State<_NotePickerDialog> {
                           ? () => setState(() => _page++)
                           : null,
                       visualDensity: VisualDensity.compact,
-                      tooltip: MaterialLocalizations.of(context)
-                          .nextPageTooltip,
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).nextPageTooltip,
                     ),
                   ],
                 ),

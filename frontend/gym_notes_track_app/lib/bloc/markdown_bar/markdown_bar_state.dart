@@ -84,9 +84,4 @@ final class MarkdownBarError extends MarkdownBarState {
   List<Object?> get props => [message, errorType];
 }
 
-enum MarkdownBarErrorType {
-  loadFailed,
-  saveFailed,
-  profileNotFound,
-  unknown,
-}
+enum MarkdownBarErrorType { loadFailed, saveFailed, profileNotFound, unknown }

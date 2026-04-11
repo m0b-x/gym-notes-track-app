@@ -11,10 +11,9 @@ export 'markdown_bar_state.dart';
 class MarkdownBarBloc extends Bloc<MarkdownBarEvent, MarkdownBarState> {
   final MarkdownBarService _barService;
 
-  MarkdownBarBloc({
-    required MarkdownBarService barService,
-  }) : _barService = barService,
-       super(const MarkdownBarInitial()) {
+  MarkdownBarBloc({required MarkdownBarService barService})
+    : _barService = barService,
+      super(const MarkdownBarInitial()) {
     on<LoadMarkdownBar>(_onLoad);
     on<AddBarProfile>(_onAddProfile);
     on<RenameBarProfile>(_onRenameProfile);

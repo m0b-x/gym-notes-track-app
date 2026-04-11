@@ -13,10 +13,9 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
   final CounterService _counterService;
   String? _activeNoteId;
 
-  CounterBloc({
-    required CounterService counterService,
-  }) : _counterService = counterService,
-       super(const CounterInitial()) {
+  CounterBloc({required CounterService counterService})
+    : _counterService = counterService,
+      super(const CounterInitial()) {
     on<LoadCounters>(_onLoad);
     on<AddCounter>(_onAddCounter);
     on<UpdateCounter>(_onUpdateCounter);
@@ -29,10 +28,7 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
     on<ReorderCounters>(_onReorderCounters);
   }
 
-  Future<void> _onLoad(
-    LoadCounters event,
-    Emitter<CounterState> emit,
-  ) async {
+  Future<void> _onLoad(LoadCounters event, Emitter<CounterState> emit) async {
     emit(const CounterLoading());
     _activeNoteId = event.noteId;
     try {
@@ -49,12 +45,7 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
         }
       }
 
-      emit(
-        CounterLoaded(
-          counters: counters,
-          counterValues: counterValues,
-        ),
-      );
+      emit(CounterLoaded(counters: counters, counterValues: counterValues));
     } catch (e) {
       debugPrint('[CounterBloc] Load error: $e');
       emit(CounterError(e.toString()));
