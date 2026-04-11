@@ -1431,6 +1431,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get counterDeleteSuccess => 'Counter deleted';
 
   @override
+  String get counterSetValue => 'Set Value';
+
+  @override
+  String get counterValuePerNote => 'Value varies per note';
+
+  @override
   String get counterScopeGlobalDesc => 'Shared across all notes';
 
   @override
@@ -1450,4 +1456,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get createCounterInline => 'Create new counter';
+
+  @override
+  String get manageCounters => 'Manage counters';
+
+  @override
+  String counterPickerPage(int current, int total) {
+    return '$current / $total';
+  }
 }

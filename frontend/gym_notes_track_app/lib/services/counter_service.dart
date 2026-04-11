@@ -39,10 +39,9 @@ class CounterService {
     if (raw != null) {
       try {
         final List<dynamic> decoded = jsonDecode(raw);
-        _counters =
-            decoded
-                .map((j) => Counter.fromJson(j as Map<String, dynamic>))
-                .toList();
+        _counters = decoded
+            .map((j) => Counter.fromJson(j as Map<String, dynamic>))
+            .toList();
       } catch (e) {
         debugPrint('[CounterService] Error decoding counters: $e');
         _counters = [];
@@ -104,6 +103,13 @@ class CounterService {
     await _persistCounters();
   }
 
+  Future<void> reorderCounters(int oldIndex, int newIndex) async {
+    if (oldIndex < newIndex) newIndex -= 1;
+    final counter = _counters.removeAt(oldIndex);
+    _counters.insert(newIndex, counter);
+    await _persistCounters();
+  }
+
   Future<void> deleteCounter(String counterId) async {
     _counters.removeWhere((c) => c.id == counterId);
     _globalValues.remove(counterId);
@@ -140,10 +146,24 @@ class CounterService {
     await _persistGlobalValues();
   }
 
-  Future<Map<String, int>> getNoteValues(String noteId) async {
-    final raw = await _db.userSettingsDao.getValue(
-      '$_noteValuesPrefix$noteId',
+  Future<void> decrementGlobal(String counterId) async {
+    final counter = _counters.firstWhere(
+      (c) => c.id == counterId,
+      orElse: () => throw StateError('Counter not found: $counterId'),
     );
+    final current = _globalValues[counterId] ?? counter.startValue;
+    _globalValues[counterId] = current - counter.step;
+    await _persistGlobalValues();
+  }
+
+  Future<void> setGlobalValue(String counterId, int value) async {
+    if (!_counters.any((c) => c.id == counterId)) return;
+    _globalValues[counterId] = value;
+    await _persistGlobalValues();
+  }
+
+  Future<Map<String, int>> getNoteValues(String noteId) async {
+    final raw = await _db.userSettingsDao.getValue('$_noteValuesPrefix$noteId');
     if (raw == null) return {};
     try {
       final Map<String, dynamic> decoded = jsonDecode(raw);

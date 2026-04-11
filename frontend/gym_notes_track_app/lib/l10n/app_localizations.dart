@@ -2752,6 +2752,18 @@ abstract class AppLocalizations {
   /// **'Counter deleted'**
   String get counterDeleteSuccess;
 
+  /// Dialog title / tooltip for manually setting a counter's current value
+  ///
+  /// In en, this message translates to:
+  /// **'Set Value'**
+  String get counterSetValue;
+
+  /// Shown on per-note counter cards in the management page instead of a stepper
+  ///
+  /// In en, this message translates to:
+  /// **'Value varies per note'**
+  String get counterValuePerNote;
+
   /// Description for global counter scope
   ///
   /// In en, this message translates to:
@@ -2793,6 +2805,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Create new counter'**
   String get createCounterInline;
+
+  /// Button to navigate to the counter management / settings page
+  ///
+  /// In en, this message translates to:
+  /// **'Manage counters'**
+  String get manageCounters;
+
+  /// Page indicator in the counter picker dialog (e.g. 1 / 3)
+  ///
+  /// In en, this message translates to:
+  /// **'{current} / {total}'**
+  String counterPickerPage(int current, int total);
 }
 
 class _AppLocalizationsDelegate

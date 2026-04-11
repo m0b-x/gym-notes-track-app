@@ -33,8 +33,10 @@ class AppDialogs {
     bool isDestructive = false,
     IconData? icon,
   }) async {
-    assert(content != null || contentWidget != null,
-        'Provide either content or contentWidget');
+    assert(
+      content != null || contentWidget != null,
+      'Provide either content or contentWidget',
+    );
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
@@ -129,7 +131,6 @@ class AppDialogs {
       ),
     );
 
-    controller.dispose();
     return result;
   }
 
@@ -139,10 +140,7 @@ class AppDialogs {
 
   /// Non-dismissible spinner dialog. **Caller must call `Navigator.pop`** when
   /// the async work finishes (or use [runWithLoading] instead).
-  static void showLoading(
-    BuildContext context, {
-    required String message,
-  }) {
+  static void showLoading(BuildContext context, {required String message}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -208,16 +206,15 @@ class AppDialogs {
         canPop: barrierDismissible,
         child: AlertDialog(
           icon: icon != null
-              ? Icon(icon, size: 48, color: iconColor ?? theme.colorScheme.primary)
+              ? Icon(
+                  icon,
+                  size: 48,
+                  color: iconColor ?? theme.colorScheme.primary,
+                )
               : null,
           title: Text(title),
           content: Text(content),
-          actions: [
-            FilledButton(
-              onPressed: onAction,
-              child: Text(actionText),
-            ),
-          ],
+          actions: [FilledButton(onPressed: onAction, child: Text(actionText))],
         ),
       ),
     );
@@ -271,8 +268,8 @@ class AppDialogs {
                       : null,
                 ),
                 selected: isSelected,
-                selectedTileColor:
-                    theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                selectedTileColor: theme.colorScheme.primaryContainer
+                    .withValues(alpha: 0.3),
                 onTap: () => Navigator.pop(ctx, opt.value),
               );
             },

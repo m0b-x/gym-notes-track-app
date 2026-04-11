@@ -1910,6 +1910,14 @@
   "@counterDeleteSuccess": {
     "description": "Snackbar message after deleting a counter"
   },
+  "counterSetValue": "Set Value",
+  "@counterSetValue": {
+    "description": "Dialog title / tooltip for manually setting a counter's current value"
+  },
+  "counterValuePerNote": "Value varies per note",
+  "@counterValuePerNote": {
+    "description": "Shown on per-note counter cards in the management page instead of a stepper"
+  },
   "counterScopeGlobalDesc": "Shared across all notes",
   "@counterScopeGlobalDesc": {
     "description": "Description for global counter scope"
@@ -1937,5 +1945,17 @@
   "createCounterInline": "Create new counter",
   "@createCounterInline": {
     "description": "Button to create a new counter from the picker dialog"
+  },
+  "manageCounters": "Manage counters",
+  "@manageCounters": {
+    "description": "Button to navigate to the counter management / settings page"
+  },
+  "counterPickerPage": "{current} / {total}",
+  "@counterPickerPage": {
+    "description": "Page indicator in the counter picker dialog (e.g. 1 / 3)",
+    "placeholders": {
+      "current": { "type": "int" },
+      "total": { "type": "int" }
+    }
   }
 }

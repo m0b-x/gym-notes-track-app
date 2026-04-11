@@ -34,7 +34,10 @@ class MarkdownBarBloc extends Bloc<MarkdownBarEvent, MarkdownBarState> {
     on<DeleteCounter>(_onDeleteCounter);
     on<ResetCounter>(_onResetCounter);
     on<IncrementCounter>(_onIncrementCounter);
+    on<DecrementCounter>(_onDecrementCounter);
+    on<SetCounterValue>(_onSetCounterValue);
     on<RefreshCounters>(_onRefreshCounters);
+    on<ReorderCounters>(_onReorderCounters);
   }
 
   Future<void> _onLoad(
@@ -384,6 +387,38 @@ class MarkdownBarBloc extends Bloc<MarkdownBarEvent, MarkdownBarState> {
     }
   }
 
+  Future<void> _onDecrementCounter(
+    DecrementCounter event,
+    Emitter<MarkdownBarState> emit,
+  ) async {
+    final current = state;
+    if (current is! MarkdownBarLoaded) return;
+    try {
+      await _counterService.decrementGlobal(event.counterId);
+      final values = Map<String, int>.from(current.counterValues);
+      values[event.counterId] = _counterService.getGlobalValue(event.counterId);
+      emit(current.copyWith(counterValues: values));
+    } catch (e) {
+      debugPrint('[MarkdownBarBloc] Decrement counter error: $e');
+    }
+  }
+
+  Future<void> _onSetCounterValue(
+    SetCounterValue event,
+    Emitter<MarkdownBarState> emit,
+  ) async {
+    final current = state;
+    if (current is! MarkdownBarLoaded) return;
+    try {
+      await _counterService.setGlobalValue(event.counterId, event.value);
+      final values = Map<String, int>.from(current.counterValues);
+      values[event.counterId] = event.value;
+      emit(current.copyWith(counterValues: values));
+    } catch (e) {
+      debugPrint('[MarkdownBarBloc] Set counter value error: $e');
+    }
+  }
+
   Future<void> _onRefreshCounters(
     RefreshCounters event,
     Emitter<MarkdownBarState> emit,
@@ -404,5 +439,19 @@ class MarkdownBarBloc extends Bloc<MarkdownBarEvent, MarkdownBarState> {
       values[c.id] = _counterService.getGlobalValue(c.id);
     }
     return values;
+  }
+
+  Future<void> _onReorderCounters(
+    ReorderCounters event,
+    Emitter<MarkdownBarState> emit,
+  ) async {
+    final current = state;
+    if (current is! MarkdownBarLoaded) return;
+    try {
+      await _counterService.reorderCounters(event.oldIndex, event.newIndex);
+      emit(current.copyWith(counters: _counterService.counters));
+    } catch (e) {
+      debugPrint('[MarkdownBarBloc] Reorder counters error: $e');
+    }
   }
 }

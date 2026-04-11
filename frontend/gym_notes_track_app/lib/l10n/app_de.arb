@@ -1464,11 +1464,15 @@
   "counterEmptyState": "Noch keine Zähler. Tippe +, um einen zu erstellen.",
   "counterResetSuccess": "Zähler auf Startwert zurückgesetzt",
   "counterDeleteSuccess": "Zähler gelöscht",
+  "counterSetValue": "Wert setzen",
+  "counterValuePerNote": "Wert variiert pro Notiz",
   "counterScopeGlobalDesc": "Geteilt über alle Notizen",
   "counterScopePerNoteDesc": "Unabhängiger Wert pro Notiz",
   "pickCounter": "Zähler auswählen",
   "searchCounters": "Zähler suchen…",
   "noCountersMatchSearch": "Keine Zähler gefunden",
   "counterInsertTooltip": "Zählerwert einfügen",
-  "createCounterInline": "Neuen Zähler erstellen"
+  "createCounterInline": "Neuen Zähler erstellen",
+  "manageCounters": "Zähler verwalten",
+  "counterPickerPage": "{current} / {total}"
 }

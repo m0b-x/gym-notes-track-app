@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/markdown_bar/markdown_bar_bloc.dart';
@@ -19,9 +20,7 @@ class CounterManagementPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return LoadingScaffold(
-      appBar: SettingsAppBar(
-        title: l10n.counterSettings,
-      ),
+      appBar: SettingsAppBar(title: l10n.counterSettings),
       drawer: const AppDrawer(),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddCounterDialog(context),
@@ -40,7 +39,8 @@ class CounterManagementPage extends StatelessWidget {
             return _buildEmptyState(context, l10n);
           }
 
-          return ListView.builder(
+          return ReorderableListView.builder(
+            buildDefaultDragHandles: false,
             padding: const EdgeInsets.only(
               left: 16,
               right: 16,
@@ -48,12 +48,19 @@ class CounterManagementPage extends StatelessWidget {
               bottom: 96, // room for FAB
             ),
             itemCount: counters.length,
+            onReorder: (oldIndex, newIndex) {
+              context.read<MarkdownBarBloc>().add(
+                ReorderCounters(oldIndex: oldIndex, newIndex: newIndex),
+              );
+            },
             itemBuilder: (context, index) {
               final counter = counters[index];
               final currentValue = values[counter.id] ?? counter.startValue;
               return _CounterCard(
+                key: ValueKey(counter.id),
                 counter: counter,
                 currentValue: currentValue,
+                index: index,
               );
             },
           );
@@ -76,10 +83,7 @@ class CounterManagementPage extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             l10n.counterEmptyState,
-            style: TextStyle(
-              fontSize: 16,
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: TextStyle(fontSize: 16, color: colorScheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
         ],
@@ -88,10 +92,11 @@ class CounterManagementPage extends StatelessWidget {
   }
 
   Future<void> _showAddCounterDialog(BuildContext context) async {
+    final bloc = context.read<MarkdownBarBloc>();
     final result = await showCounterFormDialog(context);
     if (result == null || !context.mounted) return;
 
-    context.read<MarkdownBarBloc>().add(
+    bloc.add(
       AddCounter(
         name: result.name,
         startValue: result.startValue,
@@ -109,10 +114,13 @@ class CounterManagementPage extends StatelessWidget {
 class _CounterCard extends StatelessWidget {
   final Counter counter;
   final int currentValue;
+  final int index;
 
   const _CounterCard({
+    super.key,
     required this.counter,
     required this.currentValue,
+    required this.index,
   });
 
   @override
@@ -138,6 +146,15 @@ class _CounterCard extends StatelessWidget {
             // Header row: name + actions
             Row(
               children: [
+                // Drag handle for reordering
+                ReorderableDragStartListener(
+                  index: index,
+                  child: Icon(
+                    Icons.drag_handle_rounded,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 // Scope icon
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -148,9 +165,7 @@ class _CounterCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
-                    isGlobal
-                        ? Icons.public_rounded
-                        : Icons.note_alt_rounded,
+                    isGlobal ? Icons.public_rounded : Icons.note_alt_rounded,
                     size: 20,
                     color: isGlobal
                         ? colorScheme.onPrimaryContainer
@@ -189,8 +204,7 @@ class _CounterCard extends StatelessWidget {
                     Icons.more_vert,
                     color: colorScheme.onSurfaceVariant,
                   ),
-                  onSelected: (action) =>
-                      _handleAction(context, action),
+                  onSelected: (action) => _handleAction(context, action),
                   itemBuilder: (ctx) => [
                     PopupMenuItem(
                       value: 'edit',
@@ -234,16 +248,24 @@ class _CounterCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            // Value chips row
+            // Value stepper (global) or per-note notice
+            if (isGlobal)
+              _buildStepper(context, colorScheme)
+            else
+              Text(
+                l10n.counterValuePerNote,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            const SizedBox(height: 8),
+            // Info chips row
             Wrap(
               spacing: 8,
               runSpacing: 4,
               children: [
-                _InfoChip(
-                  label: l10n.counterCurrentValue(currentValue),
-                  color: colorScheme.primaryContainer,
-                  textColor: colorScheme.onPrimaryContainer,
-                ),
                 _InfoChip(
                   label: l10n.counterStepLabel(counter.step),
                   color: colorScheme.secondaryContainer,
@@ -262,17 +284,76 @@ class _CounterCard extends StatelessWidget {
     );
   }
 
+  Widget _buildStepper(BuildContext context, ColorScheme colorScheme) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton.outlined(
+          icon: const Icon(Icons.remove_rounded),
+          onPressed: () => context.read<MarkdownBarBloc>().add(
+            DecrementCounter(counterId: counter.id),
+          ),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: () => _setValueDialog(context),
+          child: Tooltip(
+            message: AppLocalizations.of(context)!.counterSetValue,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 80),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$currentValue',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onPrimaryContainer,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton.outlined(
+          icon: const Icon(Icons.add_rounded),
+          onPressed: () => context.read<MarkdownBarBloc>().add(
+            IncrementCounter(counterId: counter.id),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _setValueDialog(BuildContext context) async {
+    final bloc = context.read<MarkdownBarBloc>();
+    final l10n = AppLocalizations.of(context)!;
+    final raw = await AppDialogs.textInput(
+      context,
+      title: l10n.counterSetValue,
+      initialValue: '$currentValue',
+      keyboardType: const TextInputType.numberWithOptions(signed: true),
+      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^-?\d*'))],
+    );
+    if (raw == null || !context.mounted) return;
+    final value = int.tryParse(raw.trim());
+    if (value == null) return;
+    bloc.add(SetCounterValue(counterId: counter.id, value: value));
+  }
+
   Future<void> _handleAction(BuildContext context, String action) async {
+    final bloc = context.read<MarkdownBarBloc>();
     final l10n = AppLocalizations.of(context)!;
 
     switch (action) {
       case 'edit':
-        final result = await showCounterFormDialog(
-          context,
-          existing: counter,
-        );
+        final result = await showCounterFormDialog(context, existing: counter);
         if (result == null || !context.mounted) return;
-        context.read<MarkdownBarBloc>().add(
+        bloc.add(
           UpdateCounter(
             counter: counter.copyWith(
               name: result.name,
@@ -292,9 +373,7 @@ class _CounterCard extends StatelessWidget {
           icon: Icons.restart_alt_rounded,
         );
         if (!confirmed || !context.mounted) return;
-        context.read<MarkdownBarBloc>().add(
-          ResetCounter(counterId: counter.id),
-        );
+        bloc.add(ResetCounter(counterId: counter.id));
         if (context.mounted) {
           CustomSnackbar.showSuccess(context, l10n.counterResetSuccess);
         }
@@ -309,9 +388,7 @@ class _CounterCard extends StatelessWidget {
           icon: Icons.delete_rounded,
         );
         if (!confirmed || !context.mounted) return;
-        context.read<MarkdownBarBloc>().add(
-          DeleteCounter(counterId: counter.id),
-        );
+        bloc.add(DeleteCounter(counterId: counter.id));
         if (context.mounted) {
           CustomSnackbar.showSuccess(context, l10n.counterDeleteSuccess);
         }

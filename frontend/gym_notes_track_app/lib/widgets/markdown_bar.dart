@@ -30,6 +30,7 @@ class MarkdownBar extends StatefulWidget {
   final VoidCallback? onCounter;
   final Function(CustomMarkdownShortcut) onShortcutPressed;
   final Function(List<CustomMarkdownShortcut>)? onReorderComplete;
+  final Function(List<UtilityButtonConfig>)? onUtilityReorderComplete;
   final bool showSettings;
   final bool showBackground;
   final bool showReorder;
@@ -66,6 +67,7 @@ class MarkdownBar extends StatefulWidget {
     this.onScrollToBottom,
     this.onCounter,
     this.onReorderComplete,
+    this.onUtilityReorderComplete,
     this.showSettings = true,
     this.showBackground = true,
     this.showReorder = true,
@@ -81,11 +83,15 @@ class MarkdownBar extends StatefulWidget {
 class _MarkdownBarState extends State<MarkdownBar> {
   bool _isReorderMode = false;
   late List<CustomMarkdownShortcut> _reorderableShortcuts;
+  late List<UtilityButtonConfig> _reorderableUtilities;
 
   @override
   void initState() {
     super.initState();
     _reorderableShortcuts = List.from(widget.shortcuts);
+    _reorderableUtilities = List.from(
+      widget.utilityConfigs ?? UtilityButtonConfig.defaults(),
+    );
   }
 
   @override
@@ -93,6 +99,9 @@ class _MarkdownBarState extends State<MarkdownBar> {
     super.didUpdateWidget(oldWidget);
     if (!_isReorderMode) {
       _reorderableShortcuts = List.from(widget.shortcuts);
+      _reorderableUtilities = List.from(
+        widget.utilityConfigs ?? UtilityButtonConfig.defaults(),
+      );
     }
   }
 
@@ -101,12 +110,16 @@ class _MarkdownBarState extends State<MarkdownBar> {
     setState(() {
       _isReorderMode = true;
       _reorderableShortcuts = List.from(widget.shortcuts);
+      _reorderableUtilities = List.from(
+        widget.utilityConfigs ?? UtilityButtonConfig.defaults(),
+      );
     });
   }
 
   void _exitReorderMode() {
     HapticFeedback.lightImpact();
     widget.onReorderComplete?.call(_reorderableShortcuts);
+    widget.onUtilityReorderComplete?.call(_reorderableUtilities);
     setState(() {
       _isReorderMode = false;
     });
@@ -383,13 +396,18 @@ class _MarkdownBarState extends State<MarkdownBar> {
   }
 
   Widget _buildReorderMode(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
     final visibleShortcuts = _reorderableShortcuts
         .where((s) => s.isVisible)
+        .toList();
+    final visibleUtilities = _reorderableUtilities
+        .where((u) => u.isVisible)
         .toList();
 
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: theme.colorScheme.surface,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
@@ -406,7 +424,7 @@ class _MarkdownBarState extends State<MarkdownBar> {
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
-                  color: Theme.of(context).colorScheme.outlineVariant,
+                  color: theme.colorScheme.outlineVariant,
                   width: 1,
                 ),
               ),
@@ -416,24 +434,25 @@ class _MarkdownBarState extends State<MarkdownBar> {
                 Icon(
                   Icons.drag_indicator,
                   size: 20,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  AppLocalizations.of(context)!.reorderShortcuts,
+                  l10n.reorderShortcuts,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
                 const Spacer(),
                 FilledButton(
                   onPressed: _exitReorderMode,
-                  child: Text(AppLocalizations.of(context)!.doneReordering),
+                  child: Text(l10n.doneReordering),
                 ),
               ],
             ),
           ),
+          // Shortcuts section
           HorizontalReorderableList(
             itemCount: visibleShortcuts.length,
             onReorder: (oldIndex, newIndex) {
@@ -448,9 +467,52 @@ class _MarkdownBarState extends State<MarkdownBar> {
             itemBuilder: (context, index) =>
                 _ReorderableShortcutItem(shortcut: visibleShortcuts[index]),
           ),
+          // Utilities section
+          if (visibleUtilities.isNotEmpty) ...[
+            Divider(height: 1, color: theme.colorScheme.outlineVariant),
+            Padding(
+              padding: const EdgeInsets.only(left: 16, top: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l10n.utilities,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+            HorizontalReorderableList(
+              itemCount: visibleUtilities.length,
+              onReorder: (oldIndex, newIndex) {
+                final oldFullIndex = _reorderableUtilities.indexOf(
+                  visibleUtilities[oldIndex],
+                );
+                final newFullIndex = newIndex >= visibleUtilities.length
+                    ? _reorderableUtilities.indexOf(visibleUtilities.last) + 1
+                    : _reorderableUtilities.indexOf(visibleUtilities[newIndex]);
+                _onUtilityReorder(oldFullIndex, newFullIndex);
+              },
+              itemBuilder: (context, index) =>
+                  _ReorderableUtilityItem(config: visibleUtilities[index]),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  void _onUtilityReorder(int oldIndex, int newIndex) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+      final item = _reorderableUtilities.removeAt(oldIndex);
+      _reorderableUtilities.insert(newIndex, item);
+    });
   }
 }
 
@@ -831,6 +893,55 @@ class _ReorderableShortcutItem extends StatelessWidget {
       ),
       size: 18,
       color: Theme.of(context).colorScheme.onSurface,
+    );
+  }
+}
+
+class _ReorderableUtilityItem extends StatelessWidget {
+  final UtilityButtonConfig config;
+
+  const _ReorderableUtilityItem({required this.config});
+
+  @override
+  Widget build(BuildContext context) {
+    final def = UtilityButtonDefinition.getById(config.id);
+    if (def == null) return const SizedBox.shrink();
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.drag_indicator,
+            size: 18,
+            color: theme.colorScheme.onSecondaryContainer.withValues(
+              alpha: 0.6,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Icon(
+            def.icon,
+            size: 18,
+            color: theme.colorScheme.onSecondaryContainer,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            def.label(l10n),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

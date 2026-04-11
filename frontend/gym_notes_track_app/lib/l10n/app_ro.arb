@@ -386,11 +386,15 @@
   "counterEmptyState": "Niciun contor încă. Apasă + pentru a crea unul.",
   "counterResetSuccess": "Contor resetat la valoarea inițială",
   "counterDeleteSuccess": "Contor șters",
+  "counterSetValue": "Setează Valoare",
+  "counterValuePerNote": "Valoare variabilă per notiță",
   "counterScopeGlobalDesc": "Partajat între toate notițele",
   "counterScopePerNoteDesc": "Valoare independentă per notiță",
   "pickCounter": "Alege Contor",
   "searchCounters": "Caută contoare…",
   "noCountersMatchSearch": "Niciun contor nu corespunde căutării",
   "counterInsertTooltip": "Inserează valoare contor",
-  "createCounterInline": "Creează contor nou"
+  "createCounterInline": "Creează contor nou",
+  "manageCounters": "Gestionează contoare",
+  "counterPickerPage": "{current} / {total}"
 }

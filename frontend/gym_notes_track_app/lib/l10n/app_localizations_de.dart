@@ -1447,6 +1447,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get counterDeleteSuccess => 'Zähler gelöscht';
 
   @override
+  String get counterSetValue => 'Wert setzen';
+
+  @override
+  String get counterValuePerNote => 'Wert variiert pro Notiz';
+
+  @override
   String get counterScopeGlobalDesc => 'Geteilt über alle Notizen';
 
   @override
@@ -1466,4 +1472,12 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get createCounterInline => 'Neuen Zähler erstellen';
+
+  @override
+  String get manageCounters => 'Zähler verwalten';
+
+  @override
+  String counterPickerPage(int current, int total) {
+    return '$current / $total';
+  }
 }

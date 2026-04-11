@@ -28,10 +28,10 @@ Future<CounterFormResult?> showCounterFormDialog(
   Counter? existing,
 }) async {
   final nameController = TextEditingController(text: existing?.name ?? '');
-  final startController =
-      TextEditingController(text: '${existing?.startValue ?? 1}');
-  final stepController =
-      TextEditingController(text: '${existing?.step ?? 1}');
+  final startController = TextEditingController(
+    text: '${existing?.startValue ?? 1}',
+  );
+  final stepController = TextEditingController(text: '${existing?.step ?? 1}');
   var scope = existing?.scope ?? CounterScope.global;
 
   final result = await showDialog<bool>(
@@ -40,9 +40,7 @@ Future<CounterFormResult?> showCounterFormDialog(
       builder: (ctx, setDialogState) {
         final l10n = AppLocalizations.of(ctx)!;
         return AlertDialog(
-          title: Text(
-            existing != null ? l10n.editCounter : l10n.addCounter,
-          ),
+          title: Text(existing != null ? l10n.editCounter : l10n.addCounter),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -97,9 +95,7 @@ Future<CounterFormResult?> showCounterFormDialog(
                     ),
                   ],
                   onChanged: (v) {
-                    setDialogState(
-                      () => scope = v ?? CounterScope.global,
-                    );
+                    setDialogState(() => scope = v ?? CounterScope.global);
                   },
                 ),
               ],
@@ -120,14 +116,9 @@ Future<CounterFormResult?> showCounterFormDialog(
     ),
   );
 
-  // Capture values before disposing controllers.
   final name = nameController.text.trim();
   final startValue = int.tryParse(startController.text) ?? 1;
   final step = int.tryParse(stepController.text) ?? 1;
-
-  nameController.dispose();
-  startController.dispose();
-  stepController.dispose();
 
   if (result != true || name.isEmpty) return null;
 

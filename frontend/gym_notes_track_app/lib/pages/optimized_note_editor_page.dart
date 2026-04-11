@@ -38,6 +38,7 @@ import '../widgets/full_markdown_view.dart';
 import '../widgets/source_mapped_markdown_view.dart';
 import '../widgets/note_search_bar.dart';
 import '../widgets/app_drawer.dart';
+import 'counter_management_page.dart';
 import '../widgets/unified_app_bars.dart';
 import '../utils/editor_width_calculator.dart';
 import '../utils/custom_snackbar.dart';
@@ -291,8 +292,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         _previewFontSize = (_previewFontSize - FontConstants.fontSizeStep)
             .clamp(FontConstants.minFontSize, FontConstants.maxFontSize);
       } else {
-        _editorFontSize = (_editorFontSize - FontConstants.fontSizeStep)
-            .clamp(FontConstants.minFontSize, FontConstants.maxFontSize);
+        _editorFontSize = (_editorFontSize - FontConstants.fontSizeStep).clamp(
+          FontConstants.minFontSize,
+          FontConstants.maxFontSize,
+        );
       }
     });
     _saveFontSizes();
@@ -304,8 +307,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         _previewFontSize = (_previewFontSize + FontConstants.fontSizeStep)
             .clamp(FontConstants.minFontSize, FontConstants.maxFontSize);
       } else {
-        _editorFontSize = (_editorFontSize + FontConstants.fontSizeStep)
-            .clamp(FontConstants.minFontSize, FontConstants.maxFontSize);
+        _editorFontSize = (_editorFontSize + FontConstants.fontSizeStep).clamp(
+          FontConstants.minFontSize,
+          FontConstants.maxFontSize,
+        );
       }
     });
     _saveFontSizes();
@@ -415,9 +420,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _debouncedLineCountUpdate();
 
     if (_effectiveNoteId != null) {
-      _autoSaveService?.onContentChanged(
-        _titleController.text,
-      );
+      _autoSaveService?.onContentChanged(_titleController.text);
     } else {
       // New note: create early once there's meaningful content
       _maybeCreateNewNoteEarly();
@@ -535,7 +538,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
         // After rebuild completes, scroll then reveal
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) { _isTogglingPreview = false; return; }
+          if (!mounted) {
+            _isTogglingPreview = false;
+            return;
+          }
 
           // Now scroll to position (preview is still offstage)
           if (totalLines > 0) {
@@ -1283,41 +1289,42 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                     // Always show toolbar — in preview mode it provides
                     // utility actions; in edit mode it appears with keyboard.
                     RepaintBoundary(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            MarkdownBar(
-                              shortcuts: _allShortcuts,
-                              isPreviewMode: _isPreviewMode,
-                              canUndo: _historyObserver.canUndo,
-                              canRedo: _historyObserver.canRedo,
-                              previewFontSize: _isPreviewMode
-                                  ? _previewFontSize
-                                  : _editorFontSize,
-                              shortcutRatio: _toolbarShortcutRatio,
-                              splitEnabled: _toolbarSplitEnabled,
-                              utilityConfigs: _utilityConfigs,
-                              onUndo: () => _historyObserver.undo(),
-                              onRedo: () => _historyObserver.redo(),
-                              onPaste: () => _contentController.paste(),
-                              onSwitchBar: _showBarSwitcher,
-                              onDecreaseFontSize: _decreaseFontSize,
-                              onIncreaseFontSize: _increaseFontSize,
-                              onSettings: _openMarkdownSettings,
-                              onShortcutPressed: _handleShortcut,
-                              onReorderComplete: _handleReorderComplete,
-                              onShare: _showExportFormatDialog,
-                              onCounter: _showCounterPicker,
-                              onScrollToTop: () => _scrollToEdge(toTop: true),
-                              onScrollToBottom: () =>
-                                  _scrollToEdge(toTop: false),
-                            ),
-                            SizedBox(
-                              height: MediaQuery.of(context).padding.bottom,
-                            ),
-                          ],
-                        ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          MarkdownBar(
+                            shortcuts: _allShortcuts,
+                            isPreviewMode: _isPreviewMode,
+                            canUndo: _historyObserver.canUndo,
+                            canRedo: _historyObserver.canRedo,
+                            previewFontSize: _isPreviewMode
+                                ? _previewFontSize
+                                : _editorFontSize,
+                            shortcutRatio: _toolbarShortcutRatio,
+                            splitEnabled: _toolbarSplitEnabled,
+                            utilityConfigs: _utilityConfigs,
+                            onUndo: () => _historyObserver.undo(),
+                            onRedo: () => _historyObserver.redo(),
+                            onPaste: () => _contentController.paste(),
+                            onSwitchBar: _showBarSwitcher,
+                            onDecreaseFontSize: _decreaseFontSize,
+                            onIncreaseFontSize: _increaseFontSize,
+                            onSettings: _openMarkdownSettings,
+                            onShortcutPressed: _handleShortcut,
+                            onReorderComplete: _handleReorderComplete,
+                            onUtilityReorderComplete:
+                                _handleUtilityReorderComplete,
+                            onShare: _showExportFormatDialog,
+                            onCounter: _showCounterPicker,
+                            onScrollToTop: () => _scrollToEdge(toTop: true),
+                            onScrollToBottom: () => _scrollToEdge(toTop: false),
+                          ),
+                          SizedBox(
+                            height: MediaQuery.of(context).padding.bottom,
+                          ),
+                        ],
                       ),
+                    ),
                   ],
                 ),
         ),
@@ -1437,9 +1444,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
           top: 8,
           bottom: 8,
           right: 0,
-          child: InteractivePreviewScrollbar(
-            controller: _previewController,
-          ),
+          child: InteractivePreviewScrollbar(controller: _previewController),
         ),
       ],
     );
@@ -1486,15 +1491,23 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     );
   }
 
+  Future<void> _handleUtilityReorderComplete(
+    List<UtilityButtonConfig> reorderedUtilities,
+  ) async {
+    setState(() {
+      _utilityConfigs = reorderedUtilities;
+    });
+    final settings = await SettingsService.getInstance();
+    await settings.setToolbarUtilityConfig(reorderedUtilities);
+  }
+
   Future<void> _saveBeforeExit() async {
     _contentFocusNode.unfocus();
 
     await _saveCurrentPosition();
 
     if (_effectiveNoteId != null) {
-      await _autoSaveService?.forceSave(
-        title: _titleController.text,
-      );
+      await _autoSaveService?.forceSave(title: _titleController.text);
     } else if (!_isCreatingNewNote) {
       final title = _titleController.text.trim();
       final content = _contentController.text.trim();
@@ -1508,9 +1521,21 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       context,
       title: AppLocalizations.of(context)!.chooseExportFormat,
       options: [
-        (value: 'md', label: AppLocalizations.of(context)!.exportAsMarkdown, icon: Icons.description_rounded),
-        (value: 'json', label: AppLocalizations.of(context)!.exportAsJson, icon: Icons.data_object_rounded),
-        (value: 'txt', label: AppLocalizations.of(context)!.exportAsText, icon: Icons.text_snippet_rounded),
+        (
+          value: 'md',
+          label: AppLocalizations.of(context)!.exportAsMarkdown,
+          icon: Icons.description_rounded,
+        ),
+        (
+          value: 'json',
+          label: AppLocalizations.of(context)!.exportAsJson,
+          icon: Icons.data_object_rounded,
+        ),
+        (
+          value: 'txt',
+          label: AppLocalizations.of(context)!.exportAsText,
+          icon: Icons.text_snippet_rounded,
+        ),
       ],
     );
     if (format == null) return;
@@ -1648,27 +1673,23 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       builder: (ctx) => CounterPickerDialog(
         counters: blocState.counters,
         counterValues: blocState.counterValues,
-        onCounterCreated: (result) async {
-          final bloc = context.read<MarkdownBarBloc>();
-          bloc.add(
-            AddCounter(
-              name: result.name,
-              startValue: result.startValue,
-              step: result.step,
-              scope: result.scope,
-            ),
+        onManageCounters: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CounterManagementPage()),
           );
-          // Wait for the BLoC to emit the updated state rather than
-          // relying on an arbitrary delay.
+          if (!mounted) return null;
+          final bloc = context.read<MarkdownBarBloc>();
+          bloc.add(const RefreshCounters());
           final updated = await bloc.stream
               .where((s) => s is MarkdownBarLoaded)
               .first
-              .timeout(
-                const Duration(seconds: 2),
-                onTimeout: () => bloc.state,
-              );
-          if (updated is MarkdownBarLoaded) return updated.counters;
-          return blocState.counters;
+              .timeout(const Duration(seconds: 2), onTimeout: () => bloc.state);
+          if (updated is! MarkdownBarLoaded) return null;
+          return (
+            counters: updated.counters,
+            counterValues: updated.counterValues,
+          );
         },
       ),
     );
@@ -1810,8 +1831,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       if (counterService.getCounterById(counterId) == null) return;
       final currentValue = await _incrementCounter(counterId);
       final valueStr = currentValue.toString();
-      final insertText =
-          '${shortcut.beforeText}$valueStr${shortcut.afterText}';
+      final insertText = '${shortcut.beforeText}$valueStr${shortcut.afterText}';
       _contentController.replaceSelection(insertText);
     } else {
       final before = shortcut.beforeText;

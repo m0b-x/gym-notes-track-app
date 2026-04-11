@@ -1443,6 +1443,12 @@ class AppLocalizationsRo extends AppLocalizations {
   String get counterDeleteSuccess => 'Contor șters';
 
   @override
+  String get counterSetValue => 'Setează Valoare';
+
+  @override
+  String get counterValuePerNote => 'Valoare variabilă per notiță';
+
+  @override
   String get counterScopeGlobalDesc => 'Partajat între toate notițele';
 
   @override
@@ -1462,4 +1468,12 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get createCounterInline => 'Creează contor nou';
+
+  @override
+  String get manageCounters => 'Gestionează contoare';
+
+  @override
+  String counterPickerPage(int current, int total) {
+    return '$current / $total';
+  }
 }

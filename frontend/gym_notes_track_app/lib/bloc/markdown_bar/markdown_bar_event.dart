@@ -159,6 +159,35 @@ final class IncrementCounter extends MarkdownBarEvent {
   List<Object?> get props => [counterId, noteId];
 }
 
+final class DecrementCounter extends MarkdownBarEvent {
+  final String counterId;
+
+  const DecrementCounter({required this.counterId});
+
+  @override
+  List<Object?> get props => [counterId];
+}
+
+final class SetCounterValue extends MarkdownBarEvent {
+  final String counterId;
+  final int value;
+
+  const SetCounterValue({required this.counterId, required this.value});
+
+  @override
+  List<Object?> get props => [counterId, value];
+}
+
 final class RefreshCounters extends MarkdownBarEvent {
   const RefreshCounters();
+}
+
+final class ReorderCounters extends MarkdownBarEvent {
+  final int oldIndex;
+  final int newIndex;
+
+  const ReorderCounters({required this.oldIndex, required this.newIndex});
+
+  @override
+  List<Object?> get props => [oldIndex, newIndex];
 }
