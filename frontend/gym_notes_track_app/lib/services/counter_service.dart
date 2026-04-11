@@ -162,6 +162,47 @@ class CounterService {
     await _persistGlobalValues();
   }
 
+  Future<void> decrementForNote(String counterId, String noteId) async {
+    final counter = _counters.firstWhere(
+      (c) => c.id == counterId,
+      orElse: () => throw StateError('Counter not found: $counterId'),
+    );
+
+    if (counter.scope == CounterScope.global) {
+      await decrementGlobal(counterId);
+      return;
+    }
+
+    final noteValues = await getNoteValues(noteId);
+    final current = noteValues[counterId] ?? counter.startValue;
+    noteValues[counterId] = current - counter.step;
+    await _db.userSettingsDao.setValue(
+      '$_noteValuesPrefix$noteId',
+      jsonEncode(noteValues),
+    );
+  }
+
+  Future<void> setValueForNote(
+    String counterId,
+    int value, {
+    String? noteId,
+  }) async {
+    final counter = getCounterById(counterId);
+    if (counter == null) return;
+
+    if (counter.scope == CounterScope.global || noteId == null) {
+      await setGlobalValue(counterId, value);
+      return;
+    }
+
+    final noteValues = await getNoteValues(noteId);
+    noteValues[counterId] = value;
+    await _db.userSettingsDao.setValue(
+      '$_noteValuesPrefix$noteId',
+      jsonEncode(noteValues),
+    );
+  }
+
   Future<Map<String, int>> getNoteValues(String noteId) async {
     final raw = await _db.userSettingsDao.getValue('$_noteValuesPrefix$noteId');
     if (raw == null) return {};

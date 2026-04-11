@@ -10,6 +10,7 @@ import '../../services/counter_service.dart';
 import '../../bloc/optimized_folder/optimized_folder_bloc.dart';
 import '../../bloc/optimized_note/optimized_note_bloc.dart';
 import '../../bloc/markdown_bar/markdown_bar_bloc.dart';
+import '../../bloc/counter/counter_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -74,6 +75,11 @@ void _registerBlocs() {
   getIt.registerFactory<MarkdownBarBloc>(
     () => MarkdownBarBloc(
       barService: getIt<MarkdownBarService>(),
+    ),
+  );
+
+  getIt.registerFactory<CounterBloc>(
+    () => CounterBloc(
       counterService: getIt<CounterService>(),
     ),
   );

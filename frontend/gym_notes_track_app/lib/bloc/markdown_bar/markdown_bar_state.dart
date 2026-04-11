@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-import '../../models/counter.dart';
 import '../../models/custom_markdown_shortcut.dart';
 import '../../models/markdown_bar_profile.dart';
 
@@ -24,16 +23,12 @@ final class MarkdownBarLoaded extends MarkdownBarState {
   final String activeProfileId;
   final String? editingProfileId;
   final List<CustomMarkdownShortcut> currentShortcuts;
-  final List<Counter> counters;
-  final Map<String, int> counterValues;
 
   const MarkdownBarLoaded({
     required this.profiles,
     required this.activeProfileId,
     this.editingProfileId,
     required this.currentShortcuts,
-    this.counters = const [],
-    this.counterValues = const {},
   });
 
   MarkdownBarProfile get activeProfile => profiles.firstWhere(
@@ -56,8 +51,6 @@ final class MarkdownBarLoaded extends MarkdownBarState {
     String? editingProfileId,
     bool clearEditingProfile = false,
     List<CustomMarkdownShortcut>? currentShortcuts,
-    List<Counter>? counters,
-    Map<String, int>? counterValues,
   }) {
     return MarkdownBarLoaded(
       profiles: profiles ?? this.profiles,
@@ -66,8 +59,6 @@ final class MarkdownBarLoaded extends MarkdownBarState {
           ? null
           : (editingProfileId ?? this.editingProfileId),
       currentShortcuts: currentShortcuts ?? this.currentShortcuts,
-      counters: counters ?? this.counters,
-      counterValues: counterValues ?? this.counterValues,
     );
   }
 
@@ -77,8 +68,6 @@ final class MarkdownBarLoaded extends MarkdownBarState {
     activeProfileId,
     editingProfileId,
     currentShortcuts,
-    counters,
-    counterValues,
   ];
 }
 
@@ -99,6 +88,5 @@ enum MarkdownBarErrorType {
   loadFailed,
   saveFailed,
   profileNotFound,
-  counterNotFound,
   unknown,
 }

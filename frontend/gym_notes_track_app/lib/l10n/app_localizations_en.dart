@@ -1464,4 +1464,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String counterPickerPage(int current, int total) {
     return '$current / $total';
   }
+
+  @override
+  String get selectNote => 'Select a note';
+
+  @override
+  String get searchNotes => 'Search notes…';
+
+  @override
+  String get noNotesAvailable => 'No notes yet';
+
+  @override
+  String get noNotesMatchSearch => 'No notes match your search';
+
+  @override
+  String get counterSelectNoteToView => 'Tap to select a note';
+
+  @override
+  String get counterLoadError => 'Failed to load counters';
+
+  @override
+  String get counterRetry => 'Retry';
 }

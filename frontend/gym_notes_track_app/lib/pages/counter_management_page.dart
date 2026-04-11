@@ -1,19 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 
-import '../bloc/markdown_bar/markdown_bar_bloc.dart';
+import '../bloc/counter/counter_bloc.dart';
 import '../l10n/app_localizations.dart';
 import '../models/counter.dart';
+import '../models/note_metadata.dart';
+import '../services/counter_service.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/app_loading_bar.dart';
 import '../widgets/counter_form_dialog.dart';
+import '../widgets/note_picker_dialog.dart';
 import '../widgets/unified_app_bars.dart';
 import '../utils/custom_snackbar.dart';
 
 class CounterManagementPage extends StatelessWidget {
-  const CounterManagementPage({super.key});
+  final String? noteId;
+
+  const CounterManagementPage({super.key, this.noteId});
 
   @override
   Widget build(BuildContext context) {
@@ -26,9 +32,12 @@ class CounterManagementPage extends StatelessWidget {
         onPressed: () => _showAddCounterDialog(context),
         child: const Icon(Icons.add),
       ),
-      body: BlocBuilder<MarkdownBarBloc, MarkdownBarState>(
+      body: BlocBuilder<CounterBloc, CounterState>(
         builder: (context, state) {
-          if (state is! MarkdownBarLoaded) {
+          if (state is CounterError) {
+            return _buildErrorState(context, l10n);
+          }
+          if (state is! CounterLoaded) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -49,7 +58,7 @@ class CounterManagementPage extends StatelessWidget {
             ),
             itemCount: counters.length,
             onReorder: (oldIndex, newIndex) {
-              context.read<MarkdownBarBloc>().add(
+              context.read<CounterBloc>().add(
                 ReorderCounters(oldIndex: oldIndex, newIndex: newIndex),
               );
             },
@@ -61,6 +70,7 @@ class CounterManagementPage extends StatelessWidget {
                 counter: counter,
                 currentValue: currentValue,
                 index: index,
+                noteId: noteId,
               );
             },
           );
@@ -91,8 +101,37 @@ class CounterManagementPage extends StatelessWidget {
     );
   }
 
+  Widget _buildErrorState(BuildContext context, AppLocalizations l10n) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            size: 64,
+            color: colorScheme.error.withValues(alpha: 0.6),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            l10n.counterLoadError,
+            style: TextStyle(fontSize: 16, color: colorScheme.onSurfaceVariant),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: () =>
+                context.read<CounterBloc>().add(const LoadCounters()),
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text(l10n.counterRetry),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showAddCounterDialog(BuildContext context) async {
-    final bloc = context.read<MarkdownBarBloc>();
+    final bloc = context.read<CounterBloc>();
     final result = await showCounterFormDialog(context);
     if (result == null || !context.mounted) return;
 
@@ -111,17 +150,43 @@ class CounterManagementPage extends StatelessWidget {
 // Counter card widget
 // ---------------------------------------------------------------------------
 
-class _CounterCard extends StatelessWidget {
+class _CounterCard extends StatefulWidget {
   final Counter counter;
   final int currentValue;
   final int index;
+  final String? noteId;
 
   const _CounterCard({
     super.key,
     required this.counter,
     required this.currentValue,
     required this.index,
+    this.noteId,
   });
+
+  @override
+  State<_CounterCard> createState() => _CounterCardState();
+}
+
+class _CounterCardState extends State<_CounterCard> {
+  NoteMetadata? _selectedNote;
+  int? _localValue;
+
+  Counter get counter => widget.counter;
+  int get index => widget.index;
+
+  /// The effective noteId: either passed from the page or picked by the user.
+  String? get _effectiveNoteId => widget.noteId ?? _selectedNote?.id;
+
+  /// True when the user picked a note locally on this card (not passed from page).
+  bool get _isLocalNoteMode =>
+      widget.noteId == null &&
+      _selectedNote != null &&
+      counter.scope != CounterScope.global;
+
+  /// Display value: local value when in local-note mode, otherwise from bloc.
+  int get _displayValue =>
+      _isLocalNoteMode ? (_localValue ?? counter.startValue) : widget.currentValue;
 
   @override
   Widget build(BuildContext context) {
@@ -248,16 +313,52 @@ class _CounterCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            // Value stepper (global) or per-note notice
-            if (isGlobal)
+            // Value stepper (global always, per-note when noteId available)
+            if (isGlobal || _effectiveNoteId != null)
               _buildStepper(context, colorScheme)
             else
-              Text(
-                l10n.counterValuePerNote,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontStyle: FontStyle.italic,
-                  color: colorScheme.onSurfaceVariant,
+              _buildNotePickerPrompt(context, l10n, colorScheme),
+            // Show selected note chip when user picked one
+            if (!isGlobal && widget.noteId == null && _selectedNote != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.note_alt_rounded,
+                      size: 14,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        _selectedNote!.title.isEmpty
+                            ? l10n.untitledNote
+                            : _selectedNote!.title,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => setState(() {
+                        _selectedNote = null;
+                        _localValue = null;
+                      }),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 14,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             const SizedBox(height: 8),
@@ -284,15 +385,80 @@ class _CounterCard extends StatelessWidget {
     );
   }
 
+  Widget _buildNotePickerPrompt(
+    BuildContext context,
+    AppLocalizations l10n,
+    ColorScheme colorScheme,
+  ) {
+    return InkWell(
+      onTap: () => _pickNote(context),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.touch_app_rounded,
+              size: 18,
+              color: colorScheme.tertiary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              l10n.counterSelectNoteToView,
+              style: TextStyle(
+                fontSize: 13,
+                color: colorScheme.tertiary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickNote(BuildContext context) async {
+    final note = await showNotePickerDialog(context);
+    if (note == null || !context.mounted) return;
+    // Load this counter's value for the picked note locally,
+    // without overwriting the shared bloc state.
+    final service = GetIt.I<CounterService>();
+    final value = await service.getValueForNote(counter.id, note.id);
+    setState(() {
+      _selectedNote = note;
+      _localValue = value;
+    });
+  }
+
   Widget _buildStepper(BuildContext context, ColorScheme colorScheme) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton.outlined(
           icon: const Icon(Icons.remove_rounded),
-          onPressed: () => context.read<MarkdownBarBloc>().add(
-            DecrementCounter(counterId: counter.id),
-          ),
+          onPressed: () {
+            if (_isLocalNoteMode) {
+              GetIt.I<CounterService>()
+                  .decrementForNote(counter.id, _selectedNote!.id);
+              setState(() {
+                _localValue =
+                    (_localValue ?? counter.startValue) - counter.step;
+              });
+            } else {
+              context.read<CounterBloc>().add(
+                DecrementCounter(
+                    counterId: counter.id, noteId: _effectiveNoteId),
+              );
+            }
+          },
         ),
         const SizedBox(width: 8),
         GestureDetector(
@@ -307,7 +473,7 @@ class _CounterCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                '$currentValue',
+                '$_displayValue',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 22,
@@ -321,32 +487,52 @@ class _CounterCard extends StatelessWidget {
         const SizedBox(width: 8),
         IconButton.outlined(
           icon: const Icon(Icons.add_rounded),
-          onPressed: () => context.read<MarkdownBarBloc>().add(
-            IncrementCounter(counterId: counter.id),
-          ),
+          onPressed: () {
+            if (_isLocalNoteMode) {
+              GetIt.I<CounterService>()
+                  .increment(counter.id, noteId: _selectedNote!.id);
+              setState(() {
+                _localValue =
+                    (_localValue ?? counter.startValue) + counter.step;
+              });
+            } else {
+              context.read<CounterBloc>().add(
+                IncrementCounter(
+                    counterId: counter.id, noteId: _effectiveNoteId),
+              );
+            }
+          },
         ),
       ],
     );
   }
 
   Future<void> _setValueDialog(BuildContext context) async {
-    final bloc = context.read<MarkdownBarBloc>();
     final l10n = AppLocalizations.of(context)!;
     final raw = await AppDialogs.textInput(
       context,
       title: l10n.counterSetValue,
-      initialValue: '$currentValue',
+      initialValue: '$_displayValue',
       keyboardType: const TextInputType.numberWithOptions(signed: true),
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^-?\d*'))],
     );
     if (raw == null || !context.mounted) return;
     final value = int.tryParse(raw.trim());
     if (value == null) return;
-    bloc.add(SetCounterValue(counterId: counter.id, value: value));
+    if (_isLocalNoteMode) {
+      await GetIt.I<CounterService>()
+          .setValueForNote(counter.id, value, noteId: _selectedNote!.id);
+      setState(() => _localValue = value);
+    } else {
+      context.read<CounterBloc>().add(
+        SetCounterValue(
+            counterId: counter.id, value: value, noteId: _effectiveNoteId),
+      );
+    }
   }
 
   Future<void> _handleAction(BuildContext context, String action) async {
-    final bloc = context.read<MarkdownBarBloc>();
+    final bloc = context.read<CounterBloc>();
     final l10n = AppLocalizations.of(context)!;
 
     switch (action) {
@@ -373,7 +559,14 @@ class _CounterCard extends StatelessWidget {
           icon: Icons.restart_alt_rounded,
         );
         if (!confirmed || !context.mounted) return;
-        bloc.add(ResetCounter(counterId: counter.id));
+        if (_isLocalNoteMode) {
+          await GetIt.I<CounterService>()
+              .resetForNote(counter.id, _selectedNote!.id);
+          setState(() => _localValue = counter.startValue);
+        } else {
+          bloc.add(
+              ResetCounter(counterId: counter.id, noteId: _effectiveNoteId));
+        }
         if (context.mounted) {
           CustomSnackbar.showSuccess(context, l10n.counterResetSuccess);
         }

@@ -1,9 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../bloc/counter/counter_bloc.dart';
 import '../l10n/app_localizations.dart';
 import '../models/counter.dart';
+import 'app_dialogs.dart';
 
 /// Items shown per page in the counter picker.
 const _kPageSize = 5;
@@ -20,6 +24,7 @@ const _kArrowDebounce = Duration(milliseconds: 200);
 class CounterPickerDialog extends StatefulWidget {
   final List<Counter> counters;
   final Map<String, int> counterValues;
+  final String? noteId;
   final Future<({List<Counter> counters, Map<String, int> counterValues})?>
   Function()?
   onManageCounters;
@@ -28,6 +33,7 @@ class CounterPickerDialog extends StatefulWidget {
     super.key,
     required this.counters,
     required this.counterValues,
+    this.noteId,
     this.onManageCounters,
   });
 
@@ -86,6 +92,49 @@ class _CounterPickerDialogState extends State<CounterPickerDialog> {
     if (_arrowDebounce?.isActive ?? false) return;
     _arrowDebounce = Timer(_kArrowDebounce, () {});
     setState(() => _page = page);
+  }
+
+  void _increment(Counter counter) {
+    final bloc = context.read<CounterBloc>();
+    bloc.add(IncrementCounter(counterId: counter.id, noteId: widget.noteId));
+    setState(() {
+      final current = _values[counter.id] ?? counter.startValue;
+      _values[counter.id] = current + counter.step;
+    });
+  }
+
+  void _decrement(Counter counter) {
+    final bloc = context.read<CounterBloc>();
+    bloc.add(DecrementCounter(counterId: counter.id, noteId: widget.noteId));
+    setState(() {
+      final current = _values[counter.id] ?? counter.startValue;
+      _values[counter.id] = current - counter.step;
+    });
+  }
+
+  Future<void> _setValueDialog(Counter counter) async {
+    final l10n = AppLocalizations.of(context)!;
+    final currentVal = _values[counter.id] ?? counter.startValue;
+    final raw = await AppDialogs.textInput(
+      context,
+      title: l10n.counterSetValue,
+      initialValue: '$currentVal',
+      keyboardType: const TextInputType.numberWithOptions(signed: true),
+      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^-?\d*'))],
+    );
+    if (raw == null || !mounted) return;
+    final value = int.tryParse(raw.trim());
+    if (value == null) return;
+    context.read<CounterBloc>().add(
+      SetCounterValue(
+        counterId: counter.id,
+        value: value,
+        noteId: widget.noteId,
+      ),
+    );
+    setState(() {
+      _values[counter.id] = value;
+    });
   }
 
   @override
@@ -191,28 +240,48 @@ class _CounterPickerDialogState extends State<CounterPickerDialog> {
                             style: const TextStyle(fontWeight: FontWeight.w500),
                           ),
                           subtitle: Text(
-                            '${l10n.counterCurrentValue(currentVal)} · ${l10n.counterStepLabel(counter.step)}',
+                            l10n.counterStepLabel(counter.step),
                             style: TextStyle(
                               fontSize: 12,
                               color: colorScheme.onSurfaceVariant,
                             ),
                           ),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '$currentVal',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: colorScheme.onPrimaryContainer,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _MiniStepperButton(
+                                icon: Icons.remove_rounded,
+                                onPressed: () => _decrement(counter),
                               ),
-                            ),
+                              GestureDetector(
+                                onTap: () => _setValueDialog(counter),
+                                child: Container(
+                                  constraints: const BoxConstraints(
+                                    minWidth: 44,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primaryContainer,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '$currentVal',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              _MiniStepperButton(
+                                icon: Icons.add_rounded,
+                                onPressed: () => _increment(counter),
+                              ),
+                            ],
                           ),
                           onTap: () => Navigator.pop(context, counter),
                         );
@@ -283,6 +352,35 @@ class _CounterPickerDialogState extends State<CounterPickerDialog> {
           child: Text(l10n.cancel),
         ),
       ],
+    );
+  }
+}
+
+class _MiniStepperButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _MiniStepperButton({required this.icon, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: IconButton(
+        icon: Icon(icon, size: 16),
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        style: IconButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

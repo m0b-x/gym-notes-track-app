@@ -1474,5 +1474,12 @@
   "counterInsertTooltip": "Zählerwert einfügen",
   "createCounterInline": "Neuen Zähler erstellen",
   "manageCounters": "Zähler verwalten",
-  "counterPickerPage": "{current} / {total}"
+  "counterPickerPage": "{current} / {total}",
+  "selectNote": "Notiz auswählen",
+  "searchNotes": "Notizen suchen…",
+  "noNotesAvailable": "Noch keine Notizen",
+  "noNotesMatchSearch": "Keine Notizen gefunden",
+  "counterSelectNoteToView": "Tippen, um eine Notiz auszuwählen",
+  "counterLoadError": "Zähler konnten nicht geladen werden",
+  "counterRetry": "Erneut versuchen"
 }

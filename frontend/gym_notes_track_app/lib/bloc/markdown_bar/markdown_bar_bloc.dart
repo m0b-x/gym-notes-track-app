@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../services/counter_service.dart';
 import '../../services/markdown_bar_service.dart';
 import 'markdown_bar_event.dart';
 import 'markdown_bar_state.dart';
@@ -11,13 +10,10 @@ export 'markdown_bar_state.dart';
 
 class MarkdownBarBloc extends Bloc<MarkdownBarEvent, MarkdownBarState> {
   final MarkdownBarService _barService;
-  final CounterService _counterService;
 
   MarkdownBarBloc({
     required MarkdownBarService barService,
-    required CounterService counterService,
   }) : _barService = barService,
-       _counterService = counterService,
        super(const MarkdownBarInitial()) {
     on<LoadMarkdownBar>(_onLoad);
     on<AddBarProfile>(_onAddProfile);
@@ -29,15 +25,6 @@ class MarkdownBarBloc extends Bloc<MarkdownBarEvent, MarkdownBarState> {
     on<SetNoteBarAssignment>(_onSetNoteBarAssignment);
     on<ResolveBarForNote>(_onResolveBarForNote);
     on<SwitchEditingProfile>(_onSwitchEditingProfile);
-    on<AddCounter>(_onAddCounter);
-    on<UpdateCounter>(_onUpdateCounter);
-    on<DeleteCounter>(_onDeleteCounter);
-    on<ResetCounter>(_onResetCounter);
-    on<IncrementCounter>(_onIncrementCounter);
-    on<DecrementCounter>(_onDecrementCounter);
-    on<SetCounterValue>(_onSetCounterValue);
-    on<RefreshCounters>(_onRefreshCounters);
-    on<ReorderCounters>(_onReorderCounters);
   }
 
   Future<void> _onLoad(
@@ -47,26 +34,12 @@ class MarkdownBarBloc extends Bloc<MarkdownBarEvent, MarkdownBarState> {
     emit(const MarkdownBarLoading());
     try {
       final profile = await _barService.resolveProfileForNote(event.noteId);
-      final counters = _counterService.counters;
-      final counterValues = <String, int>{};
-      for (final c in counters) {
-        if (event.noteId != null) {
-          counterValues[c.id] = await _counterService.getValueForNote(
-            c.id,
-            event.noteId!,
-          );
-        } else {
-          counterValues[c.id] = _counterService.getGlobalValue(c.id);
-        }
-      }
 
       emit(
         MarkdownBarLoaded(
           profiles: _barService.profiles,
           activeProfileId: profile.id,
           currentShortcuts: List.from(profile.shortcuts),
-          counters: counters,
-          counterValues: counterValues,
         ),
       );
     } catch (e) {
@@ -281,177 +254,5 @@ class MarkdownBarBloc extends Bloc<MarkdownBarEvent, MarkdownBarState> {
         currentShortcuts: _barService.getShortcuts(event.profileId),
       ),
     );
-  }
-
-  Future<void> _onAddCounter(
-    AddCounter event,
-    Emitter<MarkdownBarState> emit,
-  ) async {
-    final current = state;
-    if (current is! MarkdownBarLoaded) return;
-    try {
-      await _counterService.addCounter(
-        name: event.name,
-        startValue: event.startValue,
-        step: event.step,
-        scope: event.scope,
-      );
-      emit(
-        current.copyWith(
-          counters: _counterService.counters,
-          counterValues: _buildCounterValues(current),
-        ),
-      );
-    } catch (e) {
-      debugPrint('[MarkdownBarBloc] Add counter error: $e');
-    }
-  }
-
-  Future<void> _onUpdateCounter(
-    UpdateCounter event,
-    Emitter<MarkdownBarState> emit,
-  ) async {
-    final current = state;
-    if (current is! MarkdownBarLoaded) return;
-    try {
-      await _counterService.updateCounter(event.counter);
-      emit(current.copyWith(counters: _counterService.counters));
-    } catch (e) {
-      debugPrint('[MarkdownBarBloc] Update counter error: $e');
-    }
-  }
-
-  Future<void> _onDeleteCounter(
-    DeleteCounter event,
-    Emitter<MarkdownBarState> emit,
-  ) async {
-    final current = state;
-    if (current is! MarkdownBarLoaded) return;
-    try {
-      await _counterService.deleteCounter(event.counterId);
-      final values = Map<String, int>.from(current.counterValues);
-      values.remove(event.counterId);
-      emit(
-        current.copyWith(
-          counters: _counterService.counters,
-          counterValues: values,
-        ),
-      );
-    } catch (e) {
-      debugPrint('[MarkdownBarBloc] Delete counter error: $e');
-    }
-  }
-
-  Future<void> _onResetCounter(
-    ResetCounter event,
-    Emitter<MarkdownBarState> emit,
-  ) async {
-    final current = state;
-    if (current is! MarkdownBarLoaded) return;
-    try {
-      if (event.noteId != null) {
-        await _counterService.resetForNote(event.counterId, event.noteId!);
-      } else {
-        await _counterService.resetGlobal(event.counterId);
-      }
-      final counter = _counterService.getCounterById(event.counterId);
-      if (counter != null) {
-        final values = Map<String, int>.from(current.counterValues);
-        values[event.counterId] = counter.startValue;
-        emit(current.copyWith(counterValues: values));
-      }
-    } catch (e) {
-      debugPrint('[MarkdownBarBloc] Reset counter error: $e');
-    }
-  }
-
-  Future<void> _onIncrementCounter(
-    IncrementCounter event,
-    Emitter<MarkdownBarState> emit,
-  ) async {
-    final current = state;
-    if (current is! MarkdownBarLoaded) return;
-    try {
-      final insertedValue = await _counterService.increment(
-        event.counterId,
-        noteId: event.noteId,
-      );
-      final values = Map<String, int>.from(current.counterValues);
-      final counter = _counterService.getCounterById(event.counterId);
-      if (counter != null) {
-        values[event.counterId] = insertedValue + counter.step;
-      }
-      emit(current.copyWith(counterValues: values));
-    } catch (e) {
-      debugPrint('[MarkdownBarBloc] Increment counter error: $e');
-    }
-  }
-
-  Future<void> _onDecrementCounter(
-    DecrementCounter event,
-    Emitter<MarkdownBarState> emit,
-  ) async {
-    final current = state;
-    if (current is! MarkdownBarLoaded) return;
-    try {
-      await _counterService.decrementGlobal(event.counterId);
-      final values = Map<String, int>.from(current.counterValues);
-      values[event.counterId] = _counterService.getGlobalValue(event.counterId);
-      emit(current.copyWith(counterValues: values));
-    } catch (e) {
-      debugPrint('[MarkdownBarBloc] Decrement counter error: $e');
-    }
-  }
-
-  Future<void> _onSetCounterValue(
-    SetCounterValue event,
-    Emitter<MarkdownBarState> emit,
-  ) async {
-    final current = state;
-    if (current is! MarkdownBarLoaded) return;
-    try {
-      await _counterService.setGlobalValue(event.counterId, event.value);
-      final values = Map<String, int>.from(current.counterValues);
-      values[event.counterId] = event.value;
-      emit(current.copyWith(counterValues: values));
-    } catch (e) {
-      debugPrint('[MarkdownBarBloc] Set counter value error: $e');
-    }
-  }
-
-  Future<void> _onRefreshCounters(
-    RefreshCounters event,
-    Emitter<MarkdownBarState> emit,
-  ) async {
-    final current = state;
-    if (current is! MarkdownBarLoaded) return;
-    emit(
-      current.copyWith(
-        counters: _counterService.counters,
-        counterValues: _buildCounterValues(current),
-      ),
-    );
-  }
-
-  Map<String, int> _buildCounterValues(MarkdownBarLoaded current) {
-    final values = <String, int>{};
-    for (final c in _counterService.counters) {
-      values[c.id] = _counterService.getGlobalValue(c.id);
-    }
-    return values;
-  }
-
-  Future<void> _onReorderCounters(
-    ReorderCounters event,
-    Emitter<MarkdownBarState> emit,
-  ) async {
-    final current = state;
-    if (current is! MarkdownBarLoaded) return;
-    try {
-      await _counterService.reorderCounters(event.oldIndex, event.newIndex);
-      emit(current.copyWith(counters: _counterService.counters));
-    } catch (e) {
-      debugPrint('[MarkdownBarBloc] Reorder counters error: $e');
-    }
   }
 }

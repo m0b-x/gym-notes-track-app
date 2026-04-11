@@ -396,5 +396,12 @@
   "counterInsertTooltip": "Inserează valoare contor",
   "createCounterInline": "Creează contor nou",
   "manageCounters": "Gestionează contoare",
-  "counterPickerPage": "{current} / {total}"
+  "counterPickerPage": "{current} / {total}",
+  "selectNote": "Selectează o notiță",
+  "searchNotes": "Caută notițe…",
+  "noNotesAvailable": "Nicio notiță încă",
+  "noNotesMatchSearch": "Nicio notiță nu corespunde căutării",
+  "counterSelectNoteToView": "Apasă pentru a selecta o notiță",
+  "counterLoadError": "Nu s-au putut încărca contoarele",
+  "counterRetry": "Încercă din nou"
 }

@@ -1957,5 +1957,33 @@
       "current": { "type": "int" },
       "total": { "type": "int" }
     }
+  },
+  "selectNote": "Select a note",
+  "@selectNote": {
+    "description": "Title for the note picker dialog"
+  },
+  "searchNotes": "Search notes…",
+  "@searchNotes": {
+    "description": "Hint text for the search field in the note picker dialog"
+  },
+  "noNotesAvailable": "No notes yet",
+  "@noNotesAvailable": {
+    "description": "Empty state message when there are no notes to pick from"
+  },
+  "noNotesMatchSearch": "No notes match your search",
+  "@noNotesMatchSearch": {
+    "description": "Message when the search query doesn't match any notes"
+  },
+  "counterSelectNoteToView": "Tap to select a note",
+  "@counterSelectNoteToView": {
+    "description": "Prompt shown on per-note counter cards when no note is selected"
+  },
+  "counterLoadError": "Failed to load counters",
+  "@counterLoadError": {
+    "description": "Error message shown when counter loading fails"
+  },
+  "counterRetry": "Retry",
+  "@counterRetry": {
+    "description": "Button label to retry loading counters"
   }
 }

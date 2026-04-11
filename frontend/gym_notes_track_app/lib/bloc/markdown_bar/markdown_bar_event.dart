@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-import '../../models/counter.dart';
 import '../../models/custom_markdown_shortcut.dart';
 
 sealed class MarkdownBarEvent extends Equatable {
@@ -102,92 +101,4 @@ final class SwitchEditingProfile extends MarkdownBarEvent {
 
   @override
   List<Object?> get props => [profileId];
-}
-
-final class AddCounter extends MarkdownBarEvent {
-  final String name;
-  final int startValue;
-  final int step;
-  final CounterScope scope;
-
-  const AddCounter({
-    required this.name,
-    this.startValue = 1,
-    this.step = 1,
-    this.scope = CounterScope.global,
-  });
-
-  @override
-  List<Object?> get props => [name, startValue, step, scope];
-}
-
-final class UpdateCounter extends MarkdownBarEvent {
-  final Counter counter;
-
-  const UpdateCounter({required this.counter});
-
-  @override
-  List<Object?> get props => [counter];
-}
-
-final class DeleteCounter extends MarkdownBarEvent {
-  final String counterId;
-
-  const DeleteCounter({required this.counterId});
-
-  @override
-  List<Object?> get props => [counterId];
-}
-
-final class ResetCounter extends MarkdownBarEvent {
-  final String counterId;
-  final String? noteId;
-
-  const ResetCounter({required this.counterId, this.noteId});
-
-  @override
-  List<Object?> get props => [counterId, noteId];
-}
-
-final class IncrementCounter extends MarkdownBarEvent {
-  final String counterId;
-  final String? noteId;
-
-  const IncrementCounter({required this.counterId, this.noteId});
-
-  @override
-  List<Object?> get props => [counterId, noteId];
-}
-
-final class DecrementCounter extends MarkdownBarEvent {
-  final String counterId;
-
-  const DecrementCounter({required this.counterId});
-
-  @override
-  List<Object?> get props => [counterId];
-}
-
-final class SetCounterValue extends MarkdownBarEvent {
-  final String counterId;
-  final int value;
-
-  const SetCounterValue({required this.counterId, required this.value});
-
-  @override
-  List<Object?> get props => [counterId, value];
-}
-
-final class RefreshCounters extends MarkdownBarEvent {
-  const RefreshCounters();
-}
-
-final class ReorderCounters extends MarkdownBarEvent {
-  final int oldIndex;
-  final int newIndex;
-
-  const ReorderCounters({required this.oldIndex, required this.newIndex});
-
-  @override
-  List<Object?> get props => [oldIndex, newIndex];
 }

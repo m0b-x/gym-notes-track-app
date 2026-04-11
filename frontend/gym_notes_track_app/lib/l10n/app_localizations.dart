@@ -2817,6 +2817,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{current} / {total}'**
   String counterPickerPage(int current, int total);
+
+  /// Title for the note picker dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Select a note'**
+  String get selectNote;
+
+  /// Hint text for the search field in the note picker dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Search notes…'**
+  String get searchNotes;
+
+  /// Empty state message when there are no notes to pick from
+  ///
+  /// In en, this message translates to:
+  /// **'No notes yet'**
+  String get noNotesAvailable;
+
+  /// Message when the search query doesn't match any notes
+  ///
+  /// In en, this message translates to:
+  /// **'No notes match your search'**
+  String get noNotesMatchSearch;
+
+  /// Prompt shown on per-note counter cards when no note is selected
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to select a note'**
+  String get counterSelectNoteToView;
+
+  /// Error message shown when counter loading fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load counters'**
+  String get counterLoadError;
+
+  /// Button label to retry loading counters
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get counterRetry;
 }
 
 class _AppLocalizationsDelegate

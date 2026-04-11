@@ -1476,4 +1476,25 @@ class AppLocalizationsRo extends AppLocalizations {
   String counterPickerPage(int current, int total) {
     return '$current / $total';
   }
+
+  @override
+  String get selectNote => 'Selectează o notiță';
+
+  @override
+  String get searchNotes => 'Caută notițe…';
+
+  @override
+  String get noNotesAvailable => 'Nicio notiță încă';
+
+  @override
+  String get noNotesMatchSearch => 'Nicio notiță nu corespunde căutării';
+
+  @override
+  String get counterSelectNoteToView => 'Apasă pentru a selecta o notiță';
+
+  @override
+  String get counterLoadError => 'Nu s-au putut încărca contoarele';
+
+  @override
+  String get counterRetry => 'Încercă din nou';
 }

@@ -6,6 +6,7 @@ import 'package:gym_notes_track_app/l10n/app_localizations.dart';
 import 'bloc/app_settings/app_settings_bloc.dart';
 import 'bloc/optimized_folder/optimized_folder_bloc.dart';
 import 'bloc/optimized_note/optimized_note_bloc.dart';
+import 'bloc/counter/counter_bloc.dart';
 import 'bloc/markdown_bar/markdown_bar_bloc.dart';
 import 'core/di/injection.dart';
 import 'pages/optimized_folder_content_page.dart';
@@ -67,6 +68,9 @@ class _MyAppState extends State<MyApp> {
         BlocProvider(create: (_) => getIt<OptimizedNoteBloc>()),
         BlocProvider(
           create: (_) => getIt<MarkdownBarBloc>()..add(const LoadMarkdownBar()),
+        ),
+        BlocProvider(
+          create: (_) => getIt<CounterBloc>()..add(const LoadCounters()),
         ),
       ],
       child: BlocBuilder<AppSettingsBloc, AppSettingsState>(

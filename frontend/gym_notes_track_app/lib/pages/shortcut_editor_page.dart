@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../bloc/markdown_bar/markdown_bar_bloc.dart';
+import '../bloc/counter/counter_bloc.dart';
 import '../l10n/app_localizations.dart';
 import '../models/counter.dart';
 import '../models/custom_markdown_shortcut.dart';
@@ -218,8 +219,8 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
   }
 
   void _loadCounters() {
-    final state = context.read<MarkdownBarBloc>().state;
-    if (state is MarkdownBarLoaded) {
+    final state = context.read<CounterBloc>().state;
+    if (state is CounterLoaded) {
       setState(() {
         _availableCounters = List.from(state.counters);
       });
@@ -230,7 +231,7 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
     final result = await showCounterFormDialog(context);
     if (result == null || !mounted) return;
 
-    final bloc = context.read<MarkdownBarBloc>();
+    final bloc = context.read<CounterBloc>();
     bloc.add(
       AddCounter(
         name: result.name,
@@ -242,13 +243,13 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
 
     // Wait for the BLoC to actually emit the updated state.
     final updated = await bloc.stream
-        .where((s) => s is MarkdownBarLoaded)
+        .where((s) => s is CounterLoaded)
         .first
         .timeout(
           const Duration(seconds: 2),
           onTimeout: () => bloc.state,
         );
-    if (updated is MarkdownBarLoaded && mounted) {
+    if (updated is CounterLoaded && mounted) {
       setState(() {
         _availableCounters = List.from(updated.counters);
         if (_availableCounters.isNotEmpty) {
