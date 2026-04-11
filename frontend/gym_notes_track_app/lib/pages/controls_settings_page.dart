@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/app_dialogs.dart';
 import '../services/settings_service.dart';
 import '../utils/custom_snackbar.dart';
 import '../widgets/app_drawer.dart';
@@ -519,34 +520,18 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     );
   }
 
-  void _showResetConfirmation() {
+  void _showResetConfirmation() async {
     final l10n = AppLocalizations.of(context)!;
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: Icon(
-          Icons.refresh_rounded,
-          size: 48,
-          color: Theme.of(dialogContext).colorScheme.primary,
-        ),
-        title: Text(l10n.resetToDefaults),
-        content: Text(l10n.resetToDefaultsConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              await _resetToDefaults();
-            },
-            child: Text(l10n.reset),
-          ),
-        ],
-      ),
+    final confirmed = await AppDialogs.confirm(
+      context,
+      title: l10n.resetToDefaults,
+      content: l10n.resetToDefaultsConfirm,
+      confirmText: l10n.reset,
+      icon: Icons.refresh_rounded,
     );
+    if (!confirmed) return;
+    await _resetToDefaults();
   }
 
   Future<void> _resetToDefaults() async {

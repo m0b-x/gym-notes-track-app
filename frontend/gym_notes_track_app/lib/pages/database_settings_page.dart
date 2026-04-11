@@ -7,6 +7,7 @@ import '../database/database.dart';
 import '../services/database_manager.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/custom_snackbar.dart';
+import '../widgets/app_dialogs.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/unified_app_bars.dart';
 
@@ -511,37 +512,16 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
     );
   }
 
-  void _showCreateDatabaseDialog(BuildContext context) {
-    final controller = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.createNewDatabase),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.newDatabaseName,
-            hintText: AppLocalizations.of(context)!.enterDatabaseName,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final name = controller.text.trim();
-              Navigator.pop(dialogContext);
-              await _createDatabase(context, name);
-            },
-            child: Text(AppLocalizations.of(context)!.create),
-          ),
-        ],
-      ),
+  void _showCreateDatabaseDialog(BuildContext context) async {
+    final name = await AppDialogs.textInput(
+      context,
+      title: AppLocalizations.of(context)!.createNewDatabase,
+      labelText: AppLocalizations.of(context)!.newDatabaseName,
+      hintText: AppLocalizations.of(context)!.enterDatabaseName,
+      confirmText: AppLocalizations.of(context)!.create,
     );
+    if (name == null || name.trim().isEmpty) return;
+    await _createDatabase(context, name.trim());
   }
 
   Future<void> _createDatabase(BuildContext context, String name) async {
@@ -566,18 +546,9 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
     }
 
     if (!mounted) return;
-    showDialog(
-      context: this.context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 20),
-            Text(AppLocalizations.of(dialogContext)!.creatingDatabase),
-          ],
-        ),
-      ),
+    AppDialogs.showLoading(
+      this.context,
+      message: AppLocalizations.of(this.context)!.creatingDatabase,
     );
 
     try {
@@ -604,36 +575,16 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
     }
   }
 
-  void _showRenameDatabaseDialog(BuildContext context, String oldName) {
-    final controller = TextEditingController(text: oldName);
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.renameDatabase),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.newDatabaseName,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final newName = controller.text.trim();
-              Navigator.pop(dialogContext);
-              await _renameDatabase(context, oldName, newName);
-            },
-            child: Text(AppLocalizations.of(context)!.rename),
-          ),
-        ],
-      ),
+  void _showRenameDatabaseDialog(BuildContext context, String oldName) async {
+    final newName = await AppDialogs.textInput(
+      context,
+      title: AppLocalizations.of(context)!.renameDatabase,
+      labelText: AppLocalizations.of(context)!.newDatabaseName,
+      initialValue: oldName,
+      confirmText: AppLocalizations.of(context)!.rename,
     );
+    if (newName == null || newName.trim().isEmpty) return;
+    await _renameDatabase(context, oldName, newName.trim());
   }
 
   Future<void> _renameDatabase(
@@ -664,18 +615,9 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
     }
 
     if (!mounted) return;
-    showDialog(
-      context: this.context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 20),
-            Text(AppLocalizations.of(dialogContext)!.renamingDatabase),
-          ],
-        ),
-      ),
+    AppDialogs.showLoading(
+      this.context,
+      message: AppLocalizations.of(this.context)!.renamingDatabase,
     );
 
     try {
@@ -702,37 +644,17 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
     }
   }
 
-  void _showDeleteDatabaseDialog(BuildContext context, String name) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: Icon(
-          Icons.warning_rounded,
-          size: 48,
-          color: Theme.of(dialogContext).colorScheme.error,
-        ),
-        title: Text(AppLocalizations.of(context)!.delete),
-        content: Text(
-          AppLocalizations.of(context)!.deleteDatabaseConfirm(name),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(dialogContext).colorScheme.error,
-            ),
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              await _deleteDatabase(context, name);
-            },
-            child: Text(AppLocalizations.of(context)!.delete),
-          ),
-        ],
-      ),
+  void _showDeleteDatabaseDialog(BuildContext context, String name) async {
+    final confirmed = await AppDialogs.confirm(
+      context,
+      title: AppLocalizations.of(context)!.delete,
+      content: AppLocalizations.of(context)!.deleteDatabaseConfirm(name),
+      confirmText: AppLocalizations.of(context)!.delete,
+      isDestructive: true,
+      icon: Icons.warning_rounded,
     );
+    if (!confirmed) return;
+    await _deleteDatabase(context, name);
   }
 
   Future<void> _deleteDatabase(BuildContext context, String name) async {
@@ -762,18 +684,9 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
     BuildContext context,
     String databaseName,
   ) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 20),
-            Text(AppLocalizations.of(dialogContext)!.switchingDatabase),
-          ],
-        ),
-      ),
+    AppDialogs.showLoading(
+      context,
+      message: AppLocalizations.of(context)!.switchingDatabase,
     );
 
     try {
@@ -784,26 +697,13 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       Navigator.pop(this.context);
 
       // Show restart dialog
-      await showDialog(
-        context: this.context,
-        barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
-          icon: Icon(
-            Icons.restart_alt_rounded,
-            size: 48,
-            color: Theme.of(dialogContext).colorScheme.primary,
-          ),
-          title: Text(AppLocalizations.of(dialogContext)!.restartRequired),
-          content: Text(AppLocalizations.of(dialogContext)!.restartRequired),
-          actions: [
-            FilledButton(
-              onPressed: () {
-                SystemNavigator.pop();
-              },
-              child: Text(AppLocalizations.of(dialogContext)!.exitApp),
-            ),
-          ],
-        ),
+      await AppDialogs.action(
+        this.context,
+        title: AppLocalizations.of(this.context)!.restartRequired,
+        content: AppLocalizations.of(this.context)!.restartRequired,
+        actionText: AppLocalizations.of(this.context)!.exitApp,
+        icon: Icons.restart_alt_rounded,
+        onAction: () => SystemNavigator.pop(),
       );
     } catch (e) {
       if (!mounted) return;
@@ -959,18 +859,9 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
 
     if (!mounted) return;
 
-    showDialog(
-      context: this.context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 20),
-            Text(AppLocalizations.of(dialogContext)!.preparingShare),
-          ],
-        ),
-      ),
+    AppDialogs.showLoading(
+      this.context,
+      message: AppLocalizations.of(this.context)!.preparingShare,
     );
 
     try {
@@ -996,18 +887,9 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
     final sizeBefore = _databaseSizeBytes;
 
     // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 20),
-            Text(AppLocalizations.of(context)!.optimizing),
-          ],
-        ),
-      ),
+    AppDialogs.showLoading(
+      context,
+      message: AppLocalizations.of(context)!.optimizing,
     );
 
     try {
@@ -1051,51 +933,24 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
     }
   }
 
-  void _showDeleteConfirmation(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: Icon(
-          Icons.warning_rounded,
-          size: 48,
-          color: Theme.of(dialogContext).colorScheme.error,
-        ),
-        title: Text(AppLocalizations.of(dialogContext)!.deleteAllData),
-        content: Text(AppLocalizations.of(dialogContext)!.deleteConfirmation),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppLocalizations.of(dialogContext)!.cancel),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(dialogContext).colorScheme.error,
-            ),
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              await _performDatabaseDeletion();
-            },
-            child: Text(AppLocalizations.of(dialogContext)!.delete),
-          ),
-        ],
-      ),
+  void _showDeleteConfirmation(BuildContext context) async {
+    final confirmed = await AppDialogs.confirm(
+      context,
+      title: AppLocalizations.of(context)!.deleteAllData,
+      content: AppLocalizations.of(context)!.deleteConfirmation,
+      confirmText: AppLocalizations.of(context)!.delete,
+      isDestructive: true,
+      icon: Icons.warning_rounded,
     );
+    if (!confirmed) return;
+    await _performDatabaseDeletion();
   }
 
   Future<void> _performDatabaseDeletion() async {
     // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 20),
-            Text(AppLocalizations.of(dialogContext)!.deletingData),
-          ],
-        ),
-      ),
+    AppDialogs.showLoading(
+      context,
+      message: AppLocalizations.of(context)!.deletingData,
     );
 
     try {
@@ -1105,27 +960,14 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       Navigator.pop(context); // Close loading dialog
 
       // Show success and exit app (user needs to restart)
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
-          icon: const Icon(
-            Icons.check_circle_rounded,
-            size: 48,
-            color: Colors.green,
-          ),
-          title: Text(AppLocalizations.of(dialogContext)!.dataDeleted),
-          content: Text(AppLocalizations.of(dialogContext)!.restartRequired),
-          actions: [
-            FilledButton(
-              onPressed: () {
-                // Exit the app
-                SystemNavigator.pop();
-              },
-              child: Text(AppLocalizations.of(dialogContext)!.exitApp),
-            ),
-          ],
-        ),
+      await AppDialogs.action(
+        context,
+        title: AppLocalizations.of(context)!.dataDeleted,
+        content: AppLocalizations.of(context)!.restartRequired,
+        actionText: AppLocalizations.of(context)!.exitApp,
+        icon: Icons.check_circle_rounded,
+        iconColor: Colors.green,
+        onAction: () => SystemNavigator.pop(),
       );
     } catch (e) {
       if (!mounted) return;

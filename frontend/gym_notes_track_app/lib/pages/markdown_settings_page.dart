@@ -12,6 +12,7 @@ import '../models/utility_button_definition.dart';
 import '../services/settings_service.dart';
 import '../utils/markdown_settings_utils.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/app_dialogs.dart';
 import '../widgets/app_loading_bar.dart';
 import '../widgets/markdown_bar.dart';
 import '../widgets/unified_app_bars.dart';
@@ -114,27 +115,14 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
   Future<void> _deleteBarProfile(String profileId) async {
     final profile = _profiles.firstWhere((p) => p.id == profileId);
     if (profile.isDefault) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppLocalizations.of(ctx)!.deleteBar),
-        content: Text(AppLocalizations.of(ctx)!.deleteBarConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(AppLocalizations.of(ctx)!.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              AppLocalizations.of(ctx)!.delete,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await AppDialogs.confirm(
+      context,
+      title: AppLocalizations.of(context)!.deleteBar,
+      content: AppLocalizations.of(context)!.deleteBarConfirm,
+      confirmText: AppLocalizations.of(context)!.delete,
+      isDestructive: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     context.read<MarkdownBarBloc>().add(
       DeleteBarProfile(profileId: profileId),
     );
@@ -144,31 +132,12 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     required String title,
     String initialValue = '',
   }) {
-    final controller = TextEditingController(text: initialValue);
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLength: AppConstants.maxBarProfileNameLength,
-          decoration: InputDecoration(
-            hintText: AppLocalizations.of(ctx)!.barName,
-          ),
-          onSubmitted: (val) => Navigator.pop(ctx, val),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(AppLocalizations.of(ctx)!.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: Text(AppLocalizations.of(ctx)!.save),
-          ),
-        ],
-      ),
+    return AppDialogs.textInput(
+      context,
+      title: title,
+      hintText: AppLocalizations.of(context)!.barName,
+      initialValue: initialValue,
+      maxLength: AppConstants.maxBarProfileNameLength,
     );
   }
 
@@ -289,85 +258,48 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     _saveShortcuts();
   }
 
-  void _deleteShortcut(int index) {
+  void _deleteShortcut(int index) async {
     final shortcut = _shortcuts[index];
 
     if (shortcut.isDefault) {
       return;
     }
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.deleteShortcut),
-        content: Text(AppLocalizations.of(context)!.deleteShortcutConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _shortcuts.removeAt(index);
-              });
-              _saveShortcuts();
-              Navigator.pop(context);
-            },
-            child: Text(AppLocalizations.of(context)!.delete),
-          ),
-        ],
-      ),
+    final confirmed = await AppDialogs.confirm(
+      context,
+      title: AppLocalizations.of(context)!.deleteShortcut,
+      content: AppLocalizations.of(context)!.deleteShortcutConfirm,
+      confirmText: AppLocalizations.of(context)!.delete,
+      isDestructive: true,
     );
+    if (!confirmed) return;
+    setState(() {
+      _shortcuts.removeAt(index);
+    });
+    _saveShortcuts();
   }
 
-  void _showResetDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.resetDialogTitle),
-        content: Text(AppLocalizations.of(context)!.resetDialogMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              _resetToDefault();
-              Navigator.pop(context);
-            },
-            child: Text(AppLocalizations.of(context)!.reset),
-          ),
-        ],
-      ),
+  void _showResetDialog() async {
+    final confirmed = await AppDialogs.confirm(
+      context,
+      title: AppLocalizations.of(context)!.resetDialogTitle,
+      content: AppLocalizations.of(context)!.resetDialogMessage,
+      confirmText: AppLocalizations.of(context)!.reset,
     );
+    if (!confirmed) return;
+    _resetToDefault();
   }
 
-  void _showRemoveCustomDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.removeCustomDialogTitle),
-        content: Text(AppLocalizations.of(context)!.removeCustomDialogMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              _removeAllCustom();
-              Navigator.pop(context);
-            },
-            child: Text(
-              AppLocalizations.of(context)!.remove,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
+  void _showRemoveCustomDialog() async {
+    final confirmed = await AppDialogs.confirm(
+      context,
+      title: AppLocalizations.of(context)!.removeCustomDialogTitle,
+      content: AppLocalizations.of(context)!.removeCustomDialogMessage,
+      confirmText: AppLocalizations.of(context)!.remove,
+      isDestructive: true,
     );
+    if (!confirmed) return;
+    _removeAllCustom();
   }
 
   void _resetToDefault() {

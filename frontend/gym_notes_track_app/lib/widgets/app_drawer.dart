@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/app_settings/app_settings_bloc.dart';
 import '../bloc/markdown_bar/markdown_bar_bloc.dart';
 import '../l10n/app_localizations.dart';
+import 'app_dialogs.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/dev_options.dart';
 import '../pages/database_settings_page.dart';
@@ -443,181 +444,45 @@ class _AppDrawerState extends State<AppDrawer> {
     );
   }
 
-  void _showLanguageDialog(BuildContext context) {
+  void _showLanguageDialog(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
     final settingsBloc = context.read<AppSettingsBloc>();
     final currentLocale = settingsBloc.state.localeCode;
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(
-                Icons.language_rounded,
-                color: Theme.of(dialogContext).colorScheme.primary,
-              ),
-              const SizedBox(width: 12),
-              Text(l10n.selectLanguage),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildLanguageOption(
-                context: dialogContext,
-                title: l10n.systemDefault,
-                subtitle: null,
-                localeCode: null,
-                currentLocale: currentLocale,
-                settingsBloc: settingsBloc,
-              ),
-              _buildLanguageOption(
-                context: dialogContext,
-                title: l10n.english,
-                subtitle: 'English',
-                localeCode: 'en',
-                currentLocale: currentLocale,
-                settingsBloc: settingsBloc,
-              ),
-              _buildLanguageOption(
-                context: dialogContext,
-                title: l10n.german,
-                subtitle: 'Deutsch',
-                localeCode: 'de',
-                currentLocale: currentLocale,
-                settingsBloc: settingsBloc,
-              ),
-              _buildLanguageOption(
-                context: dialogContext,
-                title: l10n.romanian,
-                subtitle: 'Română',
-                localeCode: 'ro',
-                currentLocale: currentLocale,
-                settingsBloc: settingsBloc,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(l10n.close),
-            ),
-          ],
-        );
-      },
+    const systemDefault = '_system_';
+    final selected = await AppDialogs.radioSelect<String>(
+      context,
+      title: l10n.selectLanguage,
+      options: [
+        (value: systemDefault, label: l10n.systemDefault, subtitle: null),
+        (value: 'en', label: l10n.english, subtitle: 'English'),
+        (value: 'de', label: l10n.german, subtitle: 'Deutsch'),
+        (value: 'ro', label: l10n.romanian, subtitle: 'Română'),
+      ],
+      currentValue: currentLocale ?? systemDefault,
+      cancelText: l10n.close,
     );
+    if (selected == null) return; // cancelled
+    settingsBloc.add(ChangeLocale(selected == systemDefault ? null : selected));
   }
 
-  Widget _buildLanguageOption({
-    required BuildContext context,
-    required String title,
-    String? subtitle,
-    required String? localeCode,
-    required String? currentLocale,
-    required AppSettingsBloc settingsBloc,
-  }) {
-    final isSelected = localeCode == currentLocale;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return ListTile(
-      leading: Icon(
-        isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-        color: isSelected ? colorScheme.primary : colorScheme.outline,
-      ),
-      title: Text(title),
-      subtitle: subtitle != null ? Text(subtitle) : null,
-      onTap: () {
-        settingsBloc.add(ChangeLocale(localeCode));
-        Navigator.pop(context);
-      },
-    );
-  }
-
-  void _showThemeDialog(BuildContext context) {
+  void _showThemeDialog(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
     final settingsBloc = context.read<AppSettingsBloc>();
     final currentTheme = settingsBloc.state.themeMode;
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(
-                Icons.palette_rounded,
-                color: Theme.of(dialogContext).colorScheme.primary,
-              ),
-              const SizedBox(width: 12),
-              Text(l10n.selectTheme),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildThemeOption(
-                context: dialogContext,
-                title: l10n.systemTheme,
-                icon: Icons.settings_brightness_rounded,
-                themeMode: ThemeMode.system,
-                currentTheme: currentTheme,
-                settingsBloc: settingsBloc,
-              ),
-              _buildThemeOption(
-                context: dialogContext,
-                title: l10n.lightTheme,
-                icon: Icons.light_mode_rounded,
-                themeMode: ThemeMode.light,
-                currentTheme: currentTheme,
-                settingsBloc: settingsBloc,
-              ),
-              _buildThemeOption(
-                context: dialogContext,
-                title: l10n.darkTheme,
-                icon: Icons.dark_mode_rounded,
-                themeMode: ThemeMode.dark,
-                currentTheme: currentTheme,
-                settingsBloc: settingsBloc,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(l10n.close),
-            ),
-          ],
-        );
-      },
+    final selected = await AppDialogs.choose<ThemeMode>(
+      context,
+      title: l10n.selectTheme,
+      options: [
+        (value: ThemeMode.system, label: l10n.systemTheme, icon: Icons.settings_brightness_rounded),
+        (value: ThemeMode.light, label: l10n.lightTheme, icon: Icons.light_mode_rounded),
+        (value: ThemeMode.dark, label: l10n.darkTheme, icon: Icons.dark_mode_rounded),
+      ],
+      currentValue: currentTheme,
+      cancelText: l10n.close,
     );
-  }
-
-  Widget _buildThemeOption({
-    required BuildContext context,
-    required String title,
-    required IconData icon,
-    required ThemeMode themeMode,
-    required ThemeMode currentTheme,
-    required AppSettingsBloc settingsBloc,
-  }) {
-    final isSelected = themeMode == currentTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? colorScheme.primary : colorScheme.outline,
-      ),
-      title: Text(title),
-      trailing: isSelected
-          ? Icon(Icons.check_rounded, color: colorScheme.primary)
-          : null,
-      onTap: () {
-        settingsBloc.add(ChangeThemeMode(themeMode));
-        Navigator.pop(context);
-      },
-    );
+    if (selected == null) return;
+    settingsBloc.add(ChangeThemeMode(selected));
   }
 }

@@ -23,6 +23,7 @@ import '../widgets/app_drawer.dart';
 import '../widgets/unified_app_bars.dart';
 import '../utils/bloc_helpers.dart';
 import '../utils/custom_snackbar.dart';
+import '../widgets/app_dialogs.dart';
 import '../constants/app_colors.dart';
 import '../constants/json_keys.dart';
 import 'optimized_note_editor_page.dart';
@@ -904,40 +905,18 @@ class _OptimizedFolderContentPageState
     );
   }
 
-  void _showCreateFolderDialog() {
-    final controller = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.createFolder),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: AppLocalizations.of(context)!.enterFolderName,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                context.read<OptimizedFolderBloc>().add(
-                  CreateOptimizedFolder(
-                    name: controller.text.trim(),
-                    parentId: widget.folderId,
-                  ),
-                );
-                Navigator.pop(dialogContext);
-              }
-            },
-            child: Text(AppLocalizations.of(context)!.create),
-          ),
-        ],
+  void _showCreateFolderDialog() async {
+    final name = await AppDialogs.textInput(
+      context,
+      title: AppLocalizations.of(context)!.createFolder,
+      hintText: AppLocalizations.of(context)!.enterFolderName,
+      confirmText: AppLocalizations.of(context)!.create,
+    );
+    if (name == null || name.trim().isEmpty) return;
+    context.read<OptimizedFolderBloc>().add(
+      CreateOptimizedFolder(
+        name: name.trim(),
+        parentId: widget.folderId,
       ),
     );
   }
@@ -1054,58 +1033,24 @@ class _FolderCard extends StatelessWidget {
     );
   }
 
-  void _showRenameDialog(BuildContext context) {
-    final controller = TextEditingController(text: folder.name);
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.renameFolder),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: AppLocalizations.of(context)!.enterNewName,
-          ),
-          onSubmitted: (value) {
-            if (value.trim().isNotEmpty) {
-              context.read<OptimizedFolderBloc>().add(
-                UpdateOptimizedFolder(folderId: folder.id, name: value.trim()),
-              );
-              Navigator.pop(dialogContext);
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                context.read<OptimizedFolderBloc>().add(
-                  UpdateOptimizedFolder(
-                    folderId: folder.id,
-                    name: controller.text.trim(),
-                  ),
-                );
-                Navigator.pop(dialogContext);
-              }
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
-      ),
+  void _showRenameDialog(BuildContext context) async {
+    final name = await AppDialogs.textInput(
+      context,
+      title: AppLocalizations.of(context)!.renameFolder,
+      hintText: AppLocalizations.of(context)!.enterNewName,
+      initialValue: folder.name,
+    );
+    if (name == null || name.trim().isEmpty) return;
+    context.read<OptimizedFolderBloc>().add(
+      UpdateOptimizedFolder(folderId: folder.id, name: name.trim()),
     );
   }
 
   void _confirmDelete(BuildContext context) async {
     // Show loading indicator while fetching note count
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+    AppDialogs.showLoading(
+      context,
+      message: AppLocalizations.of(context)!.loadingContent,
     );
 
     // Fetch note count for this folder and descendants
@@ -1117,36 +1062,20 @@ class _FolderCard extends StatelessWidget {
     Navigator.pop(context); // Close loading dialog
 
     // Show confirmation dialog with note count
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.deleteFolder),
-        content: Text(
-          noteCount > 0
-              ? AppLocalizations.of(
-                  context,
-                )!.deleteFolderWithNotesConfirm(folder.name, noteCount)
-              : AppLocalizations.of(context)!.deleteFolderConfirm(folder.name),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              context.read<OptimizedFolderBloc>().add(
-                DeleteOptimizedFolder(folderId: folder.id, parentId: parentId),
-              );
-              Navigator.pop(dialogContext);
-            },
-            child: Text(
-              AppLocalizations.of(context)!.delete,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await AppDialogs.confirm(
+      context,
+      title: AppLocalizations.of(context)!.deleteFolder,
+      content: noteCount > 0
+          ? AppLocalizations.of(
+              context,
+            )!.deleteFolderWithNotesConfirm(folder.name, noteCount)
+          : AppLocalizations.of(context)!.deleteFolderConfirm(folder.name),
+      confirmText: AppLocalizations.of(context)!.delete,
+      isDestructive: true,
+    );
+    if (!confirmed) return;
+    context.read<OptimizedFolderBloc>().add(
+      DeleteOptimizedFolder(folderId: folder.id, parentId: parentId),
     );
   }
 }
@@ -1383,63 +1312,36 @@ class _NoteCard extends StatelessWidget {
     );
   }
 
-  void _showExportFormatDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.chooseExportFormat),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.description_rounded),
-              title: Text(AppLocalizations.of(context)!.exportAsMarkdown),
-              onTap: () {
-                Navigator.pop(dialogContext);
-                _exportNote(context, 'md');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.data_object_rounded),
-              title: Text(AppLocalizations.of(context)!.exportAsJson),
-              onTap: () {
-                Navigator.pop(dialogContext);
-                _exportNote(context, 'json');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.text_snippet_rounded),
-              title: Text(AppLocalizations.of(context)!.exportAsText),
-              onTap: () {
-                Navigator.pop(dialogContext);
-                _exportNote(context, 'txt');
-              },
-            ),
-          ],
+  void _showExportFormatDialog(BuildContext context) async {
+    final format = await AppDialogs.choose<String>(
+      context,
+      title: AppLocalizations.of(context)!.chooseExportFormat,
+      options: [
+        (
+          value: 'md',
+          label: AppLocalizations.of(context)!.exportAsMarkdown,
+          icon: Icons.description_rounded,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-        ],
-      ),
+        (
+          value: 'json',
+          label: AppLocalizations.of(context)!.exportAsJson,
+          icon: Icons.data_object_rounded,
+        ),
+        (
+          value: 'txt',
+          label: AppLocalizations.of(context)!.exportAsText,
+          icon: Icons.text_snippet_rounded,
+        ),
+      ],
     );
+    if (format == null || !context.mounted) return;
+    _exportNote(context, format);
   }
 
   Future<void> _exportNote(BuildContext context, String format) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 20),
-            Text(AppLocalizations.of(dialogContext)!.exportingNote),
-          ],
-        ),
-      ),
+    AppDialogs.showLoading(
+      context,
+      message: AppLocalizations.of(context)!.exportingNote,
     );
 
     try {
@@ -1496,45 +1398,16 @@ class _NoteCard extends StatelessWidget {
     }
   }
 
-  void _showRenameDialog(BuildContext context) {
-    final controller = TextEditingController(text: metadata.title);
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.renameNote),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: AppLocalizations.of(context)!.enterNewName,
-          ),
-          onSubmitted: (value) {
-            context.read<OptimizedNoteBloc>().add(
-              UpdateOptimizedNote(noteId: metadata.id, title: value.trim()),
-            );
-            Navigator.pop(dialogContext);
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              context.read<OptimizedNoteBloc>().add(
-                UpdateOptimizedNote(
-                  noteId: metadata.id,
-                  title: controller.text.trim(),
-                ),
-              );
-              Navigator.pop(dialogContext);
-            },
-            child: Text(AppLocalizations.of(context)!.save),
-          ),
-        ],
-      ),
+  void _showRenameDialog(BuildContext context) async {
+    final name = await AppDialogs.textInput(
+      context,
+      title: AppLocalizations.of(context)!.renameNote,
+      hintText: AppLocalizations.of(context)!.enterNewName,
+      initialValue: metadata.title,
+    );
+    if (name == null || !context.mounted) return;
+    context.read<OptimizedNoteBloc>().add(
+      UpdateOptimizedNote(noteId: metadata.id, title: name.trim()),
     );
   }
 
@@ -1548,37 +1421,21 @@ class _NoteCard extends StatelessWidget {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
-  void _confirmDelete(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.deleteNote),
-        content: Text(
-          AppLocalizations.of(context)!.deleteNoteConfirm(
-            metadata.title.isEmpty
-                ? AppLocalizations.of(context)!.deleteThisNote
-                : metadata.title,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-          TextButton(
-            onPressed: () {
-              context.read<OptimizedNoteBloc>().add(
-                DeleteOptimizedNote(metadata.id),
-              );
-              Navigator.pop(dialogContext);
-            },
-            child: Text(
-              AppLocalizations.of(context)!.delete,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
+  void _confirmDelete(BuildContext context) async {
+    final confirmed = await AppDialogs.confirm(
+      context,
+      title: AppLocalizations.of(context)!.deleteNote,
+      content: AppLocalizations.of(context)!.deleteNoteConfirm(
+        metadata.title.isEmpty
+            ? AppLocalizations.of(context)!.deleteThisNote
+            : metadata.title,
       ),
+      confirmText: AppLocalizations.of(context)!.delete,
+      isDestructive: true,
+    );
+    if (!confirmed || !context.mounted) return;
+    context.read<OptimizedNoteBloc>().add(
+      DeleteOptimizedNote(metadata.id),
     );
   }
 }

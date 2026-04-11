@@ -11,6 +11,7 @@ import 'package:re_editor/re_editor.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../l10n/app_localizations.dart';
+import '../widgets/app_dialogs.dart';
 import '../bloc/optimized_note/optimized_note_bloc.dart';
 import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
@@ -1461,63 +1462,24 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     }
   }
 
-  void _showExportFormatDialog() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.chooseExportFormat),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.description_rounded),
-              title: Text(AppLocalizations.of(context)!.exportAsMarkdown),
-              onTap: () {
-                Navigator.pop(dialogContext);
-                _shareNote('md');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.data_object_rounded),
-              title: Text(AppLocalizations.of(context)!.exportAsJson),
-              onTap: () {
-                Navigator.pop(dialogContext);
-                _shareNote('json');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.text_snippet_rounded),
-              title: Text(AppLocalizations.of(context)!.exportAsText),
-              onTap: () {
-                Navigator.pop(dialogContext);
-                _shareNote('txt');
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppLocalizations.of(context)!.cancel),
-          ),
-        ],
-      ),
+  void _showExportFormatDialog() async {
+    final format = await AppDialogs.choose<String>(
+      context,
+      title: AppLocalizations.of(context)!.chooseExportFormat,
+      options: [
+        (value: 'md', label: AppLocalizations.of(context)!.exportAsMarkdown, icon: Icons.description_rounded),
+        (value: 'json', label: AppLocalizations.of(context)!.exportAsJson, icon: Icons.data_object_rounded),
+        (value: 'txt', label: AppLocalizations.of(context)!.exportAsText, icon: Icons.text_snippet_rounded),
+      ],
     );
+    if (format == null) return;
+    _shareNote(format);
   }
 
   Future<void> _shareNote(String format) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 20),
-            Text(AppLocalizations.of(dialogContext)!.exportingNote),
-          ],
-        ),
-      ),
+    AppDialogs.showLoading(
+      context,
+      message: AppLocalizations.of(context)!.exportingNote,
     );
 
     try {
@@ -1579,39 +1541,18 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     }
   }
 
-  void _editTitle() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final controller = TextEditingController(text: _titleController.text);
-        return AlertDialog(
-          title: Text(AppLocalizations.of(context)!.editTitle),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: InputDecoration(
-              hintText: AppLocalizations.of(context)!.enterNoteTitle,
-            ),
-            style: const TextStyle(fontSize: 18),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(AppLocalizations.of(context)!.cancel),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _titleController.text = controller.text;
-                });
-                Navigator.pop(context);
-              },
-              child: Text(AppLocalizations.of(context)!.save),
-            ),
-          ],
-        );
-      },
+  void _editTitle() async {
+    final newTitle = await AppDialogs.textInput(
+      context,
+      title: AppLocalizations.of(context)!.editTitle,
+      hintText: AppLocalizations.of(context)!.enterNoteTitle,
+      initialValue: _titleController.text,
+      confirmText: AppLocalizations.of(context)!.save,
     );
+    if (newTitle == null) return;
+    setState(() {
+      _titleController.text = newTitle;
+    });
   }
 
   void _scrollToEdge({required bool toTop}) {

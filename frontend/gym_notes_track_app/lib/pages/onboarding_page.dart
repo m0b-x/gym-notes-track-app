@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/app_dialogs.dart';
 import '../services/backup_service.dart';
 import '../services/settings_service.dart';
 import '../utils/custom_snackbar.dart';
@@ -151,39 +152,28 @@ class _OnboardingPageState extends State<OnboardingPage> {
     }
   }
 
-  Future<bool?> _showImportConfirmation(BackupValidationResult validation) {
+  Future<bool> _showImportConfirmation(BackupValidationResult validation) {
     final l10n = AppLocalizations.of(context)!;
 
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l10n.confirmImport),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l10n.backupContains),
+    return AppDialogs.confirm(
+      context,
+      title: l10n.confirmImport,
+      confirmText: l10n.import,
+      contentWidget: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.backupContains),
+          const SizedBox(height: 8),
+          Text('• ${validation.folderCount} ${l10n.folders}'),
+          Text('• ${validation.noteCount} ${l10n.notes}'),
+          if (validation.exportedAt != null) ...[
             const SizedBox(height: 8),
-            Text('• ${validation.folderCount} ${l10n.folders}'),
-            Text('• ${validation.noteCount} ${l10n.notes}'),
-            if (validation.exportedAt != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                l10n.exportedOn(validation.exportedAt!),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+            Text(
+              l10n.exportedOn(validation.exportedAt!),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(l10n.import),
-          ),
         ],
       ),
     );
