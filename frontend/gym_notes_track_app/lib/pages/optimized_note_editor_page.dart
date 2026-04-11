@@ -1172,14 +1172,18 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                               return Stack(
                                 children: [
                                   Offstage(
-                                    offstage:
-                                        showPreview, // Hide editor when showing preview
-                                    child: _buildEditor(),
+                                    offstage: showPreview,
+                                    child: IgnorePointer(
+                                      ignoring: showPreview,
+                                      child: _buildEditor(),
+                                    ),
                                   ),
                                   Offstage(
-                                    offstage:
-                                        !showPreview, // Hide preview when showing editor
-                                    child: _buildPreview(),
+                                    offstage: !showPreview,
+                                    child: IgnorePointer(
+                                      ignoring: !showPreview,
+                                      child: _buildPreview(),
+                                    ),
                                   ),
                                 ],
                               );
@@ -1224,14 +1228,18 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                               child: Stack(
                                 children: [
                                   Offstage(
-                                    offstage:
-                                        showPreview, // Hide editor when showing preview
-                                    child: _buildEditor(),
+                                    offstage: showPreview,
+                                    child: IgnorePointer(
+                                      ignoring: showPreview,
+                                      child: _buildEditor(),
+                                    ),
                                   ),
                                   Offstage(
-                                    offstage:
-                                        !showPreview, // Hide preview when showing editor
-                                    child: _buildPreview(),
+                                    offstage: !showPreview,
+                                    child: IgnorePointer(
+                                      ignoring: !showPreview,
+                                      child: _buildPreview(),
+                                    ),
                                   ),
                                 ],
                               ),
