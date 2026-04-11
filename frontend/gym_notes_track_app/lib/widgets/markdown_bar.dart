@@ -716,10 +716,12 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
       constraints: const BoxConstraints(maxHeight: 200),
       child: SingleChildScrollView(
         controller: _verticalScrollController,
+        physics: const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: SingleChildScrollView(
           controller: _horizontalScrollController,
           scrollDirection: Axis.horizontal,
+          physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -758,7 +760,9 @@ class _HorizontalReorderableListState extends State<HorizontalReorderableList> {
                           onWillAcceptWithDetails: (details) =>
                               details.data != index,
                           onAcceptWithDetails: (details) {
-                            widget.onReorder(details.data, index);
+                            if (_targetIndex != null) {
+                              widget.onReorder(details.data, _targetIndex!);
+                            }
                             setState(() {
                               _draggingIndex = null;
                               _targetIndex = null;
