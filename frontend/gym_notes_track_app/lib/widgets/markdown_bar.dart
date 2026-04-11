@@ -11,7 +11,7 @@ import '../models/utility_button_config.dart';
 import '../models/utility_button_definition.dart';
 import '../utils/icon_utils.dart';
 
-class MarkdownToolbar extends StatefulWidget {
+class MarkdownBar extends StatefulWidget {
   final List<CustomMarkdownShortcut> shortcuts;
   final bool isPreviewMode;
   final bool canUndo;
@@ -45,7 +45,7 @@ class MarkdownToolbar extends StatefulWidget {
   /// When null, all utility buttons are shown in the default order.
   final List<UtilityButtonConfig>? utilityConfigs;
 
-  const MarkdownToolbar({
+  const MarkdownBar({
     super.key,
     required this.shortcuts,
     required this.isPreviewMode,
@@ -73,10 +73,10 @@ class MarkdownToolbar extends StatefulWidget {
   });
 
   @override
-  State<MarkdownToolbar> createState() => _MarkdownToolbarState();
+  State<MarkdownBar> createState() => _MarkdownBarState();
 }
 
-class _MarkdownToolbarState extends State<MarkdownToolbar> {
+class _MarkdownBarState extends State<MarkdownBar> {
   bool _isReorderMode = false;
   late List<CustomMarkdownShortcut> _reorderableShortcuts;
 
@@ -87,7 +87,7 @@ class _MarkdownToolbarState extends State<MarkdownToolbar> {
   }
 
   @override
-  void didUpdateWidget(MarkdownToolbar oldWidget) {
+  void didUpdateWidget(MarkdownBar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!_isReorderMode) {
       _reorderableShortcuts = List.from(widget.shortcuts);

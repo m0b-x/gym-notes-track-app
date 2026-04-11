@@ -1807,5 +1807,69 @@
   "hidden": "Hidden",
   "@hidden": {
     "description": "Status label when a utility button is hidden"
+  },
+  "insertCounter": "Insert Counter Value",
+  "@insertCounter": {
+    "description": "Insert type option for counter shortcuts"
+  },
+  "selectCounter": "Select Counter",
+  "@selectCounter": {
+    "description": "Label for counter selection dropdown"
+  },
+  "noCountersYet": "No counters created yet",
+  "@noCountersYet": {
+    "description": "Empty state when no counters exist"
+  },
+  "addCounter": "Add Counter",
+  "@addCounter": {
+    "description": "Button to create a new counter"
+  },
+  "counterName": "Counter Name",
+  "@counterName": {
+    "description": "Label for counter name input"
+  },
+  "startValue": "Start Value",
+  "@startValue": {
+    "description": "Label for counter start value"
+  },
+  "step": "Step",
+  "@step": {
+    "description": "Label for counter increment step"
+  },
+  "counterScope": "Counter Scope",
+  "@counterScope": {
+    "description": "Label for counter scope selection"
+  },
+  "global": "Global",
+  "@global": {
+    "description": "Counter scope: shared across all notes"
+  },
+  "perNote": "Per Note",
+  "@perNote": {
+    "description": "Counter scope: independent per note"
+  },
+  "editCounter": "Edit Counter",
+  "@editCounter": {
+    "description": "Title for edit counter dialog"
+  },
+  "deleteCounter": "Delete Counter",
+  "@deleteCounter": {
+    "description": "Title for delete counter confirmation"
+  },
+  "deleteCounterConfirm": "Are you sure you want to delete this counter? This cannot be undone.",
+  "@deleteCounterConfirm": {
+    "description": "Confirmation message for counter deletion"
+  },
+  "resetCounter": "Reset Counter",
+  "@resetCounter": {
+    "description": "Button to reset counter value"
+  },
+  "resetCounterConfirm": "Reset this counter to its start value?",
+  "@resetCounterConfirm": {
+    "description": "Confirmation message for counter reset"
+  },
+  "counters": "Counters",
+  "@counters": {
+    "description": "Section title for counters"
   }
 }

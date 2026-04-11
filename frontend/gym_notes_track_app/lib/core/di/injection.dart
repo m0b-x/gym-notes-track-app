@@ -5,8 +5,11 @@ import '../../repositories/folder_repository.dart';
 import '../../services/folder_storage_service.dart';
 import '../../services/note_storage_service.dart';
 import '../../services/folder_search_service.dart';
+import '../../services/markdown_bar_service.dart';
+import '../../services/counter_service.dart';
 import '../../bloc/optimized_folder/optimized_folder_bloc.dart';
 import '../../bloc/optimized_note/optimized_note_bloc.dart';
+import '../../bloc/markdown_bar/markdown_bar_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -48,6 +51,12 @@ Future<void> _registerServices() async {
   );
   await folderSearchService.initialize();
   getIt.registerSingleton<FolderSearchService>(folderSearchService);
+
+  final markdownBarService = await MarkdownBarService.getInstance();
+  getIt.registerSingleton<MarkdownBarService>(markdownBarService);
+
+  final counterService = await CounterService.getInstance();
+  getIt.registerSingleton<CounterService>(counterService);
 }
 
 void _registerBlocs() {
@@ -59,6 +68,13 @@ void _registerBlocs() {
     () => OptimizedNoteBloc(
       storageService: getIt<NoteStorageService>(),
       searchService: getIt<FolderSearchService>(),
+    ),
+  );
+
+  getIt.registerFactory<MarkdownBarBloc>(
+    () => MarkdownBarBloc(
+      barService: getIt<MarkdownBarService>(),
+      counterService: getIt<CounterService>(),
     ),
   );
 }

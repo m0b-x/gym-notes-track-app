@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:re_editor/re_editor.dart';
 import 'package:share_plus/share_plus.dart';
@@ -13,20 +14,22 @@ import '../l10n/app_localizations.dart';
 import '../bloc/optimized_note/optimized_note_bloc.dart';
 import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
+import '../bloc/markdown_bar/markdown_bar_bloc.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/dev_options.dart';
 import '../models/markdown_bar_profile.dart';
 import '../models/note_metadata.dart';
 import '../models/utility_button_config.dart';
 import '../services/auto_save_service.dart';
+import '../services/counter_service.dart';
 import '../services/dev_options_service.dart';
-import '../services/markdown_bar_service.dart';
 import '../services/note_position_service.dart';
 import '../services/settings_service.dart';
+import '../factories/shortcut_handler_factory.dart';
 import '../widgets/bar_switcher_sheet.dart';
 import '../widgets/debug_overlays.dart';
 import '../widgets/interactive_preview_scrollbar.dart';
-import '../widgets/markdown_toolbar.dart';
+import '../widgets/markdown_bar.dart';
 import '../widgets/modern_editor_wrapper.dart';
 import '../widgets/full_markdown_view.dart';
 import '../widgets/source_mapped_markdown_view.dart';
@@ -168,7 +171,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       _isLoading = false;
     }
 
-    _loadCustomShortcuts();
+    context.read<MarkdownBarBloc>().add(
+      LoadMarkdownBar(noteId: _effectiveNoteId ?? widget.noteId),
+    );
+    ShortcutHandlerFactory.counterHandler.setActiveNoteId(
+      _effectiveNoteId ?? widget.noteId,
+    );
     _initializeAutoSave();
     _loadFontSizes();
     _initializePositionService();
@@ -264,6 +272,32 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       SettingsKeys.editorFontSize,
       _editorFontSize.toString(),
     );
+  }
+
+  void _decreaseFontSize() {
+    setState(() {
+      if (_isPreviewMode) {
+        _previewFontSize = (_previewFontSize - FontConstants.fontSizeStep)
+            .clamp(FontConstants.minFontSize, FontConstants.maxFontSize);
+      } else {
+        _editorFontSize = (_editorFontSize - FontConstants.fontSizeStep)
+            .clamp(FontConstants.minFontSize, FontConstants.maxFontSize);
+      }
+    });
+    _saveFontSizes();
+  }
+
+  void _increaseFontSize() {
+    setState(() {
+      if (_isPreviewMode) {
+        _previewFontSize = (_previewFontSize + FontConstants.fontSizeStep)
+            .clamp(FontConstants.minFontSize, FontConstants.maxFontSize);
+      } else {
+        _editorFontSize = (_editorFontSize + FontConstants.fontSizeStep)
+            .clamp(FontConstants.minFontSize, FontConstants.maxFontSize);
+      }
+    });
+    _saveFontSizes();
   }
 
   Future<void> _loadEditorSettings() async {
@@ -981,29 +1015,46 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<OptimizedNoteBloc, OptimizedNoteState>(
-      listener: (context, state) {
-        if (state is OptimizedNoteCreated) {
-          _effectiveNoteId = state.metadata.id;
-          _isCreatingNewNote = false;
-          _autoSaveService?.startTracking(
-            _titleController.text,
-            _contentController.text,
-            contentProvider: () => _contentController.text,
-          );
-        } else if (state is OptimizedNoteContentLoaded) {
-          final content = state.note.content ?? '';
-          setState(() {
-            _contentController.text = content;
-            _previousTextLength = content.length;
-            _cachedPreviewContent = content;
-            _cachedLineCount = '\n'.allMatches(content).length + 1;
-            _cachedCharCount = content.length;
-            _isLoading = false;
-          });
-          _restoreSavedPosition();
-        }
-      },
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<OptimizedNoteBloc, OptimizedNoteState>(
+          listener: (context, state) {
+            if (state is OptimizedNoteCreated) {
+              _effectiveNoteId = state.metadata.id;
+              _isCreatingNewNote = false;
+              _autoSaveService?.startTracking(
+                _titleController.text,
+                _contentController.text,
+                contentProvider: () => _contentController.text,
+              );
+            } else if (state is OptimizedNoteContentLoaded) {
+              final content = state.note.content ?? '';
+              setState(() {
+                _contentController.text = content;
+                _previousTextLength = content.length;
+                _cachedPreviewContent = content;
+                _cachedLineCount = '\n'.allMatches(content).length + 1;
+                _cachedCharCount = content.length;
+                _isLoading = false;
+              });
+              _restoreSavedPosition();
+            }
+          },
+        ),
+        BlocListener<MarkdownBarBloc, MarkdownBarState>(
+          listener: (context, state) {
+            if (state is MarkdownBarLoaded) {
+              setState(() {
+                _activeBarProfileId = state.activeProfileId;
+                _allShortcuts = List.from(state.currentShortcuts);
+              });
+              ShortcutHandlerFactory.counterHandler.setActiveNoteId(
+                _effectiveNoteId ?? widget.noteId,
+              );
+            }
+          },
+        ),
+      ],
       child: PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, result) async {
@@ -1061,7 +1112,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                     ),
                     if (_allShortcuts.isNotEmpty)
                       RepaintBoundary(
-                        child: MarkdownToolbar(
+                        child: MarkdownBar(
                           shortcuts: _allShortcuts,
                           isPreviewMode: _isPreviewMode,
                           canUndo: false,
@@ -1195,7 +1246,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            MarkdownToolbar(
+                            MarkdownBar(
                               shortcuts: _allShortcuts,
                               isPreviewMode: _isPreviewMode,
                               canUndo: _historyObserver.canUndo,
@@ -1210,50 +1261,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                               onRedo: () => _historyObserver.redo(),
                               onPaste: () => _contentController.paste(),
                               onSwitchBar: _showBarSwitcher,
-                              onDecreaseFontSize: () {
-                                setState(() {
-                                  if (_isPreviewMode) {
-                                    _previewFontSize =
-                                        (_previewFontSize -
-                                                FontConstants.fontSizeStep)
-                                            .clamp(
-                                              FontConstants.minFontSize,
-                                              FontConstants.maxFontSize,
-                                            );
-                                  } else {
-                                    _editorFontSize =
-                                        (_editorFontSize -
-                                                FontConstants.fontSizeStep)
-                                            .clamp(
-                                              FontConstants.minFontSize,
-                                              FontConstants.maxFontSize,
-                                            );
-                                  }
-                                });
-                                _saveFontSizes();
-                              },
-                              onIncreaseFontSize: () {
-                                setState(() {
-                                  if (_isPreviewMode) {
-                                    _previewFontSize =
-                                        (_previewFontSize +
-                                                FontConstants.fontSizeStep)
-                                            .clamp(
-                                              FontConstants.minFontSize,
-                                              FontConstants.maxFontSize,
-                                            );
-                                  } else {
-                                    _editorFontSize =
-                                        (_editorFontSize +
-                                                FontConstants.fontSizeStep)
-                                            .clamp(
-                                              FontConstants.minFontSize,
-                                              FontConstants.maxFontSize,
-                                            );
-                                  }
-                                });
-                                _saveFontSizes();
-                              },
+                              onDecreaseFontSize: _decreaseFontSize,
+                              onIncreaseFontSize: _increaseFontSize,
                               onSettings: _openMarkdownSettings,
                               onShortcutPressed: _handleShortcut,
                               onReorderComplete: _handleReorderComplete,
@@ -1427,7 +1436,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     setState(() {
       _allShortcuts = reorderedShortcuts;
     });
-    await _saveShortcutsOrder();
+    context.read<MarkdownBarBloc>().add(
+      UpdateShortcuts(
+        profileId: _activeBarProfileId,
+        shortcuts: reorderedShortcuts,
+      ),
+    );
   }
 
   Future<void> _saveBeforeExit() async {
@@ -1676,7 +1690,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     });
   }
 
-  void _applyShortcut(CustomMarkdownShortcut shortcut) {
+  Future<void> _applyShortcut(CustomMarkdownShortcut shortcut) async {
     final selectedText = _contentController.selectedText;
     final repeatCount = shortcut.repeatConfig?.count ?? 1;
     final separator = shortcut.repeatConfig?.separator ?? '\n';
@@ -1751,6 +1765,22 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
       _contentController.selectLine(lineIndex);
       _contentController.replaceSelection(newLineText);
+    } else if (shortcut.insertType == 'counter') {
+      final counterId = shortcut.counterId;
+      if (counterId == null) return;
+      final counterService = GetIt.I<CounterService>();
+      final counter = counterService.getCounterById(counterId);
+      if (counter == null) return;
+      final noteId = _effectiveNoteId ?? widget.noteId;
+      final currentValue = await counterService.increment(
+        counterId,
+        noteId: noteId,
+      );
+      context.read<MarkdownBarBloc>().add(const RefreshCounters());
+      final valueStr = currentValue.toString();
+      final insertText =
+          '${shortcut.beforeText}$valueStr${shortcut.afterText}';
+      _contentController.replaceSelection(insertText);
     } else {
       final before = shortcut.beforeText;
       final after = shortcut.afterText;
@@ -1779,25 +1809,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     }
   }
 
-  Future<void> _loadCustomShortcuts() async {
-    final svc = await MarkdownBarService.getInstance();
-    final profile = await svc.resolveProfileForNote(
-      _effectiveNoteId ?? widget.noteId,
-    );
-
-    if (mounted) {
-      setState(() {
-        _activeBarProfileId = profile.id;
-        _allShortcuts = List.from(profile.shortcuts);
-      });
-    }
-  }
-
-  Future<void> _saveShortcutsOrder() async {
-    final svc = await MarkdownBarService.getInstance();
-    await svc.updateShortcuts(_activeBarProfileId, _allShortcuts);
-  }
-
   /// Opens the bar switcher bottom sheet and applies the selection.
   Future<void> _showBarSwitcher() async {
     final result = await BarSwitcherSheet.show(
@@ -1805,40 +1816,29 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       currentProfileId: _activeBarProfileId,
       noteId: _effectiveNoteId ?? widget.noteId,
     );
-    if (result == null) return;
+    if (result == null || !mounted) return;
 
-    final svc = await MarkdownBarService.getInstance();
+    final noteId = _effectiveNoteId ?? widget.noteId;
 
     if (result.clearedOverride) {
-      // Remove per-note override → fall back to global active bar.
-      final noteId = _effectiveNoteId ?? widget.noteId;
       if (noteId != null) {
-        await svc.setNoteBarId(noteId, null);
-      }
-      final profile = await svc.resolveProfileForNote(noteId);
-      if (mounted) {
-        setState(() {
-          _activeBarProfileId = profile.id;
-          _allShortcuts = List.from(profile.shortcuts);
-        });
+        context.read<MarkdownBarBloc>().add(
+          SetNoteBarAssignment(noteId: noteId, profileId: null),
+        );
       }
       return;
     }
 
     if (result.profile != null) {
       final selected = result.profile!;
-      // Set per-note override if we have a note ID, otherwise just switch globally.
-      final noteId = _effectiveNoteId ?? widget.noteId;
       if (noteId != null) {
-        await svc.setNoteBarId(noteId, selected.id);
+        context.read<MarkdownBarBloc>().add(
+          SetNoteBarAssignment(noteId: noteId, profileId: selected.id),
+        );
       } else {
-        await svc.setActiveProfile(selected.id);
-      }
-      if (mounted) {
-        setState(() {
-          _activeBarProfileId = selected.id;
-          _allShortcuts = List.from(selected.shortcuts);
-        });
+        context.read<MarkdownBarBloc>().add(
+          SetActiveProfile(profileId: selected.id),
+        );
       }
     }
   }
@@ -1851,20 +1851,17 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       ),
     );
 
-    // Reload the resolved profile for this note (it may have changed in settings).
-    final svc = await MarkdownBarService.getInstance();
-    final profile = await svc.resolveProfileForNote(
-      _effectiveNoteId ?? widget.noteId,
+    if (!mounted) return;
+
+    context.read<MarkdownBarBloc>().add(
+      ResolveBarForNote(noteId: _effectiveNoteId ?? widget.noteId),
     );
-    // Reload toolbar settings in case user adjusted them
     final settings = await SettingsService.getInstance();
     final ratio = await settings.getToolbarShortcutRatio();
     final splitEnabled = await settings.getToolbarSplitEnabled();
     final utilityConfigs = await settings.getToolbarUtilityConfig();
     if (mounted) {
       setState(() {
-        _activeBarProfileId = profile.id;
-        _allShortcuts = List.from(profile.shortcuts);
         _toolbarShortcutRatio = ratio;
         _toolbarSplitEnabled = splitEnabled;
         _utilityConfigs = utilityConfigs;

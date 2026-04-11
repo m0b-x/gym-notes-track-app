@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/app_settings/app_settings_bloc.dart';
+import '../bloc/markdown_bar/markdown_bar_bloc.dart';
 import '../l10n/app_localizations.dart';
+import '../models/custom_markdown_shortcut.dart';
 import '../models/dev_options.dart';
 import '../pages/database_settings_page.dart';
 import '../pages/controls_settings_page.dart';
 import '../pages/developer_options_page.dart';
 import '../pages/markdown_settings_page.dart';
 import '../services/dev_options_service.dart';
-import '../services/markdown_bar_service.dart';
 import '../utils/custom_snackbar.dart';
 
 /// Global navigation drawer for app-wide settings
@@ -133,23 +134,24 @@ class _AppDrawerState extends State<AppDrawer> {
                   icon: Icons.text_format_rounded,
                   title: AppLocalizations.of(context)!.markdownShortcuts,
                   subtitle: AppLocalizations.of(context)!.markdownShortcutsDesc,
-                  onTap: () async {
+                  onTap: () {
                     Navigator.pop(context);
-                    final svc = await MarkdownBarService.getInstance();
-                    final shortcuts = svc.activeProfile.shortcuts;
-                    if (context.mounted) {
-                      Navigator.push<String>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              MarkdownSettingsPage(allShortcuts: shortcuts),
-                        ),
-                      ).then((result) {
-                        if (result == 'openDrawer' && context.mounted) {
-                          Scaffold.of(context).openDrawer();
-                        }
-                      });
-                    }
+                    final blocState =
+                        context.read<MarkdownBarBloc>().state;
+                    final shortcuts = blocState is MarkdownBarLoaded
+                        ? blocState.currentShortcuts
+                        : <CustomMarkdownShortcut>[];
+                    Navigator.push<String>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            MarkdownSettingsPage(allShortcuts: shortcuts),
+                      ),
+                    ).then((result) {
+                      if (result == 'openDrawer' && context.mounted) {
+                        Scaffold.of(context).openDrawer();
+                      }
+                    });
                   },
                 ),
 

@@ -138,6 +138,7 @@ class CustomMarkdownShortcut extends Equatable {
   final String? dateFormat;
   final DateOffset? dateOffset;
   final RepeatConfig? repeatConfig;
+  final String? counterId;
 
   const CustomMarkdownShortcut({
     required this.id,
@@ -152,6 +153,7 @@ class CustomMarkdownShortcut extends Equatable {
     this.dateFormat,
     this.dateOffset,
     this.repeatConfig,
+    this.counterId,
   });
 
   Map<String, dynamic> toJson() {
@@ -168,6 +170,7 @@ class CustomMarkdownShortcut extends Equatable {
       if (dateFormat != null) JsonKeys.dateFormat: dateFormat,
       if (dateOffset != null) JsonKeys.dateOffset: dateOffset!.toJson(),
       if (repeatConfig != null) JsonKeys.repeatConfig: repeatConfig!.toJson(),
+      if (counterId != null) JsonKeys.counterId: counterId,
     };
   }
 
@@ -193,6 +196,7 @@ class CustomMarkdownShortcut extends Equatable {
               json[JsonKeys.repeatConfig] as Map<String, dynamic>,
             )
           : null,
+      counterId: json[JsonKeys.counterId] as String?,
     );
   }
 
@@ -209,8 +213,10 @@ class CustomMarkdownShortcut extends Equatable {
     String? dateFormat,
     DateOffset? dateOffset,
     RepeatConfig? repeatConfig,
+    String? counterId,
     bool clearDateOffset = false,
     bool clearRepeatConfig = false,
+    bool clearCounterId = false,
   }) {
     return CustomMarkdownShortcut(
       id: id ?? this.id,
@@ -227,6 +233,7 @@ class CustomMarkdownShortcut extends Equatable {
       repeatConfig: clearRepeatConfig
           ? null
           : (repeatConfig ?? this.repeatConfig),
+      counterId: clearCounterId ? null : (counterId ?? this.counterId),
     );
   }
 
@@ -244,5 +251,6 @@ class CustomMarkdownShortcut extends Equatable {
     dateFormat,
     dateOffset,
     repeatConfig,
+    counterId,
   ];
 }

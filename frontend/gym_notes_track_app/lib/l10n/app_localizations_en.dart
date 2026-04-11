@@ -1355,4 +1355,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hidden => 'Hidden';
+
+  @override
+  String get insertCounter => 'Insert Counter Value';
+
+  @override
+  String get selectCounter => 'Select Counter';
+
+  @override
+  String get noCountersYet => 'No counters created yet';
+
+  @override
+  String get addCounter => 'Add Counter';
+
+  @override
+  String get counterName => 'Counter Name';
+
+  @override
+  String get startValue => 'Start Value';
+
+  @override
+  String get step => 'Step';
+
+  @override
+  String get counterScope => 'Counter Scope';
+
+  @override
+  String get global => 'Global';
+
+  @override
+  String get perNote => 'Per Note';
+
+  @override
+  String get editCounter => 'Edit Counter';
+
+  @override
+  String get deleteCounter => 'Delete Counter';
+
+  @override
+  String get deleteCounterConfirm =>
+      'Are you sure you want to delete this counter? This cannot be undone.';
+
+  @override
+  String get resetCounter => 'Reset Counter';
+
+  @override
+  String get resetCounterConfirm => 'Reset this counter to its start value?';
+
+  @override
+  String get counters => 'Counters';
 }

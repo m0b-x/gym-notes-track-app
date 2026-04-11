@@ -1368,4 +1368,54 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get hidden => 'Ausgeblendet';
+
+  @override
+  String get insertCounter => 'Zählerwert einfügen';
+
+  @override
+  String get selectCounter => 'Zähler auswählen';
+
+  @override
+  String get noCountersYet => 'Noch keine Zähler erstellt';
+
+  @override
+  String get addCounter => 'Zähler hinzufügen';
+
+  @override
+  String get counterName => 'Zählername';
+
+  @override
+  String get startValue => 'Startwert';
+
+  @override
+  String get step => 'Schritt';
+
+  @override
+  String get counterScope => 'Zählerbereich';
+
+  @override
+  String get global => 'Global';
+
+  @override
+  String get perNote => 'Pro Notiz';
+
+  @override
+  String get editCounter => 'Zähler bearbeiten';
+
+  @override
+  String get deleteCounter => 'Zähler löschen';
+
+  @override
+  String get deleteCounterConfirm =>
+      'Möchten Sie diesen Zähler wirklich löschen? Dies kann nicht rückgängig gemacht werden.';
+
+  @override
+  String get resetCounter => 'Zähler zurücksetzen';
+
+  @override
+  String get resetCounterConfirm =>
+      'Diesen Zähler auf den Startwert zurücksetzen?';
+
+  @override
+  String get counters => 'Zähler';
 }

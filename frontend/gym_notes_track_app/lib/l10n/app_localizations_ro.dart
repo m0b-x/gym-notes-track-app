@@ -1364,4 +1364,54 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get hidden => 'Ascuns';
+
+  @override
+  String get insertCounter => 'Inserează Valoare Contor';
+
+  @override
+  String get selectCounter => 'Selectează Contorul';
+
+  @override
+  String get noCountersYet => 'Niciun contor creat încă';
+
+  @override
+  String get addCounter => 'Adaugă Contor';
+
+  @override
+  String get counterName => 'Nume Contor';
+
+  @override
+  String get startValue => 'Valoare Inițială';
+
+  @override
+  String get step => 'Pas';
+
+  @override
+  String get counterScope => 'Domeniu Contor';
+
+  @override
+  String get global => 'Global';
+
+  @override
+  String get perNote => 'Per Notiță';
+
+  @override
+  String get editCounter => 'Editează Contor';
+
+  @override
+  String get deleteCounter => 'Șterge Contor';
+
+  @override
+  String get deleteCounterConfirm =>
+      'Sigur doriți să ștergeți acest contor? Această acțiune nu poate fi anulată.';
+
+  @override
+  String get resetCounter => 'Resetează Contor';
+
+  @override
+  String get resetCounterConfirm =>
+      'Resetați acest contor la valoarea inițială?';
+
+  @override
+  String get counters => 'Contoare';
 }

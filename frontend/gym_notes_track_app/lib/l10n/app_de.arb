@@ -1440,5 +1440,21 @@
   "visible": "Sichtbar",
   "hidden": "Ausgeblendet",
   "goToTop": "Zum Anfang",
-  "goToBottom": "Zum Ende"
+  "goToBottom": "Zum Ende",
+  "insertCounter": "Zählerwert einfügen",
+  "selectCounter": "Zähler auswählen",
+  "noCountersYet": "Noch keine Zähler erstellt",
+  "addCounter": "Zähler hinzufügen",
+  "counterName": "Zählername",
+  "startValue": "Startwert",
+  "step": "Schritt",
+  "counterScope": "Zählerbereich",
+  "global": "Global",
+  "perNote": "Pro Notiz",
+  "editCounter": "Zähler bearbeiten",
+  "deleteCounter": "Zähler löschen",
+  "deleteCounterConfirm": "Möchten Sie diesen Zähler wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
+  "resetCounter": "Zähler zurücksetzen",
+  "resetCounterConfirm": "Diesen Zähler auf den Startwert zurücksetzen?",
+  "counters": "Zähler"
 }

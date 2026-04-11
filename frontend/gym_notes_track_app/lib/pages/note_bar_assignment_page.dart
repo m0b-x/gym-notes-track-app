@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 
+import '../bloc/markdown_bar/markdown_bar_bloc.dart';
 import '../database/database.dart';
 import '../l10n/app_localizations.dart';
 import '../models/markdown_bar_profile.dart';
@@ -32,10 +35,13 @@ class _NoteBarAssignmentPageState extends State<NoteBarAssignmentPage> {
 
   Future<void> _load() async {
     final db = await AppDatabase.getInstance();
-    final svc = await MarkdownBarService.getInstance();
+    final svc = GetIt.I<MarkdownBarService>();
     final notes = await db.noteDao.getAllNotes();
     final assignments = await svc.getAllNoteBarAssignments();
-    final profiles = svc.profiles;
+    final blocState = context.read<MarkdownBarBloc>().state;
+    final profiles = blocState is MarkdownBarLoaded
+        ? blocState.profiles
+        : svc.profiles;
 
     final entries = notes.map((note) {
       return _NoteBarEntry(
@@ -71,10 +77,11 @@ class _NoteBarAssignmentPageState extends State<NoteBarAssignmentPage> {
     return p.name;
   }
 
-  Future<void> _assignProfile(int index, String? profileId) async {
+  void _assignProfile(int index, String? profileId) {
     final entry = _entries[index];
-    final svc = await MarkdownBarService.getInstance();
-    await svc.setNoteBarId(entry.noteId, profileId);
+    context.read<MarkdownBarBloc>().add(
+      SetNoteBarAssignment(noteId: entry.noteId, profileId: profileId),
+    );
     setState(() {
       _entries[index] = entry.copyWith(assignedProfileId: profileId);
     });

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/markdown_bar_profile.dart';
@@ -75,7 +76,7 @@ class _BarSwitcherSheetState extends State<BarSwitcherSheet> {
   }
 
   Future<void> _loadProfiles() async {
-    final svc = await MarkdownBarService.getInstance();
+    final svc = GetIt.I<MarkdownBarService>();
     final profiles = svc.profiles;
 
     String? overrideId;

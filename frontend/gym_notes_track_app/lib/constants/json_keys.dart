@@ -44,6 +44,11 @@ class JsonKeys {
   static const String beforeRepeatText = 'beforeRepeatText';
   static const String afterRepeatText = 'afterRepeatText';
 
+  static const String counterId = 'counterId';
+  static const String counterStartValue = 'counterStartValue';
+  static const String counterStep = 'counterStep';
+  static const String counterScope = 'counterScope';
+
   static const String wordToNoteIds = 'wordToNoteIds';
   static const String termFrequency = 'termFrequency';
 

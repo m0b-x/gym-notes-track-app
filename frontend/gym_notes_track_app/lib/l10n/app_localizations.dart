@@ -2613,6 +2613,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hidden'**
   String get hidden;
+
+  /// Insert type option for counter shortcuts
+  ///
+  /// In en, this message translates to:
+  /// **'Insert Counter Value'**
+  String get insertCounter;
+
+  /// Label for counter selection dropdown
+  ///
+  /// In en, this message translates to:
+  /// **'Select Counter'**
+  String get selectCounter;
+
+  /// Empty state when no counters exist
+  ///
+  /// In en, this message translates to:
+  /// **'No counters created yet'**
+  String get noCountersYet;
+
+  /// Button to create a new counter
+  ///
+  /// In en, this message translates to:
+  /// **'Add Counter'**
+  String get addCounter;
+
+  /// Label for counter name input
+  ///
+  /// In en, this message translates to:
+  /// **'Counter Name'**
+  String get counterName;
+
+  /// Label for counter start value
+  ///
+  /// In en, this message translates to:
+  /// **'Start Value'**
+  String get startValue;
+
+  /// Label for counter increment step
+  ///
+  /// In en, this message translates to:
+  /// **'Step'**
+  String get step;
+
+  /// Label for counter scope selection
+  ///
+  /// In en, this message translates to:
+  /// **'Counter Scope'**
+  String get counterScope;
+
+  /// Counter scope: shared across all notes
+  ///
+  /// In en, this message translates to:
+  /// **'Global'**
+  String get global;
+
+  /// Counter scope: independent per note
+  ///
+  /// In en, this message translates to:
+  /// **'Per Note'**
+  String get perNote;
+
+  /// Title for edit counter dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Counter'**
+  String get editCounter;
+
+  /// Title for delete counter confirmation
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Counter'**
+  String get deleteCounter;
+
+  /// Confirmation message for counter deletion
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this counter? This cannot be undone.'**
+  String get deleteCounterConfirm;
+
+  /// Button to reset counter value
+  ///
+  /// In en, this message translates to:
+  /// **'Reset Counter'**
+  String get resetCounter;
+
+  /// Confirmation message for counter reset
+  ///
+  /// In en, this message translates to:
+  /// **'Reset this counter to its start value?'**
+  String get resetCounterConfirm;
+
+  /// Section title for counters
+  ///
+  /// In en, this message translates to:
+  /// **'Counters'**
+  String get counters;
 }
 
 class _AppLocalizationsDelegate

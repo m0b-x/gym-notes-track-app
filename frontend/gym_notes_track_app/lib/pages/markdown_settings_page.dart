@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/markdown_bar/markdown_bar_bloc.dart';
 import '../config/default_markdown_shortcuts.dart';
 import '../constants/app_constants.dart';
 import '../constants/settings_keys.dart';
@@ -7,12 +9,11 @@ import '../models/custom_markdown_shortcut.dart';
 import '../models/markdown_bar_profile.dart';
 import '../models/utility_button_config.dart';
 import '../models/utility_button_definition.dart';
-import '../services/markdown_bar_service.dart';
 import '../services/settings_service.dart';
 import '../utils/markdown_settings_utils.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/app_loading_bar.dart';
-import '../widgets/markdown_toolbar.dart';
+import '../widgets/markdown_bar.dart';
 import '../widgets/unified_app_bars.dart';
 import '../widgets/shortcut_editor_dialog.dart';
 import 'note_bar_assignment_page.dart';
@@ -36,12 +37,8 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
   bool _shortcutsExpanded = true;
   bool _toolbarExpanded = true;
   SettingsService? _settingsService;
-  MarkdownBarService? _barService;
 
-  /// All available bar profiles.
   List<MarkdownBarProfile> _profiles = [];
-
-  /// The profile currently being edited in this settings page.
   String _editingProfileId = MarkdownBarProfile.defaultProfileId;
 
   @override
@@ -49,35 +46,29 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     super.initState();
     _shortcuts = List.from(widget.allShortcuts);
     _loadToolbarSettings();
-    _loadBarProfiles();
+    _syncFromBlocState();
   }
 
   Future<SettingsService> _getSettingsService() async {
     return _settingsService ??= await SettingsService.getInstance();
   }
 
-  Future<MarkdownBarService> _getBarService() async {
-    return _barService ??= await MarkdownBarService.getInstance();
-  }
-
-  Future<void> _loadBarProfiles() async {
-    final svc = await _getBarService();
-    if (mounted) {
+  void _syncFromBlocState() {
+    final state = context.read<MarkdownBarBloc>().state;
+    if (state is MarkdownBarLoaded) {
       setState(() {
-        _profiles = svc.profiles;
-        _editingProfileId = svc.activeProfileId;
-        // Load shortcuts for the active profile.
-        _shortcuts = svc.getShortcuts(_editingProfileId);
+        _profiles = state.profiles;
+        _editingProfileId =
+            state.editingProfileId ?? state.activeProfileId;
+        _shortcuts = List.from(state.currentShortcuts);
       });
     }
   }
 
   void _switchEditingProfile(String profileId) {
-    if (_barService == null) return;
-    setState(() {
-      _editingProfileId = profileId;
-      _shortcuts = _barService!.getShortcuts(profileId);
-    });
+    context.read<MarkdownBarBloc>().add(
+      SwitchEditingProfile(profileId: profileId),
+    );
   }
 
   Future<void> _addBarProfile() async {
@@ -85,13 +76,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       title: AppLocalizations.of(context)!.addBar,
     );
     if (name == null || name.trim().isEmpty) return;
-    final svc = await _getBarService();
-    final newId = await svc.addProfile(name);
-    setState(() {
-      _profiles = svc.profiles;
-      _editingProfileId = newId;
-      _shortcuts = svc.getShortcuts(newId);
-    });
+    context.read<MarkdownBarBloc>().add(AddBarProfile(name: name));
   }
 
   Future<void> _renameBarProfile(String profileId) async {
@@ -102,11 +87,9 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       initialValue: profile.name,
     );
     if (name == null || name.trim().isEmpty) return;
-    final svc = await _getBarService();
-    await svc.renameProfile(profileId, name);
-    setState(() {
-      _profiles = svc.profiles;
-    });
+    context.read<MarkdownBarBloc>().add(
+      RenameBarProfile(profileId: profileId, newName: name),
+    );
   }
 
   Future<void> _duplicateBarProfile(String profileId) async {
@@ -116,13 +99,9 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       initialValue: '${profile.name} (copy)',
     );
     if (name == null || name.trim().isEmpty) return;
-    final svc = await _getBarService();
-    final newId = await svc.duplicateProfile(profileId, name);
-    setState(() {
-      _profiles = svc.profiles;
-      _editingProfileId = newId;
-      _shortcuts = svc.getShortcuts(newId);
-    });
+    context.read<MarkdownBarBloc>().add(
+      DuplicateBarProfile(sourceId: profileId, newName: name),
+    );
   }
 
   Future<void> _deleteBarProfile(String profileId) async {
@@ -149,13 +128,9 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       ),
     );
     if (confirmed != true) return;
-    final svc = await _getBarService();
-    await svc.deleteProfile(profileId);
-    setState(() {
-      _profiles = svc.profiles;
-      _editingProfileId = svc.activeProfileId;
-      _shortcuts = svc.getShortcuts(_editingProfileId);
-    });
+    context.read<MarkdownBarBloc>().add(
+      DeleteBarProfile(profileId: profileId),
+    );
   }
 
   Future<String?> _showNameDialog({
@@ -250,30 +225,24 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     return UtilityButtonDefinition.getById(id)?.icon ?? Icons.help_outline;
   }
 
-  Future<void> _saveShortcuts() async {
-    try {
-      // Save shortcuts to the current profile via MarkdownBarService.
-      final svc = await _getBarService();
-      await svc.updateShortcuts(_editingProfileId, _shortcuts);
-
-      debugPrint(
-        '[MarkdownSettings] Shortcuts saved to profile $_editingProfileId (${_shortcuts.length} items)',
-      );
-    } catch (e, stackTrace) {
-      debugPrint('[MarkdownSettings] ERROR saving shortcuts: $e');
-      debugPrintStack(stackTrace: stackTrace, maxFrames: 5);
-    }
+  void _saveShortcuts() {
+    context.read<MarkdownBarBloc>().add(
+      UpdateShortcuts(
+        profileId: _editingProfileId,
+        shortcuts: List.from(_shortcuts),
+      ),
+    );
   }
 
   void _addShortcut() {
     showDialog(
       context: context,
       builder: (context) => ShortcutEditorDialog(
-        onSave: (shortcut) async {
+        onSave: (shortcut) {
           setState(() {
             _shortcuts.add(shortcut);
           });
-          await _saveShortcuts();
+          _saveShortcuts();
         },
       ),
     );
@@ -290,23 +259,23 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       context: context,
       builder: (context) => ShortcutEditorDialog(
         shortcut: shortcut,
-        onSave: (updatedShortcut) async {
+        onSave: (updatedShortcut) {
           setState(() {
             _shortcuts[index] = updatedShortcut;
           });
-          await _saveShortcuts();
+          _saveShortcuts();
         },
       ),
     );
   }
 
-  Future<void> _toggleVisibility(int index) async {
+  void _toggleVisibility(int index) {
     setState(() {
       _shortcuts[index] = _shortcuts[index].copyWith(
         isVisible: !_shortcuts[index].isVisible,
       );
     });
-    await _saveShortcuts();
+    _saveShortcuts();
   }
 
   void _deleteShortcut(int index) {
@@ -327,13 +296,12 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
             child: Text(AppLocalizations.of(context)!.cancel),
           ),
           TextButton(
-            onPressed: () async {
-              final navigator = Navigator.of(context);
+            onPressed: () {
               setState(() {
                 _shortcuts.removeAt(index);
               });
-              await _saveShortcuts();
-              navigator.pop();
+              _saveShortcuts();
+              Navigator.pop(context);
             },
             child: Text(AppLocalizations.of(context)!.delete),
           ),
@@ -391,20 +359,19 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     );
   }
 
-  Future<void> _resetToDefault() async {
-    // Keep custom shortcuts, replace default ones with the canonical set.
+  void _resetToDefault() {
     final customShortcuts = _shortcuts.where((s) => !s.isDefault).toList();
     setState(() {
       _shortcuts = [...DefaultMarkdownShortcuts.shortcuts, ...customShortcuts];
     });
-    await _saveShortcuts();
+    _saveShortcuts();
   }
 
-  Future<void> _removeAllCustom() async {
+  void _removeAllCustom() {
     setState(() {
       _shortcuts = MarkdownSettingsUtils.removeAllCustom(_shortcuts);
     });
-    await _saveShortcuts();
+    _saveShortcuts();
   }
 
   void _showProfilePickerMenu(BuildContext context, RenderBox box) {
@@ -798,7 +765,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: MarkdownToolbar(
+                  child: MarkdownBar(
                     shortcuts: _shortcuts,
                     isPreviewMode: false,
                     canUndo: true,
@@ -1112,13 +1079,13 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                       bottom: 110, // Extra space at bottom for FAB
                     ),
                     itemCount: _shortcuts.length,
-                    onReorder: (oldIndex, newIndex) async {
+                    onReorder: (oldIndex, newIndex) {
                       setState(() {
                         if (oldIndex < newIndex) newIndex -= 1;
                         final item = _shortcuts.removeAt(oldIndex);
                         _shortcuts.insert(newIndex, item);
                       });
-                      await _saveShortcuts();
+                      _saveShortcuts();
                     },
                     itemBuilder: (context, index) {
                       final shortcut = _shortcuts[index];
@@ -1225,7 +1192,18 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return LoadingScaffold(
+    return BlocListener<MarkdownBarBloc, MarkdownBarState>(
+      listener: (context, state) {
+        if (state is MarkdownBarLoaded) {
+          setState(() {
+            _profiles = state.profiles;
+            _editingProfileId =
+                state.editingProfileId ?? state.activeProfileId;
+            _shortcuts = List.from(state.currentShortcuts);
+          });
+        }
+      },
+      child: LoadingScaffold(
       drawer: const AppDrawer(),
       appBar: SettingsAppBar(
         title: AppLocalizations.of(context)!.markdownShortcuts,
@@ -1279,6 +1257,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
         onPressed: _addShortcut,
         child: const Icon(Icons.add),
       ),
+    ),
     );
   }
 }

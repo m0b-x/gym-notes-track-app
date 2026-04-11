@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
+import '../bloc/markdown_bar/markdown_bar_bloc.dart';
 import '../l10n/app_localizations.dart';
+import '../models/counter.dart';
 import '../models/custom_markdown_shortcut.dart';
-import '../services/markdown_bar_service.dart';
-import '../widgets/markdown_toolbar.dart';
+import '../widgets/markdown_bar.dart';
 import '../widgets/overlay_snackbar.dart';
 import '../widgets/simple_markdown_preview.dart';
 import '../constants/settings_keys.dart';
@@ -42,6 +44,10 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
 
   // Advanced mode toggle
   late bool _isAdvancedMode;
+
+  // Counter state
+  String? _selectedCounterId;
+  List<Counter> _availableCounters = [];
 
   // Date offset state
   late int _dateOffsetDays;
@@ -149,7 +155,10 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     // Auto-enable advanced mode if any advanced features are configured
     _isAdvancedMode = _hasAdvancedFeatures();
 
+    _selectedCounterId = widget.shortcut?.counterId;
+
     _loadShortcuts();
+    _loadCounters();
   }
 
   bool _hasAdvancedFeatures() {
@@ -202,15 +211,127 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
     }
   }
 
-  Future<void> _loadShortcuts() async {
-    final svc = await MarkdownBarService.getInstance();
-    final loaded = List<CustomMarkdownShortcut>.from(
-      svc.activeProfile.shortcuts,
+  void _loadShortcuts() {
+    final state = context.read<MarkdownBarBloc>().state;
+    if (state is MarkdownBarLoaded) {
+      setState(() {
+        _shortcuts = List.from(state.currentShortcuts);
+      });
+    }
+  }
+
+  void _loadCounters() {
+    final state = context.read<MarkdownBarBloc>().state;
+    if (state is MarkdownBarLoaded) {
+      setState(() {
+        _availableCounters = List.from(state.counters);
+      });
+    }
+  }
+
+  Future<void> _showCreateCounterDialog() async {
+    final nameController = TextEditingController();
+    final startController = TextEditingController(text: '1');
+    final stepController = TextEditingController(text: '1');
+    var scope = CounterScope.global;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final l10n = AppLocalizations.of(ctx)!;
+          return AlertDialog(
+            title: Text(l10n.addCounter),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: l10n.counterName,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: startController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      labelText: l10n.startValue,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: stepController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      labelText: l10n.step,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<CounterScope>(
+                    value: scope,
+                    decoration: InputDecoration(
+                      labelText: l10n.counterScope,
+                      border: const OutlineInputBorder(),
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: CounterScope.global,
+                        child: Text(l10n.global),
+                      ),
+                      DropdownMenuItem(
+                        value: CounterScope.perNote,
+                        child: Text(l10n.perNote),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      setDialogState(() => scope = v ?? CounterScope.global);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(l10n.cancel),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(l10n.save),
+              ),
+            ],
+          );
+        },
+      ),
     );
-    if (!mounted) return;
-    setState(() {
-      _shortcuts = loaded;
-    });
+
+    if (result != true) return;
+    final name = nameController.text.trim();
+    if (name.isEmpty) return;
+
+    context.read<MarkdownBarBloc>().add(
+      AddCounter(
+        name: name,
+        startValue: int.tryParse(startController.text) ?? 1,
+        step: int.tryParse(stepController.text) ?? 1,
+        scope: scope,
+      ),
+    );
+
+    await Future.delayed(const Duration(milliseconds: 100));
+    _loadCounters();
+    if (_availableCounters.isNotEmpty && mounted) {
+      setState(() {
+        _selectedCounterId = _availableCounters.last.id;
+      });
+    }
   }
 
   void _handleTextChange(TextEditingController controller, bool isBefore) {
@@ -451,6 +572,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
       dateOffset: dateOffset,
       repeatConfig: repeatConfig,
       isVisible: widget.shortcut?.isVisible ?? true,
+      counterId: _insertType == 'counter' ? _selectedCounterId : null,
     );
 
     widget.onSave(shortcut);
@@ -1128,6 +1250,12 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                                 AppLocalizations.of(context)!.insertCurrentDate,
                               ),
                             ),
+                            DropdownMenuItem(
+                              value: 'counter',
+                              child: Text(
+                                AppLocalizations.of(context)!.insertCounter,
+                              ),
+                            ),
                           ],
                           onChanged: (value) {
                             setState(() {
@@ -1139,6 +1267,58 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                             });
                           },
                         ),
+                        if (_insertType == 'counter') ...[
+                          const SizedBox(height: 16),
+                          Text(AppLocalizations.of(context)!.selectCounter),
+                          const SizedBox(height: 8),
+                          if (_availableCounters.isEmpty)
+                            Text(
+                              AppLocalizations.of(context)!.noCountersYet,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                            )
+                          else
+                            DropdownButtonFormField<String>(
+                              value: _selectedCounterId,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                              hint: Text(
+                                AppLocalizations.of(context)!.selectCounter,
+                              ),
+                              items: _availableCounters.map((c) {
+                                final scopeLabel = c.scope == CounterScope.global
+                                    ? AppLocalizations.of(context)!.global
+                                    : AppLocalizations.of(context)!.perNote;
+                                return DropdownMenuItem(
+                                  value: c.id,
+                                  child: Text('${c.name} ($scopeLabel)'),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedCounterId = value;
+                                });
+                              },
+                            ),
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: _showCreateCounterDialog,
+                            icon: const Icon(Icons.add, size: 18),
+                            label: Text(
+                              AppLocalizations.of(context)!.addCounter,
+                            ),
+                          ),
+                        ],
                         if (_insertType == 'date') ...[
                           const SizedBox(height: 16),
                           Text(
@@ -1461,7 +1641,7 @@ class _ShortcutEditorDialogState extends State<ShortcutEditorDialog> {
                       ),
                     ),
                   ),
-                  child: MarkdownToolbar(
+                  child: MarkdownBar(
                     shortcuts: _shortcuts.where((s) => s.isVisible).toList(),
                     isPreviewMode: false,
                     canUndo: false,

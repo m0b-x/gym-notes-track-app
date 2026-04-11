@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:get_it/get_it.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../database/database.dart';
 import '../constants/json_keys.dart';
+import 'counter_service.dart';
 import 'markdown_bar_service.dart';
 
 class BackupService {
@@ -63,6 +65,8 @@ class BackupService {
     final activeBar = await _db.userSettingsDao.getValue('active_markdown_bar');
     final noteBarAssignments = await _exportNoteBarAssignments();
 
+    final counterData = await GetIt.I<CounterService>().exportData();
+
     return {
       'version': 2,
       'exportedAt': DateTime.now().toIso8601String(),
@@ -73,6 +77,7 @@ class BackupService {
       'barProfiles': barProfiles,
       'activeBar': activeBar,
       'noteBarAssignments': noteBarAssignments,
+      'counterData': counterData,
     };
   }
 
@@ -254,6 +259,11 @@ class BackupService {
 
       // Reset MarkdownBarService so it picks up restored data
       MarkdownBarService.reset();
+
+      final counterData = data['counterData'] as Map<String, dynamic>?;
+      if (counterData != null) {
+        await GetIt.I<CounterService>().importData(counterData);
+      }
 
       return ImportResult(
         success: true,
