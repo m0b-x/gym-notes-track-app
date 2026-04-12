@@ -88,10 +88,8 @@ class CounterDao extends DatabaseAccessor<AppDatabase> with _$CounterDaoMixin {
     await transaction(() async {
       await Future.wait(
         positions.entries.map(
-          (entry) =>
-              (update(counters)..where((c) => c.id.equals(entry.key))).write(
-                CountersCompanion(position: Value(entry.value)),
-              ),
+          (entry) => (update(counters)..where((c) => c.id.equals(entry.key)))
+              .write(CountersCompanion(position: Value(entry.value))),
         ),
       );
     });
@@ -158,12 +156,13 @@ class CounterDao extends DatabaseAccessor<AppDatabase> with _$CounterDaoMixin {
     await transaction(() async {
       await Future.wait(
         positions.entries.map(
-          (entry) => (update(counterValues)..where(
+          (entry) =>
+              (update(counterValues)..where(
                     (v) =>
                         v.counterId.equals(counterId) &
                         v.noteId.equals(entry.key),
                   ))
-              .write(CounterValuesCompanion(position: Value(entry.value))),
+                  .write(CounterValuesCompanion(position: Value(entry.value))),
         ),
       );
     });

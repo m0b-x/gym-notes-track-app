@@ -561,5 +561,3 @@ class _CounterCardState extends State<_CounterCard> {
     }
   }
 }
-
-

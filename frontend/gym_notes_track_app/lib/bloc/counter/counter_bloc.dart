@@ -234,7 +234,10 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
       final noteId = event.noteId;
       final int newValue;
       if (noteId != null) {
-        newValue = await _counterService.decrementForNote(event.counterId, noteId);
+        newValue = await _counterService.decrementForNote(
+          event.counterId,
+          noteId,
+        );
       } else {
         newValue = await _counterService.decrementGlobal(event.counterId);
       }

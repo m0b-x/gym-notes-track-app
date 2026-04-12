@@ -505,5 +505,3 @@ class _NoteValueCard extends StatelessWidget {
     }
   }
 }
-
-
