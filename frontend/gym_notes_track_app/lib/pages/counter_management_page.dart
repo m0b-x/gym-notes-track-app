@@ -8,7 +8,7 @@ import '../models/counter.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/app_loading_bar.dart';
-import '../widgets/counter_form_dialog.dart';
+
 import '../widgets/unified_app_bars.dart';
 import '../utils/custom_snackbar.dart';
 import 'counter_per_note_page.dart';
@@ -129,7 +129,7 @@ class CounterManagementPage extends StatelessWidget {
 
   Future<void> _showAddCounterDialog(BuildContext context) async {
     final bloc = context.read<CounterBloc>();
-    final result = await showCounterFormDialog(context);
+    final result = await AppDialogs.counterForm(context);
     if (result == null || !context.mounted) return;
 
     bloc.add(
@@ -515,7 +515,7 @@ class _CounterCardState extends State<_CounterCard> {
         break;
 
       case 'edit':
-        final result = await showCounterFormDialog(context, existing: counter);
+        final result = await AppDialogs.counterForm(context, existing: counter);
         if (result == null || !context.mounted) return;
         bloc.add(
           UpdateCounter(

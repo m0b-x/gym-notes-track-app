@@ -48,8 +48,9 @@ final class CounterLoaded extends CounterState {
     return CounterLoaded(
       counters: counters ?? this.counters,
       counterValues: counterValues ?? this.counterValues,
-      loadedNoteId:
-          clearLoadedNoteId ? null : (loadedNoteId ?? this.loadedNoteId),
+      loadedNoteId: clearLoadedNoteId
+          ? null
+          : (loadedNoteId ?? this.loadedNoteId),
       pickedNoteValues: pickedNoteValues ?? this.pickedNoteValues,
     );
   }

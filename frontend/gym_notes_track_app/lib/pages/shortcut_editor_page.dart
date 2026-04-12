@@ -13,8 +13,7 @@ import '../widgets/overlay_snackbar.dart';
 import '../widgets/simple_markdown_preview.dart';
 import '../constants/settings_keys.dart';
 import '../utils/icon_utils.dart';
-import '../widgets/icon_picker_dialog.dart';
-import '../widgets/counter_form_dialog.dart';
+import '../widgets/app_dialogs.dart';
 import '../widgets/unified_app_bars.dart';
 
 class ShortcutEditorPage extends StatefulWidget {
@@ -197,9 +196,9 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
   }
 
   void _showIconPicker() async {
-    final selectedIcon = await showDialog<IconData>(
-      context: context,
-      builder: (context) => IconPickerDialog(currentIcon: _selectedIcon),
+    final selectedIcon = await AppDialogs.iconPicker(
+      context,
+      currentIcon: _selectedIcon,
     );
 
     if (selectedIcon != null && mounted) {
@@ -228,7 +227,7 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
   }
 
   Future<void> _showCreateCounterDialog() async {
-    final result = await showCounterFormDialog(context);
+    final result = await AppDialogs.counterForm(context);
     if (result == null || !mounted) return;
 
     final bloc = context.read<CounterBloc>();

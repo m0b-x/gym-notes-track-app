@@ -78,24 +78,29 @@ Future<CounterFormResult?> showCounterFormDialog(
                   ),
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<CounterScope>(
-                  initialValue: scope,
-                  decoration: InputDecoration(
-                    labelText: l10n.counterScope,
-                    border: const OutlineInputBorder(),
+                Text(
+                  l10n.counterScope,
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(ctx).colorScheme.onSurfaceVariant,
                   ),
-                  items: [
-                    DropdownMenuItem(
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<CounterScope>(
+                  segments: [
+                    ButtonSegment(
                       value: CounterScope.global,
-                      child: Text(l10n.global),
+                      label: Text(l10n.global),
+                      icon: const Icon(Icons.public_rounded, size: 18),
                     ),
-                    DropdownMenuItem(
+                    ButtonSegment(
                       value: CounterScope.perNote,
-                      child: Text(l10n.perNote),
+                      label: Text(l10n.perNote),
+                      icon: const Icon(Icons.note_alt_rounded, size: 18),
                     ),
                   ],
-                  onChanged: (v) {
-                    setDialogState(() => scope = v ?? CounterScope.global);
+                  selected: {scope},
+                  onSelectionChanged: (values) {
+                    setDialogState(() => scope = values.first);
                   },
                 ),
               ],

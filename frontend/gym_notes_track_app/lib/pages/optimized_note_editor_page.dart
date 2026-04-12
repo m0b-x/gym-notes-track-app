@@ -16,7 +16,6 @@ import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
 import '../bloc/markdown_bar/markdown_bar_bloc.dart';
 import '../bloc/counter/counter_bloc.dart';
-import '../models/counter.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/dev_options.dart';
 import '../models/markdown_bar_profile.dart';
@@ -28,7 +27,7 @@ import '../services/note_position_service.dart';
 import '../services/settings_service.dart';
 import '../factories/shortcut_handler_factory.dart';
 import '../widgets/bar_switcher_sheet.dart';
-import '../widgets/counter_picker_dialog.dart';
+
 import '../widgets/debug_overlays.dart';
 import '../widgets/interactive_preview_scrollbar.dart';
 import '../widgets/markdown_bar.dart';
@@ -1681,33 +1680,31 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     final counterState = context.read<CounterBloc>().state;
     if (counterState is! CounterLoaded) return;
 
-    final selected = await showDialog<Counter>(
-      context: context,
-      builder: (ctx) => CounterPickerDialog(
-        counters: counterState.counters,
-        counterValues: counterState.counterValues,
-        noteId: _effectiveNoteId,
-        onManageCounters: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => CounterManagementPage(noteId: _effectiveNoteId),
-            ),
-          );
-          if (!mounted) return null;
-          final bloc = context.read<CounterBloc>();
-          bloc.add(RefreshCounters(noteId: _effectiveNoteId));
-          final updated = await bloc.stream
-              .where((s) => s is CounterLoaded)
-              .first
-              .timeout(const Duration(seconds: 2), onTimeout: () => bloc.state);
-          if (updated is! CounterLoaded) return null;
-          return (
-            counters: updated.counters,
-            counterValues: updated.counterValues,
-          );
-        },
-      ),
+    final selected = await AppDialogs.counterPicker(
+      context,
+      counters: counterState.counters,
+      counterValues: counterState.counterValues,
+      noteId: _effectiveNoteId,
+      onManageCounters: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CounterManagementPage(noteId: _effectiveNoteId),
+          ),
+        );
+        if (!mounted) return null;
+        final bloc = context.read<CounterBloc>();
+        bloc.add(RefreshCounters(noteId: _effectiveNoteId));
+        final updated = await bloc.stream
+            .where((s) => s is CounterLoaded)
+            .first
+            .timeout(const Duration(seconds: 2), onTimeout: () => bloc.state);
+        if (updated is! CounterLoaded) return null;
+        return (
+          counters: updated.counters,
+          counterValues: updated.counterValues,
+        );
+      },
     );
 
     if (selected == null || !mounted) return;

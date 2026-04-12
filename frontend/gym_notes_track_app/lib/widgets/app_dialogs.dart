@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
+import '../models/counter.dart';
+import 'counter_form_dialog.dart';
+import 'counter_picker_dialog.dart';
+import 'icon_picker_dialog.dart';
 
 /// Unified dialog system for the entire app.
 ///
@@ -337,6 +341,63 @@ class AppDialogs {
           ),
         ],
       ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 7) Counter form (create / edit)
+  // ---------------------------------------------------------------------------
+
+  /// Shows a dialog to create or edit a counter.
+  ///
+  /// Returns a [CounterFormResult] if the user confirms, or `null` if
+  /// cancelled.  Pass [existing] to pre-fill the form for editing.
+  static Future<CounterFormResult?> counterForm(
+    BuildContext context, {
+    Counter? existing,
+  }) {
+    return showCounterFormDialog(context, existing: existing);
+  }
+
+  // ---------------------------------------------------------------------------
+  // 8) Counter picker
+  // ---------------------------------------------------------------------------
+
+  /// Shows a searchable, paginated dialog that lists available counters and
+  /// lets the user pick one.
+  static Future<Counter?> counterPicker(
+    BuildContext context, {
+    required List<Counter> counters,
+    required Map<String, int> counterValues,
+    String? noteId,
+    Future<({List<Counter> counters, Map<String, int> counterValues})?>
+    Function()?
+    onManageCounters,
+  }) {
+    return showDialog<Counter>(
+      context: context,
+      builder: (_) => CounterPickerDialog(
+        counters: counters,
+        counterValues: counterValues,
+        noteId: noteId,
+        onManageCounters: onManageCounters,
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 9) Icon picker
+  // ---------------------------------------------------------------------------
+
+  /// Shows a searchable icon-grid dialog.  Returns the picked [IconData] or
+  /// `null` if cancelled.
+  static Future<IconData?> iconPicker(
+    BuildContext context, {
+    IconData? currentIcon,
+  }) {
+    return showDialog<IconData>(
+      context: context,
+      builder: (_) => IconPickerDialog(currentIcon: currentIcon),
     );
   }
 }

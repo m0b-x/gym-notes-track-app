@@ -445,10 +445,7 @@ class CounterService {
             await _dao.setNoteValuePinned(counterId, noteId, true);
           }
           if (position != 0) {
-            await _dao.updateNoteValuePositions(
-              counterId,
-              {noteId: position},
-            );
+            await _dao.updateNoteValuePositions(counterId, {noteId: position});
           }
         }
       } catch (e) {
