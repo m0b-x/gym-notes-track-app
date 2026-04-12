@@ -8,6 +8,8 @@ class CounterValues extends Table {
   TextColumn get counterId => text()();
   TextColumn get noteId => text().withDefault(const Constant(''))();
   IntColumn get value => integer()();
+  IntColumn get position => integer().withDefault(const Constant(0))();
+  BoolColumn get isPinned => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {counterId, noteId};

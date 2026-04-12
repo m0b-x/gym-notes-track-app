@@ -1974,9 +1974,9 @@
   "@noNotesMatchSearch": {
     "description": "Message when the search query doesn't match any notes"
   },
-  "counterSelectNoteToView": "Tap to select a note",
+  "counterSelectNoteToView": "Tap to manage note values",
   "@counterSelectNoteToView": {
-    "description": "Prompt shown on per-note counter cards when no note is selected"
+    "description": "Prompt shown on per-note counter cards to open the per-note values page"
   },
   "counterLoadError": "Failed to load counters",
   "@counterLoadError": {
@@ -1985,5 +1985,53 @@
   "counterRetry": "Retry",
   "@counterRetry": {
     "description": "Button label to retry loading counters"
+  },
+  "counterPerNoteValues": "Values per Note",
+  "@counterPerNoteValues": {
+    "description": "Title for the per-note counter values page"
+  },
+  "counterPerNoteEmpty": "No notes have values for this counter yet",
+  "@counterPerNoteEmpty": {
+    "description": "Empty state when no notes exist for per-note counter"
+  },
+  "counterResetAllNotes": "Reset All Notes",
+  "@counterResetAllNotes": {
+    "description": "Button to reset counter value for all notes"
+  },
+  "counterResetAllConfirm": "Reset this counter to its start value for all notes?",
+  "@counterResetAllConfirm": {
+    "description": "Confirmation message for resetting all per-note values"
+  },
+  "counterResetAllSuccess": "All note values reset",
+  "@counterResetAllSuccess": {
+    "description": "Snackbar after resetting all per-note values"
+  },
+  "counterManageNoteValues": "Manage note values",
+  "@counterManageNoteValues": {
+    "description": "Menu item to open per-note values page"
+  },
+  "pinCounter": "Pin",
+  "@pinCounter": {
+    "description": "Menu action to pin a counter"
+  },
+  "unpinCounter": "Unpin",
+  "@unpinCounter": {
+    "description": "Menu action to unpin a counter"
+  },
+  "addNote": "Add Note",
+  "@addNote": {
+    "description": "Button to add a note to the per-note counter"
+  },
+  "removeNote": "Remove Note",
+  "@removeNote": {
+    "description": "Menu action to remove a note from per-note counter"
+  },
+  "removeNoteConfirm": "Remove this note from the counter? The value will be lost.",
+  "@removeNoteConfirm": {
+    "description": "Confirmation message for removing a note from per-note counter"
+  },
+  "noteAlreadyAdded": "This note is already added",
+  "@noteAlreadyAdded": {
+    "description": "Snackbar when trying to add a duplicate note"
   }
 }

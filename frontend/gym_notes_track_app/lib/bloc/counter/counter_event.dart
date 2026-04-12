@@ -129,3 +129,27 @@ final class LoadCounterForNote extends CounterEvent {
   @override
   List<Object?> get props => [counterId, noteId];
 }
+
+final class PinCounter extends CounterEvent {
+  final String counterId;
+
+  const PinCounter({required this.counterId});
+
+  @override
+  List<Object?> get props => [counterId];
+}
+
+/// Centralized event to set (or clear) the note context for the counter BLoC.
+///
+/// When [noteId] is non-null, [CounterLoaded.counterValues] will be rebuilt
+/// with per-note values for that note and [CounterLoaded.loadedNoteId] updated.
+/// When [noteId] is null, the context is cleared back to global-only values.
+/// Dispatch this when entering / leaving a note editor.
+final class SetNoteContext extends CounterEvent {
+  final String? noteId;
+
+  const SetNoteContext({this.noteId});
+
+  @override
+  List<Object?> get props => [noteId];
+}

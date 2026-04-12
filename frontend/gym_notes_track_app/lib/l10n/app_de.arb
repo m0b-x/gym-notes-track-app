@@ -1479,7 +1479,19 @@
   "searchNotes": "Notizen suchen…",
   "noNotesAvailable": "Noch keine Notizen",
   "noNotesMatchSearch": "Keine Notizen gefunden",
-  "counterSelectNoteToView": "Tippen, um eine Notiz auszuwählen",
+  "counterSelectNoteToView": "Tippen, um Notizwerte zu verwalten",
   "counterLoadError": "Zähler konnten nicht geladen werden",
-  "counterRetry": "Erneut versuchen"
+  "counterRetry": "Erneut versuchen",
+  "counterPerNoteValues": "Werte pro Notiz",
+  "counterPerNoteEmpty": "Noch keine Notizen haben Werte für diesen Zähler",
+  "counterResetAllNotes": "Alle Notizen zurücksetzen",
+  "counterResetAllConfirm": "Diesen Zähler für alle Notizen auf den Startwert zurücksetzen?",
+  "counterResetAllSuccess": "Alle Notizwerte zurückgesetzt",
+  "counterManageNoteValues": "Notizwerte verwalten",
+  "pinCounter": "Anheften",
+  "unpinCounter": "Lösen",
+  "addNote": "Notiz hinzufügen",
+  "removeNote": "Notiz entfernen",
+  "removeNoteConfirm": "Diese Notiz vom Zähler entfernen? Der Wert geht verloren.",
+  "noteAlreadyAdded": "Diese Notiz ist bereits hinzugefügt"
 }

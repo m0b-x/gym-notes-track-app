@@ -1490,11 +1490,52 @@ class AppLocalizationsRo extends AppLocalizations {
   String get noNotesMatchSearch => 'Nicio notiță nu corespunde căutării';
 
   @override
-  String get counterSelectNoteToView => 'Apasă pentru a selecta o notiță';
+  String get counterSelectNoteToView =>
+      'Apasă pentru a gestiona valorile per notițe';
 
   @override
   String get counterLoadError => 'Nu s-au putut încărca contoarele';
 
   @override
   String get counterRetry => 'Încercă din nou';
+
+  @override
+  String get counterPerNoteValues => 'Valori per notiță';
+
+  @override
+  String get counterPerNoteEmpty =>
+      'Nicio notiță nu are încă valori pentru acest contor';
+
+  @override
+  String get counterResetAllNotes => 'Resetează toate notițele';
+
+  @override
+  String get counterResetAllConfirm =>
+      'Resetezi acest contor la valoarea inițială pentru toate notițele?';
+
+  @override
+  String get counterResetAllSuccess =>
+      'Toate valorile per notiță au fost resetate';
+
+  @override
+  String get counterManageNoteValues => 'Gestionează valori per notiță';
+
+  @override
+  String get pinCounter => 'Fixează';
+
+  @override
+  String get unpinCounter => 'Eliberează';
+
+  @override
+  String get addNote => 'Adaugă notiță';
+
+  @override
+  String get removeNote => 'Elimină notița';
+
+  @override
+  String get removeNoteConfirm =>
+      'Elimini această notiță din contor? Valoarea va fi pierdută.';
+
+  @override
+  String get noteAlreadyAdded => 'Această notiță este deja adăugată';
 }

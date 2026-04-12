@@ -39,6 +39,7 @@ class AppConstants {
   // PAGINATION CONSTANTS
   // ============================================================
   static const int defaultPageSize = 20;
+  static const int notePickerPageSize = 6;
 
   // ============================================================
   // CACHE CONSTANTS

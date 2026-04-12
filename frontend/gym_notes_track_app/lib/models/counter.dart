@@ -10,6 +10,7 @@ class Counter extends Equatable {
   final int startValue;
   final int step;
   final CounterScope scope;
+  final bool isPinned;
   final DateTime createdAt;
 
   const Counter({
@@ -18,6 +19,7 @@ class Counter extends Equatable {
     this.startValue = 1,
     this.step = 1,
     this.scope = CounterScope.global,
+    this.isPinned = false,
     required this.createdAt,
   });
 
@@ -27,6 +29,7 @@ class Counter extends Equatable {
     JsonKeys.counterStartValue: startValue,
     JsonKeys.counterStep: step,
     JsonKeys.counterScope: scope.name,
+    JsonKeys.counterIsPinned: isPinned,
     JsonKeys.createdAt: createdAt.toIso8601String(),
   };
 
@@ -40,9 +43,9 @@ class Counter extends Equatable {
         (s) => s.name == (json[JsonKeys.counterScope] as String? ?? 'global'),
         orElse: () => CounterScope.global,
       ),
-      createdAt: DateTime.tryParse(
-            json[JsonKeys.createdAt] as String? ?? '',
-          ) ??
+      isPinned: json[JsonKeys.counterIsPinned] as bool? ?? false,
+      createdAt:
+          DateTime.tryParse(json[JsonKeys.createdAt] as String? ?? '') ??
           DateTime.now(),
     );
   }
@@ -53,6 +56,7 @@ class Counter extends Equatable {
     int? startValue,
     int? step,
     CounterScope? scope,
+    bool? isPinned,
     DateTime? createdAt,
   }) {
     return Counter(
@@ -61,10 +65,19 @@ class Counter extends Equatable {
       startValue: startValue ?? this.startValue,
       step: step ?? this.step,
       scope: scope ?? this.scope,
+      isPinned: isPinned ?? this.isPinned,
       createdAt: createdAt ?? this.createdAt,
     );
   }
 
   @override
-  List<Object?> get props => [id, name, startValue, step, scope, createdAt];
+  List<Object?> get props => [
+    id,
+    name,
+    startValue,
+    step,
+    scope,
+    isPinned,
+    createdAt,
+  ];
 }

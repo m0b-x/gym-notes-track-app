@@ -26,6 +26,8 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
     on<RefreshCounters>(_onRefreshCounters);
     on<ReorderCounters>(_onReorderCounters);
     on<LoadCounterForNote>(_onLoadCounterForNote);
+    on<PinCounter>(_onPinCounter);
+    on<SetNoteContext>(_onSetNoteContext);
   }
 
   // ---------------------------------------------------------------------------
@@ -273,9 +275,11 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
     if (current is! CounterLoaded) return;
     final noteId = event.noteId ?? current.loadedNoteId;
     emit(
-      current.copyWith(
+      CounterLoaded(
         counters: _counterService.counters,
         counterValues: await _buildCounterValues(noteId),
+        loadedNoteId: noteId,
+        pickedNoteValues: current.pickedNoteValues,
       ),
     );
   }
@@ -312,5 +316,40 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
     } catch (e) {
       debugPrint('[CounterBloc] LoadCounterForNote error: $e');
     }
+  }
+
+  Future<void> _onPinCounter(
+    PinCounter event,
+    Emitter<CounterState> emit,
+  ) async {
+    final current = state;
+    if (current is! CounterLoaded) return;
+    try {
+      await _counterService.toggleCounterPin(event.counterId);
+      emit(current.copyWith(counters: _counterService.counters));
+    } catch (e) {
+      debugPrint('[CounterBloc] PinCounter error: $e');
+    }
+  }
+
+  /// Sets (or clears) the active note context. Rebuilds [counterValues] so
+  /// per-note counters reflect the target note (or fall back to global values
+  /// when [event.noteId] is null). This is the single, centralized point for
+  /// switching note context — all pages should dispatch this event instead of
+  /// manually passing noteId to [RefreshCounters] or [LoadCounters].
+  Future<void> _onSetNoteContext(
+    SetNoteContext event,
+    Emitter<CounterState> emit,
+  ) async {
+    final current = state;
+    if (current is! CounterLoaded) return;
+    emit(
+      CounterLoaded(
+        counters: _counterService.counters,
+        counterValues: await _buildCounterValues(event.noteId),
+        loadedNoteId: event.noteId,
+        pickedNoteValues: current.pickedNoteValues,
+      ),
+    );
   }
 }

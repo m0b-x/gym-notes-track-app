@@ -39,6 +39,11 @@ class DatabaseMigrations {
       toVersion: DatabaseSchema.v7CounterDateTimeFix,
       migrate: _migrateV6ToV7,
     ),
+    Migration(
+      fromVersion: DatabaseSchema.v7CounterDateTimeFix,
+      toVersion: DatabaseSchema.v8CounterPinAndOrder,
+      migrate: _migrateV7ToV8,
+    ),
   ];
 
   Future<void> runMigrations(Migrator m, int from, int to) async {
@@ -108,9 +113,27 @@ class DatabaseMigrations {
   }
 
   Future<void> _migrateV5ToV6(Migrator m, GeneratedDatabase db) async {
-    // 1. Create the new tables
-    await m.createTable(_db.counters);
-    await m.createTable(_db.counterValues);
+    // 1. Create the new tables using raw SQL (schema as of v6, without
+    //    isPinned/position columns that were added in v8)
+    await _db.customStatement(
+      'CREATE TABLE IF NOT EXISTS counters ('
+      '  id TEXT NOT NULL PRIMARY KEY, '
+      '  name TEXT NOT NULL, '
+      '  start_value INTEGER NOT NULL DEFAULT 1, '
+      '  step INTEGER NOT NULL DEFAULT 1, '
+      '  scope TEXT NOT NULL DEFAULT \'global\', '
+      '  position INTEGER NOT NULL DEFAULT 0, '
+      '  created_at INTEGER NOT NULL'
+      ')',
+    );
+    await _db.customStatement(
+      'CREATE TABLE IF NOT EXISTS counter_values ('
+      '  counter_id TEXT NOT NULL, '
+      '  note_id TEXT NOT NULL DEFAULT \'\', '
+      '  value INTEGER NOT NULL, '
+      '  PRIMARY KEY (counter_id, note_id)'
+      ')',
+    );
 
     // 2. Create index on counter_values for fast lookups by counter_id
     await _db.customStatement(
@@ -207,5 +230,17 @@ class DatabaseMigrations {
         }
       } catch (_) {}
     }
+  }
+
+  Future<void> _migrateV7ToV8(Migrator m, GeneratedDatabase db) async {
+    await _db.customStatement(
+      'ALTER TABLE counters ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0',
+    );
+    await _db.customStatement(
+      'ALTER TABLE counter_values ADD COLUMN position INTEGER NOT NULL DEFAULT 0',
+    );
+    await _db.customStatement(
+      'ALTER TABLE counter_values ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0',
+    );
   }
 }

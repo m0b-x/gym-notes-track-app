@@ -14,9 +14,11 @@ class CounterDao extends DatabaseAccessor<AppDatabase> with _$CounterDaoMixin {
   // ---------------------------------------------------------------------------
 
   Future<List<CounterRow>> getAllCounters() {
-    return (select(
-      counters,
-    )..orderBy([(c) => OrderingTerm.asc(c.position)])).get();
+    return (select(counters)..orderBy([
+          (c) => OrderingTerm.desc(c.isPinned),
+          (c) => OrderingTerm.asc(c.position),
+        ]))
+        .get();
   }
 
   Future<void> insertCounter(CountersCompanion entry) {
@@ -94,6 +96,68 @@ class CounterDao extends DatabaseAccessor<AppDatabase> with _$CounterDaoMixin {
   /// Returns all counter-value rows (for backup export).
   Future<List<CounterValueRow>> getAllValues() {
     return select(counterValues).get();
+  }
+
+  Future<Map<String, int>> getValuesForCounter(String counterId) async {
+    final rows =
+        await (select(counterValues)..where(
+              (v) => v.counterId.equals(counterId) & v.noteId.isNotValue(''),
+            ))
+            .get();
+    return {for (final r in rows) r.noteId: r.value};
+  }
+
+  Future<List<CounterValueRow>> getValuesForCounterOrdered(
+    String counterId,
+  ) async {
+    return (select(counterValues)
+          ..where(
+            (v) => v.counterId.equals(counterId) & v.noteId.isNotValue(''),
+          )
+          ..orderBy([
+            (v) => OrderingTerm.desc(v.isPinned),
+            (v) => OrderingTerm.asc(v.position),
+          ]))
+        .get();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Counter pin
+  // ---------------------------------------------------------------------------
+
+  Future<void> setCounterPinned(String id, bool pinned) {
+    return (update(counters)..where((c) => c.id.equals(id))).write(
+      CountersCompanion(isPinned: Value(pinned)),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Counter-value pin + reorder
+  // ---------------------------------------------------------------------------
+
+  Future<void> setNoteValuePinned(
+    String counterId,
+    String noteId,
+    bool pinned,
+  ) {
+    return (update(counterValues)..where(
+          (v) => v.counterId.equals(counterId) & v.noteId.equals(noteId),
+        ))
+        .write(CounterValuesCompanion(isPinned: Value(pinned)));
+  }
+
+  Future<void> updateNoteValuePositions(
+    String counterId,
+    Map<String, int> positions,
+  ) async {
+    await transaction(() async {
+      for (final entry in positions.entries) {
+        await (update(counterValues)..where(
+              (v) => v.counterId.equals(counterId) & v.noteId.equals(entry.key),
+            ))
+            .write(CounterValuesCompanion(position: Value(entry.value)));
+      }
+    });
   }
 
   /// Deletes every counter and counter-value row (used before import).

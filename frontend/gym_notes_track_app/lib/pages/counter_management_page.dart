@@ -5,14 +5,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/counter/counter_bloc.dart';
 import '../l10n/app_localizations.dart';
 import '../models/counter.dart';
-import '../models/note_metadata.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/app_loading_bar.dart';
 import '../widgets/counter_form_dialog.dart';
-import '../widgets/note_picker_dialog.dart';
 import '../widgets/unified_app_bars.dart';
 import '../utils/custom_snackbar.dart';
+import 'counter_per_note_page.dart';
 
 class CounterManagementPage extends StatelessWidget {
   final String? noteId;
@@ -69,7 +68,6 @@ class CounterManagementPage extends StatelessWidget {
                 currentValue: currentValue,
                 index: index,
                 noteId: noteId,
-                pickedNoteValues: state.pickedNoteValues,
               );
             },
           );
@@ -120,7 +118,7 @@ class CounterManagementPage extends StatelessWidget {
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: () =>
-                context.read<CounterBloc>().add(const LoadCounters()),
+                context.read<CounterBloc>().add(LoadCounters(noteId: noteId)),
             icon: const Icon(Icons.refresh_rounded),
             label: Text(l10n.counterRetry),
           ),
@@ -154,7 +152,6 @@ class _CounterCard extends StatefulWidget {
   final int currentValue;
   final int index;
   final String? noteId;
-  final Map<String, int> pickedNoteValues;
 
   const _CounterCard({
     super.key,
@@ -162,7 +159,6 @@ class _CounterCard extends StatefulWidget {
     required this.currentValue,
     required this.index,
     this.noteId,
-    this.pickedNoteValues = const {},
   });
 
   @override
@@ -170,29 +166,10 @@ class _CounterCard extends StatefulWidget {
 }
 
 class _CounterCardState extends State<_CounterCard> {
-  NoteMetadata? _selectedNote;
-
   Counter get counter => widget.counter;
   int get index => widget.index;
 
-  /// The effective noteId: either passed from the page or picked by the user.
-  String? get _effectiveNoteId => widget.noteId ?? _selectedNote?.id;
-
-  /// True when the user picked a note locally on this card (not passed from page).
-  bool get _isLocalNoteMode =>
-      widget.noteId == null &&
-      _selectedNote != null &&
-      counter.scope != CounterScope.global;
-
-  /// Display value: when in local-note mode reads from [pickedNoteValues] in
-  /// the bloc state; otherwise uses the value passed from the parent builder.
-  int get _displayValue {
-    if (_isLocalNoteMode) {
-      final key = '${counter.id}::${_selectedNote!.id}';
-      return widget.pickedNoteValues[key] ?? counter.startValue;
-    }
-    return widget.currentValue;
-  }
+  String? get _effectiveNoteId => widget.noteId;
 
   @override
   Widget build(BuildContext context) {
@@ -206,7 +183,9 @@ class _CounterCardState extends State<_CounterCard> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          color: counter.isPinned
+              ? colorScheme.primary.withValues(alpha: 0.5)
+              : colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -249,12 +228,29 @@ class _CounterCardState extends State<_CounterCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        counter.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Row(
+                        children: [
+                          if (counter.isPinned)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: Icon(
+                                Icons.push_pin_rounded,
+                                size: 14,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                          Expanded(
+                            child: Text(
+                              counter.name,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -277,6 +273,35 @@ class _CounterCardState extends State<_CounterCard> {
                   ),
                   onSelected: (action) => _handleAction(context, action),
                   itemBuilder: (ctx) => [
+                    PopupMenuItem(
+                      value: 'pin',
+                      child: ListTile(
+                        leading: Icon(
+                          counter.isPinned
+                              ? Icons.push_pin_outlined
+                              : Icons.push_pin_rounded,
+                        ),
+                        title: Text(
+                          counter.isPinned
+                              ? l10n.unpinCounter
+                              : l10n.pinCounter,
+                        ),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                    if (!isGlobal)
+                      PopupMenuItem(
+                        value: 'manage_notes',
+                        child: ListTile(
+                          leading: const Icon(Icons.list_alt_rounded),
+                          title: Text(l10n.counterManageNoteValues),
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
                     PopupMenuItem(
                       value: 'edit',
                       child: ListTile(
@@ -324,48 +349,6 @@ class _CounterCardState extends State<_CounterCard> {
               _buildStepper(context, colorScheme)
             else
               _buildNotePickerPrompt(context, l10n, colorScheme),
-            // Show selected note chip when user picked one
-            if (!isGlobal && widget.noteId == null && _selectedNote != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.note_alt_rounded,
-                      size: 14,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        _selectedNote!.title.isEmpty
-                            ? l10n.untitledNote
-                            : _selectedNote!.title,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () => setState(() {
-                        _selectedNote = null;
-                      }),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Icon(
-                          Icons.close_rounded,
-                          size: 14,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             const SizedBox(height: 8),
             // Info chips row
             Wrap(
@@ -396,7 +379,7 @@ class _CounterCardState extends State<_CounterCard> {
     ColorScheme colorScheme,
   ) {
     return InkWell(
-      onTap: () => _pickNote(context),
+      onTap: () => _openPerNotePage(context),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -430,14 +413,16 @@ class _CounterCardState extends State<_CounterCard> {
     );
   }
 
-  Future<void> _pickNote(BuildContext context) async {
-    final note = await showNotePickerDialog(context);
-    if (note == null || !mounted) return;
-    // Load the value through the bloc so all mutations stay in one place.
-    context.read<CounterBloc>().add(
-      LoadCounterForNote(counterId: counter.id, noteId: note.id),
+  Future<void> _openPerNotePage(BuildContext context) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CounterPerNotePage(counter: counter)),
     );
-    setState(() => _selectedNote = note);
+    if (context.mounted) {
+      context.read<CounterBloc>().add(
+        RefreshCounters(noteId: _effectiveNoteId),
+      );
+    }
   }
 
   Widget _buildStepper(BuildContext context, ColorScheme colorScheme) {
@@ -463,7 +448,7 @@ class _CounterCardState extends State<_CounterCard> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                '$_displayValue',
+                '${widget.currentValue}',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 22,
@@ -490,7 +475,7 @@ class _CounterCardState extends State<_CounterCard> {
     final raw = await AppDialogs.textInput(
       context,
       title: l10n.counterSetValue,
-      initialValue: '$_displayValue',
+      initialValue: '${widget.currentValue}',
       keyboardType: const TextInputType.numberWithOptions(signed: true),
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^-?\d*'))],
     );
@@ -511,6 +496,24 @@ class _CounterCardState extends State<_CounterCard> {
     final l10n = AppLocalizations.of(context)!;
 
     switch (action) {
+      case 'pin':
+        bloc.add(PinCounter(counterId: counter.id));
+        break;
+
+      case 'manage_notes':
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CounterPerNotePage(counter: counter),
+          ),
+        );
+        if (context.mounted) {
+          context.read<CounterBloc>().add(
+            RefreshCounters(noteId: _effectiveNoteId),
+          );
+        }
+        break;
+
       case 'edit':
         final result = await showCounterFormDialog(context, existing: counter);
         if (result == null || !context.mounted) return;

@@ -1478,11 +1478,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noNotesMatchSearch => 'No notes match your search';
 
   @override
-  String get counterSelectNoteToView => 'Tap to select a note';
+  String get counterSelectNoteToView => 'Tap to manage note values';
 
   @override
   String get counterLoadError => 'Failed to load counters';
 
   @override
   String get counterRetry => 'Retry';
+
+  @override
+  String get counterPerNoteValues => 'Values per Note';
+
+  @override
+  String get counterPerNoteEmpty => 'No notes have values for this counter yet';
+
+  @override
+  String get counterResetAllNotes => 'Reset All Notes';
+
+  @override
+  String get counterResetAllConfirm =>
+      'Reset this counter to its start value for all notes?';
+
+  @override
+  String get counterResetAllSuccess => 'All note values reset';
+
+  @override
+  String get counterManageNoteValues => 'Manage note values';
+
+  @override
+  String get pinCounter => 'Pin';
+
+  @override
+  String get unpinCounter => 'Unpin';
+
+  @override
+  String get addNote => 'Add Note';
+
+  @override
+  String get removeNote => 'Remove Note';
+
+  @override
+  String get removeNoteConfirm =>
+      'Remove this note from the counter? The value will be lost.';
+
+  @override
+  String get noteAlreadyAdded => 'This note is already added';
 }

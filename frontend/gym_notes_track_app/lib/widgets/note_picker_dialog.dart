@@ -1,19 +1,23 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
+import '../bloc/note_picker/note_picker_bloc.dart';
+import '../bloc/note_picker/note_picker_event.dart';
+import '../bloc/note_picker/note_picker_state.dart';
 import '../l10n/app_localizations.dart';
 import '../models/note_metadata.dart';
 import '../services/note_storage_service.dart';
 
-/// A searchable dialog that lists available notes and lets the user pick one.
-///
-/// Returns the selected [NoteMetadata] or `null` if cancelled.
 Future<NoteMetadata?> showNotePickerDialog(BuildContext context) {
   return showDialog<NoteMetadata>(
     context: context,
-    builder: (_) => const _NotePickerDialog(),
+    builder: (_) => BlocProvider(
+      create: (_) =>
+          NotePickerBloc(storageService: GetIt.I<NoteStorageService>())
+            ..add(const NotePickerOpened()),
+      child: const _NotePickerDialog(),
+    ),
   );
 }
 
@@ -26,73 +30,28 @@ class _NotePickerDialog extends StatefulWidget {
 
 class _NotePickerDialogState extends State<_NotePickerDialog> {
   final _searchController = TextEditingController();
-  List<NoteMetadata> _allNotes = [];
-  List<NoteMetadata> _filtered = [];
-  bool _isLoading = true;
-  Timer? _debounce;
-
-  static const _kPageSize = 6;
-  int _page = 0;
-
-  int get _totalPages => (_filtered.length / _kPageSize).ceil().clamp(1, 999);
-
-  List<NoteMetadata> get _pageItems {
-    final start = _page * _kPageSize;
-    final end = (start + _kPageSize).clamp(0, _filtered.length);
-    return _filtered.sublist(start, end);
-  }
 
   @override
   void initState() {
     super.initState();
-    _loadNotes();
     _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
-    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadNotes() async {
-    final storageService = GetIt.I<NoteStorageService>();
-    final paginated = await storageService.loadNotesPaginated(
-      pageSize: 1000,
-      sortOrder: NotesSortOrder.updatedDesc,
-    );
-    if (!mounted) return;
-    setState(() {
-      _allNotes = paginated.notes;
-      _filtered = _allNotes;
-      _isLoading = false;
-    });
-  }
-
   void _onSearchChanged() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 200), () {
-      final query = _searchController.text.toLowerCase().trim();
-      setState(() {
-        if (query.isEmpty) {
-          _filtered = _allNotes;
-        } else {
-          _filtered = _allNotes.where((n) {
-            return n.title.toLowerCase().contains(query) ||
-                n.preview.toLowerCase().contains(query);
-          }).toList();
-        }
-        _page = 0;
-      });
-    });
+    context.read<NotePickerBloc>().add(
+      NotePickerQueryChanged(_searchController.text.trim()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
-    final showPagination = _filtered.length > _kPageSize;
 
     return AlertDialog(
       title: Text(l10n.selectNote),
@@ -102,7 +61,6 @@ class _NotePickerDialogState extends State<_NotePickerDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Search field
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: TextField(
@@ -127,109 +85,21 @@ class _NotePickerDialogState extends State<_NotePickerDialog> {
               ),
             ),
             const SizedBox(height: 8),
-
-            // Content
             Flexible(
-              child: _isLoading
-                  ? const Padding(
+              child: BlocBuilder<NotePickerBloc, NotePickerState>(
+                builder: (context, state) {
+                  return switch (state) {
+                    NotePickerInitial() || NotePickerLoading() => const Padding(
                       padding: EdgeInsets.all(24),
                       child: Center(child: CircularProgressIndicator()),
-                    )
-                  : _filtered.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _allNotes.isEmpty
-                                ? Icons.note_outlined
-                                : Icons.search_off_rounded,
-                            size: 40,
-                            color: colorScheme.onSurfaceVariant.withValues(
-                              alpha: 0.4,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _allNotes.isEmpty
-                                ? l10n.noNotesAvailable
-                                : l10n.noNotesMatchSearch,
-                            style: TextStyle(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: _pageItems.length,
-                      itemBuilder: (context, index) {
-                        final note = _pageItems[index];
-                        return ListTile(
-                          leading: Icon(
-                            Icons.note_alt_rounded,
-                            color: colorScheme.primary,
-                          ),
-                          title: Text(
-                            note.title.isEmpty ? l10n.untitledNote : note.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                          subtitle: note.preview.isNotEmpty
-                              ? Text(
-                                  note.preview,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                )
-                              : null,
-                          onTap: () => Navigator.pop(context, note),
-                        );
-                      },
                     ),
-            ),
-
-            // Pagination
-            if (showPagination)
-              Padding(
-                padding: const EdgeInsets.only(top: 4, bottom: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left_rounded, size: 22),
-                      onPressed: _page > 0
-                          ? () => setState(() => _page--)
-                          : null,
-                      visualDensity: VisualDensity.compact,
-                      tooltip: MaterialLocalizations.of(
-                        context,
-                      ).previousPageTooltip,
-                    ),
-                    Text(
-                      '${_page + 1} / $_totalPages',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right_rounded, size: 22),
-                      onPressed: _page < _totalPages - 1
-                          ? () => setState(() => _page++)
-                          : null,
-                      visualDensity: VisualDensity.compact,
-                      tooltip: MaterialLocalizations.of(
-                        context,
-                      ).nextPageTooltip,
-                    ),
-                  ],
-                ),
+                    NotePickerError() => const SizedBox.shrink(),
+                    NotePickerLoaded(:final paginatedNotes, :final query) =>
+                      _NoteList(paginatedNotes: paginatedNotes, query: query),
+                  };
+                },
               ),
+            ),
           ],
         ),
       ),
@@ -238,6 +108,112 @@ class _NotePickerDialogState extends State<_NotePickerDialog> {
           onPressed: () => Navigator.pop(context),
           child: Text(l10n.cancel),
         ),
+      ],
+    );
+  }
+}
+
+class _NoteList extends StatelessWidget {
+  final PaginatedNotes paginatedNotes;
+  final String query;
+
+  const _NoteList({required this.paginatedNotes, required this.query});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final notes = paginatedNotes.notes;
+    final showPagination = paginatedNotes.totalPages > 1;
+
+    if (notes.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              query.isEmpty ? Icons.note_outlined : Icons.search_off_rounded,
+              size: 40,
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              query.isEmpty ? l10n.noNotesAvailable : l10n.noNotesMatchSearch,
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListView.builder(
+          shrinkWrap: true,
+          itemCount: notes.length,
+          itemBuilder: (context, index) {
+            final note = notes[index];
+            return ListTile(
+              leading: Icon(Icons.note_alt_rounded, color: colorScheme.primary),
+              title: Text(
+                note.title.isEmpty ? l10n.untitledNote : note.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+              subtitle: note.preview.isNotEmpty
+                  ? Text(
+                      note.preview,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    )
+                  : null,
+              onTap: () => Navigator.pop(context, note),
+            );
+          },
+        ),
+        if (showPagination)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left_rounded, size: 22),
+                  onPressed: paginatedNotes.currentPage > 1
+                      ? () => context.read<NotePickerBloc>().add(
+                          NotePickerPageChanged(paginatedNotes.currentPage - 1),
+                        )
+                      : null,
+                  visualDensity: VisualDensity.compact,
+                  tooltip: MaterialLocalizations.of(
+                    context,
+                  ).previousPageTooltip,
+                ),
+                Text(
+                  '${paginatedNotes.currentPage} / ${paginatedNotes.totalPages}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right_rounded, size: 22),
+                  onPressed: paginatedNotes.hasMore
+                      ? () => context.read<NotePickerBloc>().add(
+                          NotePickerPageChanged(paginatedNotes.currentPage + 1),
+                        )
+                      : null,
+                  visualDensity: VisualDensity.compact,
+                  tooltip: MaterialLocalizations.of(context).nextPageTooltip,
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

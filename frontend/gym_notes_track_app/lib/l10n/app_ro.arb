@@ -401,7 +401,19 @@
   "searchNotes": "Caută notițe…",
   "noNotesAvailable": "Nicio notiță încă",
   "noNotesMatchSearch": "Nicio notiță nu corespunde căutării",
-  "counterSelectNoteToView": "Apasă pentru a selecta o notiță",
+  "counterSelectNoteToView": "Apasă pentru a gestiona valorile per notițe",
   "counterLoadError": "Nu s-au putut încărca contoarele",
-  "counterRetry": "Încercă din nou"
+  "counterRetry": "Încercă din nou",
+  "counterPerNoteValues": "Valori per notiță",
+  "counterPerNoteEmpty": "Nicio notiță nu are încă valori pentru acest contor",
+  "counterResetAllNotes": "Resetează toate notițele",
+  "counterResetAllConfirm": "Resetezi acest contor la valoarea inițială pentru toate notițele?",
+  "counterResetAllSuccess": "Toate valorile per notiță au fost resetate",
+  "counterManageNoteValues": "Gestionează valori per notiță",
+  "pinCounter": "Fixează",
+  "unpinCounter": "Eliberează",
+  "addNote": "Adaugă notiță",
+  "removeNote": "Elimină notița",
+  "removeNoteConfirm": "Elimini această notiță din contor? Valoarea va fi pierdută.",
+  "noteAlreadyAdded": "Această notiță este deja adăugată"
 }

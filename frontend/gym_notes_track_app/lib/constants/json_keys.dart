@@ -48,6 +48,7 @@ class JsonKeys {
   static const String counterStartValue = 'counterStartValue';
   static const String counterStep = 'counterStep';
   static const String counterScope = 'counterScope';
+  static const String counterIsPinned = 'isPinned';
 
   static const String wordToNoteIds = 'wordToNoteIds';
   static const String termFrequency = 'termFrequency';

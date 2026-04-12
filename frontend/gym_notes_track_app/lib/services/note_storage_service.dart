@@ -161,6 +161,42 @@ class NoteStorageService {
     await _repository.deleteNote(noteId);
   }
 
+  Future<PaginatedNotes> loadNotePickerPage({
+    String query = '',
+    int page = 1,
+    int pageSize = AppConstants.notePickerPageSize,
+  }) async {
+    await initialize();
+
+    if (query.isEmpty) {
+      return loadNotesPaginated(
+        page: page,
+        pageSize: pageSize,
+        sortOrder: NotesSortOrder.updatedDesc,
+      );
+    }
+
+    final totalCount = await _repository.searchNotesCount(query);
+    final totalPages = (totalCount / pageSize).ceil().clamp(
+      1,
+      double.maxFinite.toInt(),
+    );
+    final offset = (page - 1) * pageSize;
+    final notes = await _repository.searchNotesPaginated(
+      query,
+      limit: pageSize,
+      offset: offset,
+    );
+
+    return PaginatedNotes(
+      notes: notes.map(_noteToMetadata).toList(),
+      currentPage: page,
+      totalPages: totalPages,
+      totalCount: totalCount,
+      hasMore: page < totalPages,
+    );
+  }
+
   Future<List<NoteMetadata>> searchNotes(
     String query, {
     String? folderId,

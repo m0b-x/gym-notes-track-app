@@ -59,6 +59,10 @@ class NoteRepository {
   NoteDao get _noteDao => _db.noteDao;
   ContentChunkDao get _chunkDao => _db.contentChunkDao;
 
+  Future<List<Note>> getNotesByIds(List<String> ids) {
+    return _noteDao.getNotesByIds(ids);
+  }
+
   Future<Note?> getNoteById(String id, {bool forceRefresh = false}) async {
     _cleanCacheIfNeeded();
 
@@ -286,6 +290,24 @@ class NoteRepository {
     int limit = 50,
   }) async {
     return _noteDao.fullTextSearch(query, folderId: folderId, limit: limit);
+  }
+
+  Future<int> searchNotesCount(String query, {String? folderId}) {
+    return _noteDao.searchNotesCount(query, folderId: folderId);
+  }
+
+  Future<List<Note>> searchNotesPaginated(
+    String query, {
+    String? folderId,
+    required int limit,
+    required int offset,
+  }) {
+    return _noteDao.searchNotesPaginated(
+      query,
+      folderId: folderId,
+      limit: limit,
+      offset: offset,
+    );
   }
 
   Stream<List<Note>> watchNotesByFolder(String? folderId) {

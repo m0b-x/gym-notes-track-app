@@ -2804,6 +2804,21 @@ class $CountersTable extends Counters
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _isPinnedMeta = const VerificationMeta(
+    'isPinned',
+  );
+  @override
+  late final GeneratedColumn<bool> isPinned = GeneratedColumn<bool>(
+    'is_pinned',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_pinned" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -2823,6 +2838,7 @@ class $CountersTable extends Counters
     step,
     scope,
     position,
+    isPinned,
     createdAt,
   ];
   @override
@@ -2874,6 +2890,12 @@ class $CountersTable extends Counters
         position.isAcceptableOrUnknown(data['position']!, _positionMeta),
       );
     }
+    if (data.containsKey('is_pinned')) {
+      context.handle(
+        _isPinnedMeta,
+        isPinned.isAcceptableOrUnknown(data['is_pinned']!, _isPinnedMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -2915,6 +2937,10 @@ class $CountersTable extends Counters
         DriftSqlType.int,
         data['${effectivePrefix}position'],
       )!,
+      isPinned: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_pinned'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -2935,6 +2961,7 @@ class CounterRow extends DataClass implements Insertable<CounterRow> {
   final int step;
   final String scope;
   final int position;
+  final bool isPinned;
   final DateTime createdAt;
   const CounterRow({
     required this.id,
@@ -2943,6 +2970,7 @@ class CounterRow extends DataClass implements Insertable<CounterRow> {
     required this.step,
     required this.scope,
     required this.position,
+    required this.isPinned,
     required this.createdAt,
   });
   @override
@@ -2954,6 +2982,7 @@ class CounterRow extends DataClass implements Insertable<CounterRow> {
     map['step'] = Variable<int>(step);
     map['scope'] = Variable<String>(scope);
     map['position'] = Variable<int>(position);
+    map['is_pinned'] = Variable<bool>(isPinned);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -2966,6 +2995,7 @@ class CounterRow extends DataClass implements Insertable<CounterRow> {
       step: Value(step),
       scope: Value(scope),
       position: Value(position),
+      isPinned: Value(isPinned),
       createdAt: Value(createdAt),
     );
   }
@@ -2982,6 +3012,7 @@ class CounterRow extends DataClass implements Insertable<CounterRow> {
       step: serializer.fromJson<int>(json['step']),
       scope: serializer.fromJson<String>(json['scope']),
       position: serializer.fromJson<int>(json['position']),
+      isPinned: serializer.fromJson<bool>(json['isPinned']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -2995,6 +3026,7 @@ class CounterRow extends DataClass implements Insertable<CounterRow> {
       'step': serializer.toJson<int>(step),
       'scope': serializer.toJson<String>(scope),
       'position': serializer.toJson<int>(position),
+      'isPinned': serializer.toJson<bool>(isPinned),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -3006,6 +3038,7 @@ class CounterRow extends DataClass implements Insertable<CounterRow> {
     int? step,
     String? scope,
     int? position,
+    bool? isPinned,
     DateTime? createdAt,
   }) => CounterRow(
     id: id ?? this.id,
@@ -3014,6 +3047,7 @@ class CounterRow extends DataClass implements Insertable<CounterRow> {
     step: step ?? this.step,
     scope: scope ?? this.scope,
     position: position ?? this.position,
+    isPinned: isPinned ?? this.isPinned,
     createdAt: createdAt ?? this.createdAt,
   );
   CounterRow copyWithCompanion(CountersCompanion data) {
@@ -3026,6 +3060,7 @@ class CounterRow extends DataClass implements Insertable<CounterRow> {
       step: data.step.present ? data.step.value : this.step,
       scope: data.scope.present ? data.scope.value : this.scope,
       position: data.position.present ? data.position.value : this.position,
+      isPinned: data.isPinned.present ? data.isPinned.value : this.isPinned,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -3039,14 +3074,23 @@ class CounterRow extends DataClass implements Insertable<CounterRow> {
           ..write('step: $step, ')
           ..write('scope: $scope, ')
           ..write('position: $position, ')
+          ..write('isPinned: $isPinned, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, startValue, step, scope, position, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    startValue,
+    step,
+    scope,
+    position,
+    isPinned,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3057,6 +3101,7 @@ class CounterRow extends DataClass implements Insertable<CounterRow> {
           other.step == this.step &&
           other.scope == this.scope &&
           other.position == this.position &&
+          other.isPinned == this.isPinned &&
           other.createdAt == this.createdAt);
 }
 
@@ -3067,6 +3112,7 @@ class CountersCompanion extends UpdateCompanion<CounterRow> {
   final Value<int> step;
   final Value<String> scope;
   final Value<int> position;
+  final Value<bool> isPinned;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const CountersCompanion({
@@ -3076,6 +3122,7 @@ class CountersCompanion extends UpdateCompanion<CounterRow> {
     this.step = const Value.absent(),
     this.scope = const Value.absent(),
     this.position = const Value.absent(),
+    this.isPinned = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -3086,6 +3133,7 @@ class CountersCompanion extends UpdateCompanion<CounterRow> {
     this.step = const Value.absent(),
     this.scope = const Value.absent(),
     this.position = const Value.absent(),
+    this.isPinned = const Value.absent(),
     required DateTime createdAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -3098,6 +3146,7 @@ class CountersCompanion extends UpdateCompanion<CounterRow> {
     Expression<int>? step,
     Expression<String>? scope,
     Expression<int>? position,
+    Expression<bool>? isPinned,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -3108,6 +3157,7 @@ class CountersCompanion extends UpdateCompanion<CounterRow> {
       if (step != null) 'step': step,
       if (scope != null) 'scope': scope,
       if (position != null) 'position': position,
+      if (isPinned != null) 'is_pinned': isPinned,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -3120,6 +3170,7 @@ class CountersCompanion extends UpdateCompanion<CounterRow> {
     Value<int>? step,
     Value<String>? scope,
     Value<int>? position,
+    Value<bool>? isPinned,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -3130,6 +3181,7 @@ class CountersCompanion extends UpdateCompanion<CounterRow> {
       step: step ?? this.step,
       scope: scope ?? this.scope,
       position: position ?? this.position,
+      isPinned: isPinned ?? this.isPinned,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -3156,6 +3208,9 @@ class CountersCompanion extends UpdateCompanion<CounterRow> {
     if (position.present) {
       map['position'] = Variable<int>(position.value);
     }
+    if (isPinned.present) {
+      map['is_pinned'] = Variable<bool>(isPinned.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -3174,6 +3229,7 @@ class CountersCompanion extends UpdateCompanion<CounterRow> {
           ..write('step: $step, ')
           ..write('scope: $scope, ')
           ..write('position: $position, ')
+          ..write('isPinned: $isPinned, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -3217,8 +3273,41 @@ class $CounterValuesTable extends CounterValues
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
   @override
-  List<GeneratedColumn> get $columns => [counterId, noteId, value];
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _isPinnedMeta = const VerificationMeta(
+    'isPinned',
+  );
+  @override
+  late final GeneratedColumn<bool> isPinned = GeneratedColumn<bool>(
+    'is_pinned',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_pinned" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    counterId,
+    noteId,
+    value,
+    position,
+    isPinned,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -3253,6 +3342,18 @@ class $CounterValuesTable extends CounterValues
     } else if (isInserting) {
       context.missing(_valueMeta);
     }
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    }
+    if (data.containsKey('is_pinned')) {
+      context.handle(
+        _isPinnedMeta,
+        isPinned.isAcceptableOrUnknown(data['is_pinned']!, _isPinnedMeta),
+      );
+    }
     return context;
   }
 
@@ -3274,6 +3375,14 @@ class $CounterValuesTable extends CounterValues
         DriftSqlType.int,
         data['${effectivePrefix}value'],
       )!,
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      isPinned: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_pinned'],
+      )!,
     );
   }
 
@@ -3287,10 +3396,14 @@ class CounterValueRow extends DataClass implements Insertable<CounterValueRow> {
   final String counterId;
   final String noteId;
   final int value;
+  final int position;
+  final bool isPinned;
   const CounterValueRow({
     required this.counterId,
     required this.noteId,
     required this.value,
+    required this.position,
+    required this.isPinned,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3298,6 +3411,8 @@ class CounterValueRow extends DataClass implements Insertable<CounterValueRow> {
     map['counter_id'] = Variable<String>(counterId);
     map['note_id'] = Variable<String>(noteId);
     map['value'] = Variable<int>(value);
+    map['position'] = Variable<int>(position);
+    map['is_pinned'] = Variable<bool>(isPinned);
     return map;
   }
 
@@ -3306,6 +3421,8 @@ class CounterValueRow extends DataClass implements Insertable<CounterValueRow> {
       counterId: Value(counterId),
       noteId: Value(noteId),
       value: Value(value),
+      position: Value(position),
+      isPinned: Value(isPinned),
     );
   }
 
@@ -3318,6 +3435,8 @@ class CounterValueRow extends DataClass implements Insertable<CounterValueRow> {
       counterId: serializer.fromJson<String>(json['counterId']),
       noteId: serializer.fromJson<String>(json['noteId']),
       value: serializer.fromJson<int>(json['value']),
+      position: serializer.fromJson<int>(json['position']),
+      isPinned: serializer.fromJson<bool>(json['isPinned']),
     );
   }
   @override
@@ -3327,20 +3446,31 @@ class CounterValueRow extends DataClass implements Insertable<CounterValueRow> {
       'counterId': serializer.toJson<String>(counterId),
       'noteId': serializer.toJson<String>(noteId),
       'value': serializer.toJson<int>(value),
+      'position': serializer.toJson<int>(position),
+      'isPinned': serializer.toJson<bool>(isPinned),
     };
   }
 
-  CounterValueRow copyWith({String? counterId, String? noteId, int? value}) =>
-      CounterValueRow(
-        counterId: counterId ?? this.counterId,
-        noteId: noteId ?? this.noteId,
-        value: value ?? this.value,
-      );
+  CounterValueRow copyWith({
+    String? counterId,
+    String? noteId,
+    int? value,
+    int? position,
+    bool? isPinned,
+  }) => CounterValueRow(
+    counterId: counterId ?? this.counterId,
+    noteId: noteId ?? this.noteId,
+    value: value ?? this.value,
+    position: position ?? this.position,
+    isPinned: isPinned ?? this.isPinned,
+  );
   CounterValueRow copyWithCompanion(CounterValuesCompanion data) {
     return CounterValueRow(
       counterId: data.counterId.present ? data.counterId.value : this.counterId,
       noteId: data.noteId.present ? data.noteId.value : this.noteId,
       value: data.value.present ? data.value.value : this.value,
+      position: data.position.present ? data.position.value : this.position,
+      isPinned: data.isPinned.present ? data.isPinned.value : this.isPinned,
     );
   }
 
@@ -3349,37 +3479,47 @@ class CounterValueRow extends DataClass implements Insertable<CounterValueRow> {
     return (StringBuffer('CounterValueRow(')
           ..write('counterId: $counterId, ')
           ..write('noteId: $noteId, ')
-          ..write('value: $value')
+          ..write('value: $value, ')
+          ..write('position: $position, ')
+          ..write('isPinned: $isPinned')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(counterId, noteId, value);
+  int get hashCode => Object.hash(counterId, noteId, value, position, isPinned);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is CounterValueRow &&
           other.counterId == this.counterId &&
           other.noteId == this.noteId &&
-          other.value == this.value);
+          other.value == this.value &&
+          other.position == this.position &&
+          other.isPinned == this.isPinned);
 }
 
 class CounterValuesCompanion extends UpdateCompanion<CounterValueRow> {
   final Value<String> counterId;
   final Value<String> noteId;
   final Value<int> value;
+  final Value<int> position;
+  final Value<bool> isPinned;
   final Value<int> rowid;
   const CounterValuesCompanion({
     this.counterId = const Value.absent(),
     this.noteId = const Value.absent(),
     this.value = const Value.absent(),
+    this.position = const Value.absent(),
+    this.isPinned = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CounterValuesCompanion.insert({
     required String counterId,
     this.noteId = const Value.absent(),
     required int value,
+    this.position = const Value.absent(),
+    this.isPinned = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : counterId = Value(counterId),
        value = Value(value);
@@ -3387,12 +3527,16 @@ class CounterValuesCompanion extends UpdateCompanion<CounterValueRow> {
     Expression<String>? counterId,
     Expression<String>? noteId,
     Expression<int>? value,
+    Expression<int>? position,
+    Expression<bool>? isPinned,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (counterId != null) 'counter_id': counterId,
       if (noteId != null) 'note_id': noteId,
       if (value != null) 'value': value,
+      if (position != null) 'position': position,
+      if (isPinned != null) 'is_pinned': isPinned,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3401,12 +3545,16 @@ class CounterValuesCompanion extends UpdateCompanion<CounterValueRow> {
     Value<String>? counterId,
     Value<String>? noteId,
     Value<int>? value,
+    Value<int>? position,
+    Value<bool>? isPinned,
     Value<int>? rowid,
   }) {
     return CounterValuesCompanion(
       counterId: counterId ?? this.counterId,
       noteId: noteId ?? this.noteId,
       value: value ?? this.value,
+      position: position ?? this.position,
+      isPinned: isPinned ?? this.isPinned,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3423,6 +3571,12 @@ class CounterValuesCompanion extends UpdateCompanion<CounterValueRow> {
     if (value.present) {
       map['value'] = Variable<int>(value.value);
     }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (isPinned.present) {
+      map['is_pinned'] = Variable<bool>(isPinned.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3435,6 +3589,8 @@ class CounterValuesCompanion extends UpdateCompanion<CounterValueRow> {
           ..write('counterId: $counterId, ')
           ..write('noteId: $noteId, ')
           ..write('value: $value, ')
+          ..write('position: $position, ')
+          ..write('isPinned: $isPinned, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4833,6 +4989,7 @@ typedef $$CountersTableCreateCompanionBuilder =
       Value<int> step,
       Value<String> scope,
       Value<int> position,
+      Value<bool> isPinned,
       required DateTime createdAt,
       Value<int> rowid,
     });
@@ -4844,6 +5001,7 @@ typedef $$CountersTableUpdateCompanionBuilder =
       Value<int> step,
       Value<String> scope,
       Value<int> position,
+      Value<bool> isPinned,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -4884,6 +5042,11 @@ class $$CountersTableFilterComposer
 
   ColumnFilters<int> get position => $composableBuilder(
     column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isPinned => $composableBuilder(
+    column: $table.isPinned,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4932,6 +5095,11 @@ class $$CountersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isPinned => $composableBuilder(
+    column: $table.isPinned,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -4966,6 +5134,9 @@ class $$CountersTableAnnotationComposer
 
   GeneratedColumn<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<bool> get isPinned =>
+      $composableBuilder(column: $table.isPinned, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -5008,6 +5179,7 @@ class $$CountersTableTableManager
                 Value<int> step = const Value.absent(),
                 Value<String> scope = const Value.absent(),
                 Value<int> position = const Value.absent(),
+                Value<bool> isPinned = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CountersCompanion(
@@ -5017,6 +5189,7 @@ class $$CountersTableTableManager
                 step: step,
                 scope: scope,
                 position: position,
+                isPinned: isPinned,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -5028,6 +5201,7 @@ class $$CountersTableTableManager
                 Value<int> step = const Value.absent(),
                 Value<String> scope = const Value.absent(),
                 Value<int> position = const Value.absent(),
+                Value<bool> isPinned = const Value.absent(),
                 required DateTime createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => CountersCompanion.insert(
@@ -5037,6 +5211,7 @@ class $$CountersTableTableManager
                 step: step,
                 scope: scope,
                 position: position,
+                isPinned: isPinned,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -5067,6 +5242,8 @@ typedef $$CounterValuesTableCreateCompanionBuilder =
       required String counterId,
       Value<String> noteId,
       required int value,
+      Value<int> position,
+      Value<bool> isPinned,
       Value<int> rowid,
     });
 typedef $$CounterValuesTableUpdateCompanionBuilder =
@@ -5074,6 +5251,8 @@ typedef $$CounterValuesTableUpdateCompanionBuilder =
       Value<String> counterId,
       Value<String> noteId,
       Value<int> value,
+      Value<int> position,
+      Value<bool> isPinned,
       Value<int> rowid,
     });
 
@@ -5098,6 +5277,16 @@ class $$CounterValuesTableFilterComposer
 
   ColumnFilters<int> get value => $composableBuilder(
     column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isPinned => $composableBuilder(
+    column: $table.isPinned,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5125,6 +5314,16 @@ class $$CounterValuesTableOrderingComposer
     column: $table.value,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isPinned => $composableBuilder(
+    column: $table.isPinned,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CounterValuesTableAnnotationComposer
@@ -5144,6 +5343,12 @@ class $$CounterValuesTableAnnotationComposer
 
   GeneratedColumn<int> get value =>
       $composableBuilder(column: $table.value, builder: (column) => column);
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<bool> get isPinned =>
+      $composableBuilder(column: $table.isPinned, builder: (column) => column);
 }
 
 class $$CounterValuesTableTableManager
@@ -5180,11 +5385,15 @@ class $$CounterValuesTableTableManager
                 Value<String> counterId = const Value.absent(),
                 Value<String> noteId = const Value.absent(),
                 Value<int> value = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<bool> isPinned = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CounterValuesCompanion(
                 counterId: counterId,
                 noteId: noteId,
                 value: value,
+                position: position,
+                isPinned: isPinned,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5192,11 +5401,15 @@ class $$CounterValuesTableTableManager
                 required String counterId,
                 Value<String> noteId = const Value.absent(),
                 required int value,
+                Value<int> position = const Value.absent(),
+                Value<bool> isPinned = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CounterValuesCompanion.insert(
                 counterId: counterId,
                 noteId: noteId,
                 value: value,
+                position: position,
+                isPinned: isPinned,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -35,6 +35,13 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
     return (select(notes)..where((n) => n.id.equals(id))).getSingleOrNull();
   }
 
+  Future<List<Note>> getNotesByIds(List<String> ids) {
+    if (ids.isEmpty) return Future.value([]);
+    return (select(
+      notes,
+    )..where((n) => n.id.isIn(ids) & n.isDeleted.equals(false))).get();
+  }
+
   Future<int> getNoteCount(
     String? folderId, {
     bool includeDeleted = false,
@@ -473,6 +480,44 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
       );
       db.hlc.update(remoteHlc);
     }
+  }
+
+  Future<int> searchNotesCount(String query, {String? folderId}) async {
+    final searchQuery = '%${query.toLowerCase()}%';
+    final countExp = notes.id.count();
+    final q = selectOnly(notes)..addColumns([countExp]);
+    q.where(notes.isDeleted.equals(false));
+    q.where(
+      notes.title.lower().like(searchQuery) |
+          notes.preview.lower().like(searchQuery),
+    );
+    if (folderId != null) {
+      q.where(notes.folderId.equals(folderId));
+    }
+    final result = await q.getSingle();
+    return result.read(countExp) ?? 0;
+  }
+
+  Future<List<Note>> searchNotesPaginated(
+    String query, {
+    String? folderId,
+    required int limit,
+    required int offset,
+  }) {
+    final searchQuery = '%${query.toLowerCase()}%';
+    final q = select(notes);
+    q.where(
+      (n) =>
+          n.isDeleted.equals(false) &
+          (n.title.lower().like(searchQuery) |
+              n.preview.lower().like(searchQuery)),
+    );
+    if (folderId != null) {
+      q.where((n) => n.folderId.equals(folderId));
+    }
+    q.orderBy([(n) => OrderingTerm.desc(n.updatedAt)]);
+    q.limit(limit, offset: offset);
+    return q.get();
   }
 
   Stream<List<Note>> watchNotesByFolder(String? folderId) {

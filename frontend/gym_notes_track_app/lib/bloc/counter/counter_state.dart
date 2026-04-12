@@ -42,12 +42,14 @@ final class CounterLoaded extends CounterState {
     List<Counter>? counters,
     Map<String, int>? counterValues,
     String? loadedNoteId,
+    bool clearLoadedNoteId = false,
     Map<String, int>? pickedNoteValues,
   }) {
     return CounterLoaded(
       counters: counters ?? this.counters,
       counterValues: counterValues ?? this.counterValues,
-      loadedNoteId: loadedNoteId ?? this.loadedNoteId,
+      loadedNoteId:
+          clearLoadedNoteId ? null : (loadedNoteId ?? this.loadedNoteId),
       pickedNoteValues: pickedNoteValues ?? this.pickedNoteValues,
     );
   }

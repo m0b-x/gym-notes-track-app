@@ -124,6 +124,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   String? _effectiveNoteId;
   bool _isCreatingNewNote = false;
 
+  /// Cached reference so we can dispatch [SetNoteContext] during [dispose].
+  late final CounterBloc _counterBloc;
+
   double _previewFontSize = FontConstants.defaultFontSize;
   double _editorFontSize = FontConstants.defaultFontSize;
   List<CustomMarkdownShortcut> _allShortcuts = [];
@@ -178,6 +181,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     ShortcutHandlerFactory.counterHandler.setActiveNoteId(
       _effectiveNoteId ?? widget.noteId,
     );
+    _counterBloc = context.read<CounterBloc>();
+    _counterBloc.add(SetNoteContext(noteId: _effectiveNoteId));
     _initializeAutoSave();
     _loadFontSizes();
     _initializePositionService();
@@ -685,6 +690,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
   @override
   void dispose() {
+    _counterBloc.add(const SetNoteContext());
     WidgetsBinding.instance.removeObserver(this);
     DevOptions.instance.removeListener(_onDevOptionsChanged);
     _lineCountDebounceTimer?.cancel();
@@ -1060,6 +1066,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
             if (state is OptimizedNoteCreated) {
               _effectiveNoteId = state.metadata.id;
               _isCreatingNewNote = false;
+              _counterBloc.add(SetNoteContext(noteId: _effectiveNoteId));
+              ShortcutHandlerFactory.counterHandler.setActiveNoteId(
+                _effectiveNoteId,
+              );
               _autoSaveService?.startTracking(
                 _titleController.text,
                 _contentController.text,
@@ -1686,7 +1696,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
           );
           if (!mounted) return null;
           final bloc = context.read<CounterBloc>();
-          bloc.add(const RefreshCounters());
+          bloc.add(RefreshCounters(noteId: _effectiveNoteId));
           final updated = await bloc.stream
               .where((s) => s is CounterLoaded)
               .first

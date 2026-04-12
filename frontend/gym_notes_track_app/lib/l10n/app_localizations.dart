@@ -2842,10 +2842,10 @@ abstract class AppLocalizations {
   /// **'No notes match your search'**
   String get noNotesMatchSearch;
 
-  /// Prompt shown on per-note counter cards when no note is selected
+  /// Prompt shown on per-note counter cards to open the per-note values page
   ///
   /// In en, this message translates to:
-  /// **'Tap to select a note'**
+  /// **'Tap to manage note values'**
   String get counterSelectNoteToView;
 
   /// Error message shown when counter loading fails
@@ -2859,6 +2859,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry'**
   String get counterRetry;
+
+  /// Title for the per-note counter values page
+  ///
+  /// In en, this message translates to:
+  /// **'Values per Note'**
+  String get counterPerNoteValues;
+
+  /// Empty state when no notes exist for per-note counter
+  ///
+  /// In en, this message translates to:
+  /// **'No notes have values for this counter yet'**
+  String get counterPerNoteEmpty;
+
+  /// Button to reset counter value for all notes
+  ///
+  /// In en, this message translates to:
+  /// **'Reset All Notes'**
+  String get counterResetAllNotes;
+
+  /// Confirmation message for resetting all per-note values
+  ///
+  /// In en, this message translates to:
+  /// **'Reset this counter to its start value for all notes?'**
+  String get counterResetAllConfirm;
+
+  /// Snackbar after resetting all per-note values
+  ///
+  /// In en, this message translates to:
+  /// **'All note values reset'**
+  String get counterResetAllSuccess;
+
+  /// Menu item to open per-note values page
+  ///
+  /// In en, this message translates to:
+  /// **'Manage note values'**
+  String get counterManageNoteValues;
+
+  /// Menu action to pin a counter
+  ///
+  /// In en, this message translates to:
+  /// **'Pin'**
+  String get pinCounter;
+
+  /// Menu action to unpin a counter
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get unpinCounter;
+
+  /// Button to add a note to the per-note counter
+  ///
+  /// In en, this message translates to:
+  /// **'Add Note'**
+  String get addNote;
+
+  /// Menu action to remove a note from per-note counter
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Note'**
+  String get removeNote;
+
+  /// Confirmation message for removing a note from per-note counter
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this note from the counter? The value will be lost.'**
+  String get removeNoteConfirm;
+
+  /// Snackbar when trying to add a duplicate note
+  ///
+  /// In en, this message translates to:
+  /// **'This note is already added'**
+  String get noteAlreadyAdded;
 }
 
 class _AppLocalizationsDelegate

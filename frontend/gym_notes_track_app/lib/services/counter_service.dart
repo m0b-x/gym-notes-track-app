@@ -9,6 +9,8 @@ import '../database/database.dart';
 import '../database/daos/counter_dao.dart';
 import '../models/counter.dart';
 
+export '../database/database.dart' show CounterValueRow;
+
 /// Manages counter definitions and their values.
 ///
 /// In-memory caches mirror the DB so reads are synchronous and cheap.
@@ -198,6 +200,11 @@ class CounterService {
     ]);
   }
 
+  Future<void> deleteNoteValue(String counterId, String noteId) async {
+    _noteValuesCache[noteId]?.remove(counterId);
+    await _dao.deleteValue(counterId, noteId);
+  }
+
   // ---------------------------------------------------------------------------
   // Global values
   // ---------------------------------------------------------------------------
@@ -340,6 +347,10 @@ class CounterService {
 
   Counter? getCounterById(String counterId) => _counterIndex[counterId];
 
+  Future<Map<String, int>> getAllNoteValuesForCounter(String counterId) async {
+    return _dao.getValuesForCounter(counterId);
+  }
+
   // ---------------------------------------------------------------------------
   // Backup export / import
   // ---------------------------------------------------------------------------
@@ -348,15 +359,23 @@ class CounterService {
     await flush();
     final allValues = await _dao.getAllValues();
     final noteValuesMap = <String, Map<String, int>>{};
+    final noteValueExtras = <String, Map<String, dynamic>>{};
     for (final row in allValues) {
-      if (row.noteId.isEmpty) continue; // global values handled separately
+      if (row.noteId.isEmpty) continue;
       noteValuesMap.putIfAbsent(row.noteId, () => {})[row.counterId] =
           row.value;
+      if (row.isPinned || row.position != 0) {
+        noteValueExtras['${row.counterId}::${row.noteId}'] = {
+          'isPinned': row.isPinned,
+          'position': row.position,
+        };
+      }
     }
     return {
       'counters': jsonEncode(_counters.map((c) => c.toJson()).toList()),
       'globalValues': jsonEncode(_globalValues),
       'noteValues': jsonEncode(noteValuesMap),
+      'noteValueExtras': jsonEncode(noteValueExtras),
     };
   }
 
@@ -410,7 +429,80 @@ class CounterService {
       }
     }
 
+    final extrasRaw = data['noteValueExtras'] as String?;
+    if (extrasRaw != null) {
+      try {
+        final Map<String, dynamic> decoded = jsonDecode(extrasRaw);
+        for (final entry in decoded.entries) {
+          final parts = entry.key.split('::');
+          if (parts.length != 2) continue;
+          final counterId = parts[0];
+          final noteId = parts[1];
+          final extra = entry.value as Map<String, dynamic>;
+          final isPinned = extra['isPinned'] as bool? ?? false;
+          final position = extra['position'] as int? ?? 0;
+          if (isPinned) {
+            await _dao.setNoteValuePinned(counterId, noteId, true);
+          }
+          if (position != 0) {
+            await _dao.updateNoteValuePositions(
+              counterId,
+              {noteId: position},
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('[CounterService] Import note value extras error: $e');
+      }
+    }
+
     await _load();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pin
+  // ---------------------------------------------------------------------------
+
+  Future<void> toggleCounterPin(String counterId) async {
+    final index = _counters.indexWhere((c) => c.id == counterId);
+    if (index < 0) return;
+    final counter = _counters[index];
+    final newPinned = !counter.isPinned;
+    _counters[index] = counter.copyWith(isPinned: newPinned);
+    _counters.sort(_counterSortComparator);
+    _rebuildIndex();
+    await _dao.setCounterPinned(counterId, newPinned);
+    final positions = <String, int>{};
+    for (var i = 0; i < _counters.length; i++) {
+      positions[_counters[i].id] = i;
+    }
+    await _dao.updatePositions(positions);
+  }
+
+  Future<void> toggleNoteValuePin(
+    String counterId,
+    String noteId,
+    bool pinned,
+  ) async {
+    await _dao.setNoteValuePinned(counterId, noteId, pinned);
+  }
+
+  Future<void> reorderNoteValues(
+    String counterId,
+    Map<String, int> positions,
+  ) async {
+    await _dao.updateNoteValuePositions(counterId, positions);
+  }
+
+  Future<List<CounterValueRow>> getOrderedNoteValuesForCounter(
+    String counterId,
+  ) {
+    return _dao.getValuesForCounterOrdered(counterId);
+  }
+
+  static int _counterSortComparator(Counter a, Counter b) {
+    if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
+    return 0;
   }
 
   // ---------------------------------------------------------------------------
@@ -427,6 +519,7 @@ class CounterService {
         (s) => s.name == row.scope,
         orElse: () => CounterScope.global,
       ),
+      isPinned: row.isPinned,
       createdAt: row.createdAt,
     );
   }
@@ -439,6 +532,7 @@ class CounterService {
       step: Value(c.step),
       scope: Value(c.scope.name),
       position: Value(position),
+      isPinned: Value(c.isPinned),
       createdAt: Value(c.createdAt),
     );
   }

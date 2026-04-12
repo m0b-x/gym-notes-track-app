@@ -1494,11 +1494,50 @@ class AppLocalizationsDe extends AppLocalizations {
   String get noNotesMatchSearch => 'Keine Notizen gefunden';
 
   @override
-  String get counterSelectNoteToView => 'Tippen, um eine Notiz auszuwählen';
+  String get counterSelectNoteToView => 'Tippen, um Notizwerte zu verwalten';
 
   @override
   String get counterLoadError => 'Zähler konnten nicht geladen werden';
 
   @override
   String get counterRetry => 'Erneut versuchen';
+
+  @override
+  String get counterPerNoteValues => 'Werte pro Notiz';
+
+  @override
+  String get counterPerNoteEmpty =>
+      'Noch keine Notizen haben Werte für diesen Zähler';
+
+  @override
+  String get counterResetAllNotes => 'Alle Notizen zurücksetzen';
+
+  @override
+  String get counterResetAllConfirm =>
+      'Diesen Zähler für alle Notizen auf den Startwert zurücksetzen?';
+
+  @override
+  String get counterResetAllSuccess => 'Alle Notizwerte zurückgesetzt';
+
+  @override
+  String get counterManageNoteValues => 'Notizwerte verwalten';
+
+  @override
+  String get pinCounter => 'Anheften';
+
+  @override
+  String get unpinCounter => 'Lösen';
+
+  @override
+  String get addNote => 'Notiz hinzufügen';
+
+  @override
+  String get removeNote => 'Notiz entfernen';
+
+  @override
+  String get removeNoteConfirm =>
+      'Diese Notiz vom Zähler entfernen? Der Wert geht verloren.';
+
+  @override
+  String get noteAlreadyAdded => 'Diese Notiz ist bereits hinzugefügt';
 }

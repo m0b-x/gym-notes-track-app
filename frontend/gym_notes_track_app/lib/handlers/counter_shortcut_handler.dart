@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../bloc/counter/counter_bloc.dart';
 import '../interfaces/markdown_shortcut_handler.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../services/counter_service.dart';
@@ -49,5 +51,12 @@ class CounterShortcutHandler implements MarkdownShortcutHandler {
 
     focusNode.requestFocus();
     onTextChanged();
+
+    // Sync the BLoC state so counter picker / management pages reflect the
+    // updated value.  The service already holds the truth; RefreshCounters
+    // rebuilds counterValues from it without double-incrementing.
+    if (context.mounted) {
+      context.read<CounterBloc>().add(const RefreshCounters());
+    }
   }
 }
