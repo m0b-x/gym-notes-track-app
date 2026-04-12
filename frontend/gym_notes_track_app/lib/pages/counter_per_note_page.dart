@@ -12,6 +12,7 @@ import '../repositories/note_repository.dart';
 import '../services/counter_service.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/app_loading_bar.dart';
+import '../widgets/info_chip.dart';
 import '../widgets/note_picker_dialog.dart';
 import '../widgets/unified_app_bars.dart';
 import '../utils/custom_snackbar.dart';
@@ -420,12 +421,12 @@ class _NoteValueCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 4,
               children: [
-                _InfoChip(
+                InfoChip(
                   label: l10n.counterStepLabel(counter.step),
                   color: colorScheme.secondaryContainer,
                   textColor: colorScheme.onSecondaryContainer,
                 ),
-                _InfoChip(
+                InfoChip(
                   label: '${l10n.startValue}: ${counter.startValue}',
                   color: colorScheme.surfaceContainerHighest,
                   textColor: colorScheme.onSurfaceVariant,
@@ -505,33 +506,4 @@ class _NoteValueCard extends StatelessWidget {
   }
 }
 
-class _InfoChip extends StatelessWidget {
-  final String label;
-  final Color color;
-  final Color textColor;
 
-  const _InfoChip({
-    required this.label,
-    required this.color,
-    required this.textColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: textColor,
-        ),
-      ),
-    );
-  }
-}

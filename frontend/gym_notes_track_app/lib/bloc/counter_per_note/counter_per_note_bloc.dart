@@ -111,11 +111,7 @@ class CounterPerNoteBloc
     final current = state;
     if (current is! CounterPerNoteLoaded) return;
     try {
-      await _counterService.decrementForNote(_counterId, event.noteId);
-      final newValue = await _counterService.getValueForNote(
-        _counterId,
-        event.noteId,
-      );
+      final newValue = await _counterService.decrementForNote(_counterId, event.noteId);
       final entries = current.entries.map((e) {
         if (e.note.id == event.noteId) return e.copyWith(value: newValue);
         return e;
@@ -175,9 +171,11 @@ class CounterPerNoteBloc
     if (current is! CounterPerNoteLoaded) return;
     try {
       final startValue = current.counter.startValue;
-      for (final entry in current.entries) {
-        await _counterService.resetForNote(_counterId, entry.note.id);
-      }
+      await Future.wait(
+        current.entries.map(
+          (entry) => _counterService.resetForNote(_counterId, entry.note.id),
+        ),
+      );
       final entries = current.entries
           .map((e) => e.copyWith(value: startValue))
           .toList();

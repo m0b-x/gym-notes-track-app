@@ -79,12 +79,13 @@ class CounterService {
   // ---------------------------------------------------------------------------
 
   Future<void> _load() async {
-    final rows = await _dao.getAllCounters();
-    _counters = rows.map(_rowToCounter).toList();
+    final results = await Future.wait([
+      _dao.getAllCounters(),
+      _dao.getValuesForNote(''),
+    ]);
+    _counters = (results[0] as List<CounterRow>).map(_rowToCounter).toList();
     _rebuildIndex();
-
-    final globalRows = await _dao.getValuesForNote('');
-    _globalValues = globalRows;
+    _globalValues = results[1] as Map<String, int>;
     _noteValuesCache.clear();
   }
 
@@ -234,13 +235,15 @@ class CounterService {
     _scheduleDirtyFlush();
   }
 
-  Future<void> decrementGlobal(String counterId) async {
+  Future<int> decrementGlobal(String counterId) async {
     final counter = _counterIndex[counterId];
     if (counter == null) throw StateError('Counter not found: $counterId');
     final current = _globalValues[counterId] ?? counter.startValue;
-    _globalValues[counterId] = current - counter.step;
+    final next = current - counter.step;
+    _globalValues[counterId] = next;
     _dirtyGlobalValues.add(counterId);
     _scheduleDirtyFlush();
+    return next;
   }
 
   Future<void> setGlobalValue(String counterId, int value) async {
@@ -291,20 +294,21 @@ class CounterService {
     return next;
   }
 
-  Future<void> decrementForNote(String counterId, String noteId) async {
+  Future<int> decrementForNote(String counterId, String noteId) async {
     final counter = _counterIndex[counterId];
     if (counter == null) throw StateError('Counter not found: $counterId');
 
     if (counter.scope == CounterScope.global) {
-      await decrementGlobal(counterId);
-      return;
+      return decrementGlobal(counterId);
     }
 
     final noteValues = await getNoteValues(noteId);
     final current = noteValues[counterId] ?? counter.startValue;
-    noteValues[counterId] = current - counter.step;
+    final next = current - counter.step;
+    noteValues[counterId] = next;
     _dirtyNoteValues.add(noteId);
     _scheduleDirtyFlush();
+    return next;
   }
 
   Future<void> setValueForNote(
@@ -393,9 +397,10 @@ class CounterService {
         final imported = decoded
             .map((j) => Counter.fromJson(j as Map<String, dynamic>))
             .toList();
-        for (var i = 0; i < imported.length; i++) {
-          await _dao.insertCounter(_counterToCompanion(imported[i], i));
-        }
+        await Future.wait([
+          for (var i = 0; i < imported.length; i++)
+            _dao.insertCounter(_counterToCompanion(imported[i], i)),
+        ]);
       } catch (e) {
         debugPrint('[CounterService] Import counters error: $e');
       }
@@ -405,9 +410,10 @@ class CounterService {
     if (valuesRaw != null) {
       try {
         final Map<String, dynamic> decoded = jsonDecode(valuesRaw);
-        for (final entry in decoded.entries) {
-          await _dao.upsertValue(entry.key, '', entry.value as int);
-        }
+        await Future.wait([
+          for (final entry in decoded.entries)
+            _dao.upsertValue(entry.key, '', entry.value as int),
+        ]);
       } catch (e) {
         debugPrint('[CounterService] Import global values error: $e');
       }
@@ -417,13 +423,17 @@ class CounterService {
     if (noteValuesRaw != null) {
       try {
         final Map<String, dynamic> decoded = jsonDecode(noteValuesRaw);
+        final futures = <Future>[];
         for (final noteEntry in decoded.entries) {
           final noteId = noteEntry.key;
           final values = noteEntry.value as Map<String, dynamic>;
           for (final valEntry in values.entries) {
-            await _dao.upsertValue(valEntry.key, noteId, valEntry.value as int);
+            futures.add(
+              _dao.upsertValue(valEntry.key, noteId, valEntry.value as int),
+            );
           }
         }
+        await Future.wait(futures);
       } catch (e) {
         debugPrint('[CounterService] Import note values error: $e');
       }
@@ -433,6 +443,7 @@ class CounterService {
     if (extrasRaw != null) {
       try {
         final Map<String, dynamic> decoded = jsonDecode(extrasRaw);
+        final futures = <Future>[];
         for (final entry in decoded.entries) {
           final parts = entry.key.split('::');
           if (parts.length != 2) continue;
@@ -442,12 +453,15 @@ class CounterService {
           final isPinned = extra['isPinned'] as bool? ?? false;
           final position = extra['position'] as int? ?? 0;
           if (isPinned) {
-            await _dao.setNoteValuePinned(counterId, noteId, true);
+            futures.add(_dao.setNoteValuePinned(counterId, noteId, true));
           }
           if (position != 0) {
-            await _dao.updateNoteValuePositions(counterId, {noteId: position});
+            futures.add(
+              _dao.updateNoteValuePositions(counterId, {noteId: position}),
+            );
           }
         }
+        await Future.wait(futures);
       } catch (e) {
         debugPrint('[CounterService] Import note value extras error: $e');
       }
@@ -468,12 +482,14 @@ class CounterService {
     _counters[index] = counter.copyWith(isPinned: newPinned);
     _counters.sort(_counterSortComparator);
     _rebuildIndex();
-    await _dao.setCounterPinned(counterId, newPinned);
     final positions = <String, int>{};
     for (var i = 0; i < _counters.length; i++) {
       positions[_counters[i].id] = i;
     }
-    await _dao.updatePositions(positions);
+    await Future.wait([
+      _dao.setCounterPinned(counterId, newPinned),
+      _dao.updatePositions(positions),
+    ]);
   }
 
   Future<void> toggleNoteValuePin(

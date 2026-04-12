@@ -78,8 +78,10 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
     Emitter<CounterState> emit,
   ) {
     if (_isLocallyPickedNote(counterId, noteId, current)) {
-      final key = '$counterId::$noteId';
-      final picked = Map<String, int>.from(current.pickedNoteValues);
+      final key = (counterId: counterId, noteId: noteId!);
+      final picked = Map<({String counterId, String noteId}), int>.from(
+        current.pickedNoteValues,
+      );
       picked[key] = newValue;
       emit(current.copyWith(pickedNoteValues: picked));
     } else {
@@ -157,8 +159,9 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
       await _counterService.deleteCounter(event.counterId);
       final values = Map<String, int>.from(current.counterValues);
       values.remove(event.counterId);
-      final picked = Map<String, int>.from(current.pickedNoteValues)
-        ..removeWhere((k, _) => k.startsWith('${event.counterId}::'));
+      final picked = Map<({String counterId, String noteId}), int>.from(
+        current.pickedNoteValues,
+      )..removeWhere((k, _) => k.counterId == event.counterId);
       emit(
         current.copyWith(
           counters: _counterService.counters,
@@ -229,14 +232,12 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
     if (current is! CounterLoaded) return;
     try {
       final noteId = event.noteId;
+      final int newValue;
       if (noteId != null) {
-        await _counterService.decrementForNote(event.counterId, noteId);
+        newValue = await _counterService.decrementForNote(event.counterId, noteId);
       } else {
-        await _counterService.decrementGlobal(event.counterId);
+        newValue = await _counterService.decrementGlobal(event.counterId);
       }
-      final newValue = noteId != null
-          ? await _counterService.getValueForNote(event.counterId, noteId)
-          : _counterService.getGlobalValue(event.counterId);
       _emitWithUpdatedValue(event.counterId, newValue, noteId, current, emit);
     } catch (e) {
       debugPrint('[CounterBloc] Decrement counter error: $e');
@@ -309,8 +310,10 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
         event.counterId,
         event.noteId,
       );
-      final key = '${event.counterId}::${event.noteId}';
-      final picked = Map<String, int>.from(current.pickedNoteValues);
+      final key = (counterId: event.counterId, noteId: event.noteId);
+      final picked = Map<({String counterId, String noteId}), int>.from(
+        current.pickedNoteValues,
+      );
       picked[key] = value;
       emit(current.copyWith(pickedNoteValues: picked));
     } catch (e) {

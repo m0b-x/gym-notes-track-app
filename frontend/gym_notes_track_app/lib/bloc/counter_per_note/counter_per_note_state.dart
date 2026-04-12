@@ -45,20 +45,30 @@ final class CounterPerNoteLoaded extends CounterPerNoteState {
   final Counter counter;
   final List<NoteValueEntry> entries;
 
-  const CounterPerNoteLoaded({required this.counter, required this.entries});
+  /// Transient error from the last mutation.
+  final String? lastError;
+
+  const CounterPerNoteLoaded({
+    required this.counter,
+    required this.entries,
+    this.lastError,
+  });
 
   CounterPerNoteLoaded copyWith({
     Counter? counter,
     List<NoteValueEntry>? entries,
+    String? lastError,
+    bool clearError = false,
   }) {
     return CounterPerNoteLoaded(
       counter: counter ?? this.counter,
       entries: entries ?? this.entries,
+      lastError: clearError ? null : (lastError ?? this.lastError),
     );
   }
 
   @override
-  List<Object?> get props => [counter, entries];
+  List<Object?> get props => [counter, entries, lastError];
 }
 
 final class CounterPerNoteError extends CounterPerNoteState {

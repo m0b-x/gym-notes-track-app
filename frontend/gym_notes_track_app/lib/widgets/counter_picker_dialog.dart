@@ -48,6 +48,7 @@ class _CounterPickerDialogState extends State<CounterPickerDialog> {
   late Map<String, int> _values;
   int _page = 0;
   Timer? _arrowDebounce;
+  StreamSubscription<CounterState>? _blocSub;
 
   int get _totalPages => (_filtered.length / _kPageSize).ceil().clamp(1, 999);
 
@@ -64,10 +65,20 @@ class _CounterPickerDialogState extends State<CounterPickerDialog> {
     _values = Map.of(widget.counterValues);
     _filtered = _allCounters;
     _searchController.addListener(_onSearch);
+
+    // Sync local values with BLoC state so failed async ops are corrected.
+    _blocSub = context.read<CounterBloc>().stream.listen((state) {
+      if (state is CounterLoaded && mounted) {
+        setState(() {
+          _values = Map.of(state.counterValues);
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _blocSub?.cancel();
     _arrowDebounce?.cancel();
     _searchController.dispose();
     super.dispose();

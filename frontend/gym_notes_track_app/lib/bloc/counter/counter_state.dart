@@ -26,16 +26,20 @@ final class CounterLoaded extends CounterState {
   final String? loadedNoteId;
 
   /// Values for counters whose note was picked locally on a management-page
-  /// card. Key format: `"$counterId::$noteId"`. Kept separate from
-  /// [counterValues] so a single card's local pick never pollutes the shared
-  /// view for all other cards.
-  final Map<String, int> pickedNoteValues;
+  /// card. Kept separate from [counterValues] so a single card's local pick
+  /// never pollutes the shared view for all other cards.
+  final Map<({String counterId, String noteId}), int> pickedNoteValues;
+
+  /// Transient error from the last mutation. Cleared on the next successful
+  /// operation. UI can listen for non-null values to show a snackbar.
+  final String? lastError;
 
   const CounterLoaded({
     this.counters = const [],
     this.counterValues = const {},
     this.loadedNoteId,
     this.pickedNoteValues = const {},
+    this.lastError,
   });
 
   CounterLoaded copyWith({
@@ -43,7 +47,9 @@ final class CounterLoaded extends CounterState {
     Map<String, int>? counterValues,
     String? loadedNoteId,
     bool clearLoadedNoteId = false,
-    Map<String, int>? pickedNoteValues,
+    Map<({String counterId, String noteId}), int>? pickedNoteValues,
+    String? lastError,
+    bool clearError = false,
   }) {
     return CounterLoaded(
       counters: counters ?? this.counters,
@@ -52,6 +58,7 @@ final class CounterLoaded extends CounterState {
           ? null
           : (loadedNoteId ?? this.loadedNoteId),
       pickedNoteValues: pickedNoteValues ?? this.pickedNoteValues,
+      lastError: clearError ? null : (lastError ?? this.lastError),
     );
   }
 
@@ -61,6 +68,7 @@ final class CounterLoaded extends CounterState {
     counterValues,
     loadedNoteId,
     pickedNoteValues,
+    lastError,
   ];
 }
 
