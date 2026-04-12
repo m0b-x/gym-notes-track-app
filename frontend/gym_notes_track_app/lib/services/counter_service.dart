@@ -350,7 +350,8 @@ class CounterService {
     final noteValuesMap = <String, Map<String, int>>{};
     for (final row in allValues) {
       if (row.noteId.isEmpty) continue; // global values handled separately
-      noteValuesMap.putIfAbsent(row.noteId, () => {})[row.counterId] = row.value;
+      noteValuesMap.putIfAbsent(row.noteId, () => {})[row.counterId] =
+          row.value;
     }
     return {
       'counters': jsonEncode(_counters.map((c) => c.toJson()).toList()),

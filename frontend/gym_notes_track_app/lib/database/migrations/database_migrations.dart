@@ -34,6 +34,11 @@ class DatabaseMigrations {
       toVersion: DatabaseSchema.v6CounterTables,
       migrate: _migrateV5ToV6,
     ),
+    Migration(
+      fromVersion: DatabaseSchema.v6CounterTables,
+      toVersion: DatabaseSchema.v7CounterDateTimeFix,
+      migrate: _migrateV6ToV7,
+    ),
   ];
 
   Future<void> runMigrations(Migrator m, int from, int to) async {
@@ -128,6 +133,14 @@ class DatabaseMigrations {
     );
   }
 
+  Future<void> _migrateV6ToV7(Migrator m, GeneratedDatabase db) async {
+    await _db.customStatement(
+      "UPDATE counters "
+      "SET created_at = CAST(strftime('%s', created_at) AS INTEGER) * 1000 "
+      "WHERE typeof(created_at) = 'text'",
+    );
+  }
+
   Future<void> _migrateCounterJsonToTables() async {
     // Read existing counter definitions
     final countersRaw = await _db.userSettingsDao.getValue('counters');
@@ -148,13 +161,16 @@ class DatabaseMigrations {
       final startValue = c['start_value'] as int? ?? 1;
       final step = c['step'] as int? ?? 1;
       final scope = c['scope'] as String? ?? 'global';
-      final createdAt =
+      final createdAtStr =
           c['created_at'] as String? ?? DateTime.now().toIso8601String();
+      final createdAtMs =
+          DateTime.tryParse(createdAtStr)?.millisecondsSinceEpoch ??
+          DateTime.now().millisecondsSinceEpoch;
 
       await _db.customStatement(
         'INSERT OR IGNORE INTO counters (id, name, start_value, step, scope, position, created_at) '
         'VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [id, name, startValue, step, scope, i, createdAt],
+        [id, name, startValue, step, scope, i, createdAtMs],
       );
     }
 

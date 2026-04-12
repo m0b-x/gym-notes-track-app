@@ -175,7 +175,6 @@ class _ChunkOverlayPainter extends CustomPainter {
     if (lineCount == 0) return;
 
     final chunkCount = (lineCount / linesPerChunk).ceil();
-    final contentHeight = lineCount * lineHeight;
 
     // Calculate visible range (with some buffer for smooth scrolling)
     final visibleStart = scrollOffset - lineHeight * 2;
