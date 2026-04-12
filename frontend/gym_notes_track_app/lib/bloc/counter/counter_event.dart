@@ -99,7 +99,12 @@ final class SetCounterValue extends CounterEvent {
 }
 
 final class RefreshCounters extends CounterEvent {
-  const RefreshCounters();
+  final String? noteId;
+
+  const RefreshCounters({this.noteId});
+
+  @override
+  List<Object?> get props => [noteId];
 }
 
 final class ReorderCounters extends CounterEvent {
@@ -110,4 +115,17 @@ final class ReorderCounters extends CounterEvent {
 
   @override
   List<Object?> get props => [oldIndex, newIndex];
+}
+
+/// Loads the current value for a single counter/note pair into the bloc state
+/// without affecting the main [counterValues] map. Used when a management-page
+/// card picks a note locally so every mutation can route through the bloc.
+final class LoadCounterForNote extends CounterEvent {
+  final String counterId;
+  final String noteId;
+
+  const LoadCounterForNote({required this.counterId, required this.noteId});
+
+  @override
+  List<Object?> get props => [counterId, noteId];
 }

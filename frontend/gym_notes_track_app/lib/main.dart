@@ -11,6 +11,7 @@ import 'bloc/markdown_bar/markdown_bar_bloc.dart';
 import 'core/di/injection.dart';
 import 'pages/optimized_folder_content_page.dart';
 import 'pages/onboarding_page.dart';
+import 'services/counter_service.dart';
 import 'services/settings_service.dart';
 
 void main() async {
@@ -36,13 +37,29 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool? _showOnboarding;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkOnboarding();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      getIt<CounterService>().flush();
+    }
   }
 
   Future<void> _checkOnboarding() async {

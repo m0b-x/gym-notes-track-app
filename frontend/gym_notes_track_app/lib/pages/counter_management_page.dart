@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:get_it/get_it.dart';
 
 import '../bloc/counter/counter_bloc.dart';
 import '../l10n/app_localizations.dart';
 import '../models/counter.dart';
 import '../models/note_metadata.dart';
-import '../services/counter_service.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/app_loading_bar.dart';
@@ -71,6 +69,7 @@ class CounterManagementPage extends StatelessWidget {
                 currentValue: currentValue,
                 index: index,
                 noteId: noteId,
+                pickedNoteValues: state.pickedNoteValues,
               );
             },
           );
@@ -155,6 +154,7 @@ class _CounterCard extends StatefulWidget {
   final int currentValue;
   final int index;
   final String? noteId;
+  final Map<String, int> pickedNoteValues;
 
   const _CounterCard({
     super.key,
@@ -162,6 +162,7 @@ class _CounterCard extends StatefulWidget {
     required this.currentValue,
     required this.index,
     this.noteId,
+    this.pickedNoteValues = const {},
   });
 
   @override
@@ -170,7 +171,6 @@ class _CounterCard extends StatefulWidget {
 
 class _CounterCardState extends State<_CounterCard> {
   NoteMetadata? _selectedNote;
-  int? _localValue;
 
   Counter get counter => widget.counter;
   int get index => widget.index;
@@ -184,10 +184,15 @@ class _CounterCardState extends State<_CounterCard> {
       _selectedNote != null &&
       counter.scope != CounterScope.global;
 
-  /// Display value: local value when in local-note mode, otherwise from bloc.
-  int get _displayValue => _isLocalNoteMode
-      ? (_localValue ?? counter.startValue)
-      : widget.currentValue;
+  /// Display value: when in local-note mode reads from [pickedNoteValues] in
+  /// the bloc state; otherwise uses the value passed from the parent builder.
+  int get _displayValue {
+    if (_isLocalNoteMode) {
+      final key = '${counter.id}::${_selectedNote!.id}';
+      return widget.pickedNoteValues[key] ?? counter.startValue;
+    }
+    return widget.currentValue;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -347,7 +352,6 @@ class _CounterCardState extends State<_CounterCard> {
                     InkWell(
                       onTap: () => setState(() {
                         _selectedNote = null;
-                        _localValue = null;
                       }),
                       borderRadius: BorderRadius.circular(12),
                       child: Padding(
@@ -428,15 +432,12 @@ class _CounterCardState extends State<_CounterCard> {
 
   Future<void> _pickNote(BuildContext context) async {
     final note = await showNotePickerDialog(context);
-    if (note == null || !context.mounted) return;
-    // Load this counter's value for the picked note locally,
-    // without overwriting the shared bloc state.
-    final service = GetIt.I<CounterService>();
-    final value = await service.getValueForNote(counter.id, note.id);
-    setState(() {
-      _selectedNote = note;
-      _localValue = value;
-    });
+    if (note == null || !mounted) return;
+    // Load the value through the bloc so all mutations stay in one place.
+    context.read<CounterBloc>().add(
+      LoadCounterForNote(counterId: counter.id, noteId: note.id),
+    );
+    setState(() => _selectedNote = note);
   }
 
   Widget _buildStepper(BuildContext context, ColorScheme colorScheme) {
@@ -445,25 +446,9 @@ class _CounterCardState extends State<_CounterCard> {
       children: [
         IconButton.outlined(
           icon: const Icon(Icons.remove_rounded),
-          onPressed: () {
-            if (_isLocalNoteMode) {
-              GetIt.I<CounterService>().decrementForNote(
-                counter.id,
-                _selectedNote!.id,
-              );
-              setState(() {
-                _localValue =
-                    (_localValue ?? counter.startValue) - counter.step;
-              });
-            } else {
-              context.read<CounterBloc>().add(
-                DecrementCounter(
-                  counterId: counter.id,
-                  noteId: _effectiveNoteId,
-                ),
-              );
-            }
-          },
+          onPressed: () => context.read<CounterBloc>().add(
+            DecrementCounter(counterId: counter.id, noteId: _effectiveNoteId),
+          ),
         ),
         const SizedBox(width: 8),
         GestureDetector(
@@ -492,25 +477,9 @@ class _CounterCardState extends State<_CounterCard> {
         const SizedBox(width: 8),
         IconButton.outlined(
           icon: const Icon(Icons.add_rounded),
-          onPressed: () {
-            if (_isLocalNoteMode) {
-              GetIt.I<CounterService>().increment(
-                counter.id,
-                noteId: _selectedNote!.id,
-              );
-              setState(() {
-                _localValue =
-                    (_localValue ?? counter.startValue) + counter.step;
-              });
-            } else {
-              context.read<CounterBloc>().add(
-                IncrementCounter(
-                  counterId: counter.id,
-                  noteId: _effectiveNoteId,
-                ),
-              );
-            }
-          },
+          onPressed: () => context.read<CounterBloc>().add(
+            IncrementCounter(counterId: counter.id, noteId: _effectiveNoteId),
+          ),
         ),
       ],
     );
@@ -528,22 +497,13 @@ class _CounterCardState extends State<_CounterCard> {
     if (raw == null || !context.mounted) return;
     final value = int.tryParse(raw.trim());
     if (value == null) return;
-    if (_isLocalNoteMode) {
-      await GetIt.I<CounterService>().setValueForNote(
-        counter.id,
-        value,
-        noteId: _selectedNote!.id,
-      );
-      setState(() => _localValue = value);
-    } else {
-      context.read<CounterBloc>().add(
-        SetCounterValue(
-          counterId: counter.id,
-          value: value,
-          noteId: _effectiveNoteId,
-        ),
-      );
-    }
+    context.read<CounterBloc>().add(
+      SetCounterValue(
+        counterId: counter.id,
+        value: value,
+        noteId: _effectiveNoteId,
+      ),
+    );
   }
 
   Future<void> _handleAction(BuildContext context, String action) async {
@@ -574,17 +534,7 @@ class _CounterCardState extends State<_CounterCard> {
           icon: Icons.restart_alt_rounded,
         );
         if (!confirmed || !context.mounted) return;
-        if (_isLocalNoteMode) {
-          await GetIt.I<CounterService>().resetForNote(
-            counter.id,
-            _selectedNote!.id,
-          );
-          setState(() => _localValue = counter.startValue);
-        } else {
-          bloc.add(
-            ResetCounter(counterId: counter.id, noteId: _effectiveNoteId),
-          );
-        }
+        bloc.add(ResetCounter(counterId: counter.id, noteId: _effectiveNoteId));
         if (context.mounted) {
           CustomSnackbar.showSuccess(context, l10n.counterResetSuccess);
         }

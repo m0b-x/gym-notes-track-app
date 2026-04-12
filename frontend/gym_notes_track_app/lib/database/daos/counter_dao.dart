@@ -1,0 +1,104 @@
+import 'package:drift/drift.dart';
+import '../database.dart';
+import '../tables/counters_table.dart';
+import '../tables/counter_values_table.dart';
+
+part 'counter_dao.g.dart';
+
+@DriftAccessor(tables: [Counters, CounterValues])
+class CounterDao extends DatabaseAccessor<AppDatabase> with _$CounterDaoMixin {
+  CounterDao(super.db);
+
+  // ---------------------------------------------------------------------------
+  // Counter definitions
+  // ---------------------------------------------------------------------------
+
+  Future<List<CounterRow>> getAllCounters() {
+    return (select(
+      counters,
+    )..orderBy([(c) => OrderingTerm.asc(c.position)])).get();
+  }
+
+  Future<void> insertCounter(CountersCompanion entry) {
+    return into(counters).insert(entry);
+  }
+
+  Future<void> updateCounter(CountersCompanion entry) {
+    return (update(
+      counters,
+    )..where((c) => c.id.equals(entry.id.value))).write(entry);
+  }
+
+  Future<void> deleteCounter(String id) {
+    return (delete(counters)..where((c) => c.id.equals(id))).go();
+  }
+
+  Future<void> deleteCounterValues(String counterId) {
+    return (delete(
+      counterValues,
+    )..where((v) => v.counterId.equals(counterId))).go();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Counter values
+  // ---------------------------------------------------------------------------
+
+  /// Upserts a single value row. [noteId] should be `''` for global counters.
+  Future<void> upsertValue(String counterId, String noteId, int value) {
+    return into(counterValues).insertOnConflictUpdate(
+      CounterValuesCompanion(
+        counterId: Value(counterId),
+        noteId: Value(noteId),
+        value: Value(value),
+      ),
+    );
+  }
+
+  /// Gets a single counter value. Returns null if not set.
+  Future<int?> getValue(String counterId, String noteId) async {
+    final row =
+        await (select(counterValues)..where(
+              (v) => v.counterId.equals(counterId) & v.noteId.equals(noteId),
+            ))
+            .getSingleOrNull();
+    return row?.value;
+  }
+
+  /// Gets all values for a given note (or global values when [noteId] is `''`).
+  Future<Map<String, int>> getValuesForNote(String noteId) async {
+    final rows = await (select(
+      counterValues,
+    )..where((v) => v.noteId.equals(noteId))).get();
+    return {for (final r in rows) r.counterId: r.value};
+  }
+
+  /// Deletes the value row for a specific counter + note pair.
+  Future<void> deleteValue(String counterId, String noteId) {
+    return (delete(counterValues)..where(
+          (v) => v.counterId.equals(counterId) & v.noteId.equals(noteId),
+        ))
+        .go();
+  }
+
+  /// Bulk-updates positions for reordering. Expects a map of id → position.
+  Future<void> updatePositions(Map<String, int> positions) async {
+    await transaction(() async {
+      for (final entry in positions.entries) {
+        await (update(counters)..where((c) => c.id.equals(entry.key))).write(
+          CountersCompanion(position: Value(entry.value)),
+        );
+      }
+    });
+  }
+
+  /// Returns all counter-value rows (for backup export).
+  Future<List<CounterValueRow>> getAllValues() {
+    return select(counterValues).get();
+  }
+
+  /// Deletes every counter and counter-value row (used before import).
+  Future<void> deleteAll() async {
+    await delete(counterValues).go();
+    await delete(counters).go();
+  }
+}

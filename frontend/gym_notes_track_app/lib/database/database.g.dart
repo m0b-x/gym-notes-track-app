@@ -2736,6 +2736,711 @@ class UserSettingsCompanion extends UpdateCompanion<UserSetting> {
   }
 }
 
+class $CountersTable extends Counters
+    with TableInfo<$CountersTable, CounterRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CountersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startValueMeta = const VerificationMeta(
+    'startValue',
+  );
+  @override
+  late final GeneratedColumn<int> startValue = GeneratedColumn<int>(
+    'start_value',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _stepMeta = const VerificationMeta('step');
+  @override
+  late final GeneratedColumn<int> step = GeneratedColumn<int>(
+    'step',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _scopeMeta = const VerificationMeta('scope');
+  @override
+  late final GeneratedColumn<String> scope = GeneratedColumn<String>(
+    'scope',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('global'),
+  );
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    startValue,
+    step,
+    scope,
+    position,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'counters';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CounterRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('start_value')) {
+      context.handle(
+        _startValueMeta,
+        startValue.isAcceptableOrUnknown(data['start_value']!, _startValueMeta),
+      );
+    }
+    if (data.containsKey('step')) {
+      context.handle(
+        _stepMeta,
+        step.isAcceptableOrUnknown(data['step']!, _stepMeta),
+      );
+    }
+    if (data.containsKey('scope')) {
+      context.handle(
+        _scopeMeta,
+        scope.isAcceptableOrUnknown(data['scope']!, _scopeMeta),
+      );
+    }
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CounterRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CounterRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      startValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_value'],
+      )!,
+      step: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}step'],
+      )!,
+      scope: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}scope'],
+      )!,
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CountersTable createAlias(String alias) {
+    return $CountersTable(attachedDatabase, alias);
+  }
+}
+
+class CounterRow extends DataClass implements Insertable<CounterRow> {
+  final String id;
+  final String name;
+  final int startValue;
+  final int step;
+  final String scope;
+  final int position;
+  final DateTime createdAt;
+  const CounterRow({
+    required this.id,
+    required this.name,
+    required this.startValue,
+    required this.step,
+    required this.scope,
+    required this.position,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['start_value'] = Variable<int>(startValue);
+    map['step'] = Variable<int>(step);
+    map['scope'] = Variable<String>(scope);
+    map['position'] = Variable<int>(position);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  CountersCompanion toCompanion(bool nullToAbsent) {
+    return CountersCompanion(
+      id: Value(id),
+      name: Value(name),
+      startValue: Value(startValue),
+      step: Value(step),
+      scope: Value(scope),
+      position: Value(position),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory CounterRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CounterRow(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      startValue: serializer.fromJson<int>(json['startValue']),
+      step: serializer.fromJson<int>(json['step']),
+      scope: serializer.fromJson<String>(json['scope']),
+      position: serializer.fromJson<int>(json['position']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'startValue': serializer.toJson<int>(startValue),
+      'step': serializer.toJson<int>(step),
+      'scope': serializer.toJson<String>(scope),
+      'position': serializer.toJson<int>(position),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  CounterRow copyWith({
+    String? id,
+    String? name,
+    int? startValue,
+    int? step,
+    String? scope,
+    int? position,
+    DateTime? createdAt,
+  }) => CounterRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    startValue: startValue ?? this.startValue,
+    step: step ?? this.step,
+    scope: scope ?? this.scope,
+    position: position ?? this.position,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  CounterRow copyWithCompanion(CountersCompanion data) {
+    return CounterRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      startValue: data.startValue.present
+          ? data.startValue.value
+          : this.startValue,
+      step: data.step.present ? data.step.value : this.step,
+      scope: data.scope.present ? data.scope.value : this.scope,
+      position: data.position.present ? data.position.value : this.position,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CounterRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('startValue: $startValue, ')
+          ..write('step: $step, ')
+          ..write('scope: $scope, ')
+          ..write('position: $position, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, startValue, step, scope, position, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CounterRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.startValue == this.startValue &&
+          other.step == this.step &&
+          other.scope == this.scope &&
+          other.position == this.position &&
+          other.createdAt == this.createdAt);
+}
+
+class CountersCompanion extends UpdateCompanion<CounterRow> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<int> startValue;
+  final Value<int> step;
+  final Value<String> scope;
+  final Value<int> position;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const CountersCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.startValue = const Value.absent(),
+    this.step = const Value.absent(),
+    this.scope = const Value.absent(),
+    this.position = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CountersCompanion.insert({
+    required String id,
+    required String name,
+    this.startValue = const Value.absent(),
+    this.step = const Value.absent(),
+    this.scope = const Value.absent(),
+    this.position = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       createdAt = Value(createdAt);
+  static Insertable<CounterRow> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<int>? startValue,
+    Expression<int>? step,
+    Expression<String>? scope,
+    Expression<int>? position,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (startValue != null) 'start_value': startValue,
+      if (step != null) 'step': step,
+      if (scope != null) 'scope': scope,
+      if (position != null) 'position': position,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CountersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<int>? startValue,
+    Value<int>? step,
+    Value<String>? scope,
+    Value<int>? position,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return CountersCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      startValue: startValue ?? this.startValue,
+      step: step ?? this.step,
+      scope: scope ?? this.scope,
+      position: position ?? this.position,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (startValue.present) {
+      map['start_value'] = Variable<int>(startValue.value);
+    }
+    if (step.present) {
+      map['step'] = Variable<int>(step.value);
+    }
+    if (scope.present) {
+      map['scope'] = Variable<String>(scope.value);
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CountersCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('startValue: $startValue, ')
+          ..write('step: $step, ')
+          ..write('scope: $scope, ')
+          ..write('position: $position, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $CounterValuesTable extends CounterValues
+    with TableInfo<$CounterValuesTable, CounterValueRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CounterValuesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _counterIdMeta = const VerificationMeta(
+    'counterId',
+  );
+  @override
+  late final GeneratedColumn<String> counterId = GeneratedColumn<String>(
+    'counter_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _noteIdMeta = const VerificationMeta('noteId');
+  @override
+  late final GeneratedColumn<String> noteId = GeneratedColumn<String>(
+    'note_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<int> value = GeneratedColumn<int>(
+    'value',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [counterId, noteId, value];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'counter_values';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CounterValueRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('counter_id')) {
+      context.handle(
+        _counterIdMeta,
+        counterId.isAcceptableOrUnknown(data['counter_id']!, _counterIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_counterIdMeta);
+    }
+    if (data.containsKey('note_id')) {
+      context.handle(
+        _noteIdMeta,
+        noteId.isAcceptableOrUnknown(data['note_id']!, _noteIdMeta),
+      );
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {counterId, noteId};
+  @override
+  CounterValueRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CounterValueRow(
+      counterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}counter_id'],
+      )!,
+      noteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note_id'],
+      )!,
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}value'],
+      )!,
+    );
+  }
+
+  @override
+  $CounterValuesTable createAlias(String alias) {
+    return $CounterValuesTable(attachedDatabase, alias);
+  }
+}
+
+class CounterValueRow extends DataClass implements Insertable<CounterValueRow> {
+  final String counterId;
+  final String noteId;
+  final int value;
+  const CounterValueRow({
+    required this.counterId,
+    required this.noteId,
+    required this.value,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['counter_id'] = Variable<String>(counterId);
+    map['note_id'] = Variable<String>(noteId);
+    map['value'] = Variable<int>(value);
+    return map;
+  }
+
+  CounterValuesCompanion toCompanion(bool nullToAbsent) {
+    return CounterValuesCompanion(
+      counterId: Value(counterId),
+      noteId: Value(noteId),
+      value: Value(value),
+    );
+  }
+
+  factory CounterValueRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CounterValueRow(
+      counterId: serializer.fromJson<String>(json['counterId']),
+      noteId: serializer.fromJson<String>(json['noteId']),
+      value: serializer.fromJson<int>(json['value']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'counterId': serializer.toJson<String>(counterId),
+      'noteId': serializer.toJson<String>(noteId),
+      'value': serializer.toJson<int>(value),
+    };
+  }
+
+  CounterValueRow copyWith({String? counterId, String? noteId, int? value}) =>
+      CounterValueRow(
+        counterId: counterId ?? this.counterId,
+        noteId: noteId ?? this.noteId,
+        value: value ?? this.value,
+      );
+  CounterValueRow copyWithCompanion(CounterValuesCompanion data) {
+    return CounterValueRow(
+      counterId: data.counterId.present ? data.counterId.value : this.counterId,
+      noteId: data.noteId.present ? data.noteId.value : this.noteId,
+      value: data.value.present ? data.value.value : this.value,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CounterValueRow(')
+          ..write('counterId: $counterId, ')
+          ..write('noteId: $noteId, ')
+          ..write('value: $value')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(counterId, noteId, value);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CounterValueRow &&
+          other.counterId == this.counterId &&
+          other.noteId == this.noteId &&
+          other.value == this.value);
+}
+
+class CounterValuesCompanion extends UpdateCompanion<CounterValueRow> {
+  final Value<String> counterId;
+  final Value<String> noteId;
+  final Value<int> value;
+  final Value<int> rowid;
+  const CounterValuesCompanion({
+    this.counterId = const Value.absent(),
+    this.noteId = const Value.absent(),
+    this.value = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CounterValuesCompanion.insert({
+    required String counterId,
+    this.noteId = const Value.absent(),
+    required int value,
+    this.rowid = const Value.absent(),
+  }) : counterId = Value(counterId),
+       value = Value(value);
+  static Insertable<CounterValueRow> custom({
+    Expression<String>? counterId,
+    Expression<String>? noteId,
+    Expression<int>? value,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (counterId != null) 'counter_id': counterId,
+      if (noteId != null) 'note_id': noteId,
+      if (value != null) 'value': value,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CounterValuesCompanion copyWith({
+    Value<String>? counterId,
+    Value<String>? noteId,
+    Value<int>? value,
+    Value<int>? rowid,
+  }) {
+    return CounterValuesCompanion(
+      counterId: counterId ?? this.counterId,
+      noteId: noteId ?? this.noteId,
+      value: value ?? this.value,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (counterId.present) {
+      map['counter_id'] = Variable<String>(counterId.value);
+    }
+    if (noteId.present) {
+      map['note_id'] = Variable<String>(noteId.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<int>(value.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CounterValuesCompanion(')
+          ..write('counterId: $counterId, ')
+          ..write('noteId: $noteId, ')
+          ..write('value: $value, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2744,6 +3449,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ContentChunksTable contentChunks = $ContentChunksTable(this);
   late final $SyncMetadataTable syncMetadata = $SyncMetadataTable(this);
   late final $UserSettingsTable userSettings = $UserSettingsTable(this);
+  late final $CountersTable counters = $CountersTable(this);
+  late final $CounterValuesTable counterValues = $CounterValuesTable(this);
   late final FolderDao folderDao = FolderDao(this as AppDatabase);
   late final NoteDao noteDao = NoteDao(this as AppDatabase);
   late final ContentChunkDao contentChunkDao = ContentChunkDao(
@@ -2753,6 +3460,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final UserSettingsDao userSettingsDao = UserSettingsDao(
     this as AppDatabase,
   );
+  late final CounterDao counterDao = CounterDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2763,6 +3471,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     contentChunks,
     syncMetadata,
     userSettings,
+    counters,
+    counterValues,
   ];
 }
 
@@ -4115,6 +4825,405 @@ typedef $$UserSettingsTableProcessedTableManager =
       UserSetting,
       PrefetchHooks Function()
     >;
+typedef $$CountersTableCreateCompanionBuilder =
+    CountersCompanion Function({
+      required String id,
+      required String name,
+      Value<int> startValue,
+      Value<int> step,
+      Value<String> scope,
+      Value<int> position,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$CountersTableUpdateCompanionBuilder =
+    CountersCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<int> startValue,
+      Value<int> step,
+      Value<String> scope,
+      Value<int> position,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$CountersTableFilterComposer
+    extends Composer<_$AppDatabase, $CountersTable> {
+  $$CountersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startValue => $composableBuilder(
+    column: $table.startValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get step => $composableBuilder(
+    column: $table.step,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scope => $composableBuilder(
+    column: $table.scope,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CountersTableOrderingComposer
+    extends Composer<_$AppDatabase, $CountersTable> {
+  $$CountersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startValue => $composableBuilder(
+    column: $table.startValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get step => $composableBuilder(
+    column: $table.step,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scope => $composableBuilder(
+    column: $table.scope,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CountersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CountersTable> {
+  $$CountersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get startValue => $composableBuilder(
+    column: $table.startValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get step =>
+      $composableBuilder(column: $table.step, builder: (column) => column);
+
+  GeneratedColumn<String> get scope =>
+      $composableBuilder(column: $table.scope, builder: (column) => column);
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$CountersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CountersTable,
+          CounterRow,
+          $$CountersTableFilterComposer,
+          $$CountersTableOrderingComposer,
+          $$CountersTableAnnotationComposer,
+          $$CountersTableCreateCompanionBuilder,
+          $$CountersTableUpdateCompanionBuilder,
+          (
+            CounterRow,
+            BaseReferences<_$AppDatabase, $CountersTable, CounterRow>,
+          ),
+          CounterRow,
+          PrefetchHooks Function()
+        > {
+  $$CountersTableTableManager(_$AppDatabase db, $CountersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CountersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CountersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CountersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> startValue = const Value.absent(),
+                Value<int> step = const Value.absent(),
+                Value<String> scope = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CountersCompanion(
+                id: id,
+                name: name,
+                startValue: startValue,
+                step: step,
+                scope: scope,
+                position: position,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                Value<int> startValue = const Value.absent(),
+                Value<int> step = const Value.absent(),
+                Value<String> scope = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => CountersCompanion.insert(
+                id: id,
+                name: name,
+                startValue: startValue,
+                step: step,
+                scope: scope,
+                position: position,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CountersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CountersTable,
+      CounterRow,
+      $$CountersTableFilterComposer,
+      $$CountersTableOrderingComposer,
+      $$CountersTableAnnotationComposer,
+      $$CountersTableCreateCompanionBuilder,
+      $$CountersTableUpdateCompanionBuilder,
+      (CounterRow, BaseReferences<_$AppDatabase, $CountersTable, CounterRow>),
+      CounterRow,
+      PrefetchHooks Function()
+    >;
+typedef $$CounterValuesTableCreateCompanionBuilder =
+    CounterValuesCompanion Function({
+      required String counterId,
+      Value<String> noteId,
+      required int value,
+      Value<int> rowid,
+    });
+typedef $$CounterValuesTableUpdateCompanionBuilder =
+    CounterValuesCompanion Function({
+      Value<String> counterId,
+      Value<String> noteId,
+      Value<int> value,
+      Value<int> rowid,
+    });
+
+class $$CounterValuesTableFilterComposer
+    extends Composer<_$AppDatabase, $CounterValuesTable> {
+  $$CounterValuesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get counterId => $composableBuilder(
+    column: $table.counterId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CounterValuesTableOrderingComposer
+    extends Composer<_$AppDatabase, $CounterValuesTable> {
+  $$CounterValuesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get counterId => $composableBuilder(
+    column: $table.counterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CounterValuesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CounterValuesTable> {
+  $$CounterValuesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get counterId =>
+      $composableBuilder(column: $table.counterId, builder: (column) => column);
+
+  GeneratedColumn<String> get noteId =>
+      $composableBuilder(column: $table.noteId, builder: (column) => column);
+
+  GeneratedColumn<int> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+}
+
+class $$CounterValuesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CounterValuesTable,
+          CounterValueRow,
+          $$CounterValuesTableFilterComposer,
+          $$CounterValuesTableOrderingComposer,
+          $$CounterValuesTableAnnotationComposer,
+          $$CounterValuesTableCreateCompanionBuilder,
+          $$CounterValuesTableUpdateCompanionBuilder,
+          (
+            CounterValueRow,
+            BaseReferences<_$AppDatabase, $CounterValuesTable, CounterValueRow>,
+          ),
+          CounterValueRow,
+          PrefetchHooks Function()
+        > {
+  $$CounterValuesTableTableManager(_$AppDatabase db, $CounterValuesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CounterValuesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CounterValuesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CounterValuesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> counterId = const Value.absent(),
+                Value<String> noteId = const Value.absent(),
+                Value<int> value = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CounterValuesCompanion(
+                counterId: counterId,
+                noteId: noteId,
+                value: value,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String counterId,
+                Value<String> noteId = const Value.absent(),
+                required int value,
+                Value<int> rowid = const Value.absent(),
+              }) => CounterValuesCompanion.insert(
+                counterId: counterId,
+                noteId: noteId,
+                value: value,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CounterValuesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CounterValuesTable,
+      CounterValueRow,
+      $$CounterValuesTableFilterComposer,
+      $$CounterValuesTableOrderingComposer,
+      $$CounterValuesTableAnnotationComposer,
+      $$CounterValuesTableCreateCompanionBuilder,
+      $$CounterValuesTableUpdateCompanionBuilder,
+      (
+        CounterValueRow,
+        BaseReferences<_$AppDatabase, $CounterValuesTable, CounterValueRow>,
+      ),
+      CounterValueRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4129,4 +5238,8 @@ class $AppDatabaseManager {
       $$SyncMetadataTableTableManager(_db, _db.syncMetadata);
   $$UserSettingsTableTableManager get userSettings =>
       $$UserSettingsTableTableManager(_db, _db.userSettings);
+  $$CountersTableTableManager get counters =>
+      $$CountersTableTableManager(_db, _db.counters);
+  $$CounterValuesTableTableManager get counterValues =>
+      $$CounterValuesTableTableManager(_db, _db.counterValues);
 }

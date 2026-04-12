@@ -11,7 +11,6 @@ export 'counter_state.dart';
 
 class CounterBloc extends Bloc<CounterEvent, CounterState> {
   final CounterService _counterService;
-  String? _activeNoteId;
 
   CounterBloc({required CounterService counterService})
     : _counterService = counterService,
@@ -26,26 +25,82 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
     on<SetCounterValue>(_onSetCounterValue);
     on<RefreshCounters>(_onRefreshCounters);
     on<ReorderCounters>(_onReorderCounters);
+    on<LoadCounterForNote>(_onLoadCounterForNote);
   }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  /// Builds the main [CounterLoaded.counterValues] map for the given [noteId]
+  /// context. For per-note counters the per-note stored value is used; for
+  /// global counters the in-memory global value is used.
+  Future<Map<String, int>> _buildCounterValues(String? noteId) async {
+    final values = <String, int>{};
+    final noteValues = noteId != null
+        ? await _counterService.getNoteValues(noteId)
+        : <String, int>{};
+    for (final c in _counterService.counters) {
+      if (noteId != null && c.scope == CounterScope.perNote) {
+        values[c.id] = noteValues[c.id] ?? c.startValue;
+      } else {
+        values[c.id] = _counterService.getGlobalValue(c.id);
+      }
+    }
+    return values;
+  }
+
+  /// Returns true when an event's [noteId] targets a locally-picked note on a
+  /// management-page card, rather than the page-level loaded note context.
+  /// In that case mutations must go into [CounterLoaded.pickedNoteValues]
+  /// instead of [CounterLoaded.counterValues] so other cards are unaffected.
+  bool _isLocallyPickedNote(
+    String counterId,
+    String? noteId,
+    CounterLoaded state,
+  ) {
+    final counter = _counterService.getCounterById(counterId);
+    return counter?.scope != CounterScope.global &&
+        noteId != null &&
+        noteId != state.loadedNoteId;
+  }
+
+  /// Emits an updated state routing [newValue] into either
+  /// [CounterLoaded.pickedNoteValues] or [CounterLoaded.counterValues]
+  /// depending on whether [noteId] is a locally-picked note.
+  void _emitWithUpdatedValue(
+    String counterId,
+    int newValue,
+    String? noteId,
+    CounterLoaded current,
+    Emitter<CounterState> emit,
+  ) {
+    if (_isLocallyPickedNote(counterId, noteId, current)) {
+      final key = '$counterId::$noteId';
+      final picked = Map<String, int>.from(current.pickedNoteValues);
+      picked[key] = newValue;
+      emit(current.copyWith(pickedNoteValues: picked));
+    } else {
+      final values = Map<String, int>.from(current.counterValues);
+      values[counterId] = newValue;
+      emit(current.copyWith(counterValues: values));
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
 
   Future<void> _onLoad(LoadCounters event, Emitter<CounterState> emit) async {
     emit(const CounterLoading());
-    _activeNoteId = event.noteId;
     try {
-      final counters = _counterService.counters;
-      final counterValues = <String, int>{};
-      final noteValues = event.noteId != null
-          ? await _counterService.getNoteValues(event.noteId!)
-          : <String, int>{};
-      for (final c in counters) {
-        if (event.noteId != null && c.scope == CounterScope.perNote) {
-          counterValues[c.id] = noteValues[c.id] ?? c.startValue;
-        } else {
-          counterValues[c.id] = _counterService.getGlobalValue(c.id);
-        }
-      }
-
-      emit(CounterLoaded(counters: counters, counterValues: counterValues));
+      emit(
+        CounterLoaded(
+          counters: _counterService.counters,
+          counterValues: await _buildCounterValues(event.noteId),
+          loadedNoteId: event.noteId,
+        ),
+      );
     } catch (e) {
       debugPrint('[CounterBloc] Load error: $e');
       emit(CounterError(e.toString()));
@@ -68,7 +123,7 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
       emit(
         current.copyWith(
           counters: _counterService.counters,
-          counterValues: await _buildCounterValues(),
+          counterValues: await _buildCounterValues(current.loadedNoteId),
         ),
       );
     } catch (e) {
@@ -100,10 +155,13 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
       await _counterService.deleteCounter(event.counterId);
       final values = Map<String, int>.from(current.counterValues);
       values.remove(event.counterId);
+      final picked = Map<String, int>.from(current.pickedNoteValues)
+        ..removeWhere((k, _) => k.startsWith('${event.counterId}::'));
       emit(
         current.copyWith(
           counters: _counterService.counters,
           counterValues: values,
+          pickedNoteValues: picked,
         ),
       );
     } catch (e) {
@@ -125,9 +183,13 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
       }
       final counter = _counterService.getCounterById(event.counterId);
       if (counter != null) {
-        final values = Map<String, int>.from(current.counterValues);
-        values[event.counterId] = counter.startValue;
-        emit(current.copyWith(counterValues: values));
+        _emitWithUpdatedValue(
+          event.counterId,
+          counter.startValue,
+          event.noteId,
+          current,
+          emit,
+        );
       }
     } catch (e) {
       debugPrint('[CounterBloc] Reset counter error: $e');
@@ -141,16 +203,17 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
     final current = state;
     if (current is! CounterLoaded) return;
     try {
-      final insertedValue = await _counterService.increment(
+      final newValue = await _counterService.increment(
         event.counterId,
         noteId: event.noteId,
       );
-      final values = Map<String, int>.from(current.counterValues);
-      final counter = _counterService.getCounterById(event.counterId);
-      if (counter != null) {
-        values[event.counterId] = insertedValue + counter.step;
-      }
-      emit(current.copyWith(counterValues: values));
+      _emitWithUpdatedValue(
+        event.counterId,
+        newValue,
+        event.noteId,
+        current,
+        emit,
+      );
     } catch (e) {
       debugPrint('[CounterBloc] Increment counter error: $e');
     }
@@ -163,23 +226,16 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
     final current = state;
     if (current is! CounterLoaded) return;
     try {
-      if (event.noteId != null) {
-        await _counterService.decrementForNote(event.counterId, event.noteId!);
-        final value = await _counterService.getValueForNote(
-          event.counterId,
-          event.noteId!,
-        );
-        final values = Map<String, int>.from(current.counterValues);
-        values[event.counterId] = value;
-        emit(current.copyWith(counterValues: values));
+      final noteId = event.noteId;
+      if (noteId != null) {
+        await _counterService.decrementForNote(event.counterId, noteId);
       } else {
         await _counterService.decrementGlobal(event.counterId);
-        final values = Map<String, int>.from(current.counterValues);
-        values[event.counterId] = _counterService.getGlobalValue(
-          event.counterId,
-        );
-        emit(current.copyWith(counterValues: values));
       }
+      final newValue = noteId != null
+          ? await _counterService.getValueForNote(event.counterId, noteId)
+          : _counterService.getGlobalValue(event.counterId);
+      _emitWithUpdatedValue(event.counterId, newValue, noteId, current, emit);
     } catch (e) {
       debugPrint('[CounterBloc] Decrement counter error: $e');
     }
@@ -197,9 +253,13 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
         event.value,
         noteId: event.noteId,
       );
-      final values = Map<String, int>.from(current.counterValues);
-      values[event.counterId] = event.value;
-      emit(current.copyWith(counterValues: values));
+      _emitWithUpdatedValue(
+        event.counterId,
+        event.value,
+        event.noteId,
+        current,
+        emit,
+      );
     } catch (e) {
       debugPrint('[CounterBloc] Set counter value error: $e');
     }
@@ -211,27 +271,13 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
   ) async {
     final current = state;
     if (current is! CounterLoaded) return;
+    final noteId = event.noteId ?? current.loadedNoteId;
     emit(
       current.copyWith(
         counters: _counterService.counters,
-        counterValues: await _buildCounterValues(),
+        counterValues: await _buildCounterValues(noteId),
       ),
     );
-  }
-
-  Future<Map<String, int>> _buildCounterValues() async {
-    final values = <String, int>{};
-    final noteValues = _activeNoteId != null
-        ? await _counterService.getNoteValues(_activeNoteId!)
-        : <String, int>{};
-    for (final c in _counterService.counters) {
-      if (_activeNoteId != null && c.scope == CounterScope.perNote) {
-        values[c.id] = noteValues[c.id] ?? c.startValue;
-      } else {
-        values[c.id] = _counterService.getGlobalValue(c.id);
-      }
-    }
-    return values;
   }
 
   Future<void> _onReorderCounters(
@@ -245,6 +291,26 @@ class CounterBloc extends Bloc<CounterEvent, CounterState> {
       emit(current.copyWith(counters: _counterService.counters));
     } catch (e) {
       debugPrint('[CounterBloc] Reorder counters error: $e');
+    }
+  }
+
+  Future<void> _onLoadCounterForNote(
+    LoadCounterForNote event,
+    Emitter<CounterState> emit,
+  ) async {
+    final current = state;
+    if (current is! CounterLoaded) return;
+    try {
+      final value = await _counterService.getValueForNote(
+        event.counterId,
+        event.noteId,
+      );
+      final key = '${event.counterId}::${event.noteId}';
+      final picked = Map<String, int>.from(current.pickedNoteValues);
+      picked[key] = value;
+      emit(current.copyWith(pickedNoteValues: picked));
+    } catch (e) {
+      debugPrint('[CounterBloc] LoadCounterForNote error: $e');
     }
   }
 }

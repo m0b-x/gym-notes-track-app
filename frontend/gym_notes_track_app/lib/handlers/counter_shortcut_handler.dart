@@ -26,6 +26,7 @@ class CounterShortcutHandler implements MarkdownShortcutHandler {
     final counter = counterService.getCounterById(counterId);
     if (counter == null) return;
 
+    // increment() now returns the post-increment value (the count you just reached).
     final currentValue = await counterService.increment(
       counterId,
       noteId: _activeNoteId,
@@ -37,11 +38,9 @@ class CounterShortcutHandler implements MarkdownShortcutHandler {
     final end = selection.end;
 
     final valueStr = currentValue.toString();
-    final insertText =
-        '${shortcut.beforeText}$valueStr${shortcut.afterText}';
+    final insertText = '${shortcut.beforeText}$valueStr${shortcut.afterText}';
 
-    final newText =
-        text.substring(0, start) + insertText + text.substring(end);
+    final newText = text.substring(0, start) + insertText + text.substring(end);
 
     controller.value = TextEditingValue(
       text: newText,

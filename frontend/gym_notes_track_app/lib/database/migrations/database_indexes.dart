@@ -9,6 +9,7 @@ class DatabaseIndexes {
     await _createFolderIndexes();
     await _createNoteIndexes();
     await _createChunkIndexes();
+    await _createCounterIndexes();
     await _createFtsTable();
   }
 
@@ -39,6 +40,12 @@ class DatabaseIndexes {
   Future<void> _createChunkIndexes() async {
     await _db.customStatement(
       'CREATE INDEX IF NOT EXISTS idx_chunks_note_index ON content_chunks(note_id, chunk_index) WHERE is_deleted = 0',
+    );
+  }
+
+  Future<void> _createCounterIndexes() async {
+    await _db.customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_counter_values_counter ON counter_values(counter_id)',
     );
   }
 

@@ -1648,8 +1648,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     }
   }
 
-  /// Increments the given counter and returns its current (pre-increment)
-  /// value as a string. Also refreshes counter state in the BLoC.
+  /// Increments the given counter and returns its post-increment value.
+  /// Also refreshes counter state in the BLoC.
   Future<int> _incrementCounter(String counterId) async {
     final bloc = context.read<CounterBloc>();
     final counterState = bloc.state;
@@ -1664,7 +1664,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         counterState.counterValues[counterId] ?? counter.startValue;
     final noteId = _effectiveNoteId ?? widget.noteId;
     bloc.add(IncrementCounter(counterId: counterId, noteId: noteId));
-    return currentValue;
+    return currentValue + counter.step;
   }
 
   Future<void> _showCounterPicker() async {

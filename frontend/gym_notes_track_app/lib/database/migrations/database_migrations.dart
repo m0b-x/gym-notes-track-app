@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import '../database.dart';
 import 'database_schema.dart';
@@ -27,6 +28,11 @@ class DatabaseMigrations {
       fromVersion: DatabaseSchema.v4ManualOrdering,
       toVersion: DatabaseSchema.v5FolderSortPreferences,
       migrate: _migrateV4ToV5,
+    ),
+    Migration(
+      fromVersion: DatabaseSchema.v5FolderSortPreferences,
+      toVersion: DatabaseSchema.v6CounterTables,
+      migrate: _migrateV5ToV6,
     ),
   ];
 
@@ -94,5 +100,96 @@ class DatabaseMigrations {
     // Add sort preference columns to folders table
     await m.addColumn(_db.folders, _db.folders.noteSortOrder);
     await m.addColumn(_db.folders, _db.folders.subfolderSortOrder);
+  }
+
+  Future<void> _migrateV5ToV6(Migrator m, GeneratedDatabase db) async {
+    // 1. Create the new tables
+    await m.createTable(_db.counters);
+    await m.createTable(_db.counterValues);
+
+    // 2. Create index on counter_values for fast lookups by counter_id
+    await _db.customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_counter_values_counter '
+      'ON counter_values(counter_id)',
+    );
+
+    // 3. Migrate existing JSON data from user_settings
+    await _migrateCounterJsonToTables();
+
+    // 4. Clean up old JSON keys
+    await _db.customStatement(
+      "DELETE FROM user_settings WHERE key = 'counters'",
+    );
+    await _db.customStatement(
+      "DELETE FROM user_settings WHERE key = 'counter_global_values'",
+    );
+    await _db.customStatement(
+      "DELETE FROM user_settings WHERE key LIKE 'counter_note_values_%'",
+    );
+  }
+
+  Future<void> _migrateCounterJsonToTables() async {
+    // Read existing counter definitions
+    final countersRaw = await _db.userSettingsDao.getValue('counters');
+    if (countersRaw == null) return;
+
+    List<dynamic> countersList;
+    try {
+      countersList = jsonDecode(countersRaw) as List<dynamic>;
+    } catch (_) {
+      return;
+    }
+
+    // Insert counter definitions
+    for (var i = 0; i < countersList.length; i++) {
+      final c = countersList[i] as Map<String, dynamic>;
+      final id = c['id'] as String;
+      final name = c['name'] as String? ?? 'Counter';
+      final startValue = c['start_value'] as int? ?? 1;
+      final step = c['step'] as int? ?? 1;
+      final scope = c['scope'] as String? ?? 'global';
+      final createdAt =
+          c['created_at'] as String? ?? DateTime.now().toIso8601String();
+
+      await _db.customStatement(
+        'INSERT OR IGNORE INTO counters (id, name, start_value, step, scope, position, created_at) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, name, startValue, step, scope, i, createdAt],
+      );
+    }
+
+    // Migrate global values
+    final globalRaw = await _db.userSettingsDao.getValue(
+      'counter_global_values',
+    );
+    if (globalRaw != null) {
+      try {
+        final globalMap = jsonDecode(globalRaw) as Map<String, dynamic>;
+        for (final entry in globalMap.entries) {
+          await _db.customStatement(
+            'INSERT OR IGNORE INTO counter_values (counter_id, note_id, value) '
+            'VALUES (?, ?, ?)',
+            [entry.key, '', entry.value as int],
+          );
+        }
+      } catch (_) {}
+    }
+
+    // Migrate per-note values
+    final allSettings = await _db.userSettingsDao.getAllSettings();
+    for (final entry in allSettings.entries) {
+      if (!entry.key.startsWith('counter_note_values_')) continue;
+      final noteId = entry.key.substring('counter_note_values_'.length);
+      try {
+        final noteMap = jsonDecode(entry.value) as Map<String, dynamic>;
+        for (final valEntry in noteMap.entries) {
+          await _db.customStatement(
+            'INSERT OR IGNORE INTO counter_values (counter_id, note_id, value) '
+            'VALUES (?, ?, ?)',
+            [valEntry.key, noteId, valEntry.value as int],
+          );
+        }
+      } catch (_) {}
+    }
   }
 }

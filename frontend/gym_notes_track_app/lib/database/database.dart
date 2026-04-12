@@ -11,11 +11,14 @@ import 'tables/notes_table.dart';
 import 'tables/content_chunks_table.dart';
 import 'tables/sync_metadata_table.dart';
 import 'tables/user_settings_table.dart';
+import 'tables/counters_table.dart';
+import 'tables/counter_values_table.dart';
 import 'daos/folder_dao.dart';
 import 'daos/note_dao.dart';
 import 'daos/content_chunk_dao.dart';
 import 'daos/sync_dao.dart';
 import 'daos/user_settings_dao.dart';
+import 'daos/counter_dao.dart';
 import 'crdt/hlc.dart';
 import 'loading_interceptor.dart';
 import 'migrations/migrations.dart';
@@ -23,8 +26,23 @@ import 'migrations/migrations.dart';
 part 'database.g.dart';
 
 @DriftDatabase(
-  tables: [Folders, Notes, ContentChunks, SyncMetadata, UserSettings],
-  daos: [FolderDao, NoteDao, ContentChunkDao, SyncDao, UserSettingsDao],
+  tables: [
+    Folders,
+    Notes,
+    ContentChunks,
+    SyncMetadata,
+    UserSettings,
+    Counters,
+    CounterValues,
+  ],
+  daos: [
+    FolderDao,
+    NoteDao,
+    ContentChunkDao,
+    SyncDao,
+    UserSettingsDao,
+    CounterDao,
+  ],
 )
 class AppDatabase extends _$AppDatabase {
   static AppDatabase? _instance;
