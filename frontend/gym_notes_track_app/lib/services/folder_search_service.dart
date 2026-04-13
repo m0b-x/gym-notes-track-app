@@ -416,11 +416,13 @@ class FolderSearchService {
       final notesData = <NoteIndexData>[];
       for (final metadata in paginatedNotes.notes) {
         final content = await _storageService.loadNoteContent(metadata.id);
-        notesData.add(NoteIndexData(
-          id: metadata.id,
-          title: metadata.title,
-          content: content,
-        ));
+        notesData.add(
+          NoteIndexData(
+            id: metadata.id,
+            title: metadata.title,
+            content: content,
+          ),
+        );
       }
 
       // Build index in isolate for large datasets (>50 notes)

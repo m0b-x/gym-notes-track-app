@@ -80,109 +80,109 @@ class _SearchPageState extends State<SearchPage> {
       body: SafeArea(
         top: false,
         child: BlocBuilder<OptimizedNoteBloc, OptimizedNoteState>(
-        builder: (context, state) {
-          if (state is OptimizedNoteSearchResults) {
-            if (state.isSearching) {
+          builder: (context, state) {
+            if (state is OptimizedNoteSearchResults) {
+              if (state.isSearching) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (state.results.isEmpty && state.query.isNotEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.search_off,
+                        size: 64,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        AppLocalizations.of(context)!.noSearchResults,
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                itemCount: state.results.length,
+                itemBuilder: (context, index) {
+                  final result = state.results[index];
+                  return _SearchResultCard(
+                    result: result,
+                    query: state.query,
+                    folderId: widget.folderId,
+                  );
+                },
+              );
+            }
+
+            if (state is OptimizedNoteLoaded) {
+              final notes = state.paginatedNotes.notes;
+
+              if (notes.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.note_outlined,
+                        size: 64,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        AppLocalizations.of(context)!.emptyNotesHint,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                itemCount: notes.length,
+                itemBuilder: (context, index) {
+                  final note = notes[index];
+                  return _NoteCard(metadata: note, folderId: widget.folderId);
+                },
+              );
+            }
+
+            if (state is OptimizedNoteLoading) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            if (state.results.isEmpty && state.query.isNotEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.search_off,
-                      size: 64,
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      AppLocalizations.of(context)!.noSearchResults,
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return ListView.builder(
-              itemCount: state.results.length,
-              itemBuilder: (context, index) {
-                final result = state.results[index];
-                return _SearchResultCard(
-                  result: result,
-                  query: state.query,
-                  folderId: widget.folderId,
-                );
-              },
-            );
-          }
-
-          if (state is OptimizedNoteLoaded) {
-            final notes = state.paginatedNotes.notes;
-
-            if (notes.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.note_outlined,
-                      size: 64,
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      AppLocalizations.of(context)!.emptyNotesHint,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return ListView.builder(
-              itemCount: notes.length,
-              itemBuilder: (context, index) {
-                final note = notes[index];
-                return _NoteCard(metadata: note, folderId: widget.folderId);
-              },
-            );
-          }
-
-          if (state is OptimizedNoteLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.search,
-                  size: 64,
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  AppLocalizations.of(context)!.searchHint,
-                  style: TextStyle(
-                    fontSize: 16,
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.search,
+                    size: 64,
                     color: Theme.of(context).colorScheme.outline,
                   ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+                  const SizedBox(height: 16),
+                  Text(
+                    AppLocalizations.of(context)!.searchHint,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

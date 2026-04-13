@@ -1,7 +1,6 @@
 part of re_editor;
 
 class _CodeLineSegmentQuckLineCount extends CodeLineSegment {
-
   late int _lineCount;
   late int _charCount;
 
@@ -39,6 +38,4 @@ class _CodeLineSegmentQuckLineCount extends CodeLineSegment {
     _lineCount = super.lineCount;
     _charCount = super.charCount;
   }
-  
 }
-

@@ -78,7 +78,14 @@ class _IconSearchIndex {
       Icons.assignment_turned_in: ['assignment', 'done', 'complete'],
       Icons.pending_actions: ['pending', 'actions', 'waiting'],
       Icons.rule: ['rule', 'check', 'validate'],
-      Icons.fitness_center: ['fitness', 'gym', 'workout', 'exercise', 'weight', 'dumbbell'],
+      Icons.fitness_center: [
+        'fitness',
+        'gym',
+        'workout',
+        'exercise',
+        'weight',
+        'dumbbell',
+      ],
       Icons.sports_gymnastics: ['gymnastics', 'sports', 'exercise', 'stretch'],
       Icons.self_improvement: ['self', 'improvement', 'meditation', 'yoga'],
       Icons.monitor_weight: ['weight', 'scale', 'measure', 'body'],
@@ -131,7 +138,13 @@ class _IconSearchIndex {
       Icons.trending_flat: ['trending', 'flat', 'stable', 'neutral'],
       Icons.north_east: ['north', 'east', 'diagonal', 'arrow'],
       Icons.south_west: ['south', 'west', 'diagonal', 'arrow'],
-      Icons.priority_high: ['priority', 'high', 'important', 'urgent', 'exclamation'],
+      Icons.priority_high: [
+        'priority',
+        'high',
+        'important',
+        'urgent',
+        'exclamation',
+      ],
       Icons.new_releases: ['new', 'releases', 'badge', 'announcement'],
       Icons.bolt: ['bolt', 'lightning', 'power', 'energy', 'fast'],
       Icons.flash_on: ['flash', 'lightning', 'quick', 'fast'],
@@ -157,7 +170,12 @@ class _IconSearchIndex {
       Icons.face: ['face', 'emoji', 'person', 'avatar'],
       Icons.emoji_emotions: ['emoji', 'emotions', 'happy', 'smile'],
       Icons.sentiment_satisfied: ['sentiment', 'satisfied', 'happy', 'smile'],
-      Icons.sentiment_dissatisfied: ['sentiment', 'dissatisfied', 'sad', 'unhappy'],
+      Icons.sentiment_dissatisfied: [
+        'sentiment',
+        'dissatisfied',
+        'sad',
+        'unhappy',
+      ],
       Icons.thumb_up: ['thumb', 'up', 'like', 'approve', 'good'],
       Icons.thumb_down: ['thumb', 'down', 'dislike', 'disapprove', 'bad'],
       Icons.style: ['style', 'design', 'fashion'],
@@ -289,19 +307,17 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
                           Icon(
                             Icons.search_off,
                             size: 48,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.3),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.3),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             l10n.noIconsFound,
                             style: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.5),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.5),
                             ),
                           ),
                         ],
@@ -310,10 +326,10 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
                   : GridView.builder(
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 5,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                      ),
+                            crossAxisCount: 5,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                          ),
                       itemCount: _filteredIcons.length,
                       itemBuilder: (context, index) {
                         final icon = _filteredIcons[index];
@@ -324,17 +340,15 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
                           child: Container(
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? Theme.of(context)
-                                      .colorScheme
-                                      .primaryContainer
+                                  ? Theme.of(
+                                      context,
+                                    ).colorScheme.primaryContainer
                                   : null,
                               border: Border.all(
                                 color: isSelected
                                     ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.2),
+                                    : Theme.of(context).colorScheme.onSurface
+                                          .withValues(alpha: 0.2),
                                 width: isSelected ? 2 : 1,
                               ),
                               borderRadius: BorderRadius.circular(8),

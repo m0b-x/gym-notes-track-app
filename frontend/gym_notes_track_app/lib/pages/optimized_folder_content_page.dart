@@ -914,10 +914,7 @@ class _OptimizedFolderContentPageState
     );
     if (name == null || name.trim().isEmpty) return;
     context.read<OptimizedFolderBloc>().add(
-      CreateOptimizedFolder(
-        name: name.trim(),
-        parentId: widget.folderId,
-      ),
+      CreateOptimizedFolder(name: name.trim(), parentId: widget.folderId),
     );
   }
 
@@ -1434,8 +1431,6 @@ class _NoteCard extends StatelessWidget {
       isDestructive: true,
     );
     if (!confirmed || !context.mounted) return;
-    context.read<OptimizedNoteBloc>().add(
-      DeleteOptimizedNote(metadata.id),
-    );
+    context.read<OptimizedNoteBloc>().add(DeleteOptimizedNote(metadata.id));
   }
 }

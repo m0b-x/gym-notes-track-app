@@ -138,9 +138,7 @@ class AutoSaveService {
 
   void _scheduleRetry() {
     if (_retryCount >= _maxRetries) {
-      debugPrint(
-        '[AutoSaveService] Max retries ($_maxRetries) reached.',
-      );
+      debugPrint('[AutoSaveService] Max retries ($_maxRetries) reached.');
       return;
     }
 

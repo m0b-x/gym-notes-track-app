@@ -138,8 +138,7 @@ class _AppDrawerState extends State<AppDrawer> {
                   subtitle: AppLocalizations.of(context)!.markdownShortcutsDesc,
                   onTap: () {
                     Navigator.pop(context);
-                    final blocState =
-                        context.read<MarkdownBarBloc>().state;
+                    final blocState = context.read<MarkdownBarBloc>().state;
                     final shortcuts = blocState is MarkdownBarLoaded
                         ? blocState.currentShortcuts
                         : <CustomMarkdownShortcut>[];
@@ -497,9 +496,21 @@ class _AppDrawerState extends State<AppDrawer> {
       context,
       title: l10n.selectTheme,
       options: [
-        (value: ThemeMode.system, label: l10n.systemTheme, icon: Icons.settings_brightness_rounded),
-        (value: ThemeMode.light, label: l10n.lightTheme, icon: Icons.light_mode_rounded),
-        (value: ThemeMode.dark, label: l10n.darkTheme, icon: Icons.dark_mode_rounded),
+        (
+          value: ThemeMode.system,
+          label: l10n.systemTheme,
+          icon: Icons.settings_brightness_rounded,
+        ),
+        (
+          value: ThemeMode.light,
+          label: l10n.lightTheme,
+          icon: Icons.light_mode_rounded,
+        ),
+        (
+          value: ThemeMode.dark,
+          label: l10n.darkTheme,
+          icon: Icons.dark_mode_rounded,
+        ),
       ],
       currentValue: currentTheme,
       cancelText: l10n.close,

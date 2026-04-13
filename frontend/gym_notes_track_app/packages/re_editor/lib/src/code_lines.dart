@@ -3,7 +3,6 @@ part of re_editor;
 const int _kCodeLineSegamentDefaultSize = 256;
 
 class CodeLines {
-
   final List<CodeLineSegment> segments;
 
   const CodeLines(this.segments);
@@ -22,9 +21,7 @@ class CodeLines {
       if (segment.isEmpty) {
         continue;
       }
-      segments.add(segment.copyWith(
-        dirty: true
-      ));
+      segments.add(segment.copyWith(dirty: true));
     }
     return CodeLines(segments);
   }
@@ -49,15 +46,18 @@ class CodeLines {
 
   CodeLine get last => segments.last.last;
 
-  int get length => segments.fold(0, (previousValue, element) => previousValue += element.length);
+  int get length => segments.fold(
+      0, (previousValue, element) => previousValue += element.length);
 
   bool get isEmpty => segments.isEmpty || length == 0;
 
   bool get isNotEmpty => !isEmpty;
 
-  int get lineCount => segments.fold(0, (previousValue, element) => previousValue += element.lineCount);
+  int get lineCount => segments.fold(
+      0, (previousValue, element) => previousValue += element.lineCount);
 
-  int get charCount => segments.fold(0, (previousValue, element) => previousValue += element.charCount);
+  int get charCount => segments.fold(
+      0, (previousValue, element) => previousValue += element.charCount);
 
   CodeLine operator [](int index) {
     int offset = 0;
@@ -91,11 +91,7 @@ class CodeLines {
 
   void add(CodeLine value) {
     if (isEmpty || segments.last.length >= _kCodeLineSegamentDefaultSize) {
-      segments.add(CodeLineSegment.of(
-        codeLines: [
-          value
-        ]
-      ));
+      segments.add(CodeLineSegment.of(codeLines: [value]));
     } else {
       CodeLineSegment segment = segments.last;
       if (segment.dirty) {
@@ -183,7 +179,8 @@ class CodeLines {
     if (length1 != length2) {
       return false;
     }
-    final int minSegmentLength = min(segments.length, codeLines.segments.length);
+    final int minSegmentLength =
+        min(segments.length, codeLines.segments.length);
     int offset = 0;
     for (int i = 0; i < minSegmentLength; i++) {
       if (segments[i].length != codeLines.segments[i].length) {
@@ -223,9 +220,7 @@ class CodeLines {
       }
       if (start <= offset) {
         if (end - offset >= segment.length) {
-          newSegments.add(segment.copyWith(
-            dirty: true
-          ));
+          newSegments.add(segment.copyWith(dirty: true));
           offset += segment.length;
           continue;
         } else {
@@ -358,41 +353,33 @@ class CodeLines {
     if (identical(this, other)) {
       return true;
     }
-    return other is CodeLines
-        && listEquals(other.segments, segments);
+    return other is CodeLines && listEquals(other.segments, segments);
   }
 
   @override
   String toString() {
     return '[ ${segments.join(',')} ]';
   }
-
 }
 
 class CodeLineSegment with ListMixin<CodeLine> {
-
   final List<CodeLine> codeLines;
   final bool dirty;
 
-  const CodeLineSegment({
-    required this.codeLines,
-    this.dirty = false
-  });
+  const CodeLineSegment({required this.codeLines, this.dirty = false});
 
-  factory CodeLineSegment.of({
-    required List<CodeLine> codeLines,
-    bool dirty = false
-  }) => _CodeLineSegmentQuckLineCount(
-    codeLines: codeLines,
-    dirty: dirty
-  );
+  factory CodeLineSegment.of(
+          {required List<CodeLine> codeLines, bool dirty = false}) =>
+      _CodeLineSegmentQuckLineCount(codeLines: codeLines, dirty: dirty);
 
   @override
-  int get length  => codeLines.length;
+  int get length => codeLines.length;
 
-  int get lineCount => codeLines.fold(0, (previousValue, element) => previousValue += element.lineCount);
+  int get lineCount => codeLines.fold(
+      0, (previousValue, element) => previousValue += element.lineCount);
 
-  int get charCount => codeLines.fold(0, (previousValue, element) => previousValue += element.charCount);
+  int get charCount => codeLines.fold(
+      0, (previousValue, element) => previousValue += element.charCount);
 
   @override
   CodeLine operator [](int index) {
@@ -429,18 +416,15 @@ class CodeLineSegment with ListMixin<CodeLine> {
     }
   }
 
-  CodeLineSegment clone([int start = 0, int? end]) => CodeLineSegment.of(
-    codeLines: codeLines.sublist(start, end)
-  );
+  CodeLineSegment clone([int start = 0, int? end]) =>
+      CodeLineSegment.of(codeLines: codeLines.sublist(start, end));
 
   CodeLineSegment copyWith({
     List<CodeLine>? codeLines,
     bool? dirty,
   }) {
     return CodeLineSegment.of(
-      codeLines: codeLines ?? this.codeLines,
-      dirty: dirty ?? this.dirty
-    );
+        codeLines: codeLines ?? this.codeLines, dirty: dirty ?? this.dirty);
   }
 
   @override
@@ -451,15 +435,14 @@ class CodeLineSegment with ListMixin<CodeLine> {
     if (identical(this, other)) {
       return true;
     }
-    return other is CodeLineSegment
-        && listEquals(other.codeLines, codeLines)
-        && other.lineCount == lineCount
-        && other.dirty == dirty;
+    return other is CodeLineSegment &&
+        listEquals(other.codeLines, codeLines) &&
+        other.lineCount == lineCount &&
+        other.dirty == dirty;
   }
 
   @override
   String toString() {
     return '[ ${join(',')} ]';
   }
-
 }

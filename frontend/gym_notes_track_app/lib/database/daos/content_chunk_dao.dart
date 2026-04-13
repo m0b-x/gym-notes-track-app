@@ -107,17 +107,19 @@ class ContentChunkDao extends DatabaseAccessor<AppDatabase>
             : rawContent;
         final hlc = db.generateHlc();
 
-        toUpdate.add(ContentChunksCompanion(
-          id: Value(old.id),
-          noteId: Value(old.noteId),
-          chunkIndex: Value(old.chunkIndex),
-          content: Value(processedContent),
-          isCompressed: Value(shouldCompress),
-          hlcTimestamp: Value(hlc),
-          deviceId: Value(db.deviceId),
-          version: const Value(1),
-          isDeleted: const Value(false),
-        ));
+        toUpdate.add(
+          ContentChunksCompanion(
+            id: Value(old.id),
+            noteId: Value(old.noteId),
+            chunkIndex: Value(old.chunkIndex),
+            content: Value(processedContent),
+            isCompressed: Value(shouldCompress),
+            hlcTimestamp: Value(hlc),
+            deviceId: Value(db.deviceId),
+            version: const Value(1),
+            isDeleted: const Value(false),
+          ),
+        );
       } else {
         // New chunk at this index — insert.
         final shouldCompress = rawContent.length > compressionThreshold;
@@ -126,17 +128,19 @@ class ContentChunkDao extends DatabaseAccessor<AppDatabase>
             : rawContent;
         final hlc = db.generateHlc();
 
-        toInsert.add(ContentChunksCompanion(
-          id: Value('${noteId}_chunk_$i'),
-          noteId: Value(noteId),
-          chunkIndex: Value(i),
-          content: Value(processedContent),
-          isCompressed: Value(shouldCompress),
-          hlcTimestamp: Value(hlc),
-          deviceId: Value(db.deviceId),
-          version: const Value(1),
-          isDeleted: const Value(false),
-        ));
+        toInsert.add(
+          ContentChunksCompanion(
+            id: Value('${noteId}_chunk_$i'),
+            noteId: Value(noteId),
+            chunkIndex: Value(i),
+            content: Value(processedContent),
+            isCompressed: Value(shouldCompress),
+            hlcTimestamp: Value(hlc),
+            deviceId: Value(db.deviceId),
+            version: const Value(1),
+            isDeleted: const Value(false),
+          ),
+        );
       }
     }
 

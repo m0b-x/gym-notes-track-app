@@ -5,6 +5,7 @@ import '../constants/settings_keys.dart';
 
 class NotePositionData {
   final bool isPreviewMode;
+
   /// Preview scroll position as a 0.0–1.0 progress ratio.
   final double previewScrollProgress;
   final int editorLineIndex;

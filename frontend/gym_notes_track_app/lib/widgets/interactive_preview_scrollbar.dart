@@ -7,10 +7,7 @@ import '../controllers/preview_scroll_controller.dart';
 class InteractivePreviewScrollbar extends StatefulWidget {
   final PreviewScrollController controller;
 
-  const InteractivePreviewScrollbar({
-    super.key,
-    required this.controller,
-  });
+  const InteractivePreviewScrollbar({super.key, required this.controller});
 
   @override
   State<InteractivePreviewScrollbar> createState() =>

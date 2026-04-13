@@ -66,8 +66,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     if (state is MarkdownBarLoaded) {
       setState(() {
         _profiles = state.profiles;
-        _editingProfileId =
-            state.editingProfileId ?? state.activeProfileId;
+        _editingProfileId = state.editingProfileId ?? state.activeProfileId;
         _shortcuts = List.from(state.currentShortcuts);
       });
     }
@@ -123,9 +122,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       isDestructive: true,
     );
     if (!confirmed) return;
-    context.read<MarkdownBarBloc>().add(
-      DeleteBarProfile(profileId: profileId),
-    );
+    context.read<MarkdownBarBloc>().add(DeleteBarProfile(profileId: profileId));
   }
 
   Future<String?> _showNameDialog({
@@ -1142,68 +1139,67 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
         if (state is MarkdownBarLoaded) {
           setState(() {
             _profiles = state.profiles;
-            _editingProfileId =
-                state.editingProfileId ?? state.activeProfileId;
+            _editingProfileId = state.editingProfileId ?? state.activeProfileId;
             _shortcuts = List.from(state.currentShortcuts);
           });
         }
       },
       child: LoadingScaffold(
-      drawer: const AppDrawer(),
-      appBar: SettingsAppBar(
-        title: AppLocalizations.of(context)!.markdownShortcuts,
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) {
-              if (value == 'reset_all') {
-                _showResetDialog();
-              } else if (value == 'remove_custom') {
-                _showRemoveCustomDialog();
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'reset_all',
-                child: Row(
-                  children: [
-                    const Icon(Icons.refresh),
-                    const SizedBox(width: 8),
-                    Text(AppLocalizations.of(context)!.resetToDefault),
-                  ],
+        drawer: const AppDrawer(),
+        appBar: SettingsAppBar(
+          title: AppLocalizations.of(context)!.markdownShortcuts,
+          actions: [
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              onSelected: (value) {
+                if (value == 'reset_all') {
+                  _showResetDialog();
+                } else if (value == 'remove_custom') {
+                  _showRemoveCustomDialog();
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'reset_all',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.refresh),
+                      const SizedBox(width: 8),
+                      Text(AppLocalizations.of(context)!.resetToDefault),
+                    ],
+                  ),
                 ),
-              ),
-              PopupMenuItem(
-                value: 'remove_custom',
-                child: Row(
-                  children: [
-                    const Icon(Icons.delete_sweep),
-                    const SizedBox(width: 8),
-                    Text(AppLocalizations.of(context)!.removeAllCustom),
-                  ],
+                PopupMenuItem(
+                  value: 'remove_custom',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.delete_sweep),
+                      const SizedBox(width: 8),
+                      Text(AppLocalizations.of(context)!.removeAllCustom),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        controller: _scrollController,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildProfileSelector(context),
-            _buildToolbarRatioAdjuster(context),
-            _buildUtilityButtonsSection(context),
-            _buildShortcutsSection(context),
+              ],
+            ),
           ],
         ),
+        body: SingleChildScrollView(
+          controller: _scrollController,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildProfileSelector(context),
+              _buildToolbarRatioAdjuster(context),
+              _buildUtilityButtonsSection(context),
+              _buildShortcutsSection(context),
+            ],
+          ),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _addShortcut,
+          child: const Icon(Icons.add),
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addShortcut,
-        child: const Icon(Icons.add),
-      ),
-    ),
     );
   }
 }

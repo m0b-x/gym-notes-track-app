@@ -103,26 +103,26 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
                 child: ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                  // Database Selection (combines active + available)
-                  _buildDatabaseSelectionCard(context, colorScheme),
+                    // Database Selection (combines active + available)
+                    _buildDatabaseSelectionCard(context, colorScheme),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  // Database Details (location + stats combined)
-                  _buildDatabaseDetailsCard(context, colorScheme),
+                    // Database Details (location + stats combined)
+                    _buildDatabaseDetailsCard(context, colorScheme),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  // Actions section (Maintenance + Share)
-                  _buildActionsCard(context, colorScheme),
+                    // Actions section (Maintenance + Share)
+                    _buildActionsCard(context, colorScheme),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  // Danger zone card
-                  _buildDangerCard(context, colorScheme),
-                ],
+                    // Danger zone card
+                    _buildDangerCard(context, colorScheme),
+                  ],
+                ),
               ),
-            ),
       ),
     );
   }

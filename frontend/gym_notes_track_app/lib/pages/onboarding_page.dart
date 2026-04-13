@@ -33,11 +33,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
-              Icon(
-                Icons.fitness_center,
-                size: 80,
-                color: colorScheme.primary,
-              ),
+              Icon(Icons.fitness_center, size: 80, color: colorScheme.primary),
               const SizedBox(height: 24),
               Text(
                 l10n.welcomeToGymNotes,
@@ -94,7 +90,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     final l10n = AppLocalizations.of(context)!;
 
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
       );
@@ -111,7 +107,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
       if (!validation.isValid) {
         if (mounted) {
-          CustomSnackbar.showError(context, validation.error ?? l10n.invalidBackupFile);
+          CustomSnackbar.showError(
+            context,
+            validation.error ?? l10n.invalidBackupFile,
+          );
         }
         setState(() => _isImporting = false);
         return;
@@ -131,14 +130,20 @@ class _OnboardingPageState extends State<OnboardingPage> {
         if (importResult.success) {
           CustomSnackbar.showSuccess(
             context,
-            l10n.importSuccess(importResult.foldersImported, importResult.notesImported),
+            l10n.importSuccess(
+              importResult.foldersImported,
+              importResult.notesImported,
+            ),
           );
 
           final settings = await SettingsService.getInstance();
           await settings.setOnboardingCompleted(true);
           widget.onComplete();
         } else {
-          CustomSnackbar.showError(context, importResult.error ?? l10n.importFailed);
+          CustomSnackbar.showError(
+            context,
+            importResult.error ?? l10n.importFailed,
+          );
         }
       }
     } catch (e) {

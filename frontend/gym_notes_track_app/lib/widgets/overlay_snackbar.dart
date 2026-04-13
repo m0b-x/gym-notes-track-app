@@ -21,7 +21,12 @@ class OverlaySnackbar {
           borderRadius: BorderRadius.circular(4),
           color: Theme.of(context).colorScheme.inverseSurface,
           child: Padding(
-            padding: const EdgeInsets.only(left: 16, top: 14, bottom: 14, right: 8),
+            padding: const EdgeInsets.only(
+              left: 16,
+              top: 14,
+              bottom: 14,
+              right: 8,
+            ),
             child: Row(
               children: [
                 Expanded(

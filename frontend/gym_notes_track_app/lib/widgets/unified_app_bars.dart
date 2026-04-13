@@ -323,7 +323,7 @@ class _SaveStatusIndicator extends StatelessWidget {
             ];
             final seenKeys = <Key>{};
             final uniqueChildren = <Widget>[];
-            
+
             // Process in reverse so current child wins over previous
             for (final child in allChildren.reversed) {
               final key = child.key;
@@ -334,7 +334,7 @@ class _SaveStatusIndicator extends StatelessWidget {
                 uniqueChildren.insert(0, child);
               }
             }
-            
+
             return Stack(
               fit: StackFit.passthrough,
               alignment: Alignment.center,
