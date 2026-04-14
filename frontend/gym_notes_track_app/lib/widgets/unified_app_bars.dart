@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auto_save_service.dart';
+import '../services/app_navigator.dart';
 
 enum AppBarStyle { main, settings }
 
@@ -185,7 +186,7 @@ class FolderAppBar extends StatelessWidget implements PreferredSizeWidget {
             )
           : Builder(
               builder: (ctx) => _IntegratedNavButtons(
-                onBack: onBackPressed ?? () => Navigator.of(context).pop(),
+                onBack: onBackPressed ?? () => AppNavigator.pop(context),
                 onMenu: onMenuPressed ?? () => Scaffold.of(ctx).openDrawer(),
               ),
             ),
@@ -233,8 +234,7 @@ class NoteAppBar extends StatelessWidget implements PreferredSizeWidget {
                     child: IconButton(
                       icon: const Icon(Icons.arrow_back),
                       onPressed:
-                          onBackPressed ??
-                          () => Navigator.of(context).maybePop(),
+                          onBackPressed ?? () => AppNavigator.maybePop(context),
                       tooltip: MaterialLocalizations.of(
                         context,
                       ).backButtonTooltip,
@@ -259,8 +259,7 @@ class NoteAppBar extends StatelessWidget implements PreferredSizeWidget {
             )
           : IconButton(
               icon: const Icon(Icons.arrow_back),
-              onPressed:
-                  onBackPressed ?? () => Navigator.of(context).maybePop(),
+              onPressed: onBackPressed ?? () => AppNavigator.maybePop(context),
             ),
       title: GestureDetector(
         onTap: onTitleTap,
@@ -478,7 +477,8 @@ class SettingsAppBar extends StatelessWidget implements PreferredSizeWidget {
       leading: showMenuButton
           ? Builder(
               builder: (ctx) => _IntegratedNavButtons(
-                onBack: () => Navigator.of(context).pop('openDrawer'),
+                onBack: () =>
+                    AppNavigator.pop(context, SettingsResult.openDrawer),
                 onMenu: () => Scaffold.of(ctx).openDrawer(),
               ),
             )

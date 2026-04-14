@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../config/available_icons.dart';
+import '../services/app_navigator.dart';
 
 class _IconSearchIndex {
   static _IconSearchIndex? _instance;
@@ -335,7 +336,7 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
                         final icon = _filteredIcons[index];
                         final isSelected = widget.currentIcon == icon;
                         return InkWell(
-                          onTap: () => Navigator.pop(context, icon),
+                          onTap: () => AppNavigator.pop(context, icon),
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
                             decoration: BoxDecoration(
@@ -370,7 +371,7 @@ class _IconPickerDialogState extends State<IconPickerDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => AppNavigator.pop(context),
           child: Text(l10n.cancel),
         ),
       ],

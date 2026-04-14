@@ -26,8 +26,7 @@ import '../utils/custom_snackbar.dart';
 import '../widgets/app_dialogs.dart';
 import '../constants/app_colors.dart';
 import '../constants/json_keys.dart';
-import 'optimized_note_editor_page.dart';
-import 'search_page.dart';
+import '../services/app_navigator.dart';
 
 class OptimizedFolderContentPage extends StatefulWidget {
   final String? folderId;
@@ -168,12 +167,9 @@ class _OptimizedFolderContentPageState
                 ? AppLocalizations.of(context)!.searchInFolder
                 : AppLocalizations.of(context)!.searchAll,
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SearchPage(folderId: widget.folderId),
-                ),
-              ).then((_) {
+              AppNavigator.toSearch(context, folderId: widget.folderId).then((
+                _,
+              ) {
                 if (mounted) {
                   _loadData();
                 }
@@ -224,7 +220,7 @@ class _OptimizedFolderContentPageState
         canPop: false,
         onPopInvokedWithResult: (didPop, result) {
           if (!didPop) {
-            Navigator.of(context).pop();
+            AppNavigator.pop(context);
           }
         },
         child: scaffold,
@@ -287,7 +283,7 @@ class _OptimizedFolderContentPageState
               title: Text(l10n.sortFolders),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                Navigator.pop(context);
+                AppNavigator.pop(context);
                 _showFolderSortOptions();
               },
             ),
@@ -297,7 +293,7 @@ class _OptimizedFolderContentPageState
                 title: Text(l10n.sortNotes),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  Navigator.pop(context);
+                  AppNavigator.pop(context);
                   _showNoteSortOptions();
                 },
               ),
@@ -337,7 +333,7 @@ class _OptimizedFolderContentPageState
               title: '${l10n.sortByName} (A-Z)',
               isSelected: _foldersSortOrder == FoldersSortOrder.nameAsc,
               onTap: () {
-                Navigator.pop(context);
+                AppNavigator.pop(context);
                 _sortFoldersBy(FoldersSortOrder.nameAsc);
               },
             ),
@@ -346,7 +342,7 @@ class _OptimizedFolderContentPageState
               title: '${l10n.sortByName} (Z-A)',
               isSelected: _foldersSortOrder == FoldersSortOrder.nameDesc,
               onTap: () {
-                Navigator.pop(context);
+                AppNavigator.pop(context);
                 _sortFoldersBy(FoldersSortOrder.nameDesc);
               },
             ),
@@ -355,7 +351,7 @@ class _OptimizedFolderContentPageState
               title: '${l10n.sortByCreated} (${l10n.descending})',
               isSelected: _foldersSortOrder == FoldersSortOrder.createdDesc,
               onTap: () {
-                Navigator.pop(context);
+                AppNavigator.pop(context);
                 _sortFoldersBy(FoldersSortOrder.createdDesc);
               },
             ),
@@ -364,7 +360,7 @@ class _OptimizedFolderContentPageState
               title: '${l10n.sortByCreated} (${l10n.ascending})',
               isSelected: _foldersSortOrder == FoldersSortOrder.createdAsc,
               onTap: () {
-                Navigator.pop(context);
+                AppNavigator.pop(context);
                 _sortFoldersBy(FoldersSortOrder.createdAsc);
               },
             ),
@@ -404,7 +400,7 @@ class _OptimizedFolderContentPageState
               title: '${l10n.sortByTitle} (A-Z)',
               isSelected: _notesSortOrder == NotesSortOrder.titleAsc,
               onTap: () {
-                Navigator.pop(context);
+                AppNavigator.pop(context);
                 _sortNotesBy(NotesSortOrder.titleAsc);
               },
             ),
@@ -413,7 +409,7 @@ class _OptimizedFolderContentPageState
               title: '${l10n.sortByTitle} (Z-A)',
               isSelected: _notesSortOrder == NotesSortOrder.titleDesc,
               onTap: () {
-                Navigator.pop(context);
+                AppNavigator.pop(context);
                 _sortNotesBy(NotesSortOrder.titleDesc);
               },
             ),
@@ -422,7 +418,7 @@ class _OptimizedFolderContentPageState
               title: '${l10n.sortByUpdated} (${l10n.descending})',
               isSelected: _notesSortOrder == NotesSortOrder.updatedDesc,
               onTap: () {
-                Navigator.pop(context);
+                AppNavigator.pop(context);
                 _sortNotesBy(NotesSortOrder.updatedDesc);
               },
             ),
@@ -431,7 +427,7 @@ class _OptimizedFolderContentPageState
               title: '${l10n.sortByUpdated} (${l10n.ascending})',
               isSelected: _notesSortOrder == NotesSortOrder.updatedAsc,
               onTap: () {
-                Navigator.pop(context);
+                AppNavigator.pop(context);
                 _sortNotesBy(NotesSortOrder.updatedAsc);
               },
             ),
@@ -440,7 +436,7 @@ class _OptimizedFolderContentPageState
               title: '${l10n.sortByCreated} (${l10n.descending})',
               isSelected: _notesSortOrder == NotesSortOrder.createdDesc,
               onTap: () {
-                Navigator.pop(context);
+                AppNavigator.pop(context);
                 _sortNotesBy(NotesSortOrder.createdDesc);
               },
             ),
@@ -449,7 +445,7 @@ class _OptimizedFolderContentPageState
               title: '${l10n.sortByCreated} (${l10n.ascending})',
               isSelected: _notesSortOrder == NotesSortOrder.createdAsc,
               onTap: () {
-                Navigator.pop(context);
+                AppNavigator.pop(context);
                 _sortNotesBy(NotesSortOrder.createdAsc);
               },
             ),
@@ -885,7 +881,7 @@ class _OptimizedFolderContentPageState
                 ),
                 title: Text(AppLocalizations.of(context)!.createFolder),
                 onTap: () {
-                  Navigator.pop(bottomSheetContext);
+                  AppNavigator.pop(bottomSheetContext);
                   _showCreateFolderDialog();
                 },
               ),
@@ -894,7 +890,7 @@ class _OptimizedFolderContentPageState
                   leading: Icon(Icons.note, color: AppColors.noteIcon(context)),
                   title: Text(AppLocalizations.of(context)!.createNote),
                   onTap: () {
-                    Navigator.pop(bottomSheetContext);
+                    AppNavigator.pop(bottomSheetContext);
                     _createNewNote();
                   },
                 ),
@@ -919,13 +915,7 @@ class _OptimizedFolderContentPageState
   }
 
   void _createNewNote() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            OptimizedNoteEditorPage(folderId: widget.folderId!),
-      ),
-    ).then((_) {
+    AppNavigator.toNoteEditor(context, folderId: widget.folderId!).then((_) {
       if (mounted) {
         _loadData();
       }
@@ -1011,14 +1001,10 @@ class _FolderCard extends StatelessWidget {
         onTap: isReorderMode
             ? null
             : () {
-                Navigator.push(
+                AppNavigator.toFolder(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => OptimizedFolderContentPage(
-                      folderId: folder.id,
-                      title: folder.name,
-                    ),
-                  ),
+                  folderId: folder.id,
+                  title: folder.name,
                 ).then((_) {
                   if (context.mounted) {
                     onReturn();
@@ -1056,7 +1042,7 @@ class _FolderCard extends StatelessWidget {
 
     // ignore: use_build_context_synchronously
     if (!context.mounted) return;
-    Navigator.pop(context); // Close loading dialog
+    AppNavigator.pop(context); // Close loading dialog
 
     // Show confirmation dialog with note count
     final confirmed = await AppDialogs.confirm(
@@ -1213,21 +1199,11 @@ class _NoteCard extends StatelessWidget {
         onTap: isReorderMode
             ? null
             : () {
-                Navigator.push(
+                AppNavigator.toNoteEditorInstant(
                   context,
-                  PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) {
-                      return OptimizedNoteEditorPage(
-                        folderId: folderId,
-                        noteId: metadata.id,
-                        metadata: metadata,
-                      );
-                    },
-                    transitionDuration: Duration.zero,
-                    reverseTransitionDuration: const Duration(
-                      milliseconds: 150,
-                    ),
-                  ),
+                  folderId: folderId,
+                  noteId: metadata.id,
+                  metadata: metadata,
                 ).then((_) {
                   if (context.mounted) {
                     onReturn();
@@ -1279,7 +1255,7 @@ class _NoteCard extends StatelessWidget {
               leading: const Icon(Icons.edit_rounded),
               title: Text(AppLocalizations.of(context)!.rename),
               onTap: () {
-                Navigator.pop(sheetContext);
+                AppNavigator.pop(sheetContext);
                 _showRenameDialog(context);
               },
             ),
@@ -1287,7 +1263,7 @@ class _NoteCard extends StatelessWidget {
               leading: const Icon(Icons.share_rounded),
               title: Text(AppLocalizations.of(context)!.shareNote),
               onTap: () {
-                Navigator.pop(sheetContext);
+                AppNavigator.pop(sheetContext);
                 _showExportFormatDialog(context);
               },
             ),
@@ -1298,7 +1274,7 @@ class _NoteCard extends StatelessWidget {
                 style: TextStyle(color: colorScheme.error),
               ),
               onTap: () {
-                Navigator.pop(sheetContext);
+                AppNavigator.pop(sheetContext);
                 _confirmDelete(context);
               },
             ),
@@ -1381,12 +1357,12 @@ class _NoteCard extends StatelessWidget {
       await file.writeAsString(fileContent);
 
       if (!context.mounted) return;
-      Navigator.pop(context);
+      AppNavigator.pop(context);
 
       await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
     } catch (e) {
       if (!context.mounted) return;
-      Navigator.pop(context);
+      AppNavigator.pop(context);
 
       CustomSnackbar.showError(
         context,

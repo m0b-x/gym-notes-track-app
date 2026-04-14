@@ -15,6 +15,7 @@ import '../constants/settings_keys.dart';
 import '../utils/icon_utils.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/unified_app_bars.dart';
+import '../services/app_navigator.dart';
 
 class ShortcutEditorPage extends StatefulWidget {
   final CustomMarkdownShortcut? shortcut;
@@ -507,7 +508,7 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
     );
 
     widget.onSave(shortcut);
-    Navigator.pop(context);
+    AppNavigator.pop(context);
   }
 
   Widget _buildAdvancedModeToggle() {

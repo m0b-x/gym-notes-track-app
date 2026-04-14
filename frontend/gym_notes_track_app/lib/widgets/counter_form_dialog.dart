@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/counter.dart';
+import '../services/app_navigator.dart';
 
 /// Result returned from [showCounterFormDialog].
 class CounterFormResult {
@@ -108,11 +109,11 @@ Future<CounterFormResult?> showCounterFormDialog(
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => AppNavigator.pop(ctx, false),
               child: Text(l10n.cancel),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
+              onPressed: () => AppNavigator.pop(ctx, true),
               child: Text(l10n.save),
             ),
           ],

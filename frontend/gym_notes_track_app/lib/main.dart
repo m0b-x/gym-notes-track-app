@@ -11,6 +11,7 @@ import 'bloc/markdown_bar/markdown_bar_bloc.dart';
 import 'core/di/injection.dart';
 import 'pages/optimized_folder_content_page.dart';
 import 'pages/onboarding_page.dart';
+import 'services/app_navigator.dart';
 import 'services/counter_service.dart';
 import 'services/settings_service.dart';
 
@@ -93,6 +94,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       child: BlocBuilder<AppSettingsBloc, AppSettingsState>(
         builder: (context, settingsState) {
           return MaterialApp(
+            navigatorKey: AppNavigator.navigatorKey,
             title: 'Gym Notes',
             debugShowCheckedModeBanner: false,
             localizationsDelegates: const [

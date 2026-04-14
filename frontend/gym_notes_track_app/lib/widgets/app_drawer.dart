@@ -7,11 +7,7 @@ import '../l10n/app_localizations.dart';
 import 'app_dialogs.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/dev_options.dart';
-import '../pages/counter_management_page.dart';
-import '../pages/database_settings_page.dart';
-import '../pages/controls_settings_page.dart';
-import '../pages/developer_options_page.dart';
-import '../pages/markdown_settings_page.dart';
+import '../services/app_navigator.dart';
 import '../services/dev_options_service.dart';
 import '../utils/custom_snackbar.dart';
 
@@ -56,7 +52,7 @@ class _AppDrawerState extends State<AppDrawer> {
         await service.saveOptions();
         HapticFeedback.mediumImpact();
         if (context.mounted) {
-          Navigator.pop(context); // Close drawer first
+          AppNavigator.pop(context);
           await Future.delayed(const Duration(milliseconds: 100));
           if (context.mounted) {
             CustomSnackbar.showSuccess(
@@ -95,14 +91,10 @@ class _AppDrawerState extends State<AppDrawer> {
                   title: AppLocalizations.of(context)!.databaseSettings,
                   subtitle: AppLocalizations.of(context)!.databaseSettingsDesc,
                   onTap: () {
-                    Navigator.pop(context); // Close drawer
-                    Navigator.push<String>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const DatabaseSettingsPage(),
-                      ),
-                    ).then((result) {
-                      if (result == 'openDrawer' && context.mounted) {
+                    AppNavigator.pop(context);
+                    AppNavigator.toDatabaseSettings(context).then((result) {
+                      if (result == SettingsResult.openDrawer &&
+                          context.mounted) {
                         Scaffold.of(context).openDrawer();
                       }
                     });
@@ -116,14 +108,10 @@ class _AppDrawerState extends State<AppDrawer> {
                   title: AppLocalizations.of(context)!.controlsSettings,
                   subtitle: AppLocalizations.of(context)!.controlsSettingsDesc,
                   onTap: () {
-                    Navigator.pop(context); // Close drawer
-                    Navigator.push<String>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ControlsSettingsPage(),
-                      ),
-                    ).then((result) {
-                      if (result == 'openDrawer' && context.mounted) {
+                    AppNavigator.pop(context);
+                    AppNavigator.toControlsSettings(context).then((result) {
+                      if (result == SettingsResult.openDrawer &&
+                          context.mounted) {
                         Scaffold.of(context).openDrawer();
                       }
                     });
@@ -137,19 +125,17 @@ class _AppDrawerState extends State<AppDrawer> {
                   title: AppLocalizations.of(context)!.markdownShortcuts,
                   subtitle: AppLocalizations.of(context)!.markdownShortcutsDesc,
                   onTap: () {
-                    Navigator.pop(context);
+                    AppNavigator.pop(context);
                     final blocState = context.read<MarkdownBarBloc>().state;
                     final shortcuts = blocState is MarkdownBarLoaded
                         ? blocState.currentShortcuts
                         : <CustomMarkdownShortcut>[];
-                    Navigator.push<String>(
+                    AppNavigator.toMarkdownSettings(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            MarkdownSettingsPage(allShortcuts: shortcuts),
-                      ),
+                      allShortcuts: shortcuts,
                     ).then((result) {
-                      if (result == 'openDrawer' && context.mounted) {
+                      if (result == SettingsResult.openDrawer &&
+                          context.mounted) {
                         Scaffold.of(context).openDrawer();
                       }
                     });
@@ -163,14 +149,10 @@ class _AppDrawerState extends State<AppDrawer> {
                   title: AppLocalizations.of(context)!.counterSettings,
                   subtitle: AppLocalizations.of(context)!.counterSettingsDesc,
                   onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push<String>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CounterManagementPage(),
-                      ),
-                    ).then((result) {
-                      if (result == 'openDrawer' && context.mounted) {
+                    AppNavigator.pop(context);
+                    AppNavigator.toCounterManagement(context).then((result) {
+                      if (result == SettingsResult.openDrawer &&
+                          context.mounted) {
                         Scaffold.of(context).openDrawer();
                       }
                     });
@@ -195,14 +177,12 @@ class _AppDrawerState extends State<AppDrawer> {
                             context,
                           )!.developerOptionsDesc,
                           onTap: () {
-                            Navigator.pop(context);
-                            Navigator.push<String>(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const DeveloperOptionsPage(),
-                              ),
-                            ).then((result) {
-                              if (result == 'openDrawer' && context.mounted) {
+                            AppNavigator.pop(context);
+                            AppNavigator.toDeveloperOptions(context).then((
+                              result,
+                            ) {
+                              if (result == SettingsResult.openDrawer &&
+                                  context.mounted) {
                                 Scaffold.of(context).openDrawer();
                               }
                             });
@@ -222,7 +202,7 @@ class _AppDrawerState extends State<AppDrawer> {
                   title: AppLocalizations.of(context)!.languageSettings,
                   subtitle: AppLocalizations.of(context)!.languageSettingsDesc,
                   onTap: () {
-                    Navigator.pop(context);
+                    AppNavigator.pop(context);
                     _showLanguageDialog(context);
                   },
                 ),
@@ -234,7 +214,7 @@ class _AppDrawerState extends State<AppDrawer> {
                   title: AppLocalizations.of(context)!.themeSettings,
                   subtitle: AppLocalizations.of(context)!.themeSettingsDesc,
                   onTap: () {
-                    Navigator.pop(context);
+                    AppNavigator.pop(context);
                     _showThemeDialog(context);
                   },
                 ),
@@ -248,7 +228,7 @@ class _AppDrawerState extends State<AppDrawer> {
                   title: AppLocalizations.of(context)!.about,
                   subtitle: 'Gym Notes v1.0.0',
                   onTap: () {
-                    Navigator.pop(context);
+                    AppNavigator.pop(context);
                     _showAboutDialog(context);
                   },
                 ),
@@ -307,7 +287,7 @@ class _AppDrawerState extends State<AppDrawer> {
                   await service.saveOptions();
                   HapticFeedback.mediumImpact();
                   if (context.mounted) {
-                    Navigator.pop(context); // Close drawer first
+                    AppNavigator.pop(context);
                     await Future.delayed(const Duration(milliseconds: 100));
                     if (context.mounted) {
                       CustomSnackbar.showSuccess(

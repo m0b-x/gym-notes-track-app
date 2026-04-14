@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/counter/counter_bloc.dart';
 import '../l10n/app_localizations.dart';
 import '../models/counter.dart';
+import '../services/app_navigator.dart';
 import 'app_dialogs.dart';
 
 /// Items shown per page in the counter picker.
@@ -294,7 +295,7 @@ class _CounterPickerDialogState extends State<CounterPickerDialog> {
                               ),
                             ],
                           ),
-                          onTap: () => Navigator.pop(context, counter),
+                          onTap: () => AppNavigator.pop(context, counter),
                         );
                       },
                     ),
@@ -359,7 +360,7 @@ class _CounterPickerDialogState extends State<CounterPickerDialog> {
             label: Text(l10n.manageCounters),
           ),
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => AppNavigator.pop(context),
           child: Text(l10n.cancel),
         ),
       ],

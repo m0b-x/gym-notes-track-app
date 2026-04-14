@@ -12,7 +12,7 @@ import '../widgets/info_chip.dart';
 
 import '../widgets/unified_app_bars.dart';
 import '../utils/custom_snackbar.dart';
-import 'counter_per_note_page.dart';
+import '../services/app_navigator.dart';
 
 class CounterManagementPage extends StatelessWidget {
   final String? noteId;
@@ -415,10 +415,7 @@ class _CounterCardState extends State<_CounterCard> {
   }
 
   Future<void> _openPerNotePage(BuildContext context) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => CounterPerNotePage(counter: counter)),
-    );
+    await AppNavigator.toCounterPerNote(context, counter: counter);
     if (context.mounted) {
       context.read<CounterBloc>().add(
         RefreshCounters(noteId: _effectiveNoteId),
@@ -502,12 +499,7 @@ class _CounterCardState extends State<_CounterCard> {
         break;
 
       case 'manage_notes':
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => CounterPerNotePage(counter: counter),
-          ),
-        );
+        await AppNavigator.toCounterPerNote(context, counter: counter);
         if (context.mounted) {
           context.read<CounterBloc>().add(
             RefreshCounters(noteId: _effectiveNoteId),

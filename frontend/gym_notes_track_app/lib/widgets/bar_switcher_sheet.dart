@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/markdown_bar_profile.dart';
+import '../services/app_navigator.dart';
 import '../services/markdown_bar_service.dart';
 
 /// A bottom sheet that lets the user search and pick a markdown bar profile.
@@ -200,7 +201,7 @@ class _BarSwitcherSheetState extends State<BarSwitcherSheet> {
                       ),
                       TextButton(
                         onPressed: () {
-                          Navigator.pop(
+                          AppNavigator.pop(
                             context,
                             const BarSwitcherResult(clearedOverride: true),
                           );
@@ -267,7 +268,7 @@ class _BarSwitcherSheetState extends State<BarSwitcherSheet> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             onTap: () {
-                              Navigator.pop(
+                              AppNavigator.pop(
                                 context,
                                 BarSwitcherResult(profile: profile),
                               );

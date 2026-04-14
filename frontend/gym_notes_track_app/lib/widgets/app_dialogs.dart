@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
 import '../models/counter.dart';
+import '../services/app_navigator.dart';
 import 'counter_form_dialog.dart';
 import 'counter_picker_dialog.dart';
 import 'icon_picker_dialog.dart';
@@ -60,7 +61,7 @@ class AppDialogs {
         content: contentWidget ?? Text(content!),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => AppNavigator.pop(ctx, false),
             child: Text(cancelText ?? l10n.cancel),
           ),
           if (isDestructive)
@@ -68,12 +69,12 @@ class AppDialogs {
               style: FilledButton.styleFrom(
                 backgroundColor: theme.colorScheme.error,
               ),
-              onPressed: () => Navigator.pop(ctx, true),
+              onPressed: () => AppNavigator.pop(ctx, true),
               child: Text(confirmText ?? l10n.delete),
             )
           else
             FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
+              onPressed: () => AppNavigator.pop(ctx, true),
               child: Text(confirmText ?? l10n.save),
             ),
         ],
@@ -120,15 +121,15 @@ class AppDialogs {
             labelText: labelText,
             border: const OutlineInputBorder(),
           ),
-          onSubmitted: (val) => Navigator.pop(ctx, val),
+          onSubmitted: (val) => AppNavigator.pop(ctx, val),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => AppNavigator.pop(ctx),
             child: Text(cancelText ?? l10n.cancel),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
+            onPressed: () => AppNavigator.pop(ctx, controller.text),
             child: Text(confirmText ?? l10n.save),
           ),
         ],
@@ -175,10 +176,10 @@ class AppDialogs {
     showLoading(context, message: message);
     try {
       final result = await work();
-      if (context.mounted) Navigator.pop(context);
+      if (context.mounted) AppNavigator.pop(context);
       return result;
     } catch (_) {
-      if (context.mounted) Navigator.pop(context);
+      if (context.mounted) AppNavigator.pop(context);
       rethrow;
     }
   }
@@ -274,14 +275,14 @@ class AppDialogs {
                 selected: isSelected,
                 selectedTileColor: theme.colorScheme.primaryContainer
                     .withValues(alpha: 0.3),
-                onTap: () => Navigator.pop(ctx, opt.value),
+                onTap: () => AppNavigator.pop(ctx, opt.value),
               );
             },
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => AppNavigator.pop(ctx),
             child: Text(cancelText ?? l10n.cancel),
           ),
         ],
@@ -329,14 +330,14 @@ class AppDialogs {
                 ),
                 title: Text(opt.label),
                 subtitle: opt.subtitle != null ? Text(opt.subtitle!) : null,
-                onTap: () => Navigator.pop(ctx, opt.value),
+                onTap: () => AppNavigator.pop(ctx, opt.value),
               );
             },
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => AppNavigator.pop(ctx),
             child: Text(cancelText ?? l10n.cancel),
           ),
         ],

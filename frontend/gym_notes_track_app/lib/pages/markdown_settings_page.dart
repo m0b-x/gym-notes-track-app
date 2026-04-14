@@ -16,8 +16,7 @@ import '../widgets/app_dialogs.dart';
 import '../widgets/app_loading_bar.dart';
 import '../widgets/markdown_bar.dart';
 import '../widgets/unified_app_bars.dart';
-import 'note_bar_assignment_page.dart';
-import 'shortcut_editor_page.dart';
+import '../services/app_navigator.dart';
 
 class MarkdownSettingsPage extends StatefulWidget {
   final List<CustomMarkdownShortcut> allShortcuts;
@@ -208,18 +207,14 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
   }
 
   void _addShortcut() {
-    Navigator.push(
+    AppNavigator.toShortcutEditor(
       context,
-      MaterialPageRoute(
-        builder: (context) => ShortcutEditorPage(
-          onSave: (shortcut) {
-            setState(() {
-              _shortcuts.add(shortcut);
-            });
-            _saveShortcuts();
-          },
-        ),
-      ),
+      onSave: (shortcut) {
+        setState(() {
+          _shortcuts.add(shortcut);
+        });
+        _saveShortcuts();
+      },
     );
   }
 
@@ -230,19 +225,15 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       return;
     }
 
-    Navigator.push(
+    AppNavigator.toShortcutEditor(
       context,
-      MaterialPageRoute(
-        builder: (context) => ShortcutEditorPage(
-          shortcut: shortcut,
-          onSave: (updatedShortcut) {
-            setState(() {
-              _shortcuts[index] = updatedShortcut;
-            });
-            _saveShortcuts();
-          },
-        ),
-      ),
+      shortcut: shortcut,
+      onSave: (updatedShortcut) {
+        setState(() {
+          _shortcuts[index] = updatedShortcut;
+        });
+        _saveShortcuts();
+      },
     );
   }
 
@@ -543,12 +534,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
                             _duplicateBarProfile(_editingProfileId);
                             break;
                           case 'assign':
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const NoteBarAssignmentPage(),
-                              ),
-                            );
+                            AppNavigator.toNoteBarAssignment(context);
                             break;
                           case 'delete':
                             _deleteBarProfile(_editingProfileId);

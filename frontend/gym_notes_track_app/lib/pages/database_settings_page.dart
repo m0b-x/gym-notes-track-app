@@ -10,6 +10,7 @@ import '../utils/custom_snackbar.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/unified_app_bars.dart';
+import '../services/app_navigator.dart';
 
 /// Database settings page for managing database location and operations
 class DatabaseSettingsPage extends StatefulWidget {
@@ -555,7 +556,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       await dbManager.createDatabase(name);
 
       if (!mounted) return;
-      Navigator.pop(this.context);
+      AppNavigator.pop(this.context);
 
       await _loadDatabaseInfo();
 
@@ -566,7 +567,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(this.context);
+      AppNavigator.pop(this.context);
 
       CustomSnackbar.showError(
         this.context,
@@ -624,7 +625,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       await dbManager.renameDatabase(oldName, newName);
 
       if (!mounted) return;
-      Navigator.pop(this.context);
+      AppNavigator.pop(this.context);
 
       await _loadDatabaseInfo();
 
@@ -635,7 +636,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(this.context);
+      AppNavigator.pop(this.context);
 
       CustomSnackbar.showError(
         this.context,
@@ -694,7 +695,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       await dbManager.setActiveDatabaseName(databaseName);
 
       if (!mounted) return;
-      Navigator.pop(this.context);
+      AppNavigator.pop(this.context);
 
       // Show restart dialog
       await AppDialogs.action(
@@ -707,7 +708,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(this.context);
+      AppNavigator.pop(this.context);
 
       CustomSnackbar.showError(
         this.context,
@@ -868,12 +869,12 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       final xFile = XFile(_databasePath!);
 
       if (!mounted) return;
-      Navigator.pop(this.context);
+      AppNavigator.pop(this.context);
 
       await SharePlus.instance.share(ShareParams(files: [xFile]));
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(this.context);
+      AppNavigator.pop(this.context);
 
       CustomSnackbar.showError(
         this.context,
@@ -898,7 +899,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       await db.rebuildFtsIndex();
 
       if (!mounted) return;
-      Navigator.pop(this.context); // Close loading dialog
+      AppNavigator.pop(this.context); // Close loading dialog
 
       // Refresh stats to get new size
       await _loadDatabaseInfo();
@@ -924,7 +925,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       CustomSnackbar.showSuccess(this.context, message);
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(this.context);
+      AppNavigator.pop(this.context);
 
       CustomSnackbar.showError(
         this.context,
@@ -957,7 +958,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       await AppDatabase.deleteAllData();
 
       if (!mounted) return;
-      Navigator.pop(context); // Close loading dialog
+      AppNavigator.pop(context); // Close loading dialog
 
       // Show success and exit app (user needs to restart)
       await AppDialogs.action(
@@ -971,7 +972,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(context); // Close loading dialog
+      AppNavigator.pop(context); // Close loading dialog
 
       CustomSnackbar.showError(
         context,

@@ -6,8 +6,8 @@ import '../bloc/optimized_note/optimized_note_state.dart';
 import '../l10n/app_localizations.dart';
 import '../models/note_metadata.dart';
 import '../services/folder_search_service.dart';
+import '../services/app_navigator.dart';
 import '../widgets/unified_app_bars.dart';
-import 'optimized_note_editor_page.dart';
 
 class SearchPage extends StatefulWidget {
   final String? folderId;
@@ -328,15 +328,11 @@ class _SearchResultCard extends StatelessWidget {
   }
 
   void _navigateToNote(BuildContext context) {
-    Navigator.push(
+    AppNavigator.toNoteEditor(
       context,
-      MaterialPageRoute(
-        builder: (context) => OptimizedNoteEditorPage(
-          folderId: folderId ?? result.metadata.folderId,
-          noteId: result.metadata.id,
-          metadata: result.metadata,
-        ),
-      ),
+      folderId: folderId ?? result.metadata.folderId,
+      noteId: result.metadata.id,
+      metadata: result.metadata,
     );
   }
 }
@@ -395,15 +391,11 @@ class _NoteCard extends StatelessWidget {
   }
 
   void _navigateToNote(BuildContext context) {
-    Navigator.push(
+    AppNavigator.toNoteEditor(
       context,
-      MaterialPageRoute(
-        builder: (context) => OptimizedNoteEditorPage(
-          folderId: folderId ?? metadata.folderId,
-          noteId: metadata.id,
-          metadata: metadata,
-        ),
-      ),
+      folderId: folderId ?? metadata.folderId,
+      noteId: metadata.id,
+      metadata: metadata,
     );
   }
 }

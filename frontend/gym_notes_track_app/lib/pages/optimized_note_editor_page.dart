@@ -36,7 +36,7 @@ import '../widgets/full_markdown_view.dart';
 import '../widgets/source_mapped_markdown_view.dart';
 import '../widgets/note_search_bar.dart';
 import '../widgets/app_drawer.dart';
-import 'counter_management_page.dart';
+import '../services/app_navigator.dart';
 import '../widgets/unified_app_bars.dart';
 import '../utils/editor_width_calculator.dart';
 import '../utils/custom_snackbar.dart';
@@ -52,7 +52,6 @@ import '../constants/font_constants.dart';
 import '../constants/json_keys.dart';
 import '../constants/markdown_constants.dart';
 import '../constants/settings_keys.dart';
-import 'markdown_settings_page.dart';
 
 class OptimizedNoteEditorPage extends StatefulWidget {
   final String folderId;
@@ -1108,7 +1107,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
           if (!didPop) {
             await _saveBeforeExit();
             if (context.mounted) {
-              Navigator.of(context).pop();
+              AppNavigator.pop(context);
             }
           }
         },
@@ -1600,12 +1599,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       await file.writeAsString(fileContent);
 
       if (!mounted) return;
-      Navigator.pop(context);
+      AppNavigator.pop(context);
 
       await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(context);
+      AppNavigator.pop(context);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1686,11 +1685,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       counterValues: counterState.counterValues,
       noteId: _effectiveNoteId,
       onManageCounters: () async {
-        await Navigator.push(
+        await AppNavigator.toCounterManagement(
           context,
-          MaterialPageRoute(
-            builder: (_) => CounterManagementPage(noteId: _effectiveNoteId),
-          ),
+          noteId: _effectiveNoteId,
         );
         if (!mounted) return null;
         final bloc = context.read<CounterBloc>();
@@ -1910,12 +1907,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   }
 
   Future<void> _openMarkdownSettings() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MarkdownSettingsPage(allShortcuts: _allShortcuts),
-      ),
-    );
+    await AppNavigator.toMarkdownSettings(context, allShortcuts: _allShortcuts);
 
     if (!mounted) return;
 

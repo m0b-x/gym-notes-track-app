@@ -7,6 +7,7 @@ import '../bloc/note_picker/note_picker_event.dart';
 import '../bloc/note_picker/note_picker_state.dart';
 import '../l10n/app_localizations.dart';
 import '../models/note_metadata.dart';
+import '../services/app_navigator.dart';
 import '../services/note_storage_service.dart';
 
 Future<NoteMetadata?> showNotePickerDialog(BuildContext context) {
@@ -105,7 +106,7 @@ class _NotePickerDialogState extends State<_NotePickerDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => AppNavigator.pop(context),
           child: Text(l10n.cancel),
         ),
       ],
@@ -175,7 +176,7 @@ class _NoteList extends StatelessWidget {
                       ),
                     )
                   : null,
-              onTap: () => Navigator.pop(context, note),
+              onTap: () => AppNavigator.pop(context, note),
             );
           },
         ),

@@ -6,6 +6,7 @@ import '../services/dev_options_service.dart';
 import '../utils/custom_snackbar.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/unified_app_bars.dart';
+import '../services/app_navigator.dart';
 
 /// Developer options page for debugging features
 class DeveloperOptionsPage extends StatefulWidget {
@@ -327,7 +328,7 @@ class _DeveloperOptionsPageState extends State<DeveloperOptionsPage> {
                             context,
                             l10n.developerModeLocked,
                           );
-                          Navigator.pop(context, 'openDrawer');
+                          AppNavigator.pop(context, SettingsResult.openDrawer);
                         }
                       },
                       icon: const Icon(Icons.lock_rounded),
