@@ -5,6 +5,7 @@ import '../repositories/note_repository.dart';
 import '../models/note_metadata.dart';
 import '../utils/compression_utils.dart';
 import '../constants/app_constants.dart';
+import 'duplicate_name_exception.dart';
 
 enum NotesSortOrder {
   updatedDesc,
@@ -105,6 +106,18 @@ class NoteStorageService {
   }) async {
     await initialize();
 
+    // Per-folder title uniqueness backstop. Empty titles are exempt so
+    // newly-created "Untitled" notes can coexist (the editor saves them
+    // empty until the user types a title).
+    if (title.trim().isNotEmpty &&
+        await noteTitleExistsInFolder(folderId: folderId, title: title)) {
+      throw DuplicateNameException(
+        kind: DuplicateNameKind.note,
+        name: title.trim(),
+        parentId: folderId,
+      );
+    }
+
     final shouldCompress = CompressionUtils.shouldCompress(content);
     final preview = NoteMetadata.generatePreview(content);
     final chunkCount = (content.length / ContentChunkDao.defaultChunkSize)
@@ -133,6 +146,25 @@ class NoteStorageService {
 
     final existingNote = await _repository.getNoteById(noteId);
     if (existingNote == null) return null;
+
+    // Title-uniqueness backstop. Only run when the title is actually
+    // changing to a non-empty value; otherwise saving an unchanged title
+    // would needlessly query siblings on every keystroke from the editor.
+    if (title != null &&
+        title.trim().isNotEmpty &&
+        title.trim().toLowerCase() != existingNote.title.trim().toLowerCase()) {
+      if (await noteTitleExistsInFolder(
+        folderId: existingNote.folderId,
+        title: title,
+        excludeId: noteId,
+      )) {
+        throw DuplicateNameException(
+          kind: DuplicateNameKind.note,
+          name: title.trim(),
+          parentId: existingNote.folderId,
+        );
+      }
+    }
 
     String? newPreview;
     int? newContentLength;
@@ -164,6 +196,26 @@ class NoteStorageService {
   Future<void> deleteNote(String noteId) async {
     await initialize();
     await _repository.deleteNote(noteId);
+  }
+
+  /// Returns true if a non-deleted note titled [title] (case-insensitive,
+  /// trimmed) already exists inside [folderId]. Empty / whitespace-only
+  /// titles are never reported as duplicates so that "Untitled" notes can
+  /// coexist freely. [excludeId] is honored for rename flows.
+  ///
+  /// Backed by the `idx_notes_folder_ltitle` expression index, so this is
+  /// an O(log n) lookup regardless of sibling count.
+  Future<bool> noteTitleExistsInFolder({
+    required String folderId,
+    required String title,
+    String? excludeId,
+  }) async {
+    await initialize();
+    return _repository.noteTitleExistsInFolder(
+      folderId: folderId,
+      title: title,
+      excludeId: excludeId,
+    );
   }
 
   Future<PaginatedNotes> loadNotePickerPage({
@@ -235,6 +287,7 @@ class NoteStorageService {
       isCompressed: note.isCompressed,
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,
+      position: note.position,
     );
   }
 
@@ -272,6 +325,24 @@ class NoteStorageService {
     required String targetFolderId,
   }) async {
     await initialize();
+    // Title-uniqueness backstop at the destination folder. Empty titles
+    // are exempt to allow "Untitled" notes to be moved freely.
+    final existing = await _repository.getNoteById(noteId);
+    if (existing != null &&
+        existing.folderId != targetFolderId &&
+        existing.title.trim().isNotEmpty) {
+      if (await noteTitleExistsInFolder(
+        folderId: targetFolderId,
+        title: existing.title,
+        excludeId: noteId,
+      )) {
+        throw DuplicateNameException(
+          kind: DuplicateNameKind.note,
+          name: existing.title.trim(),
+          parentId: targetFolderId,
+        );
+      }
+    }
     final note = await _repository.moveNote(
       noteId: noteId,
       targetFolderId: targetFolderId,

@@ -6,14 +6,18 @@ import 'unified_app_bars.dart';
 /// Mirrors [FolderAppBar] styling so the swap is visually seamless.
 class SelectionAppBar extends StatelessWidget implements PreferredSizeWidget {
   final int count;
+  final bool allSelected;
   final VoidCallback onCancel;
   final VoidCallback onSelectAll;
+  final VoidCallback onDeselectAll;
 
   const SelectionAppBar({
     super.key,
     required this.count,
+    required this.allSelected,
     required this.onCancel,
     required this.onSelectAll,
+    required this.onDeselectAll,
   });
 
   @override
@@ -34,8 +38,10 @@ class SelectionAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.select_all_rounded),
-          onPressed: onSelectAll,
+          icon: Icon(
+            allSelected ? Icons.deselect_rounded : Icons.select_all_rounded,
+          ),
+          onPressed: allSelected ? onDeselectAll : onSelectAll,
         ),
       ],
     );

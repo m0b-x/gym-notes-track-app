@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import '../database.dart';
+import 'database_indexes.dart';
 import 'database_schema.dart';
 
 class DatabaseMigrations {
@@ -43,6 +44,11 @@ class DatabaseMigrations {
       fromVersion: DatabaseSchema.v7CounterDateTimeFix,
       toVersion: DatabaseSchema.v8CounterPinAndOrder,
       migrate: _migrateV7ToV8,
+    ),
+    Migration(
+      fromVersion: DatabaseSchema.v8CounterPinAndOrder,
+      toVersion: DatabaseSchema.v9NameUniquenessIndexes,
+      migrate: _migrateV8ToV9,
     ),
   ];
 
@@ -242,5 +248,15 @@ class DatabaseMigrations {
     await _db.customStatement(
       'ALTER TABLE counter_values ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0',
     );
+  }
+
+  /// v8→v9: Add expression indexes that back the per-parent name
+  /// uniqueness queries. The new indexes cover
+  /// `(COALESCE(parent_id,''), LOWER(TRIM(name)))` for folders and
+  /// `(folder_id, LOWER(TRIM(title)))` for notes, both partial on
+  /// `is_deleted = 0`. CREATE INDEX IF NOT EXISTS makes this idempotent
+  /// for fresh installs (where createAllIndexes already created them).
+  Future<void> _migrateV8ToV9(Migrator m, GeneratedDatabase db) async {
+    await DatabaseIndexes(_db).createUniqueNameIndexes();
   }
 }

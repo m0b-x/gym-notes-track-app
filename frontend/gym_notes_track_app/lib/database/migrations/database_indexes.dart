@@ -11,6 +11,7 @@ class DatabaseIndexes {
     await _createChunkIndexes();
     await _createCounterIndexes();
     await _createFtsTable();
+    await createUniqueNameIndexes();
   }
 
   Future<void> _createFolderIndexes() async {
@@ -34,6 +35,29 @@ class DatabaseIndexes {
     );
     await _db.customStatement(
       'CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created_at DESC) WHERE is_deleted = 0',
+    );
+  }
+
+  /// Expression indexes that back the per-parent name uniqueness queries
+  /// in FolderDao.folderNameExistsInParent and NoteDao.noteTitleExistsInFolder.
+  /// Kept in their own method so the v9 migration can call this without
+  /// recreating every other index.
+  ///
+  /// COALESCE on parent_id is required because SQLite indexes treat each
+  /// NULL as distinct, so a plain `(parent_id, ...)` index can't satisfy
+  /// the root-level lookup `parent_id IS NULL`. The folder-uniqueness
+  /// query must use the same `COALESCE(parent_id, '')` expression for the
+  /// planner to pick the index.
+  Future<void> createUniqueNameIndexes() async {
+    await _db.customStatement(
+      "CREATE INDEX IF NOT EXISTS idx_folders_parent_lname "
+      "ON folders(COALESCE(parent_id, ''), LOWER(TRIM(name))) "
+      "WHERE is_deleted = 0",
+    );
+    await _db.customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_notes_folder_ltitle '
+      'ON notes(folder_id, LOWER(TRIM(title))) '
+      'WHERE is_deleted = 0',
     );
   }
 

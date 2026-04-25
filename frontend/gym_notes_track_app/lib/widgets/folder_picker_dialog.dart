@@ -72,9 +72,38 @@ class _FolderPickerDialogState extends State<_FolderPickerDialog> {
   @override
   void initState() {
     super.initState();
-    _loadFolders();
+    // Pre-position the picker INSIDE the source item's current folder so
+    // the user immediately sees siblings (the most common move target).
+    // The previous behavior of always starting at root forced an extra
+    // drill-down step for every move within a subtree.
+    _initializeBreadcrumbsAndLoad();
     _resolveRecents();
     _searchController.addListener(_onSearchChanged);
+  }
+
+  Future<void> _initializeBreadcrumbsAndLoad() async {
+    final startId = widget.currentFolderId;
+    if (startId.isEmpty) {
+      // Source lives at root — keep breadcrumbs empty (start at root).
+      await _loadFolders();
+      return;
+    }
+    // Resolve ancestors + the current folder itself; if any link is
+    // missing fall back to root rather than failing the whole picker.
+    final ancestors = await _folderService.getAncestors(startId);
+    final current = await _folderService.getFolderById(startId);
+    if (!mounted) return;
+    setState(() {
+      _breadcrumbs
+        ..clear()
+        ..addAll(
+          ancestors.map((f) => _BreadcrumbEntry(id: f.id, name: f.name)),
+        );
+      if (current != null) {
+        _breadcrumbs.add(_BreadcrumbEntry(id: current.id, name: current.name));
+      }
+    });
+    await _loadFolders();
   }
 
   @override
@@ -431,6 +460,11 @@ class _FolderPickerDialogState extends State<_FolderPickerDialog> {
 
     for (final folder in folders) {
       final isCurrentFolder = folder.id == widget.currentFolderId;
+      // Two-action row: tapping the row selects the folder as the move
+      // destination; the trailing arrow drills into the folder. The old
+      // single-action behavior (tap to drill in only) hid the destination
+      // from users — they had to navigate INTO a folder before they could
+      // pick it, which is unintuitive for a destination picker.
       items.add(
         ListTile(
           leading: Icon(
@@ -447,16 +481,18 @@ class _FolderPickerDialogState extends State<_FolderPickerDialog> {
                   : null,
             ),
           ),
-          trailing: isCurrentFolder
-              ? null
-              : Icon(
-                  Icons.chevron_right,
-                  size: 20,
-                  color: colorScheme.onSurfaceVariant,
-                ),
+          trailing: IconButton(
+            icon: Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            visualDensity: VisualDensity.compact,
+            onPressed: () => _navigateInto(folder),
+          ),
           dense: true,
           enabled: !isCurrentFolder,
-          onTap: isCurrentFolder ? null : () => _navigateInto(folder),
+          onTap: isCurrentFolder ? null : () => _confirmSelection(folder.id),
         ),
       );
     }

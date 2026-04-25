@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:re_editor/re_editor.dart';
 import 'package:share_plus/share_plus.dart';
@@ -37,6 +38,7 @@ import '../widgets/source_mapped_markdown_view.dart';
 import '../widgets/note_search_bar.dart';
 import '../widgets/app_drawer.dart';
 import '../services/app_navigator.dart';
+import '../services/note_storage_service.dart';
 import '../widgets/unified_app_bars.dart';
 import '../utils/editor_width_calculator.dart';
 import '../utils/custom_snackbar.dart';
@@ -121,6 +123,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   /// For new notes: becomes non-null once the note is persisted for the first time.
   String? _effectiveNoteId;
   bool _isCreatingNewNote = false;
+
+  /// One-shot guard so the auto-save doesn't show the duplicate-title
+  /// snackbar on every keystroke after a collision is detected. Reset to
+  /// false the moment the user types a non-colliding title.
+  bool _warnedDuplicateTitle = false;
 
   /// Cached reference so we can dispatch [SetNoteContext] during [dispose].
   late final CounterBloc _counterBloc;
@@ -370,11 +377,44 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _autoSaveService = AutoSaveService(
       onSave: (title, content) async {
         if (_effectiveNoteId != null) {
+          // Pre-validate the title against sibling notes BEFORE dispatching
+          // the save. If a duplicate is detected we still save the content
+          // (so the user never loses keystrokes) but skip the title update
+          // and warn once. This mirrors the rename-dialog behavior and
+          // avoids drowning the user in repeated snackbars on every save.
+          var titleToSave = title;
+          final trimmed = title?.trim() ?? '';
+          if (trimmed.isNotEmpty &&
+              trimmed.toLowerCase() !=
+                  (widget.metadata?.title.trim().toLowerCase() ?? '')) {
+            final exists = await GetIt.I<NoteStorageService>()
+                .noteTitleExistsInFolder(
+                  folderId: widget.folderId,
+                  title: trimmed,
+                  excludeId: _effectiveNoteId,
+                );
+            if (exists) {
+              titleToSave = widget.metadata?.title ?? '';
+              if (!_warnedDuplicateTitle && mounted) {
+                _warnedDuplicateTitle = true;
+                CustomSnackbar.showError(
+                  context,
+                  AppLocalizations.of(context)!.noteTitleAlreadyExists(trimmed),
+                );
+              }
+            } else {
+              // Reset the one-shot warning once the user picks a unique
+              // title so a future collision will warn again.
+              _warnedDuplicateTitle = false;
+            }
+          }
+
           final completer = Completer<void>();
+          if (!mounted) return;
           context.read<OptimizedNoteBloc>().add(
             UpdateOptimizedNote(
               noteId: _effectiveNoteId!,
-              title: title,
+              title: titleToSave,
               content: content,
               completer: completer,
             ),
@@ -440,18 +480,39 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   }
 
   /// Immediately persists a brand-new note and switches to update mode.
-  void _createNewNoteEarly() {
+  void _createNewNoteEarly() async {
     if (_effectiveNoteId != null || _isCreatingNewNote) return;
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
     if (title.isEmpty && content.isEmpty) return;
+
+    // Apply the same per-folder uniqueness rule that rename + auto-save
+    // use. If the user picked a colliding title for a brand-new note, save
+    // it with an empty title so content isn't lost; the user can rename
+    // later from the cards view.
+    var titleToCreate = title;
+    if (title.isNotEmpty) {
+      final exists = await GetIt.I<NoteStorageService>()
+          .noteTitleExistsInFolder(folderId: widget.folderId, title: title);
+      if (!mounted) return;
+      if (exists) {
+        titleToCreate = '';
+        _warnedDuplicateTitle = true;
+        if (context.mounted) {
+          CustomSnackbar.showError(
+            context,
+            AppLocalizations.of(context)!.noteTitleAlreadyExists(title),
+          );
+        }
+      }
+    }
 
     _isCreatingNewNote = true;
     if (!mounted) return;
     context.read<OptimizedNoteBloc>().add(
       CreateOptimizedNote(
         folderId: widget.folderId,
-        title: title,
+        title: titleToCreate,
         content: content,
       ),
     );

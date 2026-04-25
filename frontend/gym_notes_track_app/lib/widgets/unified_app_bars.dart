@@ -316,10 +316,7 @@ class _SaveStatusIndicator extends StatelessWidget {
           duration: const Duration(milliseconds: 250),
           layoutBuilder: (currentChild, previousChildren) {
             // Deduplicate all children by key - current child takes precedence
-            final allChildren = [
-              ...previousChildren,
-              if (currentChild != null) currentChild,
-            ];
+            final allChildren = [...previousChildren, ?currentChild];
             final seenKeys = <Key>{};
             final uniqueChildren = <Widget>[];
 

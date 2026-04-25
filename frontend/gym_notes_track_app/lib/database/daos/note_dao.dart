@@ -332,16 +332,26 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
     required String folderId,
     required List<String> orderedIds,
   }) async {
+    final positions = {
+      for (var i = 0; i < orderedIds.length; i++) orderedIds[i]: i,
+    };
+    await setNotePositions(positions);
+  }
+
+  /// Write explicit positions for a set of notes. Used by the mixed reorder
+  /// service to assign global (folder + note interleaved) positions.
+  Future<void> setNotePositions(Map<String, int> positionByNoteId) async {
+    if (positionByNoteId.isEmpty) return;
     final now = DateTime.now();
     final hlc = db.generateHlc();
 
     await transaction(() async {
-      for (int i = 0; i < orderedIds.length; i++) {
-        final existing = await getNoteById(orderedIds[i]);
+      for (final entry in positionByNoteId.entries) {
+        final existing = await getNoteById(entry.key);
         if (existing != null) {
-          await (update(notes)..where((n) => n.id.equals(orderedIds[i]))).write(
+          await (update(notes)..where((n) => n.id.equals(entry.key))).write(
             NotesCompanion(
-              position: Value(i),
+              position: Value(entry.value),
               updatedAt: Value(now),
               hlcTimestamp: Value(hlc),
               deviceId: Value(db.deviceId),
@@ -358,6 +368,42 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
     for (final note in notesInFolder) {
       await softDeleteNote(note.id);
     }
+  }
+
+  /// Returns true if a non-deleted note with the same case-insensitive,
+  /// trimmed [title] already exists in [folderId]. Indexed by
+  /// `idx_notes_folder_ltitle`. [excludeId] is honored for rename flows
+  /// so a note isn't reported as a duplicate of itself. Empty/whitespace
+  /// titles are never reported as duplicates so multiple "Untitled" notes
+  /// can coexist.
+  Future<bool> noteTitleExistsInFolder({
+    required String folderId,
+    required String title,
+    String? excludeId,
+  }) async {
+    final normalized = title.trim().toLowerCase();
+    if (normalized.isEmpty) return false;
+
+    // Empty-string sentinel for excludeId — note ids are non-empty UUIDs,
+    // so `id <> ''` is always true. This avoids nullable Variable bindings
+    // (List<Variable<Object>> doesn't accept Variable<String?>).
+    final result = await db
+        .customSelect(
+          'SELECT 1 FROM notes '
+          'WHERE folder_id = ?1 '
+          'AND LOWER(TRIM(title)) = ?2 '
+          'AND is_deleted = 0 '
+          'AND id <> ?3 '
+          'LIMIT 1',
+          variables: [
+            Variable<String>(folderId),
+            Variable<String>(normalized),
+            Variable<String>(excludeId ?? ''),
+          ],
+          readsFrom: {notes},
+        )
+        .getSingleOrNull();
+    return result != null;
   }
 
   Future<List<Note>> searchNotes(String query, {String? folderId}) async {

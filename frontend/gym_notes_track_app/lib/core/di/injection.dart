@@ -7,6 +7,7 @@ import '../../services/note_storage_service.dart';
 import '../../services/folder_search_service.dart';
 import '../../services/markdown_bar_service.dart';
 import '../../services/counter_service.dart';
+import '../../services/mixed_reorder_service.dart';
 import '../../services/move_history_service.dart';
 import '../../services/move_history_store.dart';
 import '../../services/recent_destinations_service.dart';
@@ -76,6 +77,13 @@ Future<void> _registerServices() async {
   getIt.registerSingleton<FolderNameIndex>(
     FolderNameIndex(folderService: folderStorageService),
     dispose: (s) => s.dispose(),
+  );
+
+  getIt.registerSingleton<MixedReorderService>(
+    MixedReorderService(
+      folderRepository: getIt<FolderRepository>(),
+      noteRepository: getIt<NoteRepository>(),
+    ),
   );
 }
 

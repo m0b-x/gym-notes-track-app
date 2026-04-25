@@ -3,6 +3,7 @@ import '../database/daos/folder_dao.dart';
 import '../repositories/folder_repository.dart';
 import '../models/folder.dart' as model;
 import '../constants/app_constants.dart';
+import 'duplicate_name_exception.dart';
 
 enum FoldersSortOrder {
   nameAsc,
@@ -125,6 +126,15 @@ class FolderStorageService {
     String? parentId,
   }) async {
     await initialize();
+    // Enforce per-parent name uniqueness at the data-layer boundary so no
+    // caller (UI dialog, sync handler, future code path) can bypass it.
+    if (await folderNameExistsInParent(parentId: parentId, name: name)) {
+      throw DuplicateNameException(
+        kind: DuplicateNameKind.folder,
+        name: name.trim(),
+        parentId: parentId,
+      );
+    }
     final folder = await _repository.createFolder(
       name: name,
       parentId: parentId,
@@ -138,6 +148,33 @@ class FolderStorageService {
     String? parentId,
   }) async {
     await initialize();
+    // Only run the uniqueness check when something that affects the
+    // parent+name pair is actually changing. If neither name nor parent
+    // is being touched there's nothing to validate.
+    if (name != null || parentId != null) {
+      final existing = await getFolderById(folderId);
+      if (existing != null) {
+        final effectiveName = name ?? existing.name;
+        final effectiveParent = parentId ?? existing.parentId;
+        final nameChanged =
+            effectiveName.trim().toLowerCase() !=
+            existing.name.trim().toLowerCase();
+        final parentChanged = effectiveParent != existing.parentId;
+        if (nameChanged || parentChanged) {
+          if (await folderNameExistsInParent(
+            parentId: effectiveParent,
+            name: effectiveName,
+            excludeId: folderId,
+          )) {
+            throw DuplicateNameException(
+              kind: DuplicateNameKind.folder,
+              name: effectiveName.trim(),
+              parentId: effectiveParent,
+            );
+          }
+        }
+      }
+    }
     final folder = await _repository.updateFolder(
       id: folderId,
       name: name,
@@ -157,6 +194,20 @@ class FolderStorageService {
     required String? targetParentId,
   }) async {
     await initialize();
+    final existing = await getFolderById(folderId);
+    if (existing != null && existing.parentId != targetParentId) {
+      if (await folderNameExistsInParent(
+        parentId: targetParentId,
+        name: existing.name,
+        excludeId: folderId,
+      )) {
+        throw DuplicateNameException(
+          kind: DuplicateNameKind.folder,
+          name: existing.name.trim(),
+          parentId: targetParentId,
+        );
+      }
+    }
     final folder = await _repository.moveFolder(
       folderId: folderId,
       targetParentId: targetParentId,
@@ -167,6 +218,51 @@ class FolderStorageService {
   Future<List<String>> getDescendantIds(String folderId) async {
     await initialize();
     return _repository.getAllDescendantIds(folderId);
+  }
+
+  /// Returns true if a non-deleted folder named [name] (case-insensitive,
+  /// trimmed) already exists under [parentId]. Optionally exclude one
+  /// folder id (used for rename: "is the new name taken by anything OTHER
+  /// than this folder?").
+  ///
+  /// Backed by the `idx_folders_parent_lname` expression index, so this
+  /// is an O(log n) lookup regardless of sibling count. Empty / whitespace
+  /// names are never reported as duplicates so the editor and dialogs
+  /// can call this even before the user has typed anything.
+  Future<bool> folderNameExistsInParent({
+    required String? parentId,
+    required String name,
+    String? excludeId,
+  }) async {
+    await initialize();
+    return _repository.folderNameExistsInParent(
+      parentId: parentId,
+      name: name,
+      excludeId: excludeId,
+    );
+  }
+
+  /// Walks up from [folderId] to the root, returning the ancestor chain
+  /// ordered from root → direct parent of [folderId]. The folder itself
+  /// is NOT included. Returns an empty list when [folderId] is at root,
+  /// is missing, or its chain can't be resolved.
+  ///
+  /// Defensive against pathological data: a `visited` set bounds the walk
+  /// so a cyclic `parentId` link can't loop forever.
+  Future<List<model.Folder>> getAncestors(String folderId) async {
+    await initialize();
+    final chain = <model.Folder>[];
+    final visited = <String>{folderId};
+    var current = await getFolderById(folderId);
+    while (current?.parentId != null) {
+      final parentId = current!.parentId!;
+      if (!visited.add(parentId)) break; // cycle guard
+      final parent = await getFolderById(parentId);
+      if (parent == null) break;
+      chain.insert(0, parent);
+      current = parent;
+    }
+    return chain;
   }
 
   Stream<FolderChange> get changes => _repository.folderChanges;
@@ -219,6 +315,7 @@ class FolderStorageService {
       createdAt: folder.createdAt,
       noteSortOrder: folder.noteSortOrder,
       subfolderSortOrder: folder.subfolderSortOrder,
+      position: folder.position,
     );
   }
 

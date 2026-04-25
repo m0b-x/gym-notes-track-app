@@ -11,10 +11,14 @@ import '../models/movable_item.dart';
 class SelectionController {
   final Map<MovableItemRef, MovableItemRef> _selected = {};
   final _changesController = StreamController<Set<MovableItemRef>>.broadcast();
+  // Tracks whether the user is in selection mode independently of how many
+  // items are currently selected. Without this, "deselect all" would exit
+  // the mode entirely (because isActive would flip to false).
+  bool _modeActive = false;
 
   Stream<Set<MovableItemRef>> get changes => _changesController.stream;
 
-  bool get isActive => _selected.isNotEmpty;
+  bool get isActive => _modeActive || _selected.isNotEmpty;
   int get count => _selected.length;
   Set<MovableItemRef> get items => _selected.values.toSet();
 
@@ -25,20 +29,35 @@ class SelectionController {
       _selected.remove(ref);
     } else {
       _selected[ref] = ref;
+      _modeActive = true;
     }
     _emit();
   }
 
   void add(MovableItemRef ref) {
-    if (_selected.containsKey(ref)) return;
+    if (_selected.containsKey(ref)) {
+      return;
+    }
     _selected[ref] = ref;
+    _modeActive = true;
     _emit();
   }
 
-  void clear() {
+  /// Deselect every item but stay in selection mode. Use this for the
+  /// app-bar "deselect all" action.
+  void deselectAll() {
     if (_selected.isEmpty) return;
     _selected.clear();
     _emit();
+  }
+
+  /// Exit selection mode entirely. Use this for the app-bar cancel/back
+  /// actions.
+  void clear() {
+    final wasActive = _modeActive || _selected.isNotEmpty;
+    _selected.clear();
+    _modeActive = false;
+    if (wasActive) _emit();
   }
 
   void _emit() {

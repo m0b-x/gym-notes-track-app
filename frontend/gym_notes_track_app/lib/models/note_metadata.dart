@@ -13,6 +13,10 @@ class NoteMetadata extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Manual sort position within the parent folder. Used to interleave
+  /// notes with sibling folders when [NotesSortOrder.positionAsc] is active.
+  final int position;
+
   const NoteMetadata({
     required this.id,
     required this.folderId,
@@ -23,6 +27,7 @@ class NoteMetadata extends Equatable {
     required this.isCompressed,
     required this.createdAt,
     required this.updatedAt,
+    this.position = 0,
   });
 
   NoteMetadata copyWith({
@@ -35,6 +40,7 @@ class NoteMetadata extends Equatable {
     bool? isCompressed,
     DateTime? createdAt,
     DateTime? updatedAt,
+    int? position,
   }) {
     return NoteMetadata(
       id: id ?? this.id,
@@ -46,6 +52,7 @@ class NoteMetadata extends Equatable {
       isCompressed: isCompressed ?? this.isCompressed,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      position: position ?? this.position,
     );
   }
 
@@ -101,6 +108,7 @@ class NoteMetadata extends Equatable {
     isCompressed,
     createdAt,
     updatedAt,
+    position,
   ];
 }
 

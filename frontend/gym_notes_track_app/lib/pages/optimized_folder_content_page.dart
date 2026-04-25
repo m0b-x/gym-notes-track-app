@@ -14,12 +14,14 @@ import '../bloc/optimized_note/optimized_note_bloc.dart';
 import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
 import '../controllers/selection_controller.dart';
+import '../models/content_item.dart';
 import '../models/folder.dart';
 import '../models/folder_change.dart';
 import '../models/movable_item.dart';
 import '../models/note_metadata.dart';
 import '../repositories/note_repository.dart';
 import '../services/folder_storage_service.dart';
+import '../services/mixed_reorder_service.dart';
 import '../services/move_coordinator.dart';
 import '../services/move_history_service.dart';
 import '../services/note_storage_service.dart';
@@ -59,7 +61,6 @@ class _OptimizedFolderContentPageState
   final ScrollController _scrollController = ScrollController();
   NotesSortOrder _notesSortOrder = NotesSortOrder.updatedDesc;
   FoldersSortOrder _foldersSortOrder = FoldersSortOrder.nameAsc;
-  bool _isReorderMode = false;
   bool _folderSwipeEnabled = true;
   bool _isSortSheetOpen = false;
 
@@ -73,15 +74,60 @@ class _OptimizedFolderContentPageState
   List<Folder> _visibleFolders = const [];
   List<NoteMetadata> _visibleNotes = const [];
 
+  // Optimistic reorder state for the unified mixed (folders + notes)
+  // sliver. SliverReorderableList only calls onReorder; it does not mutate
+  // the data itself, so without an immediate local update the list would
+  // visually "snap back" while the bloc round-trip (DB write -> refresh ->
+  // reload) completes. We render from this list during selection mode and
+  // mutate it synchronously inside onReorder.
+  List<ContentItem>? _localMixed;
+
+  // Drag-in-progress tracking for multi-selection visual feedback. While a
+  // drag is active, other selected cards are dimmed so the user sees the
+  // whole batch is travelling along with the lifted card.
+  bool _isDraggingMulti = false;
+
+  /// Sync the local list from the bloc list, preserving local order if it
+  /// contains exactly the same set of ids (covers the case where we just
+  /// reordered locally and the bloc refresh confirms with the same items).
+  List<T> _syncLocal<T>(
+    List<T>? local,
+    List<T> incoming,
+    String Function(T) idOf,
+  ) {
+    if (local == null) return List<T>.from(incoming);
+    if (local.length != incoming.length) return List<T>.from(incoming);
+    final localIds = local.map(idOf).toSet();
+    final incomingIds = incoming.map(idOf).toSet();
+    if (localIds.length != incomingIds.length ||
+        !localIds.containsAll(incomingIds)) {
+      return List<T>.from(incoming);
+    }
+    // Same set of ids -> assume local order is the source of truth (just
+    // reordered). Replace each local entry with the latest incoming object
+    // (so other fields like updatedAt are fresh) but keep order.
+    final byId = {for (final item in incoming) idOf(item): item};
+    return [for (final item in local) byId[idOf(item)] as T];
+  }
+
   NoteRepository get _noteRepository => GetIt.I<NoteRepository>();
   FolderStorageService get _folderStorageService =>
       GetIt.I<FolderStorageService>();
+  MixedReorderService get _mixedReorderService =>
+      GetIt.I<MixedReorderService>();
 
   @override
   void initState() {
     super.initState();
     _selectionSub = _selection.changes.listen((_) {
-      if (mounted) setState(() {});
+      if (mounted) {
+        // Drop optimistic state when leaving selection mode so the next
+        // entry starts fresh from bloc data.
+        if (!_selection.isActive) {
+          _localMixed = null;
+        }
+        setState(() {});
+      }
     });
     _loadSettings();
     _loadSortPreferencesAndData();
@@ -144,12 +190,6 @@ class _OptimizedFolderContentPageState
     super.dispose();
   }
 
-  void _toggleReorderMode() {
-    setState(() {
-      _isReorderMode = !_isReorderMode;
-    });
-  }
-
   // ─── Selection mode helpers ─────────────────────────────────────────────
 
   MovableItemRef _refForFolder(Folder f) => MovableItemRef(
@@ -177,6 +217,74 @@ class _OptimizedFolderContentPageState
     _selection.toggle(ref);
   }
 
+  /// Multi-item reorder.
+  ///
+  /// `SliverReorderableList` only knows about the single dragged item, but
+  /// the user expects all selected items to travel as a group when they drag
+  /// any one of them. This helper:
+  ///
+  ///   1. Detects whether the dragged item belongs to a multi-selection.
+  ///   2. If so, removes every selected item from the list (preserving their
+  ///      original relative order) and inserts them as a contiguous block at
+  ///      the drop target — adjusted for the items removed before it.
+  ///   3. Falls back to a plain single-item reorder when only one item (or
+  ///      none) is selected, or when the dragged item is not in the
+  ///      selection.
+  ///
+  /// This is O(n) in the visible list size, runs synchronously, and produces
+  /// a single ordered list to hand to the bloc — no per-item bloc events.
+  List<T> _applyMultiReorder<T>({
+    required List<T> source,
+    required int oldIndex,
+    required int newIndex,
+    required MovableItemRef Function(T) refOf,
+  }) {
+    // Standard Flutter reorder index adjustment: when moving an item down,
+    // the index after removal is one less than the requested newIndex.
+    var insertAt = newIndex;
+    if (oldIndex < insertAt) insertAt -= 1;
+
+    final draggedItem = source[oldIndex];
+    final draggedRef = refOf(draggedItem);
+    final selectionContainsDragged = _selection.contains(draggedRef);
+    final isMulti = selectionContainsDragged && _selection.count > 1;
+
+    if (!isMulti) {
+      final result = List<T>.from(source);
+      final item = result.removeAt(oldIndex);
+      result.insert(insertAt, item);
+      return result;
+    }
+
+    // Multi: split selected vs. unselected while preserving the visible
+    // order, then re-insert the selected block at the right position among
+    // the unselected items.
+    final selected = <T>[];
+    final unselected = <T>[];
+    // Track how many unselected items live strictly before the drop target
+    // in the *current* visible list — that's where the selection block
+    // should land in the unselected-only list.
+    var unselectedBeforeTarget = 0;
+    for (var i = 0; i < source.length; i++) {
+      final item = source[i];
+      final inSelection = _selection.contains(refOf(item));
+      if (inSelection) {
+        selected.add(item);
+      } else {
+        if (i < newIndex) unselectedBeforeTarget += 1;
+        unselected.add(item);
+      }
+    }
+
+    final insertIndex = unselectedBeforeTarget.clamp(0, unselected.length);
+    final result = List<T>.from(unselected)..insertAll(insertIndex, selected);
+    debugPrint(
+      '[Reorder] multi: dragged ${selected.length} items, oldIndex=$oldIndex '
+      'newIndex=$newIndex insertIndex=$insertIndex',
+    );
+    return result;
+  }
+
   void _selectAll() {
     for (final f in _visibleFolders) {
       _selection.add(_refForFolder(f));
@@ -184,6 +292,68 @@ class _OptimizedFolderContentPageState
     for (final n in _visibleNotes) {
       _selection.add(_refForNote(n));
     }
+  }
+
+  /// Called when SliverReorderableList starts a drag. We only flip the multi
+  /// flag if there's an actual multi-selection — single-item drags get the
+  /// default behavior with no extra rebuilds.
+  void _onReorderStart() {
+    if (_selection.count > 1) {
+      setState(() => _isDraggingMulti = true);
+    }
+  }
+
+  void _onReorderEnd() {
+    if (_isDraggingMulti) {
+      setState(() => _isDraggingMulti = false);
+    }
+  }
+
+  /// Decorates the dragged card with a count badge when the user is moving a
+  /// multi-selection, so it's visually obvious that the whole batch will move
+  /// even though only one card lifts off.
+  Widget _buildReorderProxy(
+    Widget child,
+    Animation<double> animation,
+    int selectionCount,
+  ) {
+    if (selectionCount <= 1) return child;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          child,
+          Positioned(
+            top: 0,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: colorScheme.primary,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Text(
+                '$selectionCount',
+                style: TextStyle(
+                  color: colorScheme.onPrimary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _moveSelected() async {
@@ -278,18 +448,18 @@ class _OptimizedFolderContentPageState
       appBar: isSelecting
           ? SelectionAppBar(
               count: _selection.count,
+              allSelected:
+                  _selection.count > 0 &&
+                  _selection.count ==
+                      _visibleFolders.length + _visibleNotes.length,
               onCancel: _selection.clear,
               onSelectAll: _selectAll,
+              onDeselectAll: _selection.deselectAll,
             )
           : FolderAppBar(
               title: widget.title,
               isRootPage: isRootPage,
               actions: [
-                IconButton(
-                  icon: Icon(_isReorderMode ? Icons.check : Icons.swap_vert),
-                  tooltip: AppLocalizations.of(context)!.reorderMode,
-                  onPressed: _toggleReorderMode,
-                ),
                 IconButton(
                   icon: const Icon(Icons.search),
                   tooltip: widget.folderId != null
@@ -336,8 +506,7 @@ class _OptimizedFolderContentPageState
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
-            _buildFoldersSection(),
-            _buildNotesSection(),
+            ..._buildContentSlivers(isSelecting: isSelecting),
             _buildEmptyStateSection(),
           ],
         ),
@@ -348,8 +517,6 @@ class _OptimizedFolderContentPageState
               onMove: _moveSelected,
               onDelete: _deleteSelected,
             )
-          : _isReorderMode
-          ? _buildReorderModeBar()
           : null,
       floatingActionButton: isSelecting
           ? null
@@ -396,44 +563,6 @@ class _OptimizedFolderContentPageState
     }
 
     return scaffold;
-  }
-
-  Widget _buildReorderModeBar() {
-    final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: SafeArea(
-        child: Row(
-          children: [
-            Icon(Icons.drag_handle, color: colorScheme.onSurfaceVariant),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                l10n.dragToReorder,
-                style: TextStyle(color: colorScheme.onSurfaceVariant),
-              ),
-            ),
-            FilledButton.icon(
-              onPressed: _showQuickSortOptions,
-              icon: const Icon(Icons.sort, size: 18),
-              label: Text(l10n.quickSort),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _showQuickSortOptions() {
@@ -649,7 +778,10 @@ class _OptimizedFolderContentPageState
   }
 
   void _sortFoldersBy(FoldersSortOrder order) {
-    setState(() => _foldersSortOrder = order);
+    setState(() {
+      _foldersSortOrder = order;
+      _localMixed = null;
+    });
     context.read<OptimizedFolderBloc>().add(
       LoadFoldersPaginated(parentId: widget.folderId, sortOrder: order),
     );
@@ -665,6 +797,7 @@ class _OptimizedFolderContentPageState
   void _sortNotesBy(NotesSortOrder order) {
     setState(() {
       _notesSortOrder = order;
+      _localMixed = null;
     });
     context.read<OptimizedNoteBloc>().add(
       LoadNotesPaginated(folderId: widget.folderId, sortOrder: order),
@@ -678,304 +811,292 @@ class _OptimizedFolderContentPageState
     }
   }
 
-  Widget _buildFoldersSection() {
+  // ─── Unified mixed (folders + notes) sliver ─────────────────────────────
+
+  /// Top-level slivers list selector. The mixed sliver is the *only* visible
+  /// list in both modes — it just toggles between a reorderable list (in
+  /// selection mode) and an infinite-scroll list (otherwise). Rendering the
+  /// same merged ordering in both modes fixes the previous inconsistency
+  /// where folders always appeared above notes outside of selection mode,
+  /// hiding the user's manual cross-kind reorders.
+  ///
+  /// Default ordering (no manual reorder yet): each kind's `position` is
+  /// dense within its own table, and [mergeByPosition] breaks ties in favor
+  /// of folders, so legacy data and freshly-created items naturally show
+  /// folders above notes. Once the user drags a note above a folder in
+  /// selection mode, the explicit positions persist and that exact ordering
+  /// is what the non-selection view also renders.
+  List<Widget> _buildContentSlivers({required bool isSelecting}) {
+    return [_buildMixedSliver(isSelecting: isSelecting)];
+  }
+
+  MovableItemRef _refForContentItem(ContentItem item) => switch (item) {
+    FolderItem(:final folder) => _refForFolder(folder),
+    NoteItem(:final metadata) => _refForNote(metadata),
+  };
+
+  Widget _buildMixedSliver({required bool isSelecting}) {
     return BlocBuilder<OptimizedFolderBloc, OptimizedFolderState>(
       buildWhen: FolderBlocFilters.forParentFolder(widget.folderId),
-      builder: (context, state) {
-        if (state is OptimizedFolderInitial) {
-          context.read<OptimizedFolderBloc>().add(
-            LoadFoldersPaginated(
-              parentId: widget.folderId,
-              sortOrder: _foldersSortOrder,
-            ),
-          );
-          return const SliverToBoxAdapter(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: CircularProgressIndicator(),
-              ),
-            ),
-          );
-        }
-
-        if (state is OptimizedFolderLoading) {
-          return const SliverToBoxAdapter(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: CircularProgressIndicator(),
-              ),
-            ),
-          );
-        }
-
-        if (state is OptimizedFolderError) {
-          return SliverToBoxAdapter(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Text(
-                  AppLocalizations.of(context)!.error(state.message),
-                  style: const TextStyle(color: Colors.red),
+      builder: (context, folderState) {
+        return BlocBuilder<OptimizedNoteBloc, OptimizedNoteState>(
+          buildWhen: NoteBlocFilters.forFolder(widget.folderId),
+          builder: (context, noteState) {
+            // Kick the bloc on cold-start only. After the first load, the
+            // bloc transitions through Loading on every refresh / sort
+            // change; we deliberately do NOT clear our cached [_localMixed]
+            // in that window so the UI keeps showing the last known list
+            // instead of flashing to a spinner.
+            if (folderState is OptimizedFolderInitial) {
+              context.read<OptimizedFolderBloc>().add(
+                LoadFoldersPaginated(
+                  parentId: widget.folderId,
+                  sortOrder: _foldersSortOrder,
                 ),
-              ),
-            ),
-          );
-        }
+              );
+            }
 
-        if (state is OptimizedFolderLoaded) {
-          final folders = state.paginatedFolders.folders;
-          // Cache for SelectAll. Done outside build cycle is fine since
-          // SelectAll is only invoked while in selection mode.
-          _visibleFolders = folders;
-
-          if (folders.isEmpty) {
-            return const SliverToBoxAdapter(child: SizedBox.shrink());
-          }
-
-          if (_isReorderMode) {
-            return SliverReorderableList(
-              itemCount: folders.length,
-              onReorder: (oldIndex, newIndex) {
-                if (oldIndex < newIndex) {
-                  newIndex -= 1;
-                }
-                final reorderedFolders = List<Folder>.from(folders);
-                final item = reorderedFolders.removeAt(oldIndex);
-                reorderedFolders.insert(newIndex, item);
-                context.read<OptimizedFolderBloc>().add(
-                  ReorderFolders(
-                    parentId: widget.folderId,
-                    orderedIds: reorderedFolders.map((f) => f.id).toList(),
+            // Surface errors prominently — but only if we have no prior data
+            // to show. With cached data, a transient error mid-refresh would
+            // wipe the screen which is worse UX than just keeping the stale
+            // list visible.
+            if (folderState is OptimizedFolderError && _localMixed == null) {
+              return SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Center(
+                    child: Text(
+                      AppLocalizations.of(context)!.error(folderState.message),
+                      style: const TextStyle(color: Colors.red),
+                    ),
                   ),
+                ),
+              );
+            }
+
+            final folders = folderState is OptimizedFolderLoaded
+                ? folderState.paginatedFolders.folders
+                : const <Folder>[];
+            final notes = widget.folderId == null
+                ? const <NoteMetadata>[]
+                : (NoteStateHelper.getNotesForFolder(
+                        noteState,
+                        widget.folderId,
+                      ) ??
+                      const <NoteMetadata>[]);
+
+            // Detect the "this state has no fresh data" case (Loading,
+            // Initial, Error). Without this, a reorder dispatch that
+            // triggers Loading would feed empty lists into mergeByPosition
+            // and we would render an empty sliver for one frame — exactly
+            // the white flash this method exists to prevent.
+            final folderHasData = folderState is OptimizedFolderLoaded;
+            final noteHasData =
+                widget.folderId == null ||
+                noteState is OptimizedNoteLoaded ||
+                noteState is OptimizedNoteContentLoaded;
+
+            if (!folderHasData || !noteHasData) {
+              // No fresh data this build. If we have a previous render,
+              // reuse it verbatim; otherwise show the cold-start spinner.
+              if (_localMixed != null && _localMixed!.isNotEmpty) {
+                return _buildMixedListFromDisplay(
+                  display: _localMixed!,
+                  isSelecting: isSelecting,
+                  hasMore: false,
+                  isLoadingMore: false,
                 );
-              },
-              itemBuilder: (context, index) {
-                final folder = folders[index];
-                return _FolderCard(
-                  key: ValueKey(folder.id),
-                  folder: folder,
-                  parentId: widget.folderId,
-                  onReturn: _loadData,
-                  isReorderMode: true,
-                  index: index,
-                  selection: _selection,
-                  onLongPressItem: _onCardLongPress,
-                  onTapInSelection: _onCardTapInSelection,
-                  onAcceptDrop: _onDropOnFolder,
-                );
-              },
+              }
+              return const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              );
+            }
+
+            // Keep the SelectAll source-of-truth in sync with what's visible.
+            _visibleFolders = folders;
+            _visibleNotes = notes;
+
+            // Kick off a small content preload for the first few notes so
+            // tapping in feels instant. Was previously done by the notes
+            // section; keep behavior parity here.
+            if (notes.isNotEmpty) {
+              _preloadNoteContent(notes.take(3).map((n) => n.id).toList());
+            }
+
+            if (folders.isEmpty && notes.isEmpty) {
+              _localMixed = null;
+              return const SliverToBoxAdapter(child: SizedBox.shrink());
+            }
+
+            final merged = mergeByPosition(folders: folders, notes: notes);
+            final display = _syncLocal<ContentItem>(
+              _localMixed,
+              merged,
+              (i) => i.id,
             );
-          }
+            _localMixed = display;
 
-          return SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                if (index >= folders.length) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                final folder = folders[index];
-                return _FolderCard(
-                  key: ValueKey(folder.id),
-                  folder: folder,
-                  parentId: widget.folderId,
-                  onReturn: _loadData,
-                  selection: _selection,
-                  onLongPressItem: _onCardLongPress,
-                  onTapInSelection: _onCardTapInSelection,
-                  onAcceptDrop: _onDropOnFolder,
-                );
-              },
-              childCount:
-                  folders.length + (state.paginatedFolders.hasMore ? 1 : 0),
-            ),
-          );
-        }
+            final hasMore = widget.folderId != null
+                ? NoteStateHelper.hasMoreForFolder(noteState, widget.folderId)
+                : false;
+            final isLoadingMore = noteState is OptimizedNoteLoaded
+                ? NoteStateHelper.isLoadingMore(noteState)
+                : false;
 
-        return const SliverToBoxAdapter(child: SizedBox.shrink());
+            return _buildMixedListFromDisplay(
+              display: display,
+              isSelecting: isSelecting,
+              hasMore: hasMore,
+              isLoadingMore: isLoadingMore,
+            );
+          },
+        );
       },
     );
   }
 
-  Widget _buildNotesSection() {
-    if (widget.folderId == null) {
-      return const SliverToBoxAdapter(child: SizedBox.shrink());
+  /// Render the actual sliver (reorderable in selection mode, otherwise
+  /// infinite-scroll) from a final [display] list. Extracted so the
+  /// "reuse cached list during a transient Loading state" path and the
+  /// fresh-data path produce the same widget tree (no re-creation jank).
+  Widget _buildMixedListFromDisplay({
+    required List<ContentItem> display,
+    required bool isSelecting,
+    required bool hasMore,
+    required bool isLoadingMore,
+  }) {
+    if (isSelecting) {
+      return SliverReorderableList(
+        itemCount: display.length,
+        proxyDecorator: (child, index, animation) =>
+            _buildReorderProxy(child, animation, _selection.count),
+        onReorderStart: (_) => _onReorderStart(),
+        onReorderEnd: (_) => _onReorderEnd(),
+        onReorder: (oldIndex, newIndex) {
+          final reordered = _applyMultiReorder<ContentItem>(
+            source: display,
+            oldIndex: oldIndex,
+            newIndex: newIndex,
+            refOf: _refForContentItem,
+          );
+          _handleReorderMixed(reordered);
+        },
+        itemBuilder: (context, index) =>
+            _buildMixedItem(display[index], index, isSelecting: true),
+      );
     }
 
-    return BlocBuilder<OptimizedNoteBloc, OptimizedNoteState>(
-      buildWhen: NoteBlocFilters.forFolder(widget.folderId),
-      builder: (context, state) {
-        if (state is OptimizedNoteLoading) {
-          return const SliverToBoxAdapter(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: CircularProgressIndicator(),
-              ),
-            ),
-          );
-        }
-
-        if (state is OptimizedNoteError) {
-          return SliverToBoxAdapter(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Text(
-                  AppLocalizations.of(context)!.error(state.message),
-                  style: const TextStyle(color: Colors.red),
-                ),
-              ),
-            ),
-          );
-        }
-
-        if (state is OptimizedNoteLoaded) {
-          final notes = NoteStateHelper.getNotesForFolder(
-            state,
-            widget.folderId,
-          );
-
-          if (notes == null || notes.isEmpty) {
-            return const SliverToBoxAdapter(child: SizedBox.shrink());
-          }
-          _visibleNotes = notes;
-
-          _preloadNoteContent(notes.take(3).map((n) => n.id).toList());
-
-          if (_isReorderMode) {
-            return SliverReorderableList(
-              itemCount: notes.length,
-              onReorder: (oldIndex, newIndex) {
-                if (oldIndex < newIndex) {
-                  newIndex -= 1;
-                }
-                final reorderedNotes = List<NoteMetadata>.from(notes);
-                final item = reorderedNotes.removeAt(oldIndex);
-                reorderedNotes.insert(newIndex, item);
-                context.read<OptimizedNoteBloc>().add(
-                  ReorderNotes(
-                    folderId: widget.folderId!,
-                    orderedIds: reorderedNotes.map((n) => n.id).toList(),
-                  ),
-                );
-              },
-              itemBuilder: (context, index) {
-                final note = notes[index];
-                return _NoteCard(
-                  key: ValueKey(note.id),
-                  metadata: note,
-                  folderId: widget.folderId!,
-                  onReturn: _loadData,
-                  isReorderMode: true,
-                  index: index,
-                  selection: _selection,
-                  onLongPressItem: _onCardLongPress,
-                  onTapInSelection: _onCardTapInSelection,
-                );
-              },
-            );
-          }
-
-          return InfiniteScrollSliver<NoteMetadata>(
-            items: notes,
-            hasMore: NoteStateHelper.hasMoreForFolder(state, widget.folderId),
-            isLoadingMore: NoteStateHelper.isLoadingMore(state),
-            controller: _scrollController,
-            onLoadMore: () {
-              context.read<OptimizedNoteBloc>().add(
-                LoadMoreNotes(folderId: widget.folderId),
-              );
-            },
-            itemBuilder: (context, note, index) {
-              return _NoteCard(
-                metadata: note,
-                folderId: widget.folderId!,
-                onReturn: _loadData,
-                selection: _selection,
-                onLongPressItem: _onCardLongPress,
-                onTapInSelection: _onCardTapInSelection,
-              );
-            },
-          );
-        }
-
-        if (state is OptimizedNoteContentLoaded) {
-          final notes = NoteStateHelper.getNotesForFolder(
-            state,
-            widget.folderId,
-          );
-
-          if (notes == null || notes.isEmpty) {
-            return const SliverToBoxAdapter(child: SizedBox.shrink());
-          }
-          _visibleNotes = notes;
-
-          _preloadNoteContent(notes.take(3).map((n) => n.id).toList());
-
-          if (_isReorderMode) {
-            return SliverReorderableList(
-              itemCount: notes.length,
-              onReorder: (oldIndex, newIndex) {
-                if (oldIndex < newIndex) {
-                  newIndex -= 1;
-                }
-                final reorderedNotes = List<NoteMetadata>.from(notes);
-                final item = reorderedNotes.removeAt(oldIndex);
-                reorderedNotes.insert(newIndex, item);
-                context.read<OptimizedNoteBloc>().add(
-                  ReorderNotes(
-                    folderId: widget.folderId!,
-                    orderedIds: reorderedNotes.map((n) => n.id).toList(),
-                  ),
-                );
-              },
-              itemBuilder: (context, index) {
-                final note = notes[index];
-                return _NoteCard(
-                  key: ValueKey(note.id),
-                  metadata: note,
-                  folderId: widget.folderId!,
-                  onReturn: _loadData,
-                  isReorderMode: true,
-                  index: index,
-                  selection: _selection,
-                  onLongPressItem: _onCardLongPress,
-                  onTapInSelection: _onCardTapInSelection,
-                );
-              },
-            );
-          }
-
-          return InfiniteScrollSliver<NoteMetadata>(
-            items: notes,
-            hasMore: NoteStateHelper.hasMoreForFolder(state, widget.folderId),
-            isLoadingMore: false,
-            controller: _scrollController,
-            onLoadMore: () {
-              context.read<OptimizedNoteBloc>().add(
-                LoadMoreNotes(folderId: widget.folderId),
-              );
-            },
-            itemBuilder: (context, note, index) {
-              return _NoteCard(
-                metadata: note,
-                folderId: widget.folderId!,
-                onReturn: _loadData,
-                selection: _selection,
-                onLongPressItem: _onCardLongPress,
-                onTapInSelection: _onCardTapInSelection,
-              );
-            },
-          );
-        }
-
-        return const SliverToBoxAdapter(child: SizedBox.shrink());
+    return InfiniteScrollSliver<ContentItem>(
+      items: display,
+      hasMore: hasMore,
+      isLoadingMore: isLoadingMore,
+      controller: _scrollController,
+      onLoadMore: () {
+        context.read<OptimizedNoteBloc>().add(
+          LoadMoreNotes(folderId: widget.folderId),
+        );
       },
+      itemBuilder: (context, item, index) =>
+          _buildMixedItem(item, index, isSelecting: false),
+    );
+  }
+
+  /// Single source of truth for rendering a [ContentItem] inside the mixed
+  /// sliver, used by both the reorderable and the infinite-scroll branches.
+  /// [isSelecting] toggles the drag handle (`isReorderMode`) — outside of
+  /// selection the cards show their normal trailing menu.
+  Widget _buildMixedItem(
+    ContentItem item,
+    int index, {
+    required bool isSelecting,
+  }) {
+    switch (item) {
+      case FolderItem(:final folder):
+        return _FolderCard(
+          key: ValueKey('folder:${folder.id}'),
+          folder: folder,
+          parentId: widget.folderId,
+          onReturn: _loadData,
+          isReorderMode: isSelecting,
+          index: isSelecting ? index : null,
+          isMultiDragging: _isDraggingMulti,
+          selection: _selection,
+          onLongPressItem: _onCardLongPress,
+          onTapInSelection: _onCardTapInSelection,
+          onAcceptDrop: _onDropOnFolder,
+        );
+      case NoteItem(:final metadata):
+        return _NoteCard(
+          key: ValueKey('note:${metadata.id}'),
+          metadata: metadata,
+          folderId: widget.folderId!,
+          onReturn: _loadData,
+          isReorderMode: isSelecting,
+          index: isSelecting ? index : null,
+          isMultiDragging: _isDraggingMulti,
+          selection: _selection,
+          onLongPressItem: _onCardLongPress,
+          onTapInSelection: _onCardTapInSelection,
+        );
+    }
+  }
+
+  /// Persist a unified folder+note ordering. Mirrors [_handleReorderFolders]:
+  /// flips both per-kind sort orders to position-based (so the next refresh
+  /// preserves what the user just did), persists the preference, then writes
+  /// both tables via [MixedReorderService].
+  void _handleReorderMixed(List<ContentItem> reordered) {
+    debugPrint(
+      '[Reorder] mixed: applying optimistic order '
+      '${reordered.map((i) => '${i.kind.name}:${i.displayName('')}').toList()}',
+    );
+    setState(() {
+      _localMixed = List<ContentItem>.from(reordered);
+    });
+
+    var sortChanged = false;
+    if (_foldersSortOrder != FoldersSortOrder.positionAsc &&
+        _foldersSortOrder != FoldersSortOrder.positionDesc) {
+      _foldersSortOrder = FoldersSortOrder.positionAsc;
+      sortChanged = true;
+      context.read<OptimizedFolderBloc>().add(
+        LoadFoldersPaginated(
+          parentId: widget.folderId,
+          sortOrder: FoldersSortOrder.positionAsc,
+        ),
+      );
+    }
+    if (widget.folderId != null &&
+        _notesSortOrder != NotesSortOrder.positionAsc &&
+        _notesSortOrder != NotesSortOrder.positionDesc) {
+      _notesSortOrder = NotesSortOrder.positionAsc;
+      sortChanged = true;
+      context.read<OptimizedNoteBloc>().add(
+        LoadNotesPaginated(
+          folderId: widget.folderId,
+          sortOrder: NotesSortOrder.positionAsc,
+        ),
+      );
+    }
+    if (sortChanged && widget.folderId != null) {
+      _folderStorageService.updateFolderSortPreferences(
+        folderId: widget.folderId!,
+        subfolderSortOrder: _foldersSortOrder.name,
+        noteSortOrder: _notesSortOrder.name,
+      );
+    }
+
+    // Fire-and-forget: the optimistic local list keeps the UI consistent
+    // until the bloc refresh completes; errors are surfaced via the change
+    // streams (which would re-emit and replace the local list).
+    unawaited(
+      _mixedReorderService.reorderMixed(
+        parentId: widget.folderId,
+        items: reordered,
+      ),
     );
   }
 
@@ -1103,8 +1224,24 @@ class _OptimizedFolderContentPageState
       confirmText: AppLocalizations.of(context)!.create,
     );
     if (name == null || name.trim().isEmpty) return;
+    if (!mounted) return;
+    final trimmed = name.trim();
+    // Per-parent name uniqueness: prevent two sibling folders sharing a
+    // name. Comparison is case-insensitive + whitespace-trimmed.
+    final exists = await _folderStorageService.folderNameExistsInParent(
+      parentId: widget.folderId,
+      name: trimmed,
+    );
+    if (!mounted) return;
+    if (exists) {
+      CustomSnackbar.showError(
+        context,
+        AppLocalizations.of(context)!.folderNameAlreadyExists(trimmed),
+      );
+      return;
+    }
     context.read<OptimizedFolderBloc>().add(
-      CreateOptimizedFolder(name: name.trim(), parentId: widget.folderId),
+      CreateOptimizedFolder(name: trimmed, parentId: widget.folderId),
     );
   }
 
@@ -1123,6 +1260,10 @@ class _FolderCard extends StatefulWidget {
   final VoidCallback onReturn;
   final bool isReorderMode;
   final int? index;
+  // True while a multi-selection drag is in flight on the parent list. Used
+  // to dim/scale this card if it is selected but not the lifted one, so the
+  // user sees that the whole batch will follow.
+  final bool isMultiDragging;
 
   // Selection-mode wiring. Optional so the card can be reused outside of
   // selection contexts in the future.
@@ -1139,6 +1280,7 @@ class _FolderCard extends StatefulWidget {
     required this.onReturn,
     this.isReorderMode = false,
     this.index,
+    this.isMultiDragging = false,
     this.selection,
     this.onLongPressItem,
     this.onTapInSelection,
@@ -1155,6 +1297,15 @@ class _FolderCardState extends State<_FolderCard> {
   StreamSubscription<FolderChange>? _folderSub;
   StreamSubscription<NoteChange>? _noteSub;
 
+  /// Debounce timer for `_loadCounts`. Bursts of folder/note changes
+  /// (bulk move, cascade delete, batch reorder) can fire many events in
+  /// quick succession; without coalescing, every visible card would issue
+  /// 2 count queries per event. 120 ms is short enough that the count
+  /// still updates before the user looks away from a single card, but
+  /// long enough to collapse a burst into a single read.
+  Timer? _countDebounce;
+  static const _countDebounceDuration = Duration(milliseconds: 120);
+
   @override
   void initState() {
     super.initState();
@@ -1168,6 +1319,7 @@ class _FolderCardState extends State<_FolderCard> {
     if (oldWidget.folder.id != widget.folder.id) {
       _folderSub?.cancel();
       _noteSub?.cancel();
+      _countDebounce?.cancel();
       _loadCounts();
       _subscribeToChanges();
     }
@@ -1177,6 +1329,7 @@ class _FolderCardState extends State<_FolderCard> {
   void dispose() {
     _folderSub?.cancel();
     _noteSub?.cancel();
+    _countDebounce?.cancel();
     super.dispose();
   }
 
@@ -1185,10 +1338,20 @@ class _FolderCardState extends State<_FolderCard> {
     final noteService = GetIt.I<NoteStorageService>();
     _folderSub = folderService
         .changesForParent(widget.folder.id)
-        .listen((_) => _loadCounts());
+        .listen((_) => _scheduleLoadCounts());
     _noteSub = noteService
         .changesForFolder(widget.folder.id)
-        .listen((_) => _loadCounts());
+        .listen((_) => _scheduleLoadCounts());
+  }
+
+  /// Coalesce burst events into a single trailing-edge `_loadCounts` call.
+  void _scheduleLoadCounts() {
+    if (!mounted) return;
+    _countDebounce?.cancel();
+    _countDebounce = Timer(_countDebounceDuration, () {
+      if (!mounted) return;
+      _loadCounts();
+    });
   }
 
   Future<void> _loadCounts() async {
@@ -1243,12 +1406,7 @@ class _FolderCardState extends State<_FolderCard> {
           ? colorScheme.primaryContainer.withValues(alpha: 0.5)
           : null,
       child: ListTile(
-        leading: widget.isReorderMode
-            ? ReorderableDragStartListener(
-                index: widget.index ?? 0,
-                child: const Icon(Icons.drag_handle, color: Colors.grey),
-              )
-            : isSelected
+        leading: isSelected
             ? Icon(Icons.check_circle, size: 40, color: colorScheme.primary)
             : Icon(
                 Icons.folder,
@@ -1269,7 +1427,13 @@ class _FolderCardState extends State<_FolderCard> {
               )
             : null,
         trailing: widget.isReorderMode
-            ? Icon(Icons.folder, size: 24, color: AppColors.folderIcon(context))
+            ? ReorderableDragStartListener(
+                index: widget.index ?? 0,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(Icons.drag_handle, color: Colors.grey),
+                ),
+              )
             : isSelecting
             ? null
             : PopupMenuButton<FolderCardAction>(
@@ -1320,9 +1484,7 @@ class _FolderCardState extends State<_FolderCard> {
                   ),
                 ],
               ),
-        onTap: widget.isReorderMode
-            ? null
-            : isSelecting
+        onTap: isSelecting
             ? () => widget.onTapInSelection?.call(_ref)
             : () {
                 AppNavigator.toFolder(
@@ -1335,22 +1497,17 @@ class _FolderCardState extends State<_FolderCard> {
                   }
                 });
               },
-        onLongPress: widget.isReorderMode
-            ? null
-            : () {
-                if (isSelecting) {
-                  widget.onTapInSelection?.call(_ref);
-                } else if (widget.onLongPressItem != null) {
-                  widget.onLongPressItem!(_ref);
-                } else {
-                  _showRenameDialog(context);
-                }
-              },
+        onLongPress: () {
+          if (isSelecting) {
+            widget.onTapInSelection?.call(_ref);
+          } else if (widget.onLongPressItem != null) {
+            widget.onLongPressItem!(_ref);
+          } else {
+            _showRenameDialog(context);
+          }
+        },
       ),
     );
-
-    // No drag/drop while reordering.
-    if (widget.isReorderMode) return card;
 
     // Drag source: only when this card is itself selected, so the user
     // explicitly opted in via long-press.
@@ -1372,6 +1529,7 @@ class _FolderCardState extends State<_FolderCard> {
     // that are themselves in the dragged set, but the page-level handler
     // already filters that out).
     if (widget.onAcceptDrop != null) {
+      final child = result;
       result = DragTarget<Set<MovableItemRef>>(
         onWillAcceptWithDetails: (details) {
           // Don't highlight if dropping onto self.
@@ -1389,11 +1547,26 @@ class _FolderCardState extends State<_FolderCard> {
                 border: Border.all(color: colorScheme.primary, width: 2),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: result,
+              child: child,
             );
           }
-          return result;
+          return child;
         },
+      );
+    }
+
+    // Multi-drag visual: when a batch reorder is in flight and this card is
+    // a passenger (selected but not the lifted one), dim & shrink slightly
+    // so the user sees "this is going with the dragged card."
+    if (widget.isMultiDragging && isSelected) {
+      result = AnimatedScale(
+        duration: const Duration(milliseconds: 150),
+        scale: 0.96,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 150),
+          opacity: 0.55,
+          child: result,
+        ),
       );
     }
 
@@ -1408,8 +1581,28 @@ class _FolderCardState extends State<_FolderCard> {
       initialValue: widget.folder.name,
     );
     if (name == null || name.trim().isEmpty) return;
+    if (!context.mounted) return;
+    final trimmed = name.trim();
+    // Skip the network roundtrip when nothing actually changed.
+    if (trimmed.toLowerCase() == widget.folder.name.trim().toLowerCase()) {
+      return;
+    }
+    final exists = await GetIt.I<FolderStorageService>()
+        .folderNameExistsInParent(
+          parentId: widget.parentId,
+          name: trimmed,
+          excludeId: widget.folder.id,
+        );
+    if (!context.mounted) return;
+    if (exists) {
+      CustomSnackbar.showError(
+        context,
+        AppLocalizations.of(context)!.folderNameAlreadyExists(trimmed),
+      );
+      return;
+    }
     context.read<OptimizedFolderBloc>().add(
-      UpdateOptimizedFolder(folderId: widget.folder.id, name: name.trim()),
+      UpdateOptimizedFolder(folderId: widget.folder.id, name: trimmed),
     );
   }
 
@@ -1449,6 +1642,7 @@ class _FolderCardState extends State<_FolderCard> {
       isDestructive: true,
     );
     if (!confirmed) return;
+    if (!context.mounted) return;
     context.read<OptimizedFolderBloc>().add(
       DeleteOptimizedFolder(
         folderId: widget.folder.id,
@@ -1464,6 +1658,7 @@ class _NoteCard extends StatelessWidget {
   final VoidCallback onReturn;
   final bool isReorderMode;
   final int? index;
+  final bool isMultiDragging;
 
   // Selection-mode wiring.
   final SelectionController? selection;
@@ -1477,6 +1672,7 @@ class _NoteCard extends StatelessWidget {
     required this.onReturn,
     this.isReorderMode = false,
     this.index,
+    this.isMultiDragging = false,
     this.selection,
     this.onLongPressItem,
     this.onTapInSelection,
@@ -1505,12 +1701,7 @@ class _NoteCard extends StatelessWidget {
           ? colorScheme.primaryContainer.withValues(alpha: 0.5)
           : null,
       child: ListTile(
-        leading: isReorderMode
-            ? ReorderableDragStartListener(
-                index: index ?? 0,
-                child: const Icon(Icons.drag_handle, color: Colors.grey),
-              )
-            : isSelected
+        leading: isSelected
             ? Icon(Icons.check_circle, size: 40, color: colorScheme.primary)
             : Stack(
                 children: [
@@ -1567,7 +1758,13 @@ class _NoteCard extends StatelessWidget {
           ],
         ),
         trailing: isReorderMode
-            ? const Icon(Icons.note, size: 24, color: Colors.blue)
+            ? ReorderableDragStartListener(
+                index: index ?? 0,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(Icons.drag_handle, color: Colors.grey),
+                ),
+              )
             : isSelecting
             ? null
             : PopupMenuButton<NoteCardAction>(
@@ -1630,9 +1827,7 @@ class _NoteCard extends StatelessWidget {
                   ),
                 ],
               ),
-        onTap: isReorderMode
-            ? null
-            : isSelecting
+        onTap: isSelecting
             ? () => onTapInSelection?.call(ref)
             : () {
                 AppNavigator.toNoteEditorInstant(
@@ -1646,24 +1841,21 @@ class _NoteCard extends StatelessWidget {
                   }
                 });
               },
-        onLongPress: isReorderMode
-            ? null
-            : () {
-                if (isSelecting) {
-                  onTapInSelection?.call(ref);
-                } else if (onLongPressItem != null) {
-                  onLongPressItem!(ref);
-                } else {
-                  _showOptionsBottomSheet(context);
-                }
-              },
+        onLongPress: () {
+          if (isSelecting) {
+            onTapInSelection?.call(ref);
+          } else if (onLongPressItem != null) {
+            onLongPressItem!(ref);
+          } else {
+            _showOptionsBottomSheet(context);
+          }
+        },
       ),
     );
 
-    if (isReorderMode) return card;
-
+    Widget result = card;
     if (isSelecting && isSelected && selection != null) {
-      return LongPressDraggable<Set<MovableItemRef>>(
+      result = LongPressDraggable<Set<MovableItemRef>>(
         data: selection!.items,
         delay: const Duration(milliseconds: 250),
         feedback: Material(
@@ -1675,7 +1867,21 @@ class _NoteCard extends StatelessWidget {
       );
     }
 
-    return card;
+    // Multi-drag visual: passenger cards dim & shrink so the user sees the
+    // batch is travelling with the lifted card.
+    if (isMultiDragging && isSelected) {
+      result = AnimatedScale(
+        duration: const Duration(milliseconds: 150),
+        scale: 0.96,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 150),
+          opacity: 0.55,
+          child: result,
+        ),
+      );
+    }
+
+    return result;
   }
 
   void _showOptionsBottomSheet(BuildContext context) {
@@ -1856,8 +2062,30 @@ class _NoteCard extends StatelessWidget {
       initialValue: metadata.title,
     );
     if (name == null || !context.mounted) return;
+    final trimmed = name.trim();
+    if (trimmed.toLowerCase() == metadata.title.trim().toLowerCase()) {
+      return;
+    }
+    // Empty titles are allowed (multiple "Untitled" notes can coexist) so
+    // we only enforce uniqueness when the user actually typed a name.
+    if (trimmed.isNotEmpty) {
+      final exists = await GetIt.I<NoteStorageService>()
+          .noteTitleExistsInFolder(
+            folderId: folderId,
+            title: trimmed,
+            excludeId: metadata.id,
+          );
+      if (!context.mounted) return;
+      if (exists) {
+        CustomSnackbar.showError(
+          context,
+          AppLocalizations.of(context)!.noteTitleAlreadyExists(trimmed),
+        );
+        return;
+      }
+    }
     context.read<OptimizedNoteBloc>().add(
-      UpdateOptimizedNote(noteId: metadata.id, title: name.trim()),
+      UpdateOptimizedNote(noteId: metadata.id, title: trimmed),
     );
   }
 

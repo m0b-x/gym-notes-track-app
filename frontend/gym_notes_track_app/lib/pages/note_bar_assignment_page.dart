@@ -38,6 +38,7 @@ class _NoteBarAssignmentPageState extends State<NoteBarAssignmentPage> {
     final svc = GetIt.I<MarkdownBarService>();
     final notes = await db.noteDao.getAllNotes();
     final assignments = await svc.getAllNoteBarAssignments();
+    if (!mounted) return;
     final blocState = context.read<MarkdownBarBloc>().state;
     final profiles = blocState is MarkdownBarLoaded
         ? blocState.profiles

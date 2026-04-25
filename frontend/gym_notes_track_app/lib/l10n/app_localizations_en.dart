@@ -1559,6 +1559,29 @@ class AppLocalizationsEn extends AppLocalizations {
       'Cannot move a folder into itself or its subfolder';
 
   @override
+  String folderNameAlreadyExists(String name) {
+    return 'A folder named \"$name\" already exists here';
+  }
+
+  @override
+  String noteTitleAlreadyExists(String title) {
+    return 'A note titled \"$title\" already exists here';
+  }
+
+  @override
+  String moveSkippedDueToDuplicates(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count items were skipped because the destination already has items with the same name',
+      one:
+          '1 item was skipped because the destination already has an item with the same name',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get moveHistory => 'Move History';
 
   @override

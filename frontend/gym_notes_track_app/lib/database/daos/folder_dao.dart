@@ -261,18 +261,27 @@ class FolderDao extends DatabaseAccessor<AppDatabase> with _$FolderDaoMixin {
     String? parentId,
     required List<String> orderedIds,
   }) async {
+    final positions = {
+      for (var i = 0; i < orderedIds.length; i++) orderedIds[i]: i,
+    };
+    await setFolderPositions(positions);
+  }
+
+  /// Write explicit positions for a set of folders. Used by the mixed
+  /// reorder service to assign global (folder + note interleaved) positions
+  /// without forcing the caller to pass dense 0..N ranges per kind.
+  Future<void> setFolderPositions(Map<String, int> positionByFolderId) async {
+    if (positionByFolderId.isEmpty) return;
     final now = DateTime.now();
     final hlc = db.generateHlc();
 
     await transaction(() async {
-      for (int i = 0; i < orderedIds.length; i++) {
-        final existing = await getFolderById(orderedIds[i]);
+      for (final entry in positionByFolderId.entries) {
+        final existing = await getFolderById(entry.key);
         if (existing != null) {
-          await (update(
-            folders,
-          )..where((f) => f.id.equals(orderedIds[i]))).write(
+          await (update(folders)..where((f) => f.id.equals(entry.key))).write(
             FoldersCompanion(
-              position: Value(i),
+              position: Value(entry.value),
               updatedAt: Value(now),
               hlcTimestamp: Value(hlc),
               deviceId: Value(db.deviceId),
@@ -320,33 +329,136 @@ class FolderDao extends DatabaseAccessor<AppDatabase> with _$FolderDaoMixin {
   }
 
   Future<List<String>> getAllDescendantIds(String folderId) async {
-    final descendants = <String>[];
-    final directChildren = await getFoldersByParent(folderId);
-
-    for (final child in directChildren) {
-      descendants.add(child.id);
-      descendants.addAll(await getAllDescendantIds(child.id));
-    }
-
-    return descendants;
+    // Single recursive CTE replaces the previous N+1 walk
+    // (one getFoldersByParent per visited folder). Excludes soft-deleted
+    // rows from the traversal so a tombstoned subtree doesn't propagate
+    // its (already-deleted) children.
+    final rows = await db
+        .customSelect(
+          'WITH RECURSIVE d(id) AS ('
+          '  SELECT id FROM folders '
+          '  WHERE parent_id = ?1 AND is_deleted = 0 '
+          '  UNION ALL '
+          '  SELECT f.id FROM folders f '
+          '  JOIN d ON f.parent_id = d.id '
+          '  WHERE f.is_deleted = 0'
+          ') SELECT id FROM d',
+          variables: [Variable<String>(folderId)],
+          readsFrom: {folders},
+        )
+        .get();
+    return [for (final row in rows) row.read<String>('id')];
   }
 
   Future<void> softDeleteFolderWithDescendants(String folderId) async {
+    // Collect the full id set in one CTE query, then issue exactly two
+    // batched UPDATE statements inside a single transaction:
+    //  (1) soft-delete every note whose folder is in the set
+    //  (2) soft-delete every folder in the set
+    // This replaces an N+1 pattern that issued one update per folder and
+    // one per note (potentially hundreds of round-trips for deep trees).
     final descendantIds = await getAllDescendantIds(folderId);
     descendantIds.add(folderId);
 
-    // Use transaction to ensure all deletes happen atomically
-    await transaction(() async {
-      // Cascade delete: soft-delete all notes in these folders first
-      for (final id in descendantIds) {
-        await db.noteDao.deleteNotesInFolder(id);
-      }
+    if (descendantIds.isEmpty) return;
 
-      // Then soft-delete the folders
-      for (final id in descendantIds) {
-        await softDeleteFolder(id);
-      }
+    await transaction(() async {
+      final now = DateTime.now();
+      final hlc = db.generateHlc();
+
+      // 1. Bulk soft-delete notes in any of these folders. We need to
+      //    update FTS rowids first because softDeleteNote's FTS removal
+      //    happens per-row; we replicate that with a single statement.
+      final placeholders = List.filled(descendantIds.length, '?').join(',');
+
+      // Remove affected notes from FTS by rowid lookup. This uses the
+      // notes_fts contentless trigger pattern: we delete by rowid
+      // explicitly so the search index stays consistent.
+      await db.customStatement(
+        'DELETE FROM notes_fts WHERE rowid IN ('
+        '  SELECT rowid FROM notes '
+        '  WHERE folder_id IN ($placeholders) AND is_deleted = 0'
+        ')',
+        [for (final id in descendantIds) id],
+      );
+
+      // Bulk update notes. version + 1 per row is preserved.
+      await db.customStatement(
+        'UPDATE notes SET '
+        '  is_deleted = 1, '
+        '  deleted_at = ?, '
+        '  updated_at = ?, '
+        '  hlc_timestamp = ?, '
+        '  device_id = ?, '
+        '  version = version + 1 '
+        'WHERE folder_id IN ($placeholders) AND is_deleted = 0',
+        [
+          now.millisecondsSinceEpoch,
+          now.millisecondsSinceEpoch,
+          hlc,
+          db.deviceId,
+          ...descendantIds,
+        ],
+      );
+
+      // 2. Bulk soft-delete folders themselves.
+      await db.customStatement(
+        'UPDATE folders SET '
+        '  is_deleted = 1, '
+        '  deleted_at = ?, '
+        '  updated_at = ?, '
+        '  hlc_timestamp = ?, '
+        '  device_id = ?, '
+        '  version = version + 1 '
+        'WHERE id IN ($placeholders) AND is_deleted = 0',
+        [
+          now.millisecondsSinceEpoch,
+          now.millisecondsSinceEpoch,
+          hlc,
+          db.deviceId,
+          ...descendantIds,
+        ],
+      );
     });
+  }
+
+  /// Returns true if a non-deleted folder with the same case-insensitive,
+  /// trimmed [name] already exists under [parentId]. Indexed by
+  /// `idx_folders_parent_lname`. [excludeId] is honored for rename flows
+  /// so a folder isn't reported as a duplicate of itself.
+  Future<bool> folderNameExistsInParent({
+    required String? parentId,
+    required String name,
+    String? excludeId,
+  }) async {
+    final normalized = name.trim().toLowerCase();
+    if (normalized.isEmpty) return false;
+
+    // COALESCE matches the index expression so the planner uses
+    // idx_folders_parent_lname; a plain `parent_id IS NULL` would force
+    // a scan because indexed NULLs are distinct in SQLite.
+    //
+    // We pass an empty string for a missing excludeId because folder ids
+    // are non-empty UUIDs, so `id <> ''` is always true and the predicate
+    // becomes a no-op without needing nullable Variable bindings (which
+    // customSelect's List<Variable<Object>> type doesn't accept).
+    final result = await db
+        .customSelect(
+          "SELECT 1 FROM folders "
+          "WHERE COALESCE(parent_id, '') = ?1 "
+          "AND LOWER(TRIM(name)) = ?2 "
+          "AND is_deleted = 0 "
+          "AND id <> ?3 "
+          "LIMIT 1",
+          variables: [
+            Variable<String>(parentId ?? ''),
+            Variable<String>(normalized),
+            Variable<String>(excludeId ?? ''),
+          ],
+          readsFrom: {folders},
+        )
+        .getSingleOrNull();
+    return result != null;
   }
 
   /// Get total note count for a folder and all its descendants (for delete preview)

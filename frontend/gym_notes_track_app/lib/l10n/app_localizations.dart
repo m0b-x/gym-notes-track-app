@@ -2998,6 +2998,24 @@ abstract class AppLocalizations {
   /// **'Cannot move a folder into itself or its subfolder'**
   String get cannotMoveIntoSelf;
 
+  /// Snackbar shown when a folder name collides with an existing sibling
+  ///
+  /// In en, this message translates to:
+  /// **'A folder named \"{name}\" already exists here'**
+  String folderNameAlreadyExists(String name);
+
+  /// Snackbar shown when a note title collides with an existing sibling
+  ///
+  /// In en, this message translates to:
+  /// **'A note titled \"{title}\" already exists here'**
+  String noteTitleAlreadyExists(String title);
+
+  /// Snackbar shown after a move when some items collided with existing names at the destination
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 item was skipped because the destination already has an item with the same name} other{{count} items were skipped because the destination already has items with the same name}}'**
+  String moveSkippedDueToDuplicates(int count);
+
   /// Title for move history bottom sheet
   ///
   /// In en, this message translates to:

@@ -2078,6 +2078,27 @@
   "@cannotMoveIntoSelf": {
     "description": "Snackbar when trying to move a folder into itself or a descendant"
   },
+  "folderNameAlreadyExists": "A folder named \"{name}\" already exists here",
+  "@folderNameAlreadyExists": {
+    "description": "Snackbar shown when a folder name collides with an existing sibling",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "noteTitleAlreadyExists": "A note titled \"{title}\" already exists here",
+  "@noteTitleAlreadyExists": {
+    "description": "Snackbar shown when a note title collides with an existing sibling",
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "moveSkippedDueToDuplicates": "{count, plural, one{1 item was skipped because the destination already has an item with the same name} other{{count} items were skipped because the destination already has items with the same name}}",
+  "@moveSkippedDueToDuplicates": {
+    "description": "Snackbar shown after a move when some items collided with existing names at the destination",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "moveHistory": "Move History",
   "@moveHistory": {
     "description": "Title for move history bottom sheet"

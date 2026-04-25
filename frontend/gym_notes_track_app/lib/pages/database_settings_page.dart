@@ -522,6 +522,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       confirmText: AppLocalizations.of(context)!.create,
     );
     if (name == null || name.trim().isEmpty) return;
+    if (!context.mounted) return;
     await _createDatabase(context, name.trim());
   }
 
@@ -585,6 +586,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       confirmText: AppLocalizations.of(context)!.rename,
     );
     if (newName == null || newName.trim().isEmpty) return;
+    if (!context.mounted) return;
     await _renameDatabase(context, oldName, newName.trim());
   }
 
@@ -655,6 +657,7 @@ class _DatabaseSettingsPageState extends State<DatabaseSettingsPage> {
       icon: Icons.warning_rounded,
     );
     if (!confirmed) return;
+    if (!context.mounted) return;
     await _deleteDatabase(context, name);
   }
 

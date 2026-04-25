@@ -190,6 +190,19 @@ class MoveCoordinator {
         continue;
       }
 
+      // Per-parent name uniqueness: we cannot land an item in a folder
+      // that already contains a sibling with the same (case-insensitive,
+      // trimmed) name. Skip with a 'duplicate' reason so the snackbar can
+      // tell the user how many were skipped for this reason.
+      final isDuplicate = await _isDuplicateAtTarget(
+        ref: ref,
+        targetParentId: targetParentId,
+      );
+      if (isDuplicate) {
+        outcomes.add(_MoveOutcome.skipped(ref, 'duplicate'));
+        continue;
+      }
+
       final sourceName = ref.currentParentId == null
           ? null
           : (await _folderService.getFolderById(ref.currentParentId!))?.name;
@@ -212,6 +225,9 @@ class MoveCoordinator {
     final failures = outcomes
         .where((o) => !o.success && o.skipReason == 'failure')
         .length;
+    final duplicates = outcomes
+        .where((o) => !o.success && o.skipReason == 'duplicate')
+        .length;
 
     if (successes.isEmpty) {
       // Either everything was a no-op or everything failed.
@@ -219,6 +235,11 @@ class MoveCoordinator {
         CustomSnackbar.showError(
           context,
           isFolderTypeHint ? l10n.folderMoveFailed : l10n.noteMoveFailed,
+        );
+      } else if (duplicates > 0) {
+        CustomSnackbar.showError(
+          context,
+          l10n.moveSkippedDueToDuplicates(duplicates),
         );
       } else {
         CustomSnackbar.show(context, l10n.alreadyInThisFolder);
@@ -260,6 +281,39 @@ class MoveCoordinator {
         isFolderTypeHint ? l10n.folderMoveFailed : l10n.noteMoveFailed,
       );
     }
+    if (duplicates > 0 && context.mounted) {
+      CustomSnackbar.showError(
+        context,
+        l10n.moveSkippedDueToDuplicates(duplicates),
+      );
+    }
+  }
+
+  /// Returns true if landing [ref] under [targetParentId] would create a
+  /// sibling with a duplicate name. Used to bail out of a move before any
+  /// DB write so the snackbar can explain the skip.
+  ///
+  /// Notes can't live at root (callers reject that earlier), so when
+  /// [targetParentId] is null the only remaining concern is folders, which
+  /// are checked against root-level siblings.
+  static Future<bool> _isDuplicateAtTarget({
+    required MovableItemRef ref,
+    required String? targetParentId,
+  }) async {
+    if (ref.name.trim().isEmpty) return false;
+    if (ref.kind == MovableItemKind.folder) {
+      return _folderService.folderNameExistsInParent(
+        parentId: targetParentId,
+        name: ref.name,
+        excludeId: ref.id,
+      );
+    }
+    if (targetParentId == null) return false;
+    return _noteService.noteTitleExistsInFolder(
+      folderId: targetParentId,
+      title: ref.name,
+      excludeId: ref.id,
+    );
   }
 
   /// Execute a single move (folder or note). Returns the history entry id

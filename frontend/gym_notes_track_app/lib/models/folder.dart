@@ -11,6 +11,11 @@ class Folder extends Equatable {
   final String? noteSortOrder;
   final String? subfolderSortOrder;
 
+  /// Manual sort position within the folder's parent. Used to interleave
+  /// folders and notes in a single ordering when [FoldersSortOrder.positionAsc]
+  /// is active.
+  final int position;
+
   const Folder({
     required this.id,
     required this.name,
@@ -18,6 +23,7 @@ class Folder extends Equatable {
     required this.createdAt,
     this.noteSortOrder,
     this.subfolderSortOrder,
+    this.position = 0,
   });
 
   Folder copyWith({
@@ -27,6 +33,7 @@ class Folder extends Equatable {
     DateTime? createdAt,
     String? noteSortOrder,
     String? subfolderSortOrder,
+    int? position,
   }) {
     return Folder(
       id: id ?? this.id,
@@ -35,6 +42,7 @@ class Folder extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       noteSortOrder: noteSortOrder ?? this.noteSortOrder,
       subfolderSortOrder: subfolderSortOrder ?? this.subfolderSortOrder,
+      position: position ?? this.position,
     );
   }
 
@@ -68,5 +76,6 @@ class Folder extends Equatable {
     createdAt,
     noteSortOrder,
     subfolderSortOrder,
+    position,
   ];
 }

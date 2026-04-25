@@ -303,6 +303,30 @@ class NoteRepository {
     }
   }
 
+  /// Write explicit positions for a set of notes. Used by the mixed reorder
+  /// service to assign global (folder + note interleaved) positions.
+  Future<void> setNotePositions({
+    required String folderId,
+    required Map<String, int> positionByNoteId,
+  }) async {
+    if (positionByNoteId.isEmpty) return;
+    await _noteDao.setNotePositions(positionByNoteId);
+    _invalidateFolderCache(folderId);
+    for (final noteId in positionByNoteId.keys) {
+      final note = await getNoteById(noteId, forceRefresh: true);
+      if (note != null) {
+        _noteChangesController.add(
+          NoteChange(
+            type: NoteChangeType.updated,
+            noteId: noteId,
+            folderId: folderId,
+            note: note,
+          ),
+        );
+      }
+    }
+  }
+
   Future<List<Note>> searchNotes(String query, {String? folderId}) async {
     return _noteDao.searchNotes(query, folderId: folderId);
   }
@@ -317,6 +341,21 @@ class NoteRepository {
 
   Future<int> searchNotesCount(String query, {String? folderId}) {
     return _noteDao.searchNotesCount(query, folderId: folderId);
+  }
+
+  /// Indexed uniqueness check. Always hits the database (no cache) because
+  /// `_folderNotesCache` may be stale relative to a concurrent write, and
+  /// the cost is a single indexed `LIMIT 1` lookup.
+  Future<bool> noteTitleExistsInFolder({
+    required String folderId,
+    required String title,
+    String? excludeId,
+  }) {
+    return _noteDao.noteTitleExistsInFolder(
+      folderId: folderId,
+      title: title,
+      excludeId: excludeId,
+    );
   }
 
   Future<List<Note>> searchNotesPaginated(
@@ -395,6 +434,7 @@ class NoteRepository {
       isCompressed: note.isCompressed,
       createdAt: note.createdAt,
       updatedAt: note.updatedAt,
+      position: note.position,
     );
   }
 

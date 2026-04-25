@@ -295,6 +295,32 @@ class FolderRepository {
     }
   }
 
+  /// Write explicit positions for a set of folders. Differs from
+  /// [reorderFolders] in that the caller controls the position values
+  /// (the dense 0..N range produced by [reorderFolders] cannot represent
+  /// folders interleaved with notes).
+  Future<void> setFolderPositions({
+    String? parentId,
+    required Map<String, int> positionByFolderId,
+  }) async {
+    if (positionByFolderId.isEmpty) return;
+    await _folderDao.setFolderPositions(positionByFolderId);
+    _invalidateParentCache(parentId);
+    for (final folderId in positionByFolderId.keys) {
+      final folder = await getFolderById(folderId, forceRefresh: true);
+      if (folder != null) {
+        _folderChangesController.add(
+          FolderChange(
+            type: FolderChangeType.updated,
+            folderId: folderId,
+            parentId: parentId,
+            folder: _folderCache[folderId],
+          ),
+        );
+      }
+    }
+  }
+
   /// Update sort preferences for a folder
   Future<Folder?> updateFolderSortPreferences({
     required String id,
@@ -331,6 +357,21 @@ class FolderRepository {
 
   Future<List<String>> getAllDescendantIds(String folderId) {
     return _folderDao.getAllDescendantIds(folderId);
+  }
+
+  /// Indexed uniqueness check. Always hits the database (no cache) because
+  /// the cached `_parentFoldersCache` may be stale relative to a concurrent
+  /// write, and the cost is a single indexed `LIMIT 1` lookup.
+  Future<bool> folderNameExistsInParent({
+    required String? parentId,
+    required String name,
+    String? excludeId,
+  }) {
+    return _folderDao.folderNameExistsInParent(
+      parentId: parentId,
+      name: name,
+      excludeId: excludeId,
+    );
   }
 
   Future<List<Folder>> getFoldersSince(String hlcTimestamp) {

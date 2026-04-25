@@ -82,6 +82,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       title: AppLocalizations.of(context)!.addBar,
     );
     if (name == null || name.trim().isEmpty) return;
+    if (!mounted) return;
     context.read<MarkdownBarBloc>().add(AddBarProfile(name: name));
   }
 
@@ -93,6 +94,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       initialValue: profile.name,
     );
     if (name == null || name.trim().isEmpty) return;
+    if (!mounted) return;
     context.read<MarkdownBarBloc>().add(
       RenameBarProfile(profileId: profileId, newName: name),
     );
@@ -105,6 +107,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       initialValue: '${profile.name} (copy)',
     );
     if (name == null || name.trim().isEmpty) return;
+    if (!mounted) return;
     context.read<MarkdownBarBloc>().add(
       DuplicateBarProfile(sourceId: profileId, newName: name),
     );
@@ -121,6 +124,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
       isDestructive: true,
     );
     if (!confirmed) return;
+    if (!mounted) return;
     context.read<MarkdownBarBloc>().add(DeleteBarProfile(profileId: profileId));
   }
 
