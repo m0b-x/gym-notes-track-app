@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -13,9 +14,12 @@ import '../bloc/optimized_note/optimized_note_bloc.dart';
 import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
 import '../models/folder.dart';
+import '../models/folder_change.dart';
 import '../models/note_metadata.dart';
 import '../repositories/note_repository.dart';
 import '../services/folder_storage_service.dart';
+import '../services/move_coordinator.dart';
+import '../services/move_history_service.dart';
 import '../services/note_storage_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/infinite_scroll_list.dart';
@@ -25,8 +29,11 @@ import '../utils/bloc_helpers.dart';
 import '../utils/custom_snackbar.dart';
 import '../widgets/app_dialogs.dart';
 import '../constants/app_colors.dart';
+import '../constants/folder_card_action.dart';
 import '../constants/json_keys.dart';
+import '../constants/note_card_action.dart';
 import '../services/app_navigator.dart';
+import '../widgets/move_history_sheet.dart';
 
 class OptimizedFolderContentPage extends StatefulWidget {
   final String? folderId;
@@ -180,6 +187,22 @@ class _OptimizedFolderContentPageState
             icon: const Icon(Icons.sort),
             tooltip: AppLocalizations.of(context)!.sortBy,
             onPressed: _showQuickSortOptions,
+          ),
+          StreamBuilder<int>(
+            stream: GetIt.I<MoveHistoryService>().changes,
+            initialData: GetIt.I<MoveHistoryService>().undoableCount,
+            builder: (context, snapshot) {
+              final count = snapshot.data ?? 0;
+              return IconButton(
+                icon: Badge(
+                  isLabelVisible: count > 0,
+                  label: Text('$count'),
+                  child: const Icon(Icons.history),
+                ),
+                tooltip: AppLocalizations.of(context)!.moveHistory,
+                onPressed: () => showMoveHistorySheet(context),
+              );
+            },
           ),
         ],
       ),
@@ -605,6 +628,7 @@ class _OptimizedFolderContentPageState
                 }
                 final folder = folders[index];
                 return _FolderCard(
+                  key: ValueKey(folder.id),
                   folder: folder,
                   parentId: widget.folderId,
                   onReturn: _loadData,
@@ -923,7 +947,7 @@ class _OptimizedFolderContentPageState
   }
 }
 
-class _FolderCard extends StatelessWidget {
+class _FolderCard extends StatefulWidget {
   final Folder folder;
   final String? parentId;
   final VoidCallback onReturn;
@@ -940,13 +964,92 @@ class _FolderCard extends StatelessWidget {
   });
 
   @override
+  State<_FolderCard> createState() => _FolderCardState();
+}
+
+class _FolderCardState extends State<_FolderCard> {
+  int? _subfolderCount;
+  int? _noteCount;
+  StreamSubscription<FolderChange>? _folderSub;
+  StreamSubscription<NoteChange>? _noteSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCounts();
+    _subscribeToChanges();
+  }
+
+  @override
+  void didUpdateWidget(covariant _FolderCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.folder.id != widget.folder.id) {
+      _folderSub?.cancel();
+      _noteSub?.cancel();
+      _loadCounts();
+      _subscribeToChanges();
+    }
+  }
+
+  @override
+  void dispose() {
+    _folderSub?.cancel();
+    _noteSub?.cancel();
+    super.dispose();
+  }
+
+  void _subscribeToChanges() {
+    final folderService = GetIt.I<FolderStorageService>();
+    final noteService = GetIt.I<NoteStorageService>();
+    _folderSub = folderService
+        .changesForParent(widget.folder.id)
+        .listen((_) => _loadCounts());
+    _noteSub = noteService
+        .changesForFolder(widget.folder.id)
+        .listen((_) => _loadCounts());
+  }
+
+  Future<void> _loadCounts() async {
+    try {
+      final folderService = GetIt.I<FolderStorageService>();
+      final noteService = GetIt.I<NoteStorageService>();
+      final results = await Future.wait([
+        folderService.getSubfolderCount(widget.folder.id),
+        noteService.getNoteCount(widget.folder.id),
+      ]);
+      if (mounted) {
+        setState(() {
+          _subfolderCount = results[0];
+          _noteCount = results[1];
+        });
+      }
+    } catch (e, stackTrace) {
+      debugPrint('[_FolderCard] Failed to load counts: $e\n$stackTrace');
+    }
+  }
+
+  String? _buildCountText(AppLocalizations l10n) {
+    if (_subfolderCount == null && _noteCount == null) return null;
+    final parts = <String>[];
+    final folders = _subfolderCount ?? 0;
+    final notes = _noteCount ?? 0;
+    if (folders > 0) parts.add('${l10n.folders}: $folders');
+    if (notes > 0) parts.add('${l10n.notes}: $notes');
+    if (parts.isEmpty) return null;
+    return parts.join('  ·  ');
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final countText = _buildCountText(l10n);
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListTile(
-        leading: isReorderMode
+        leading: widget.isReorderMode
             ? ReorderableDragStartListener(
-                index: index ?? 0,
+                index: widget.index ?? 0,
                 child: const Icon(Icons.drag_handle, color: Colors.grey),
               )
             : Icon(
@@ -955,26 +1058,35 @@ class _FolderCard extends StatelessWidget {
                 color: AppColors.folderIcon(context),
               ),
         title: Text(
-          folder.name,
+          widget.folder.name,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        trailing: isReorderMode
+        subtitle: countText != null
+            ? Text(
+                countText,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              )
+            : null,
+        trailing: widget.isReorderMode
             ? Icon(Icons.folder, size: 24, color: AppColors.folderIcon(context))
-            : PopupMenuButton<String>(
+            : PopupMenuButton<FolderCardAction>(
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) {
                   switch (value) {
-                    case 'rename':
+                    case FolderCardAction.rename:
                       _showRenameDialog(context);
-                      break;
-                    case 'delete':
+                    case FolderCardAction.move:
+                      _showMoveDialog(context);
+                    case FolderCardAction.delete:
                       _confirmDelete(context);
-                      break;
                   }
                 },
                 itemBuilder: (context) => [
                   PopupMenuItem(
-                    value: 'rename',
+                    value: FolderCardAction.rename,
                     child: Row(
                       children: [
                         const Icon(Icons.edit, size: 20),
@@ -984,7 +1096,17 @@ class _FolderCard extends StatelessWidget {
                     ),
                   ),
                   PopupMenuItem(
-                    value: 'delete',
+                    value: FolderCardAction.move,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.drive_file_move_outlined, size: 20),
+                        const SizedBox(width: 12),
+                        Text(AppLocalizations.of(context)!.moveToFolder),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: FolderCardAction.delete,
                     child: Row(
                       children: [
                         const Icon(Icons.delete, size: 20, color: Colors.red),
@@ -998,20 +1120,22 @@ class _FolderCard extends StatelessWidget {
                   ),
                 ],
               ),
-        onTap: isReorderMode
+        onTap: widget.isReorderMode
             ? null
             : () {
                 AppNavigator.toFolder(
                   context,
-                  folderId: folder.id,
-                  title: folder.name,
+                  folderId: widget.folder.id,
+                  title: widget.folder.name,
                 ).then((_) {
                   if (context.mounted) {
-                    onReturn();
+                    widget.onReturn();
                   }
                 });
               },
-        onLongPress: isReorderMode ? null : () => _showRenameDialog(context),
+        onLongPress: widget.isReorderMode
+            ? null
+            : () => _showRenameDialog(context),
       ),
     );
   }
@@ -1021,44 +1145,55 @@ class _FolderCard extends StatelessWidget {
       context,
       title: AppLocalizations.of(context)!.renameFolder,
       hintText: AppLocalizations.of(context)!.enterNewName,
-      initialValue: folder.name,
+      initialValue: widget.folder.name,
     );
     if (name == null || name.trim().isEmpty) return;
     context.read<OptimizedFolderBloc>().add(
-      UpdateOptimizedFolder(folderId: folder.id, name: name.trim()),
+      UpdateOptimizedFolder(folderId: widget.folder.id, name: name.trim()),
+    );
+  }
+
+  void _showMoveDialog(BuildContext context) {
+    MoveCoordinator.moveFolder(
+      context,
+      folder: widget.folder,
+      currentParentId: widget.parentId,
     );
   }
 
   void _confirmDelete(BuildContext context) async {
-    // Show loading indicator while fetching note count
     AppDialogs.showLoading(
       context,
       message: AppLocalizations.of(context)!.loadingContent,
     );
 
-    // Fetch note count for this folder and descendants
     final folderService = GetIt.I<FolderStorageService>();
-    final noteCount = await folderService.getNoteCountForDeletion(folder.id);
+    final noteCount = await folderService.getNoteCountForDeletion(
+      widget.folder.id,
+    );
 
-    // ignore: use_build_context_synchronously
     if (!context.mounted) return;
-    AppNavigator.pop(context); // Close loading dialog
+    AppNavigator.pop(context);
 
-    // Show confirmation dialog with note count
     final confirmed = await AppDialogs.confirm(
       context,
       title: AppLocalizations.of(context)!.deleteFolder,
       content: noteCount > 0
           ? AppLocalizations.of(
               context,
-            )!.deleteFolderWithNotesConfirm(folder.name, noteCount)
-          : AppLocalizations.of(context)!.deleteFolderConfirm(folder.name),
+            )!.deleteFolderWithNotesConfirm(widget.folder.name, noteCount)
+          : AppLocalizations.of(
+              context,
+            )!.deleteFolderConfirm(widget.folder.name),
       confirmText: AppLocalizations.of(context)!.delete,
       isDestructive: true,
     );
     if (!confirmed) return;
     context.read<OptimizedFolderBloc>().add(
-      DeleteOptimizedFolder(folderId: folder.id, parentId: parentId),
+      DeleteOptimizedFolder(
+        folderId: widget.folder.id,
+        parentId: widget.parentId,
+      ),
     );
   }
 }
@@ -1145,24 +1280,23 @@ class _NoteCard extends StatelessWidget {
         ),
         trailing: isReorderMode
             ? const Icon(Icons.note, size: 24, color: Colors.blue)
-            : PopupMenuButton<String>(
+            : PopupMenuButton<NoteCardAction>(
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) {
                   switch (value) {
-                    case 'rename':
+                    case NoteCardAction.rename:
                       _showRenameDialog(context);
-                      break;
-                    case 'share':
+                    case NoteCardAction.move:
+                      _showMoveDialog(context);
+                    case NoteCardAction.share:
                       _showExportFormatDialog(context);
-                      break;
-                    case 'delete':
+                    case NoteCardAction.delete:
                       _confirmDelete(context);
-                      break;
                   }
                 },
                 itemBuilder: (context) => [
                   PopupMenuItem(
-                    value: 'rename',
+                    value: NoteCardAction.rename,
                     child: Row(
                       children: [
                         const Icon(Icons.edit, size: 20),
@@ -1172,7 +1306,17 @@ class _NoteCard extends StatelessWidget {
                     ),
                   ),
                   PopupMenuItem(
-                    value: 'share',
+                    value: NoteCardAction.move,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.drive_file_move_outlined, size: 20),
+                        const SizedBox(width: 12),
+                        Text(AppLocalizations.of(context)!.moveToFolder),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: NoteCardAction.share,
                     child: Row(
                       children: [
                         const Icon(Icons.share, size: 20),
@@ -1182,7 +1326,7 @@ class _NoteCard extends StatelessWidget {
                     ),
                   ),
                   PopupMenuItem(
-                    value: 'delete',
+                    value: NoteCardAction.delete,
                     child: Row(
                       children: [
                         const Icon(Icons.delete, size: 20, color: Colors.red),
@@ -1260,6 +1404,14 @@ class _NoteCard extends StatelessWidget {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.drive_file_move_outlined),
+              title: Text(AppLocalizations.of(context)!.moveToFolder),
+              onTap: () {
+                AppNavigator.pop(sheetContext);
+                _showMoveDialog(context);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.share_rounded),
               title: Text(AppLocalizations.of(context)!.shareNote),
               onTap: () {
@@ -1282,6 +1434,14 @@ class _NoteCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void _showMoveDialog(BuildContext context) {
+    MoveCoordinator.moveNote(
+      context,
+      metadata: metadata,
+      currentFolderId: folderId,
     );
   }
 

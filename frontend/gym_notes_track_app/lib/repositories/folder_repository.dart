@@ -1,25 +1,10 @@
 import 'dart:async';
 import '../database/database.dart';
 import '../database/daos/folder_dao.dart';
+import '../models/folder_change.dart';
 import '../constants/app_constants.dart';
 
-/// Event types for folder changes
-enum FolderChangeType { created, updated, deleted }
-
-/// Represents a change to a folder
-class FolderChange {
-  final FolderChangeType type;
-  final String folderId;
-  final String? parentId;
-  final Folder? folder;
-
-  const FolderChange({
-    required this.type,
-    required this.folderId,
-    this.parentId,
-    this.folder,
-  });
-}
+export '../models/folder_change.dart';
 
 class FolderRepository {
   final AppDatabase _db;
@@ -39,11 +24,18 @@ class FolderRepository {
   /// Stream of all folder changes for reactive UI updates
   Stream<FolderChange> get folderChanges => _folderChangesController.stream;
 
-  /// Stream of changes filtered by parent folder
+  /// Stream of changes filtered by parent folder.
+  /// For `moved` events, both the source and target parent receive the event
+  /// so subscribers on either side can refresh.
   Stream<FolderChange> folderChangesForParent(String? parentId) {
-    return _folderChangesController.stream.where(
-      (change) => change.parentId == parentId,
-    );
+    return _folderChangesController.stream.where((change) {
+      if (change.parentId == parentId) return true;
+      if (change.type == FolderChangeType.moved &&
+          change.sourceParentId == parentId) {
+        return true;
+      }
+      return false;
+    });
   }
 
   FolderRepository({required AppDatabase database}) : _db = database;
@@ -241,6 +233,37 @@ class FolderRepository {
     for (final descendantId in descendants) {
       _folderCache.remove(descendantId);
     }
+  }
+
+  Future<Folder?> moveFolder({
+    required String folderId,
+    required String? targetParentId,
+  }) async {
+    final existing = await getFolderById(folderId);
+    final sourceParentId = existing?.parentId;
+
+    final folder = await _folderDao.moveFolder(
+      id: folderId,
+      targetParentId: targetParentId,
+    );
+
+    if (folder != null) {
+      _folderCache[folderId] = folder;
+      _invalidateParentCache(sourceParentId);
+      _invalidateParentCache(targetParentId);
+
+      _folderChangesController.add(
+        FolderChange(
+          type: FolderChangeType.moved,
+          folderId: folderId,
+          parentId: targetParentId,
+          sourceParentId: sourceParentId,
+          folder: folder,
+        ),
+      );
+    }
+
+    return folder;
   }
 
   /// Get the total note count that would be deleted with this folder

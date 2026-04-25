@@ -73,6 +73,11 @@ class NoteStorageService {
     return notes.map(_noteToMetadata).toList();
   }
 
+  Future<int> getNoteCount(String folderId) async {
+    await initialize();
+    return _repository.getNoteCount(folderId);
+  }
+
   Future<LazyNote?> loadNoteWithContent(String noteId) async {
     await initialize();
 
@@ -261,6 +266,23 @@ class NoteStorageService {
       await _repository.deleteNote(note.id);
     }
   }
+
+  Future<NoteMetadata?> moveNote({
+    required String noteId,
+    required String targetFolderId,
+  }) async {
+    await initialize();
+    final note = await _repository.moveNote(
+      noteId: noteId,
+      targetFolderId: targetFolderId,
+    );
+    return note != null ? _noteToMetadata(note) : null;
+  }
+
+  Stream<NoteChange> get changes => _repository.noteChanges;
+
+  Stream<NoteChange> changesForFolder(String? folderId) =>
+      _repository.noteChangesForFolder(folderId);
 
   /// Reorder notes within a folder
   Future<void> reorderNotes({

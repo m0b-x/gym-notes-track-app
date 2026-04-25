@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:stream_transform/stream_transform.dart';
+import '../../models/note_change.dart';
 import '../../models/note_metadata.dart';
 import '../../services/note_storage_service.dart';
 import '../../services/folder_search_service.dart';
@@ -20,6 +22,7 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
   int _currentPage = 1;
   NotesSortOrder _currentSortOrder = NotesSortOrder.updatedDesc;
   PaginatedNotes? _lastPaginatedNotes;
+  StreamSubscription<NoteChange>? _changesSubscription;
 
   OptimizedNoteBloc({
     required NoteStorageService storageService,
@@ -41,6 +44,18 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
     on<ClearSearch>(_onClearSearch);
     on<RefreshNotes>(_onRefreshNotes);
     on<ReorderNotes>(_onReorderNotes);
+
+    _changesSubscription = _storageService.changes.listen(_onExternalChange);
+  }
+
+  void _onExternalChange(NoteChange change) {
+    final affectsCurrent =
+        change.folderId == _currentFolderId ||
+        (change.type == NoteChangeType.moved &&
+            change.sourceFolderId == _currentFolderId);
+    if (affectsCurrent) {
+      add(RefreshNotes(folderId: _currentFolderId));
+    }
   }
 
   Future<void> _onLoadNotesPaginated(
@@ -397,6 +412,7 @@ class OptimizedNoteBloc extends Bloc<OptimizedNoteEvent, OptimizedNoteState> {
 
   @override
   Future<void> close() {
+    _changesSubscription?.cancel();
     _storageService.dispose();
     _searchService.dispose();
     return super.close();

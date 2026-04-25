@@ -164,6 +164,52 @@ class FolderDao extends DatabaseAccessor<AppDatabase> with _$FolderDaoMixin {
     return getFolderById(id);
   }
 
+  Future<Folder?> moveFolder({
+    required String id,
+    required String? targetParentId,
+  }) async {
+    return transaction(() async {
+      final existing = await getFolderById(id);
+      if (existing == null || existing.isDeleted) return null;
+
+      if (targetParentId != null) {
+        if (targetParentId == id) return null;
+        final target = await getFolderById(targetParentId);
+        if (target == null || target.isDeleted) return null;
+        final descendants = await getAllDescendantIds(id);
+        if (descendants.contains(targetParentId)) return null;
+      }
+
+      if (existing.parentId == targetParentId) return existing;
+
+      final now = DateTime.now();
+      final hlc = db.generateHlc();
+
+      final maxPosQuery = selectOnly(folders)
+        ..addColumns([folders.position.max()]);
+      if (targetParentId == null) {
+        maxPosQuery.where(folders.parentId.isNull());
+      } else {
+        maxPosQuery.where(folders.parentId.equals(targetParentId));
+      }
+      maxPosQuery.where(folders.isDeleted.equals(false));
+      final maxPosResult = await maxPosQuery.getSingle();
+      final maxPos = maxPosResult.read(folders.position.max()) ?? -1;
+
+      await (update(folders)..where((f) => f.id.equals(id))).write(
+        FoldersCompanion(
+          parentId: Value(targetParentId),
+          position: Value(maxPos + 1),
+          updatedAt: Value(now),
+          hlcTimestamp: Value(hlc),
+          deviceId: Value(db.deviceId),
+          version: Value(existing.version + 1),
+        ),
+      );
+      return getFolderById(id);
+    });
+  }
+
   Future<void> softDeleteFolder(String id) async {
     final now = DateTime.now();
     final hlc = db.generateHlc();

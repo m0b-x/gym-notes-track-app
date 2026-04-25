@@ -2033,5 +2033,121 @@
   "noteAlreadyAdded": "This note is already added",
   "@noteAlreadyAdded": {
     "description": "Snackbar when trying to add a duplicate note"
+  },
+  "moveToFolder": "Move to Folder",
+  "@moveToFolder": {
+    "description": "Menu action to move a note to another folder"
+  },
+  "selectDestinationFolder": "Select Destination",
+  "@selectDestinationFolder": {
+    "description": "Title for the folder picker dialog when moving a note"
+  },
+  "rootFolder": "Root",
+  "@rootFolder": {
+    "description": "Label for the root level in the folder picker"
+  },
+  "noteMoved": "Note moved successfully",
+  "@noteMoved": {
+    "description": "Snackbar after successfully moving a note"
+  },
+  "noteMoveFailed": "Failed to move note",
+  "@noteMoveFailed": {
+    "description": "Snackbar when moving a note fails"
+  },
+  "alreadyInThisFolder": "Note is already in this folder",
+  "@alreadyInThisFolder": {
+    "description": "Snackbar when trying to move a note to its current folder"
+  },
+  "noFoldersAvailable": "No folders available",
+  "@noFoldersAvailable": {
+    "description": "Empty state in the folder picker when there are no folders"
+  },
+  "moveHere": "Move Here",
+  "@moveHere": {
+    "description": "Button to confirm moving the note to the selected folder"
+  },
+  "folderMoved": "Folder moved successfully",
+  "@folderMoved": {
+    "description": "Snackbar after successfully moving a folder"
+  },
+  "folderMoveFailed": "Failed to move folder",
+  "@folderMoveFailed": {
+    "description": "Snackbar when moving a folder fails"
+  },
+  "cannotMoveIntoSelf": "Cannot move a folder into itself or its subfolder",
+  "@cannotMoveIntoSelf": {
+    "description": "Snackbar when trying to move a folder into itself or a descendant"
+  },
+  "moveHistory": "Move History",
+  "@moveHistory": {
+    "description": "Title for move history bottom sheet"
+  },
+  "noMoveHistory": "No recent moves",
+  "@noMoveHistory": {
+    "description": "Empty state for move history"
+  },
+  "clearHistory": "Clear History",
+  "@clearHistory": {
+    "description": "Button to clear move history"
+  },
+  "movedToTarget": "Moved to {target}",
+  "@movedToTarget": {
+    "description": "Move history entry showing target folder",
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "undone": "Undone",
+  "@undone": {
+    "description": "Label for undone move history entry"
+  },
+  "moveUndone": "Move undone",
+  "@moveUndone": {
+    "description": "Snackbar when a move is undone from history"
+  },
+  "timeLessThanMinute": "<1m",
+  "@timeLessThanMinute": {
+    "description": "Time display for less than one minute ago"
+  },
+  "timeMinutes": "{count}m",
+  "@timeMinutes": {
+    "description": "Time display in minutes",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeHours": "{count}h",
+  "@timeHours": {
+    "description": "Time display in hours",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeDays": "{count}d",
+  "@timeDays": {
+    "description": "Time display in days",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "originalLocationGone": "Original location no longer exists",
+  "@originalLocationGone": {
+    "description": "Snackbar shown when undoing a move whose source folder was deleted"
+  },
+  "moveUndoCanceled": "Restore canceled",
+  "@moveUndoCanceled": {
+    "description": "Snackbar when user cancels picking a destination during undo"
+  },
+  "clearMoveHistoryConfirm": "Clear all move history? This cannot be undone.",
+  "@clearMoveHistoryConfirm": {
+    "description": "Confirmation dialog body when clearing move history"
   }
 }

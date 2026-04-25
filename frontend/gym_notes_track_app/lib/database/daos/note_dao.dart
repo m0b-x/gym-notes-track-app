@@ -534,6 +534,43 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
     return (select(notes)..where((n) => n.id.equals(id))).watchSingleOrNull();
   }
 
+  Future<Note?> moveNote({
+    required String id,
+    required String targetFolderId,
+  }) async {
+    return transaction(() async {
+      final existing = await getNoteById(id);
+      if (existing == null || existing.isDeleted) return null;
+
+      final targetFolder = await db.folderDao.getFolderById(targetFolderId);
+      if (targetFolder == null || targetFolder.isDeleted) return null;
+
+      if (existing.folderId == targetFolderId) return existing;
+
+      final now = DateTime.now();
+      final hlc = db.generateHlc();
+
+      final maxPosQuery = selectOnly(notes)..addColumns([notes.position.max()]);
+      maxPosQuery.where(notes.folderId.equals(targetFolderId));
+      maxPosQuery.where(notes.isDeleted.equals(false));
+      final maxPosResult = await maxPosQuery.getSingle();
+      final maxPos = maxPosResult.read(notes.position.max()) ?? -1;
+
+      await (update(notes)..where((n) => n.id.equals(id))).write(
+        NotesCompanion(
+          folderId: Value(targetFolderId),
+          position: Value(maxPos + 1),
+          updatedAt: Value(now),
+          hlcTimestamp: Value(hlc),
+          deviceId: Value(db.deviceId),
+          version: Value(existing.version + 1),
+        ),
+      );
+
+      return getNoteById(id);
+    });
+  }
+
   Future<void> softDeleteNoteWithChunks(String noteId) async {
     await transaction(() async {
       await db.contentChunkDao.softDeleteChunksForNote(noteId);

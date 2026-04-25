@@ -144,6 +144,28 @@ class FolderStorageService {
     await _repository.deleteFolder(folderId);
   }
 
+  Future<model.Folder?> moveFolder({
+    required String folderId,
+    required String? targetParentId,
+  }) async {
+    await initialize();
+    final folder = await _repository.moveFolder(
+      folderId: folderId,
+      targetParentId: targetParentId,
+    );
+    return folder != null ? _folderToModel(folder) : null;
+  }
+
+  Future<List<String>> getDescendantIds(String folderId) async {
+    await initialize();
+    return _repository.getAllDescendantIds(folderId);
+  }
+
+  Stream<FolderChange> get changes => _repository.folderChanges;
+
+  Stream<FolderChange> changesForParent(String? parentId) =>
+      _repository.folderChangesForParent(parentId);
+
   /// Get the total note count that would be deleted with this folder
   Future<int> getNoteCountForDeletion(String folderId) async {
     await initialize();

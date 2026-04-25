@@ -1523,4 +1523,86 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noteAlreadyAdded => 'This note is already added';
+
+  @override
+  String get moveToFolder => 'Move to Folder';
+
+  @override
+  String get selectDestinationFolder => 'Select Destination';
+
+  @override
+  String get rootFolder => 'Root';
+
+  @override
+  String get noteMoved => 'Note moved successfully';
+
+  @override
+  String get noteMoveFailed => 'Failed to move note';
+
+  @override
+  String get alreadyInThisFolder => 'Note is already in this folder';
+
+  @override
+  String get noFoldersAvailable => 'No folders available';
+
+  @override
+  String get moveHere => 'Move Here';
+
+  @override
+  String get folderMoved => 'Folder moved successfully';
+
+  @override
+  String get folderMoveFailed => 'Failed to move folder';
+
+  @override
+  String get cannotMoveIntoSelf =>
+      'Cannot move a folder into itself or its subfolder';
+
+  @override
+  String get moveHistory => 'Move History';
+
+  @override
+  String get noMoveHistory => 'No recent moves';
+
+  @override
+  String get clearHistory => 'Clear History';
+
+  @override
+  String movedToTarget(String target) {
+    return 'Moved to $target';
+  }
+
+  @override
+  String get undone => 'Undone';
+
+  @override
+  String get moveUndone => 'Move undone';
+
+  @override
+  String get timeLessThanMinute => '<1m';
+
+  @override
+  String timeMinutes(int count) {
+    return '${count}m';
+  }
+
+  @override
+  String timeHours(int count) {
+    return '${count}h';
+  }
+
+  @override
+  String timeDays(int count) {
+    return '${count}d';
+  }
+
+  @override
+  String get originalLocationGone => 'Original location no longer exists';
+
+  @override
+  String get moveUndoCanceled => 'Restore canceled';
+
+  @override
+  String get clearMoveHistoryConfirm =>
+      'Clear all move history? This cannot be undone.';
 }

@@ -8,15 +8,12 @@ class CustomSnackbar {
     Duration duration = const Duration(seconds: 3),
     bool withToolbarOffset = false,
   }) {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        margin: AppSpacing.snackbarMargin(withToolbarOffset: withToolbarOffset),
-        duration: duration,
-        showCloseIcon: true,
-      ),
+    _showSnackBar(
+      context,
+      message: message,
+      duration: duration,
+      withToolbarOffset: withToolbarOffset,
+      showCloseIcon: true,
     );
   }
 
@@ -43,6 +40,44 @@ class CustomSnackbar {
       message,
       duration: const Duration(seconds: 2),
       withToolbarOffset: withToolbarOffset,
+    );
+  }
+
+  static void showWithAction(
+    BuildContext context, {
+    required String message,
+    required String actionLabel,
+    required VoidCallback onAction,
+    Duration duration = const Duration(seconds: 3),
+    bool withToolbarOffset = false,
+  }) {
+    _showSnackBar(
+      context,
+      message: message,
+      duration: duration,
+      withToolbarOffset: withToolbarOffset,
+      action: SnackBarAction(label: actionLabel, onPressed: onAction),
+    );
+  }
+
+  static void _showSnackBar(
+    BuildContext context, {
+    required String message,
+    required Duration duration,
+    required bool withToolbarOffset,
+    bool showCloseIcon = false,
+    SnackBarAction? action,
+  }) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        margin: AppSpacing.snackbarMargin(withToolbarOffset: withToolbarOffset),
+        duration: duration,
+        showCloseIcon: showCloseIcon,
+        action: action,
+      ),
     );
   }
 }

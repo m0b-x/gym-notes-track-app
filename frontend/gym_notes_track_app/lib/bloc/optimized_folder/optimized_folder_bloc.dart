@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../models/folder_change.dart';
 import '../../services/folder_storage_service.dart';
 import 'optimized_folder_event.dart';
 import 'optimized_folder_state.dart';
@@ -11,6 +13,7 @@ class OptimizedFolderBloc
   String? _currentParentId;
   int _currentPage = 1;
   FoldersSortOrder _currentSortOrder = FoldersSortOrder.nameAsc;
+  StreamSubscription<FolderChange>? _changesSubscription;
 
   OptimizedFolderBloc({required FolderStorageService storageService})
     : _storageService = storageService,
@@ -22,6 +25,24 @@ class OptimizedFolderBloc
     on<DeleteOptimizedFolder>(_onDeleteFolder);
     on<RefreshFolders>(_onRefreshFolders);
     on<ReorderFolders>(_onReorderFolders);
+
+    _changesSubscription = _storageService.changes.listen(_onExternalChange);
+  }
+
+  void _onExternalChange(FolderChange change) {
+    final affectsCurrent =
+        change.parentId == _currentParentId ||
+        (change.type == FolderChangeType.moved &&
+            change.sourceParentId == _currentParentId);
+    if (affectsCurrent) {
+      add(RefreshFolders(parentId: _currentParentId));
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _changesSubscription?.cancel();
+    return super.close();
   }
 
   Future<void> _onLoadFoldersPaginated(

@@ -1538,4 +1538,86 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get noteAlreadyAdded => 'Această notiță este deja adăugată';
+
+  @override
+  String get moveToFolder => 'Mută în dosar';
+
+  @override
+  String get selectDestinationFolder => 'Selectează destinația';
+
+  @override
+  String get rootFolder => 'Rădăcină';
+
+  @override
+  String get noteMoved => 'Notița a fost mutată cu succes';
+
+  @override
+  String get noteMoveFailed => 'Mutarea notiței a eșuat';
+
+  @override
+  String get alreadyInThisFolder => 'Notița se află deja în acest dosar';
+
+  @override
+  String get noFoldersAvailable => 'Nu sunt dosare disponibile';
+
+  @override
+  String get moveHere => 'Mută aici';
+
+  @override
+  String get folderMoved => 'Dosarul a fost mutat cu succes';
+
+  @override
+  String get folderMoveFailed => 'Mutarea dosarului a eșuat';
+
+  @override
+  String get cannotMoveIntoSelf =>
+      'Nu se poate muta un dosar în el însuși sau într-un subdosar';
+
+  @override
+  String get moveHistory => 'Istoric mutări';
+
+  @override
+  String get noMoveHistory => 'Nicio mutare recentă';
+
+  @override
+  String get clearHistory => 'Șterge istoricul';
+
+  @override
+  String movedToTarget(String target) {
+    return 'Mutat în $target';
+  }
+
+  @override
+  String get undone => 'Anulat';
+
+  @override
+  String get moveUndone => 'Mutarea a fost anulată';
+
+  @override
+  String get timeLessThanMinute => '<1m';
+
+  @override
+  String timeMinutes(int count) {
+    return '${count}m';
+  }
+
+  @override
+  String timeHours(int count) {
+    return '${count}h';
+  }
+
+  @override
+  String timeDays(int count) {
+    return '${count}d';
+  }
+
+  @override
+  String get originalLocationGone => 'Locația inițială nu mai există';
+
+  @override
+  String get moveUndoCanceled => 'Restaurare anulată';
+
+  @override
+  String get clearMoveHistoryConfirm =>
+      'Ștergi tot istoricul de mutări? Această acțiune nu poate fi anulată.';
 }

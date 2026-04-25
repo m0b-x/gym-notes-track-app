@@ -4,25 +4,10 @@ import '../database/daos/note_dao.dart';
 import '../database/daos/content_chunk_dao.dart';
 import '../models/note_metadata.dart';
 import '../constants/app_constants.dart';
+import '../models/note_change.dart';
 import '../utils/lru_cache.dart';
 
-/// Event types for note changes
-enum NoteChangeType { created, updated, deleted }
-
-/// Represents a change to a note
-class NoteChange {
-  final NoteChangeType type;
-  final String noteId;
-  final String? folderId;
-  final Note? note;
-
-  const NoteChange({
-    required this.type,
-    required this.noteId,
-    this.folderId,
-    this.note,
-  });
-}
+export '../models/note_change.dart';
 
 class NoteRepository {
   final AppDatabase _db;
@@ -42,11 +27,18 @@ class NoteRepository {
   /// Stream of all note changes for reactive UI updates
   Stream<NoteChange> get noteChanges => _noteChangesController.stream;
 
-  /// Stream of changes filtered by folder
+  /// Stream of changes filtered by folder.
+  /// For `moved` events, both the source and target folder receive the event
+  /// so subscribers on either side can refresh.
   Stream<NoteChange> noteChangesForFolder(String? folderId) {
-    return _noteChangesController.stream.where(
-      (change) => change.folderId == folderId,
-    );
+    return _noteChangesController.stream.where((change) {
+      if (change.folderId == folderId) return true;
+      if (change.type == NoteChangeType.moved &&
+          change.sourceFolderId == folderId) {
+        return true;
+      }
+      return false;
+    });
   }
 
   NoteRepository({required AppDatabase database}) : _db = database {
@@ -254,6 +246,37 @@ class NoteRepository {
         ),
       );
     }
+  }
+
+  Future<Note?> moveNote({
+    required String noteId,
+    required String targetFolderId,
+  }) async {
+    final existing = await getNoteById(noteId);
+    final sourceFolderId = existing?.folderId;
+
+    final note = await _noteDao.moveNote(
+      id: noteId,
+      targetFolderId: targetFolderId,
+    );
+
+    if (note != null) {
+      _noteCache.put(noteId, note);
+      _invalidateFolderCache(sourceFolderId);
+      _invalidateFolderCache(targetFolderId);
+
+      _noteChangesController.add(
+        NoteChange(
+          type: NoteChangeType.moved,
+          noteId: noteId,
+          folderId: targetFolderId,
+          sourceFolderId: sourceFolderId,
+          note: note,
+        ),
+      );
+    }
+
+    return note;
   }
 
   /// Reorder notes within a folder

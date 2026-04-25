@@ -2931,6 +2931,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This note is already added'**
   String get noteAlreadyAdded;
+
+  /// Menu action to move a note to another folder
+  ///
+  /// In en, this message translates to:
+  /// **'Move to Folder'**
+  String get moveToFolder;
+
+  /// Title for the folder picker dialog when moving a note
+  ///
+  /// In en, this message translates to:
+  /// **'Select Destination'**
+  String get selectDestinationFolder;
+
+  /// Label for the root level in the folder picker
+  ///
+  /// In en, this message translates to:
+  /// **'Root'**
+  String get rootFolder;
+
+  /// Snackbar after successfully moving a note
+  ///
+  /// In en, this message translates to:
+  /// **'Note moved successfully'**
+  String get noteMoved;
+
+  /// Snackbar when moving a note fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to move note'**
+  String get noteMoveFailed;
+
+  /// Snackbar when trying to move a note to its current folder
+  ///
+  /// In en, this message translates to:
+  /// **'Note is already in this folder'**
+  String get alreadyInThisFolder;
+
+  /// Empty state in the folder picker when there are no folders
+  ///
+  /// In en, this message translates to:
+  /// **'No folders available'**
+  String get noFoldersAvailable;
+
+  /// Button to confirm moving the note to the selected folder
+  ///
+  /// In en, this message translates to:
+  /// **'Move Here'**
+  String get moveHere;
+
+  /// Snackbar after successfully moving a folder
+  ///
+  /// In en, this message translates to:
+  /// **'Folder moved successfully'**
+  String get folderMoved;
+
+  /// Snackbar when moving a folder fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to move folder'**
+  String get folderMoveFailed;
+
+  /// Snackbar when trying to move a folder into itself or a descendant
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot move a folder into itself or its subfolder'**
+  String get cannotMoveIntoSelf;
+
+  /// Title for move history bottom sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Move History'**
+  String get moveHistory;
+
+  /// Empty state for move history
+  ///
+  /// In en, this message translates to:
+  /// **'No recent moves'**
+  String get noMoveHistory;
+
+  /// Button to clear move history
+  ///
+  /// In en, this message translates to:
+  /// **'Clear History'**
+  String get clearHistory;
+
+  /// Move history entry showing target folder
+  ///
+  /// In en, this message translates to:
+  /// **'Moved to {target}'**
+  String movedToTarget(String target);
+
+  /// Label for undone move history entry
+  ///
+  /// In en, this message translates to:
+  /// **'Undone'**
+  String get undone;
+
+  /// Snackbar when a move is undone from history
+  ///
+  /// In en, this message translates to:
+  /// **'Move undone'**
+  String get moveUndone;
+
+  /// Time display for less than one minute ago
+  ///
+  /// In en, this message translates to:
+  /// **'<1m'**
+  String get timeLessThanMinute;
+
+  /// Time display in minutes
+  ///
+  /// In en, this message translates to:
+  /// **'{count}m'**
+  String timeMinutes(int count);
+
+  /// Time display in hours
+  ///
+  /// In en, this message translates to:
+  /// **'{count}h'**
+  String timeHours(int count);
+
+  /// Time display in days
+  ///
+  /// In en, this message translates to:
+  /// **'{count}d'**
+  String timeDays(int count);
+
+  /// Snackbar shown when undoing a move whose source folder was deleted
+  ///
+  /// In en, this message translates to:
+  /// **'Original location no longer exists'**
+  String get originalLocationGone;
+
+  /// Snackbar when user cancels picking a destination during undo
+  ///
+  /// In en, this message translates to:
+  /// **'Restore canceled'**
+  String get moveUndoCanceled;
+
+  /// Confirmation dialog body when clearing move history
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all move history? This cannot be undone.'**
+  String get clearMoveHistoryConfirm;
 }
 
 class _AppLocalizationsDelegate

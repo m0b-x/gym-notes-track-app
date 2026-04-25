@@ -1540,4 +1540,88 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get noteAlreadyAdded => 'Diese Notiz ist bereits hinzugefügt';
+
+  @override
+  String get moveToFolder => 'In Ordner verschieben';
+
+  @override
+  String get selectDestinationFolder => 'Ziel auswählen';
+
+  @override
+  String get rootFolder => 'Stammordner';
+
+  @override
+  String get noteMoved => 'Notiz erfolgreich verschoben';
+
+  @override
+  String get noteMoveFailed => 'Notiz konnte nicht verschoben werden';
+
+  @override
+  String get alreadyInThisFolder =>
+      'Notiz befindet sich bereits in diesem Ordner';
+
+  @override
+  String get noFoldersAvailable => 'Keine Ordner verfügbar';
+
+  @override
+  String get moveHere => 'Hierher verschieben';
+
+  @override
+  String get folderMoved => 'Ordner erfolgreich verschoben';
+
+  @override
+  String get folderMoveFailed => 'Ordner konnte nicht verschoben werden';
+
+  @override
+  String get cannotMoveIntoSelf =>
+      'Ein Ordner kann nicht in sich selbst oder einen Unterordner verschoben werden';
+
+  @override
+  String get moveHistory => 'Verschiebeverlauf';
+
+  @override
+  String get noMoveHistory => 'Keine letzten Verschiebungen';
+
+  @override
+  String get clearHistory => 'Verlauf löschen';
+
+  @override
+  String movedToTarget(String target) {
+    return 'Verschoben nach $target';
+  }
+
+  @override
+  String get undone => 'Rückgängig gemacht';
+
+  @override
+  String get moveUndone => 'Verschiebung rückgängig gemacht';
+
+  @override
+  String get timeLessThanMinute => '<1m';
+
+  @override
+  String timeMinutes(int count) {
+    return '${count}m';
+  }
+
+  @override
+  String timeHours(int count) {
+    return '${count}h';
+  }
+
+  @override
+  String timeDays(int count) {
+    return '${count}d';
+  }
+
+  @override
+  String get originalLocationGone =>
+      'Ursprünglicher Speicherort existiert nicht mehr';
+
+  @override
+  String get moveUndoCanceled => 'Wiederherstellung abgebrochen';
+
+  @override
+  String get clearMoveHistoryConfirm =>
+      'Gesamten Verschiebeverlauf löschen? Dies kann nicht rückgängig gemacht werden.';
 }
