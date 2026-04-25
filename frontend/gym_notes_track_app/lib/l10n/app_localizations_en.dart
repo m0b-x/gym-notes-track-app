@@ -1605,4 +1605,32 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get clearMoveHistoryConfirm =>
       'Clear all move history? This cannot be undone.';
+
+  @override
+  String get searchFolders => 'Search folders';
+
+  @override
+  String get noFoldersFound => 'No folders found';
+
+  @override
+  String get recentDestinations => 'Recent';
+
+  @override
+  String itemsMoved(int count) {
+    return '$count items moved';
+  }
+
+  @override
+  String get moveSelected => 'Move';
+
+  @override
+  String get deleteSelected => 'Delete';
+
+  @override
+  String deleteSelectedConfirm(int count) {
+    return 'Delete $count selected items? This cannot be undone.';
+  }
+
+  @override
+  String get selectAll => 'Select all';
 }

@@ -1517,5 +1517,13 @@
   "timeDays": "{count}d",
   "originalLocationGone": "Ursprünglicher Speicherort existiert nicht mehr",
   "moveUndoCanceled": "Wiederherstellung abgebrochen",
-  "clearMoveHistoryConfirm": "Gesamten Verschiebeverlauf löschen? Dies kann nicht rückgängig gemacht werden."
+  "clearMoveHistoryConfirm": "Gesamten Verschiebeverlauf löschen? Dies kann nicht rückgängig gemacht werden.",
+  "searchFolders": "Ordner suchen",
+  "noFoldersFound": "Keine Ordner gefunden",
+  "recentDestinations": "Zuletzt verwendet",
+  "itemsMoved": "{count} Elemente verschoben",
+  "moveSelected": "Verschieben",
+  "deleteSelected": "Löschen",
+  "deleteSelectedConfirm": "{count} ausgewählte Elemente löschen? Dies kann nicht rückgängig gemacht werden.",
+  "selectAll": "Alle auswählen"
 }

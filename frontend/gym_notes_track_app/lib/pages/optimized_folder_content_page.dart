@@ -13,8 +13,10 @@ import '../bloc/optimized_folder/optimized_folder_state.dart';
 import '../bloc/optimized_note/optimized_note_bloc.dart';
 import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
+import '../controllers/selection_controller.dart';
 import '../models/folder.dart';
 import '../models/folder_change.dart';
+import '../models/movable_item.dart';
 import '../models/note_metadata.dart';
 import '../repositories/note_repository.dart';
 import '../services/folder_storage_service.dart';
@@ -24,6 +26,8 @@ import '../services/note_storage_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/infinite_scroll_list.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/selection_action_bar.dart';
+import '../widgets/selection_app_bar.dart';
 import '../widgets/unified_app_bars.dart';
 import '../utils/bloc_helpers.dart';
 import '../utils/custom_snackbar.dart';
@@ -59,6 +63,16 @@ class _OptimizedFolderContentPageState
   bool _folderSwipeEnabled = true;
   bool _isSortSheetOpen = false;
 
+  // Per-page selection state. Long-press a card to enter selection mode,
+  // tap to toggle, then act on the whole batch (move, delete, drag-and-drop).
+  late final SelectionController _selection = SelectionController();
+  StreamSubscription<Set<MovableItemRef>>? _selectionSub;
+
+  // Latest visible items, kept up to date by [_buildFoldersSection] and
+  // [_buildNotesSection] so SelectAll can act on them without re-querying.
+  List<Folder> _visibleFolders = const [];
+  List<NoteMetadata> _visibleNotes = const [];
+
   NoteRepository get _noteRepository => GetIt.I<NoteRepository>();
   FolderStorageService get _folderStorageService =>
       GetIt.I<FolderStorageService>();
@@ -66,6 +80,9 @@ class _OptimizedFolderContentPageState
   @override
   void initState() {
     super.initState();
+    _selectionSub = _selection.changes.listen((_) {
+      if (mounted) setState(() {});
+    });
     _loadSettings();
     _loadSortPreferencesAndData();
   }
@@ -121,6 +138,8 @@ class _OptimizedFolderContentPageState
 
   @override
   void dispose() {
+    _selectionSub?.cancel();
+    _selection.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -129,6 +148,102 @@ class _OptimizedFolderContentPageState
     setState(() {
       _isReorderMode = !_isReorderMode;
     });
+  }
+
+  // ─── Selection mode helpers ─────────────────────────────────────────────
+
+  MovableItemRef _refForFolder(Folder f) => MovableItemRef(
+    kind: MovableItemKind.folder,
+    id: f.id,
+    name: f.name,
+    currentParentId: widget.folderId,
+  );
+
+  MovableItemRef _refForNote(NoteMetadata n) {
+    final l10n = AppLocalizations.of(context)!;
+    return MovableItemRef(
+      kind: MovableItemKind.note,
+      id: n.id,
+      name: n.title.isEmpty ? l10n.untitledNote : n.title,
+      currentParentId: widget.folderId,
+    );
+  }
+
+  void _onCardLongPress(MovableItemRef ref) {
+    _selection.add(ref);
+  }
+
+  void _onCardTapInSelection(MovableItemRef ref) {
+    _selection.toggle(ref);
+  }
+
+  void _selectAll() {
+    for (final f in _visibleFolders) {
+      _selection.add(_refForFolder(f));
+    }
+    for (final n in _visibleNotes) {
+      _selection.add(_refForNote(n));
+    }
+  }
+
+  Future<void> _moveSelected() async {
+    final items = _selection.items.toList(growable: false);
+    if (items.isEmpty) return;
+    await MoveCoordinator.moveItems(context, items: items);
+    if (mounted) {
+      _selection.clear();
+      _loadData();
+    }
+  }
+
+  Future<void> _deleteSelected() async {
+    final l10n = AppLocalizations.of(context)!;
+    final items = _selection.items.toList(growable: false);
+    if (items.isEmpty) return;
+
+    final confirmed = await AppDialogs.confirm(
+      context,
+      title: l10n.delete,
+      content: l10n.deleteSelectedConfirm(items.length),
+      confirmText: l10n.delete,
+      isDestructive: true,
+    );
+    if (!confirmed || !mounted) return;
+
+    for (final ref in items) {
+      if (ref.kind == MovableItemKind.folder) {
+        if (!mounted) return;
+        context.read<OptimizedFolderBloc>().add(
+          DeleteOptimizedFolder(folderId: ref.id, parentId: widget.folderId),
+        );
+      } else {
+        if (!mounted) return;
+        context.read<OptimizedNoteBloc>().add(DeleteOptimizedNote(ref.id));
+      }
+    }
+    _selection.clear();
+  }
+
+  Future<void> _onDropOnFolder(
+    Folder targetFolder,
+    Set<MovableItemRef> dropped,
+  ) async {
+    // Filter out the target itself if it was selected; can't move a folder into itself.
+    final filtered = dropped
+        .where(
+          (r) => !(r.kind == MovableItemKind.folder && r.id == targetFolder.id),
+        )
+        .toList(growable: false);
+    if (filtered.isEmpty) return;
+    await MoveCoordinator.moveItemsTo(
+      context,
+      items: filtered,
+      targetParentId: targetFolder.id,
+    );
+    if (mounted) {
+      _selection.clear();
+      _loadData();
+    }
   }
 
   void _preloadNoteContent(List<String> noteIds) {
@@ -155,57 +270,65 @@ class _OptimizedFolderContentPageState
   @override
   Widget build(BuildContext context) {
     final isRootPage = widget.folderId == null;
+    final isSelecting = _selection.isActive;
 
     final scaffold = Scaffold(
-      drawer: const AppDrawer(),
-      drawerEnableOpenDragGesture: _folderSwipeEnabled,
-      appBar: FolderAppBar(
-        title: widget.title,
-        isRootPage: isRootPage,
-        actions: [
-          IconButton(
-            icon: Icon(_isReorderMode ? Icons.check : Icons.swap_vert),
-            tooltip: AppLocalizations.of(context)!.reorderMode,
-            onPressed: _toggleReorderMode,
-          ),
-          IconButton(
-            icon: const Icon(Icons.search),
-            tooltip: widget.folderId != null
-                ? AppLocalizations.of(context)!.searchInFolder
-                : AppLocalizations.of(context)!.searchAll,
-            onPressed: () {
-              AppNavigator.toSearch(context, folderId: widget.folderId).then((
-                _,
-              ) {
-                if (mounted) {
-                  _loadData();
-                }
-              });
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.sort),
-            tooltip: AppLocalizations.of(context)!.sortBy,
-            onPressed: _showQuickSortOptions,
-          ),
-          StreamBuilder<int>(
-            stream: GetIt.I<MoveHistoryService>().changes,
-            initialData: GetIt.I<MoveHistoryService>().undoableCount,
-            builder: (context, snapshot) {
-              final count = snapshot.data ?? 0;
-              return IconButton(
-                icon: Badge(
-                  isLabelVisible: count > 0,
-                  label: Text('$count'),
-                  child: const Icon(Icons.history),
+      drawer: isSelecting ? null : const AppDrawer(),
+      drawerEnableOpenDragGesture: !isSelecting && _folderSwipeEnabled,
+      appBar: isSelecting
+          ? SelectionAppBar(
+              count: _selection.count,
+              onCancel: _selection.clear,
+              onSelectAll: _selectAll,
+            )
+          : FolderAppBar(
+              title: widget.title,
+              isRootPage: isRootPage,
+              actions: [
+                IconButton(
+                  icon: Icon(_isReorderMode ? Icons.check : Icons.swap_vert),
+                  tooltip: AppLocalizations.of(context)!.reorderMode,
+                  onPressed: _toggleReorderMode,
                 ),
-                tooltip: AppLocalizations.of(context)!.moveHistory,
-                onPressed: () => showMoveHistorySheet(context),
-              );
-            },
-          ),
-        ],
-      ),
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  tooltip: widget.folderId != null
+                      ? AppLocalizations.of(context)!.searchInFolder
+                      : AppLocalizations.of(context)!.searchAll,
+                  onPressed: () {
+                    AppNavigator.toSearch(
+                      context,
+                      folderId: widget.folderId,
+                    ).then((_) {
+                      if (mounted) {
+                        _loadData();
+                      }
+                    });
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.sort),
+                  tooltip: AppLocalizations.of(context)!.sortBy,
+                  onPressed: _showQuickSortOptions,
+                ),
+                StreamBuilder<int>(
+                  stream: GetIt.I<MoveHistoryService>().changes,
+                  initialData: GetIt.I<MoveHistoryService>().undoableCount,
+                  builder: (context, snapshot) {
+                    final count = snapshot.data ?? 0;
+                    return IconButton(
+                      icon: Badge(
+                        isLabelVisible: count > 0,
+                        label: Text('$count'),
+                        child: const Icon(Icons.history),
+                      ),
+                      tooltip: AppLocalizations.of(context)!.moveHistory,
+                      onPressed: () => showMoveHistorySheet(context),
+                    );
+                  },
+                ),
+              ],
+            ),
       body: RefreshIndicator(
         onRefresh: () async {
           _loadData();
@@ -219,22 +342,44 @@ class _OptimizedFolderContentPageState
           ],
         ),
       ),
-      bottomNavigationBar: _isReorderMode ? _buildReorderModeBar() : null,
-      floatingActionButton: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: EdgeInsets.only(bottom: _isSortSheetOpen ? 280 : 0),
-        child: FloatingActionButton(
-          onPressed: _showCreateOptions,
-          backgroundColor: AppColors.isDarkMode(context)
-              ? Theme.of(context).colorScheme.surfaceContainerHigh
-              : null,
-          foregroundColor: AppColors.isDarkMode(context)
-              ? Theme.of(context).colorScheme.onSurface
-              : null,
-          child: const Icon(Icons.add),
-        ),
-      ),
+      bottomNavigationBar: isSelecting
+          ? SelectionActionBar(
+              count: _selection.count,
+              onMove: _moveSelected,
+              onDelete: _deleteSelected,
+            )
+          : _isReorderMode
+          ? _buildReorderModeBar()
+          : null,
+      floatingActionButton: isSelecting
+          ? null
+          : AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: EdgeInsets.only(bottom: _isSortSheetOpen ? 280 : 0),
+              child: FloatingActionButton(
+                onPressed: _showCreateOptions,
+                backgroundColor: AppColors.isDarkMode(context)
+                    ? Theme.of(context).colorScheme.surfaceContainerHigh
+                    : null,
+                foregroundColor: AppColors.isDarkMode(context)
+                    ? Theme.of(context).colorScheme.onSurface
+                    : null,
+                child: const Icon(Icons.add),
+              ),
+            ),
     );
+
+    // While in selection mode, intercept back to exit selection instead of
+    // popping the route. Wraps the existing PopScope so it always gets first dibs.
+    if (isSelecting) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) _selection.clear();
+        },
+        child: scaffold,
+      );
+    }
 
     // Wrap with PopScope to disable iOS swipe-back gesture in subfolders
     // so that drawer swipe gesture works instead
@@ -581,6 +726,9 @@ class _OptimizedFolderContentPageState
 
         if (state is OptimizedFolderLoaded) {
           final folders = state.paginatedFolders.folders;
+          // Cache for SelectAll. Done outside build cycle is fine since
+          // SelectAll is only invoked while in selection mode.
+          _visibleFolders = folders;
 
           if (folders.isEmpty) {
             return const SliverToBoxAdapter(child: SizedBox.shrink());
@@ -612,6 +760,10 @@ class _OptimizedFolderContentPageState
                   onReturn: _loadData,
                   isReorderMode: true,
                   index: index,
+                  selection: _selection,
+                  onLongPressItem: _onCardLongPress,
+                  onTapInSelection: _onCardTapInSelection,
+                  onAcceptDrop: _onDropOnFolder,
                 );
               },
             );
@@ -632,6 +784,10 @@ class _OptimizedFolderContentPageState
                   folder: folder,
                   parentId: widget.folderId,
                   onReturn: _loadData,
+                  selection: _selection,
+                  onLongPressItem: _onCardLongPress,
+                  onTapInSelection: _onCardTapInSelection,
+                  onAcceptDrop: _onDropOnFolder,
                 );
               },
               childCount:
@@ -687,6 +843,7 @@ class _OptimizedFolderContentPageState
           if (notes == null || notes.isEmpty) {
             return const SliverToBoxAdapter(child: SizedBox.shrink());
           }
+          _visibleNotes = notes;
 
           _preloadNoteContent(notes.take(3).map((n) => n.id).toList());
 
@@ -716,6 +873,9 @@ class _OptimizedFolderContentPageState
                   onReturn: _loadData,
                   isReorderMode: true,
                   index: index,
+                  selection: _selection,
+                  onLongPressItem: _onCardLongPress,
+                  onTapInSelection: _onCardTapInSelection,
                 );
               },
             );
@@ -736,6 +896,9 @@ class _OptimizedFolderContentPageState
                 metadata: note,
                 folderId: widget.folderId!,
                 onReturn: _loadData,
+                selection: _selection,
+                onLongPressItem: _onCardLongPress,
+                onTapInSelection: _onCardTapInSelection,
               );
             },
           );
@@ -750,6 +913,7 @@ class _OptimizedFolderContentPageState
           if (notes == null || notes.isEmpty) {
             return const SliverToBoxAdapter(child: SizedBox.shrink());
           }
+          _visibleNotes = notes;
 
           _preloadNoteContent(notes.take(3).map((n) => n.id).toList());
 
@@ -779,6 +943,9 @@ class _OptimizedFolderContentPageState
                   onReturn: _loadData,
                   isReorderMode: true,
                   index: index,
+                  selection: _selection,
+                  onLongPressItem: _onCardLongPress,
+                  onTapInSelection: _onCardTapInSelection,
                 );
               },
             );
@@ -799,6 +966,9 @@ class _OptimizedFolderContentPageState
                 metadata: note,
                 folderId: widget.folderId!,
                 onReturn: _loadData,
+                selection: _selection,
+                onLongPressItem: _onCardLongPress,
+                onTapInSelection: _onCardTapInSelection,
               );
             },
           );
@@ -954,6 +1124,14 @@ class _FolderCard extends StatefulWidget {
   final bool isReorderMode;
   final int? index;
 
+  // Selection-mode wiring. Optional so the card can be reused outside of
+  // selection contexts in the future.
+  final SelectionController? selection;
+  final void Function(MovableItemRef ref)? onLongPressItem;
+  final void Function(MovableItemRef ref)? onTapInSelection;
+  final Future<void> Function(Folder target, Set<MovableItemRef> dropped)?
+  onAcceptDrop;
+
   const _FolderCard({
     super.key,
     required this.folder,
@@ -961,6 +1139,10 @@ class _FolderCard extends StatefulWidget {
     required this.onReturn,
     this.isReorderMode = false,
     this.index,
+    this.selection,
+    this.onLongPressItem,
+    this.onTapInSelection,
+    this.onAcceptDrop,
   });
 
   @override
@@ -1039,19 +1221,35 @@ class _FolderCardState extends State<_FolderCard> {
     return parts.join('  ·  ');
   }
 
+  MovableItemRef get _ref => MovableItemRef(
+    kind: MovableItemKind.folder,
+    id: widget.folder.id,
+    name: widget.folder.name,
+    currentParentId: widget.parentId,
+  );
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final countText = _buildCountText(l10n);
+    final selection = widget.selection;
+    final isSelecting = selection != null && selection.isActive;
+    final isSelected = selection != null && selection.contains(_ref);
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Card(
+    final card = Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: isSelected
+          ? colorScheme.primaryContainer.withValues(alpha: 0.5)
+          : null,
       child: ListTile(
         leading: widget.isReorderMode
             ? ReorderableDragStartListener(
                 index: widget.index ?? 0,
                 child: const Icon(Icons.drag_handle, color: Colors.grey),
               )
+            : isSelected
+            ? Icon(Icons.check_circle, size: 40, color: colorScheme.primary)
             : Icon(
                 Icons.folder,
                 size: 40,
@@ -1072,6 +1270,8 @@ class _FolderCardState extends State<_FolderCard> {
             : null,
         trailing: widget.isReorderMode
             ? Icon(Icons.folder, size: 24, color: AppColors.folderIcon(context))
+            : isSelecting
+            ? null
             : PopupMenuButton<FolderCardAction>(
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) {
@@ -1122,6 +1322,8 @@ class _FolderCardState extends State<_FolderCard> {
               ),
         onTap: widget.isReorderMode
             ? null
+            : isSelecting
+            ? () => widget.onTapInSelection?.call(_ref)
             : () {
                 AppNavigator.toFolder(
                   context,
@@ -1135,9 +1337,67 @@ class _FolderCardState extends State<_FolderCard> {
               },
         onLongPress: widget.isReorderMode
             ? null
-            : () => _showRenameDialog(context),
+            : () {
+                if (isSelecting) {
+                  widget.onTapInSelection?.call(_ref);
+                } else if (widget.onLongPressItem != null) {
+                  widget.onLongPressItem!(_ref);
+                } else {
+                  _showRenameDialog(context);
+                }
+              },
       ),
     );
+
+    // No drag/drop while reordering.
+    if (widget.isReorderMode) return card;
+
+    // Drag source: only when this card is itself selected, so the user
+    // explicitly opted in via long-press.
+    Widget result = card;
+    if (isSelecting && isSelected) {
+      result = LongPressDraggable<Set<MovableItemRef>>(
+        data: selection.items,
+        delay: const Duration(milliseconds: 250),
+        feedback: Material(
+          color: Colors.transparent,
+          child: _DragFeedback(count: selection.count),
+        ),
+        childWhenDragging: Opacity(opacity: 0.4, child: card),
+        child: result,
+      );
+    }
+
+    // Drop target: any folder card during selection mode (except folders
+    // that are themselves in the dragged set, but the page-level handler
+    // already filters that out).
+    if (widget.onAcceptDrop != null) {
+      result = DragTarget<Set<MovableItemRef>>(
+        onWillAcceptWithDetails: (details) {
+          // Don't highlight if dropping onto self.
+          return !details.data.any(
+            (r) => r.kind == MovableItemKind.folder && r.id == widget.folder.id,
+          );
+        },
+        onAcceptWithDetails: (details) {
+          widget.onAcceptDrop!(widget.folder, details.data);
+        },
+        builder: (context, candidate, rejected) {
+          if (candidate.isNotEmpty) {
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border.all(color: colorScheme.primary, width: 2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: result,
+            );
+          }
+          return result;
+        },
+      );
+    }
+
+    return result;
   }
 
   void _showRenameDialog(BuildContext context) async {
@@ -1205,6 +1465,11 @@ class _NoteCard extends StatelessWidget {
   final bool isReorderMode;
   final int? index;
 
+  // Selection-mode wiring.
+  final SelectionController? selection;
+  final void Function(MovableItemRef ref)? onLongPressItem;
+  final void Function(MovableItemRef ref)? onTapInSelection;
+
   const _NoteCard({
     super.key,
     required this.metadata,
@@ -1212,18 +1477,41 @@ class _NoteCard extends StatelessWidget {
     required this.onReturn,
     this.isReorderMode = false,
     this.index,
+    this.selection,
+    this.onLongPressItem,
+    this.onTapInSelection,
   });
+
+  MovableItemRef _refFor(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return MovableItemRef(
+      kind: MovableItemKind.note,
+      id: metadata.id,
+      name: metadata.title.isEmpty ? l10n.untitledNote : metadata.title,
+      currentParentId: folderId,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final ref = _refFor(context);
+    final isSelecting = selection != null && selection!.isActive;
+    final isSelected = selection != null && selection!.contains(ref);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final card = Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: isSelected
+          ? colorScheme.primaryContainer.withValues(alpha: 0.5)
+          : null,
       child: ListTile(
         leading: isReorderMode
             ? ReorderableDragStartListener(
                 index: index ?? 0,
                 child: const Icon(Icons.drag_handle, color: Colors.grey),
               )
+            : isSelected
+            ? Icon(Icons.check_circle, size: 40, color: colorScheme.primary)
             : Stack(
                 children: [
                   const Icon(Icons.note, size: 40, color: Colors.blue),
@@ -1280,6 +1568,8 @@ class _NoteCard extends StatelessWidget {
         ),
         trailing: isReorderMode
             ? const Icon(Icons.note, size: 24, color: Colors.blue)
+            : isSelecting
+            ? null
             : PopupMenuButton<NoteCardAction>(
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) {
@@ -1342,6 +1632,8 @@ class _NoteCard extends StatelessWidget {
               ),
         onTap: isReorderMode
             ? null
+            : isSelecting
+            ? () => onTapInSelection?.call(ref)
             : () {
                 AppNavigator.toNoteEditorInstant(
                   context,
@@ -1356,9 +1648,34 @@ class _NoteCard extends StatelessWidget {
               },
         onLongPress: isReorderMode
             ? null
-            : () => _showOptionsBottomSheet(context),
+            : () {
+                if (isSelecting) {
+                  onTapInSelection?.call(ref);
+                } else if (onLongPressItem != null) {
+                  onLongPressItem!(ref);
+                } else {
+                  _showOptionsBottomSheet(context);
+                }
+              },
       ),
     );
+
+    if (isReorderMode) return card;
+
+    if (isSelecting && isSelected && selection != null) {
+      return LongPressDraggable<Set<MovableItemRef>>(
+        data: selection!.items,
+        delay: const Duration(milliseconds: 250),
+        feedback: Material(
+          color: Colors.transparent,
+          child: _DragFeedback(count: selection!.count),
+        ),
+        childWhenDragging: Opacity(opacity: 0.4, child: card),
+        child: card,
+      );
+    }
+
+    return card;
   }
 
   void _showOptionsBottomSheet(BuildContext context) {
@@ -1568,5 +1885,40 @@ class _NoteCard extends StatelessWidget {
     );
     if (!confirmed || !context.mounted) return;
     context.read<OptimizedNoteBloc>().add(DeleteOptimizedNote(metadata.id));
+  }
+}
+
+/// Floating chip displayed under the user's finger while a selection batch
+/// is being dragged onto a target folder.
+class _DragFeedback extends StatelessWidget {
+  final int count;
+
+  const _DragFeedback({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 8,
+      color: colorScheme.primary,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.drag_indicator, color: colorScheme.onPrimary, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              '$count',
+              style: TextStyle(
+                color: colorScheme.onPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

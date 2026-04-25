@@ -1620,4 +1620,32 @@ class AppLocalizationsRo extends AppLocalizations {
   @override
   String get clearMoveHistoryConfirm =>
       'Ștergi tot istoricul de mutări? Această acțiune nu poate fi anulată.';
+
+  @override
+  String get searchFolders => 'Caută foldere';
+
+  @override
+  String get noFoldersFound => 'Niciun folder găsit';
+
+  @override
+  String get recentDestinations => 'Recente';
+
+  @override
+  String itemsMoved(int count) {
+    return '$count elemente mutate';
+  }
+
+  @override
+  String get moveSelected => 'Mută';
+
+  @override
+  String get deleteSelected => 'Șterge';
+
+  @override
+  String deleteSelectedConfirm(int count) {
+    return 'Ștergi $count elemente selectate? Această acțiune nu poate fi anulată.';
+  }
+
+  @override
+  String get selectAll => 'Selectează tot';
 }

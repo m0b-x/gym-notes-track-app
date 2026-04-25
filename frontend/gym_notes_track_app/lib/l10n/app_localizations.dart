@@ -3075,6 +3075,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear all move history? This cannot be undone.'**
   String get clearMoveHistoryConfirm;
+
+  /// Hint text for the folder search field in the move-to picker
+  ///
+  /// In en, this message translates to:
+  /// **'Search folders'**
+  String get searchFolders;
+
+  /// Empty state when folder search returns no results
+  ///
+  /// In en, this message translates to:
+  /// **'No folders found'**
+  String get noFoldersFound;
+
+  /// Section label for recently-used move destinations
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get recentDestinations;
+
+  /// Snackbar shown after a batch move completes
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items moved'**
+  String itemsMoved(int count);
+
+  /// Bottom-bar action label to move all selected items
+  ///
+  /// In en, this message translates to:
+  /// **'Move'**
+  String get moveSelected;
+
+  /// Bottom-bar action label to delete all selected items
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get deleteSelected;
+
+  /// Confirmation dialog body when deleting multiple selected items
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {count} selected items? This cannot be undone.'**
+  String deleteSelectedConfirm(int count);
+
+  /// Tooltip on the select-all action in selection mode
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get selectAll;
 }
 
 class _AppLocalizationsDelegate

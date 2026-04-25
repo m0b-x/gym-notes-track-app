@@ -439,5 +439,13 @@
   "timeDays": "{count}d",
   "originalLocationGone": "Locația inițială nu mai există",
   "moveUndoCanceled": "Restaurare anulată",
-  "clearMoveHistoryConfirm": "Ștergi tot istoricul de mutări? Această acțiune nu poate fi anulată."
+  "clearMoveHistoryConfirm": "Ștergi tot istoricul de mutări? Această acțiune nu poate fi anulată.",
+  "searchFolders": "Caută foldere",
+  "noFoldersFound": "Niciun folder găsit",
+  "recentDestinations": "Recente",
+  "itemsMoved": "{count} elemente mutate",
+  "moveSelected": "Mută",
+  "deleteSelected": "Șterge",
+  "deleteSelectedConfirm": "Ștergi {count} elemente selectate? Această acțiune nu poate fi anulată.",
+  "selectAll": "Selectează tot"
 }

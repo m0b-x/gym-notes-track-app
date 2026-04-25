@@ -101,6 +101,14 @@ class FolderStorageService {
     return folders.map(_folderToModel).toList();
   }
 
+  /// Load every non-deleted folder (used by the folder-name index for
+  /// fast cross-tree search in the picker).
+  Future<List<model.Folder>> loadAllFolders() async {
+    await initialize();
+    final folders = await _repository.getAllFolders();
+    return folders.map(_folderToModel).toList();
+  }
+
   Future<model.Folder?> getFolderById(String folderId) async {
     await initialize();
     final folder = await _repository.getFolderById(folderId);

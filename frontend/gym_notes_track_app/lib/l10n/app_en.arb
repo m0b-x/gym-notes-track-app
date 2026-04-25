@@ -2149,5 +2149,47 @@
   "clearMoveHistoryConfirm": "Clear all move history? This cannot be undone.",
   "@clearMoveHistoryConfirm": {
     "description": "Confirmation dialog body when clearing move history"
+  },
+  "searchFolders": "Search folders",
+  "@searchFolders": {
+    "description": "Hint text for the folder search field in the move-to picker"
+  },
+  "noFoldersFound": "No folders found",
+  "@noFoldersFound": {
+    "description": "Empty state when folder search returns no results"
+  },
+  "recentDestinations": "Recent",
+  "@recentDestinations": {
+    "description": "Section label for recently-used move destinations"
+  },
+  "itemsMoved": "{count} items moved",
+  "@itemsMoved": {
+    "description": "Snackbar shown after a batch move completes",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "moveSelected": "Move",
+  "@moveSelected": {
+    "description": "Bottom-bar action label to move all selected items"
+  },
+  "deleteSelected": "Delete",
+  "@deleteSelected": {
+    "description": "Bottom-bar action label to delete all selected items"
+  },
+  "deleteSelectedConfirm": "Delete {count} selected items? This cannot be undone.",
+  "@deleteSelectedConfirm": {
+    "description": "Confirmation dialog body when deleting multiple selected items",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectAll": "Select all",
+  "@selectAll": {
+    "description": "Tooltip on the select-all action in selection mode"
   }
 }

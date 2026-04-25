@@ -1624,4 +1624,32 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get clearMoveHistoryConfirm =>
       'Gesamten Verschiebeverlauf löschen? Dies kann nicht rückgängig gemacht werden.';
+
+  @override
+  String get searchFolders => 'Ordner suchen';
+
+  @override
+  String get noFoldersFound => 'Keine Ordner gefunden';
+
+  @override
+  String get recentDestinations => 'Zuletzt verwendet';
+
+  @override
+  String itemsMoved(int count) {
+    return '$count Elemente verschoben';
+  }
+
+  @override
+  String get moveSelected => 'Verschieben';
+
+  @override
+  String get deleteSelected => 'Löschen';
+
+  @override
+  String deleteSelectedConfirm(int count) {
+    return '$count ausgewählte Elemente löschen? Dies kann nicht rückgängig gemacht werden.';
+  }
+
+  @override
+  String get selectAll => 'Alle auswählen';
 }

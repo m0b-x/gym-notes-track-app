@@ -1,84 +1,77 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:uuid/uuid.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/folder.dart' as model;
+import '../models/movable_item.dart';
 import '../models/note_metadata.dart';
 import '../utils/custom_snackbar.dart';
 import '../widgets/folder_picker_dialog.dart';
 import 'folder_storage_service.dart';
 import 'move_history_service.dart';
 import 'note_storage_service.dart';
+import 'recent_destinations_service.dart';
 
+/// Outcome of a single move attempt within a batch.
+class _MoveOutcome {
+  final MovableItemRef ref;
+  final bool success;
+  final String? entryId;
+  final String? skipReason;
+
+  const _MoveOutcome.success(this.ref, this.entryId)
+    : success = true,
+      skipReason = null;
+  const _MoveOutcome.failure(this.ref)
+    : success = false,
+      entryId = null,
+      skipReason = 'failure';
+  const _MoveOutcome.skipped(this.ref, this.skipReason)
+    : success = false,
+      entryId = null;
+}
+
+/// Single entry point for every move flow in the app:
+///  - Single-item move via menu     → [moveFolder] / [moveNote]
+///  - Batch move (selection mode)   → [moveItems]
+///  - Drag-and-drop drop on folder  → [moveItemsTo]
+///  - Undo from snackbar / sheet    → [undoEntry] / [undoEntryById] / [undoBatch]
+///
+/// Keeps history, recents, exclusion rules (no-self, no-descendants),
+/// snackbars, and undo recovery in one place so call sites stay tiny.
 class MoveCoordinator {
   const MoveCoordinator._();
+
+  static const _uuid = Uuid();
 
   static FolderStorageService get _folderService =>
       GetIt.I<FolderStorageService>();
   static NoteStorageService get _noteService => GetIt.I<NoteStorageService>();
   static MoveHistoryService get _historyService =>
       GetIt.I<MoveHistoryService>();
+  static RecentDestinationsService get _recents =>
+      GetIt.I<RecentDestinationsService>();
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Public: single-item entry points (kept for menu actions)
+  // ─────────────────────────────────────────────────────────────────────
 
   static Future<void> moveFolder(
     BuildContext context, {
     required model.Folder folder,
     required String? currentParentId,
-  }) async {
-    final l10n = AppLocalizations.of(context)!;
-
-    final descendantIds = await _folderService.getDescendantIds(folder.id);
-    if (!context.mounted) return;
-
-    final picked = await showFolderPickerDialog(
+  }) {
+    return moveItems(
       context,
-      currentFolderId: currentParentId ?? '',
-      excludeFolderIds: {folder.id, ...descendantIds},
-    );
-    if (picked == null || !context.mounted) return;
-
-    if (picked == (currentParentId ?? '')) {
-      CustomSnackbar.show(context, l10n.alreadyInThisFolder);
-      return;
-    }
-
-    final targetParentId = picked.isEmpty ? null : picked;
-
-    final sourceName = currentParentId == null
-        ? null
-        : (await _folderService.getFolderById(currentParentId))?.name;
-    final targetName = targetParentId == null
-        ? null
-        : (await _folderService.getFolderById(targetParentId))?.name;
-
-    if (!context.mounted) return;
-
-    final result = await _folderService.moveFolder(
-      folderId: folder.id,
-      targetParentId: targetParentId,
-    );
-    if (!context.mounted) return;
-
-    if (result == null) {
-      CustomSnackbar.showError(context, l10n.folderMoveFailed);
-      return;
-    }
-
-    _historyService.addMove(
-      itemType: MoveItemType.folder,
-      itemId: folder.id,
-      itemName: folder.name,
-      sourceParentId: currentParentId,
-      sourceParentName: sourceName,
-      targetParentId: targetParentId,
-      targetParentName: targetName,
-    );
-    final entryId = _historyService.history.first.id;
-
-    CustomSnackbar.showWithAction(
-      context,
-      message: l10n.folderMoved,
-      actionLabel: l10n.undo,
-      onAction: () => undoEntryById(context, entryId),
+      items: [
+        MovableItemRef(
+          kind: MovableItemKind.folder,
+          id: folder.id,
+          name: folder.name,
+          currentParentId: currentParentId,
+        ),
+      ],
     );
   }
 
@@ -86,61 +79,239 @@ class MoveCoordinator {
     BuildContext context, {
     required NoteMetadata metadata,
     required String currentFolderId,
-  }) async {
+  }) {
     final l10n = AppLocalizations.of(context)!;
+    final name = metadata.title.isEmpty ? l10n.untitledNote : metadata.title;
+    return moveItems(
+      context,
+      items: [
+        MovableItemRef(
+          kind: MovableItemKind.note,
+          id: metadata.id,
+          name: name,
+          currentParentId: currentFolderId,
+        ),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Public: batch entry — used by selection mode AND drag-and-drop
+  // ─────────────────────────────────────────────────────────────────────
+
+  /// Open the folder picker, then move every [items] entry to the chosen
+  /// destination. If [items] is empty, no-op.
+  static Future<void> moveItems(
+    BuildContext context, {
+    required List<MovableItemRef> items,
+  }) async {
+    if (items.isEmpty) return;
+    final l10n = AppLocalizations.of(context)!;
+
+    // Collect ids to exclude from the picker:
+    //  - every selected folder (can't move into itself)
+    //  - every descendant of every selected folder (no cycles)
+    //  - notes don't constrain anything beyond themselves
+    final excludeIds = <String>{};
+    bool anyFolder = false;
+    bool anyNote = false;
+    for (final ref in items) {
+      if (ref.kind == MovableItemKind.folder) {
+        anyFolder = true;
+        excludeIds.add(ref.id);
+        excludeIds.addAll(await _folderService.getDescendantIds(ref.id));
+      } else {
+        anyNote = true;
+      }
+    }
+    if (!context.mounted) return;
+
+    // Notes can't live at root — if any note is in the batch, disallow root.
+    final allowRoot = !anyNote;
+
+    // Use the first item's current parent as the picker's "current" hint.
+    final currentHint = items.first.currentParentId ?? '';
 
     final picked = await showFolderPickerDialog(
       context,
-      currentFolderId: currentFolderId,
-      allowRoot: false,
+      currentFolderId: currentHint,
+      excludeFolderIds: excludeIds,
+      allowRoot: allowRoot,
     );
-    if (picked == null || picked.isEmpty || !context.mounted) return;
+    if (picked == null || !context.mounted) return;
 
-    if (picked == currentFolderId) {
+    final targetParentId = picked.isEmpty ? null : picked;
+    if (!allowRoot && targetParentId == null) return; // safety net
+
+    // Discard an explicit pick of a folder that's the same as the only item's
+    // current parent — nothing to do.
+    if (items.every((i) => (i.currentParentId ?? '') == picked)) {
       CustomSnackbar.show(context, l10n.alreadyInThisFolder);
       return;
     }
 
-    final sourceName = (await _folderService.getFolderById(
-      currentFolderId,
-    ))?.name;
-    final targetName = (await _folderService.getFolderById(picked))?.name;
-
-    if (!context.mounted) return;
-
-    final result = await _noteService.moveNote(
-      noteId: metadata.id,
-      targetFolderId: picked,
+    await moveItemsTo(
+      context,
+      items: items,
+      targetParentId: targetParentId,
+      // Hint for snackbar wording.
+      isFolderTypeHint: anyFolder && !anyNote,
     );
+  }
+
+  /// Move every [items] entry to [targetParentId] without prompting. Used by
+  /// drag-and-drop where the destination is already known.
+  static Future<void> moveItemsTo(
+    BuildContext context, {
+    required List<MovableItemRef> items,
+    required String? targetParentId,
+    bool isFolderTypeHint = false,
+  }) async {
+    if (items.isEmpty) return;
+    final l10n = AppLocalizations.of(context)!;
+
+    // Resolve target folder name once.
+    final targetName = targetParentId == null
+        ? null
+        : (await _folderService.getFolderById(targetParentId))?.name;
     if (!context.mounted) return;
 
-    if (result == null) {
-      CustomSnackbar.showError(context, l10n.noteMoveFailed);
+    final batchId = items.length > 1 ? _uuid.v4() : null;
+    final outcomes = <_MoveOutcome>[];
+
+    for (final ref in items) {
+      // Skip same-folder moves and self-moves silently.
+      if ((ref.currentParentId ?? '') == (targetParentId ?? '')) {
+        outcomes.add(_MoveOutcome.skipped(ref, 'same'));
+        continue;
+      }
+      if (ref.kind == MovableItemKind.folder && ref.id == targetParentId) {
+        outcomes.add(_MoveOutcome.skipped(ref, 'self'));
+        continue;
+      }
+
+      final sourceName = ref.currentParentId == null
+          ? null
+          : (await _folderService.getFolderById(ref.currentParentId!))?.name;
+
+      final ok = await _executeMove(
+        ref: ref,
+        targetParentId: targetParentId,
+        sourceName: sourceName,
+        targetName: targetName,
+        batchId: batchId,
+      );
+      outcomes.add(
+        ok != null ? _MoveOutcome.success(ref, ok) : _MoveOutcome.failure(ref),
+      );
+    }
+
+    if (!context.mounted) return;
+
+    final successes = outcomes.where((o) => o.success).toList();
+    final failures = outcomes
+        .where((o) => !o.success && o.skipReason == 'failure')
+        .length;
+
+    if (successes.isEmpty) {
+      // Either everything was a no-op or everything failed.
+      if (failures > 0) {
+        CustomSnackbar.showError(
+          context,
+          isFolderTypeHint ? l10n.folderMoveFailed : l10n.noteMoveFailed,
+        );
+      } else {
+        CustomSnackbar.show(context, l10n.alreadyInThisFolder);
+      }
       return;
     }
 
-    final noteName = metadata.title.isEmpty
-        ? l10n.untitledNote
-        : metadata.title;
+    // Track the destination as a recent (only on success).
+    _recents.record(targetParentId);
 
-    _historyService.addMove(
-      itemType: MoveItemType.note,
-      itemId: metadata.id,
-      itemName: noteName,
-      sourceParentId: currentFolderId,
-      sourceParentName: sourceName,
-      targetParentId: picked,
-      targetParentName: targetName,
-    );
-    final entryId = _historyService.history.first.id;
+    // Compose the snackbar message + undo action.
+    final message = successes.length == 1
+        ? (successes.first.ref.kind == MovableItemKind.folder
+              ? l10n.folderMoved
+              : l10n.noteMoved)
+        : l10n.itemsMoved(successes.length);
 
-    CustomSnackbar.showWithAction(
-      context,
-      message: l10n.noteMoved,
-      actionLabel: l10n.undo,
-      onAction: () => undoEntryById(context, entryId),
-    );
+    if (batchId != null) {
+      CustomSnackbar.showWithAction(
+        context,
+        message: message,
+        actionLabel: l10n.undo,
+        onAction: () => undoBatch(context, batchId),
+      );
+    } else {
+      final entryId = successes.first.entryId!;
+      CustomSnackbar.showWithAction(
+        context,
+        message: message,
+        actionLabel: l10n.undo,
+        onAction: () => undoEntryById(context, entryId),
+      );
+    }
+
+    if (failures > 0) {
+      // Surface partial failure as an extra error snackbar.
+      CustomSnackbar.showError(
+        context,
+        isFolderTypeHint ? l10n.folderMoveFailed : l10n.noteMoveFailed,
+      );
+    }
   }
+
+  /// Execute a single move (folder or note). Returns the history entry id
+  /// on success, null on failure.
+  static Future<String?> _executeMove({
+    required MovableItemRef ref,
+    required String? targetParentId,
+    required String? sourceName,
+    required String? targetName,
+    required String? batchId,
+  }) async {
+    if (ref.kind == MovableItemKind.folder) {
+      // Notes can never be the parent of a folder; targetParentId is a folder id or null.
+      final result = await _folderService.moveFolder(
+        folderId: ref.id,
+        targetParentId: targetParentId,
+      );
+      if (result == null) return null;
+      return _historyService.addMove(
+        itemType: MoveItemType.folder,
+        itemId: ref.id,
+        itemName: ref.name,
+        sourceParentId: ref.currentParentId,
+        sourceParentName: sourceName,
+        targetParentId: targetParentId,
+        targetParentName: targetName,
+        batchId: batchId,
+      );
+    } else {
+      // Notes cannot live at root.
+      if (targetParentId == null) return null;
+      final result = await _noteService.moveNote(
+        noteId: ref.id,
+        targetFolderId: targetParentId,
+      );
+      if (result == null) return null;
+      return _historyService.addMove(
+        itemType: MoveItemType.note,
+        itemId: ref.id,
+        itemName: ref.name,
+        sourceParentId: ref.currentParentId,
+        sourceParentName: sourceName,
+        targetParentId: targetParentId,
+        targetParentName: targetName,
+        batchId: batchId,
+      );
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Public: undo
+  // ─────────────────────────────────────────────────────────────────────
 
   static Future<void> undoEntryById(
     BuildContext context,
@@ -166,6 +337,68 @@ class MoveCoordinator {
         await _undoNoteMove(context, entry);
     }
   }
+
+  /// Undo every entry in [batchId]. Stops at the first failure and reports
+  /// it; entries already undone are skipped.
+  static Future<void> undoBatch(BuildContext context, String batchId) async {
+    final l10n = AppLocalizations.of(context)!;
+    final ids = _historyService.entryIdsInBatch(batchId);
+    if (ids.isEmpty) return;
+
+    int undoneCount = 0;
+    for (final id in ids) {
+      if (!context.mounted) return;
+      final entry = _historyService.history
+          .where((e) => e.id == id)
+          .firstOrNull;
+      if (entry == null || entry.isUndone) continue;
+      final ok = await _undoOneSilently(entry);
+      if (ok) undoneCount++;
+    }
+
+    if (!context.mounted) return;
+    if (undoneCount == ids.length) {
+      CustomSnackbar.show(context, l10n.moveUndone);
+    } else if (undoneCount > 0) {
+      CustomSnackbar.show(context, l10n.moveUndone);
+    } else {
+      CustomSnackbar.showError(context, l10n.folderMoveFailed);
+    }
+  }
+
+  /// Internal: like [_undoFolderMove]/[_undoNoteMove] but without snackbars,
+  /// for use inside batch undo. Falls back to root if the source location
+  /// is gone (no interactive prompt for batches).
+  static Future<bool> _undoOneSilently(MoveHistoryEntry entry) async {
+    String? destination = entry.sourceParentId;
+    if (destination != null) {
+      final exists = await _folderService.getFolderById(destination);
+      if (exists == null) destination = null; // fall back to root
+    }
+
+    if (entry.itemType == MoveItemType.folder) {
+      final result = await _folderService.moveFolder(
+        folderId: entry.itemId,
+        targetParentId: destination,
+      );
+      if (result == null) return false;
+    } else {
+      // Notes need a folder; if root fell through, try the first available folder.
+      destination ??= await _firstAvailableFolderId();
+      if (destination == null) return false;
+      final result = await _noteService.moveNote(
+        noteId: entry.itemId,
+        targetFolderId: destination,
+      );
+      if (result == null) return false;
+    }
+    _historyService.markUndone(entry.id);
+    return true;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Internal: single-entry undo with interactive recovery.
+  // ─────────────────────────────────────────────────────────────────────
 
   static Future<void> _undoFolderMove(
     BuildContext context,

@@ -134,7 +134,7 @@ class _MoveHistorySheetState extends State<_MoveHistorySheet> {
   ) {
     final isNote = entry.itemType == MoveItemType.note;
     final targetName = entry.targetParentName ?? l10n.rootFolder;
-    final timeDiff = DateTime.now().difference(entry.movedAt);
+    final timeDiff = DateTime.now().difference(entry.timestamp);
     final timeText = _formatTimeDiff(timeDiff, l10n);
 
     return ListTile(
