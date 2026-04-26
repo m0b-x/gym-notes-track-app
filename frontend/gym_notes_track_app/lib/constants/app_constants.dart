@@ -16,6 +16,18 @@ class AppConstants {
   static const Duration historyDebounceDuration = Duration(milliseconds: 400);
   static const Duration autoScrollTickDuration = Duration(milliseconds: 50);
 
+  // Snackbar timings. Kept short so transient messages never linger:
+  // a snackbar is supposed to be peripheral feedback, not a modal.
+  // - Default: success / informational ("Note moved", "Saved…").
+  // - Error: same as default — errors that need more attention should
+  //   be a dialog, not a long-lived snackbar.
+  // - WithAction: capped equally so an Undo prompt can't outstay its
+  //   welcome; users tap immediately if they're going to.
+  static const Duration snackbarDuration = Duration(seconds: 3);
+  static const Duration snackbarErrorDuration = Duration(seconds: 3);
+  static const Duration snackbarSuccessDuration = Duration(seconds: 2);
+  static const Duration snackbarActionMaxDuration = Duration(seconds: 3);
+
   // ============================================================
   // UI CONSTANTS
   // ============================================================

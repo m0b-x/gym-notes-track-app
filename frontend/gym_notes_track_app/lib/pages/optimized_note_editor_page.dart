@@ -1667,10 +1667,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       if (!mounted) return;
       AppNavigator.pop(context);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${AppLocalizations.of(context)!.noteExportError}: $e'),
-        ),
+      CustomSnackbar.showError(
+        context,
+        '${AppLocalizations.of(context)!.noteExportError}: $e',
       );
     }
   }
