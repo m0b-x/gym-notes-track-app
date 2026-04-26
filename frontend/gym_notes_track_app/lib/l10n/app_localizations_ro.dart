@@ -1546,6 +1546,22 @@ class AppLocalizationsRo extends AppLocalizations {
   String get selectDestinationFolder => 'Selectează destinația';
 
   @override
+  String get moveToTitle => 'Mută în…';
+
+  @override
+  String get currentlyIn => 'Te afli în';
+
+  @override
+  String subfoldersOf(String name) {
+    return 'Subdosare din $name';
+  }
+
+  @override
+  String moveToDestination(String name) {
+    return 'Mută în $name';
+  }
+
+  @override
   String get rootFolder => 'Rădăcină';
 
   @override
@@ -1559,6 +1575,18 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get noFoldersAvailable => 'Nu sunt dosare disponibile';
+
+  @override
+  String get noSubfolders => 'Niciun subdosar aici';
+
+  @override
+  String get back => 'Înapoi';
+
+  @override
+  String get openFolder => 'Deschide dosarul';
+
+  @override
+  String get selectAsDestination => 'Selectează ca destinație';
 
   @override
   String get moveHere => 'Mută aici';

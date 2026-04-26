@@ -1548,6 +1548,22 @@ class AppLocalizationsDe extends AppLocalizations {
   String get selectDestinationFolder => 'Ziel auswählen';
 
   @override
+  String get moveToTitle => 'Verschieben nach…';
+
+  @override
+  String get currentlyIn => 'Aktuell in';
+
+  @override
+  String subfoldersOf(String name) {
+    return 'Unterordner von $name';
+  }
+
+  @override
+  String moveToDestination(String name) {
+    return 'Nach $name verschieben';
+  }
+
+  @override
   String get rootFolder => 'Stammordner';
 
   @override
@@ -1562,6 +1578,18 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get noFoldersAvailable => 'Keine Ordner verfügbar';
+
+  @override
+  String get noSubfolders => 'Keine Unterordner hier';
+
+  @override
+  String get back => 'Zurück';
+
+  @override
+  String get openFolder => 'Ordner öffnen';
+
+  @override
+  String get selectAsDestination => 'Als Ziel auswählen';
 
   @override
   String get moveHere => 'Hierher verschieben';

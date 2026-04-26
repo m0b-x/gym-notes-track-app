@@ -2042,6 +2042,34 @@
   "@selectDestinationFolder": {
     "description": "Title for the folder picker dialog when moving a note"
   },
+  "moveToTitle": "Move to…",
+  "@moveToTitle": {
+    "description": "Title for the folder picker dialog (action-oriented)"
+  },
+  "currentlyIn": "Currently in",
+  "@currentlyIn": {
+    "description": "Label above the path/address bar indicating the user's current browse location"
+  },
+  "subfoldersOf": "Subfolders of {name}",
+  "@subfoldersOf": {
+    "description": "Section overline above the folder list naming the parent folder",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Folder C"
+      }
+    }
+  },
+  "moveToDestination": "Move to {name}",
+  "@moveToDestination": {
+    "description": "Confirm-action label naming the destination folder",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Folder C"
+      }
+    }
+  },
   "rootFolder": "Root",
   "@rootFolder": {
     "description": "Label for the root level in the folder picker"
@@ -2061,6 +2089,22 @@
   "noFoldersAvailable": "No folders available",
   "@noFoldersAvailable": {
     "description": "Empty state in the folder picker when there are no folders"
+  },
+  "noSubfolders": "No subfolders here",
+  "@noSubfolders": {
+    "description": "Empty state in the folder picker when the current folder has no subfolders"
+  },
+  "back": "Back",
+  "@back": {
+    "description": "Tooltip for the back/up navigation button in the folder picker"
+  },
+  "openFolder": "Open folder",
+  "@openFolder": {
+    "description": "Tooltip for the drill-into-folder button in the folder picker"
+  },
+  "selectAsDestination": "Select as destination",
+  "@selectAsDestination": {
+    "description": "Tooltip for the trailing button on a folder row that picks it as the move destination"
   },
   "moveHere": "Move Here",
   "@moveHere": {

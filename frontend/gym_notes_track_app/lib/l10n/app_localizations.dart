@@ -2944,6 +2944,30 @@ abstract class AppLocalizations {
   /// **'Select Destination'**
   String get selectDestinationFolder;
 
+  /// Title for the folder picker dialog (action-oriented)
+  ///
+  /// In en, this message translates to:
+  /// **'Move to…'**
+  String get moveToTitle;
+
+  /// Label above the path/address bar indicating the user's current browse location
+  ///
+  /// In en, this message translates to:
+  /// **'Currently in'**
+  String get currentlyIn;
+
+  /// Section overline above the folder list naming the parent folder
+  ///
+  /// In en, this message translates to:
+  /// **'Subfolders of {name}'**
+  String subfoldersOf(String name);
+
+  /// Confirm-action label naming the destination folder
+  ///
+  /// In en, this message translates to:
+  /// **'Move to {name}'**
+  String moveToDestination(String name);
+
   /// Label for the root level in the folder picker
   ///
   /// In en, this message translates to:
@@ -2973,6 +2997,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No folders available'**
   String get noFoldersAvailable;
+
+  /// Empty state in the folder picker when the current folder has no subfolders
+  ///
+  /// In en, this message translates to:
+  /// **'No subfolders here'**
+  String get noSubfolders;
+
+  /// Tooltip for the back/up navigation button in the folder picker
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get back;
+
+  /// Tooltip for the drill-into-folder button in the folder picker
+  ///
+  /// In en, this message translates to:
+  /// **'Open folder'**
+  String get openFolder;
+
+  /// Tooltip for the trailing button on a folder row that picks it as the move destination
+  ///
+  /// In en, this message translates to:
+  /// **'Select as destination'**
+  String get selectAsDestination;
 
   /// Button to confirm moving the note to the selected folder
   ///

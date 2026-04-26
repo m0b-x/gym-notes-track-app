@@ -1531,6 +1531,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectDestinationFolder => 'Select Destination';
 
   @override
+  String get moveToTitle => 'Move to…';
+
+  @override
+  String get currentlyIn => 'Currently in';
+
+  @override
+  String subfoldersOf(String name) {
+    return 'Subfolders of $name';
+  }
+
+  @override
+  String moveToDestination(String name) {
+    return 'Move to $name';
+  }
+
+  @override
   String get rootFolder => 'Root';
 
   @override
@@ -1544,6 +1560,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noFoldersAvailable => 'No folders available';
+
+  @override
+  String get noSubfolders => 'No subfolders here';
+
+  @override
+  String get back => 'Back';
+
+  @override
+  String get openFolder => 'Open folder';
+
+  @override
+  String get selectAsDestination => 'Select as destination';
 
   @override
   String get moveHere => 'Move Here';
