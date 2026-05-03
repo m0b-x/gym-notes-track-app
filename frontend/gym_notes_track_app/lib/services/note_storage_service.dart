@@ -137,6 +137,49 @@ class NoteStorageService {
     return _noteToMetadata(note);
   }
 
+  /// Service-level entry point for the import pipeline. Performs the same
+  /// uniqueness check as [createNote] but routes through
+  /// [NoteRepository.importNote] so the originating `createdAt` and
+  /// `updatedAt` from the source archive are preserved.
+  Future<NoteMetadata> importNote({
+    required String folderId,
+    required String title,
+    required String content,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+  }) async {
+    await initialize();
+
+    if (title.trim().isNotEmpty &&
+        await noteTitleExistsInFolder(folderId: folderId, title: title)) {
+      throw DuplicateNameException(
+        kind: DuplicateNameKind.note,
+        name: title.trim(),
+        parentId: folderId,
+      );
+    }
+
+    final shouldCompress = CompressionUtils.shouldCompress(content);
+    final preview = NoteMetadata.generatePreview(content);
+    final chunkCount = (content.length / ContentChunkDao.defaultChunkSize)
+        .ceil()
+        .clamp(1, double.maxFinite.toInt());
+
+    final note = await _repository.importNote(
+      folderId: folderId,
+      title: title,
+      content: content,
+      preview: preview,
+      contentLength: content.length,
+      chunkCount: chunkCount,
+      isCompressed: shouldCompress,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+
+    return _noteToMetadata(note);
+  }
+
   Future<NoteMetadata?> updateNote({
     required String noteId,
     String? title,

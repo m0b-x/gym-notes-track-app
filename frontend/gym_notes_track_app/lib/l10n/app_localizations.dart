@@ -1504,6 +1504,66 @@ abstract class AppLocalizations {
   /// **'Share Note'**
   String get shareNote;
 
+  /// Share folder option (exports folder tree as zip archive)
+  ///
+  /// In en, this message translates to:
+  /// **'Share Folder'**
+  String get shareFolder;
+
+  /// Message shown while exporting a folder archive
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting folder...'**
+  String get exportingFolder;
+
+  /// Error message when folder export fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error exporting folder'**
+  String get folderExportError;
+
+  /// Message shown while importing a file or archive
+  ///
+  /// In en, this message translates to:
+  /// **'Importing...'**
+  String get importingFile;
+
+  /// Error message when import fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error importing file'**
+  String get importFileError;
+
+  /// Menu entry to import a note file or folder archive
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get importNoteOrFolder;
+
+  /// Snackbar after a successful import
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {folders} folders, {notes} notes'**
+  String importedSummary(int folders, int notes);
+
+  /// Selection action bar button to export the current selection as a zip
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get shareSelected;
+
+  /// Loading message while building a multi-select archive
+  ///
+  /// In en, this message translates to:
+  /// **'Exporting selection...'**
+  String get exportingSelection;
+
+  /// Error message when multi-select export fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error exporting selection'**
+  String get selectionExportError;
+
   /// Note options bottom sheet title
   ///
   /// In en, this message translates to:

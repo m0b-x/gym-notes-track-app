@@ -972,6 +972,50 @@
   "@shareNote": {
     "description": "Share note option"
   },
+  "shareFolder": "Ordner teilen",
+  "@shareFolder": {
+    "description": "Share folder option (exports folder tree as zip archive)"
+  },
+  "exportingFolder": "Ordner wird exportiert...",
+  "@exportingFolder": {
+    "description": "Message shown while exporting a folder archive"
+  },
+  "folderExportError": "Fehler beim Exportieren des Ordners",
+  "@folderExportError": {
+    "description": "Error message when folder export fails"
+  },
+  "importingFile": "Wird importiert...",
+  "@importingFile": {
+    "description": "Message shown while importing a file or archive"
+  },
+  "importFileError": "Fehler beim Importieren",
+  "@importFileError": {
+    "description": "Error message when import fails"
+  },
+  "importNoteOrFolder": "Importieren",
+  "@importNoteOrFolder": {
+    "description": "Menu entry to import a note file or folder archive"
+  },
+  "importedSummary": "{folders} Ordner und {notes} Notizen importiert",
+  "@importedSummary": {
+    "description": "Snackbar after a successful import",
+    "placeholders": {
+      "folders": {"type": "int"},
+      "notes": {"type": "int"}
+    }
+  },
+  "shareSelected": "Teilen",
+  "@shareSelected": {
+    "description": "Selection action bar button to export the current selection as a zip"
+  },
+  "exportingSelection": "Auswahl wird exportiert...",
+  "@exportingSelection": {
+    "description": "Loading message while building a multi-select archive"
+  },
+  "selectionExportError": "Fehler beim Exportieren der Auswahl",
+  "@selectionExportError": {
+    "description": "Error message when multi-select export fails"
+  },
   "noteOptions": "Notiz-Optionen",
   "@noteOptions": {
     "description": "Note options bottom sheet title"

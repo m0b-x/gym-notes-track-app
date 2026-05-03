@@ -186,6 +186,50 @@ class NoteRepository {
     return note;
   }
 
+  /// Repository-level wrapper around [NoteDao.importNote] that mirrors
+  /// the cache-and-broadcast bookkeeping done by [createNote]. Kept
+  /// distinct so the import path can preserve the originating
+  /// timestamps without polluting the normal create surface.
+  Future<Note> importNote({
+    required String folderId,
+    required String title,
+    required String content,
+    required String preview,
+    required int contentLength,
+    required int chunkCount,
+    required bool isCompressed,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+  }) async {
+    final note = await _noteDao.importNote(
+      folderId: folderId,
+      title: title,
+      preview: preview,
+      contentLength: contentLength,
+      chunkCount: chunkCount,
+      isCompressed: isCompressed,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+
+    await _chunkDao.saveContent(noteId: note.id, content: content);
+
+    _noteCache.put(note.id, note);
+    _contentCache.put(note.id, content);
+    _invalidateFolderCache(folderId);
+
+    _noteChangesController.add(
+      NoteChange(
+        type: NoteChangeType.created,
+        noteId: note.id,
+        folderId: folderId,
+        note: note,
+      ),
+    );
+
+    return note;
+  }
+
   Future<Note?> updateNote({
     required String id,
     String? title,

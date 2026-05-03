@@ -1030,6 +1030,50 @@
   "@shareNote": {
     "description": "Share note option"
   },
+  "shareFolder": "Share Folder",
+  "@shareFolder": {
+    "description": "Share folder option (exports folder tree as zip archive)"
+  },
+  "exportingFolder": "Exporting folder...",
+  "@exportingFolder": {
+    "description": "Message shown while exporting a folder archive"
+  },
+  "folderExportError": "Error exporting folder",
+  "@folderExportError": {
+    "description": "Error message when folder export fails"
+  },
+  "importingFile": "Importing...",
+  "@importingFile": {
+    "description": "Message shown while importing a file or archive"
+  },
+  "importFileError": "Error importing file",
+  "@importFileError": {
+    "description": "Error message when import fails"
+  },
+  "importNoteOrFolder": "Import",
+  "@importNoteOrFolder": {
+    "description": "Menu entry to import a note file or folder archive"
+  },
+  "importedSummary": "Imported {folders} folders, {notes} notes",
+  "@importedSummary": {
+    "description": "Snackbar after a successful import",
+    "placeholders": {
+      "folders": {"type": "int"},
+      "notes": {"type": "int"}
+    }
+  },
+  "shareSelected": "Share",
+  "@shareSelected": {
+    "description": "Selection action bar button to export the current selection as a zip"
+  },
+  "exportingSelection": "Exporting selection...",
+  "@exportingSelection": {
+    "description": "Loading message while building a multi-select archive"
+  },
+  "selectionExportError": "Error exporting selection",
+  "@selectionExportError": {
+    "description": "Error message when multi-select export fails"
+  },
   "noteOptions": "Note Options",
   "@noteOptions": {
     "description": "Note options bottom sheet title"

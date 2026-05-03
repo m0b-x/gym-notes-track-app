@@ -139,6 +139,57 @@ class FolderDao extends DatabaseAccessor<AppDatabase> with _$FolderDaoMixin {
     return insertFolder(companion);
   }
 
+  /// Insert a folder while preserving externally-provided audit fields.
+  /// Used by the import pipeline so a round-tripped folder keeps its
+  /// original `createdAt` and per-folder sort preferences. Position is
+  /// still appended to the parent so the folder shows up at the end and
+  /// doesn't fight existing ordering.
+  Future<Folder> importFolder({
+    required String name,
+    String? parentId,
+    required DateTime createdAt,
+    String? noteSortOrder,
+    String? subfolderSortOrder,
+  }) async {
+    final now = DateTime.now();
+    final id = db.generateId();
+    final hlc = db.generateHlc();
+
+    final maxPosQuery = selectOnly(folders)
+      ..addColumns([folders.position.max()]);
+    if (parentId == null) {
+      maxPosQuery.where(folders.parentId.isNull());
+    } else {
+      maxPosQuery.where(folders.parentId.equals(parentId));
+    }
+    maxPosQuery.where(folders.isDeleted.equals(false));
+    final maxPosResult = await maxPosQuery.getSingle();
+    final maxPos = maxPosResult.read(folders.position.max()) ?? -1;
+
+    final companion = FoldersCompanion(
+      id: Value(id),
+      name: Value(name),
+      parentId: Value(parentId),
+      position: Value(maxPos + 1),
+      createdAt: Value(createdAt),
+      // updatedAt records when this row was written locally; the import
+      // is a fresh write event so `now` is the correct semantic.
+      updatedAt: Value(now),
+      noteSortOrder: noteSortOrder != null
+          ? Value(noteSortOrder)
+          : const Value.absent(),
+      subfolderSortOrder: subfolderSortOrder != null
+          ? Value(subfolderSortOrder)
+          : const Value.absent(),
+      hlcTimestamp: Value(hlc),
+      deviceId: Value(db.deviceId),
+      version: const Value(1),
+      isDeleted: const Value(false),
+    );
+
+    return insertFolder(companion);
+  }
+
   Future<Folder?> updateFolder({
     required String id,
     String? name,

@@ -171,6 +171,50 @@ class NoteDao extends DatabaseAccessor<AppDatabase> with _$NoteDaoMixin {
     return note;
   }
 
+  /// Insert a note while preserving externally-provided audit fields.
+  /// Used by the import pipeline so a round-tripped note keeps the
+  /// `createdAt` and `updatedAt` it carried in its source archive.
+  Future<Note> importNote({
+    required String folderId,
+    required String title,
+    String preview = '',
+    int contentLength = 0,
+    int chunkCount = 0,
+    bool isCompressed = false,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+  }) async {
+    final id = db.generateId();
+    final hlc = db.generateHlc();
+
+    final maxPosQuery = selectOnly(notes)..addColumns([notes.position.max()]);
+    maxPosQuery.where(notes.folderId.equals(folderId));
+    maxPosQuery.where(notes.isDeleted.equals(false));
+    final maxPosResult = await maxPosQuery.getSingle();
+    final maxPos = maxPosResult.read(notes.position.max()) ?? -1;
+
+    final companion = NotesCompanion(
+      id: Value(id),
+      folderId: Value(folderId),
+      title: Value(title),
+      preview: Value(preview),
+      contentLength: Value(contentLength),
+      chunkCount: Value(chunkCount),
+      isCompressed: Value(isCompressed),
+      position: Value(maxPos + 1),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      hlcTimestamp: Value(hlc),
+      deviceId: Value(db.deviceId),
+      version: const Value(1),
+      isDeleted: const Value(false),
+    );
+
+    final note = await insertNote(companion);
+    await _addToFtsIndex(id, title, preview);
+    return note;
+  }
+
   Future<Note?> updateNote({
     required String id,
     String? title,

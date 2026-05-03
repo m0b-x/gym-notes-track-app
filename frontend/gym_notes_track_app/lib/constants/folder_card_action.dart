@@ -1,1 +1,1 @@
-enum FolderCardAction { rename, move, delete }
+enum FolderCardAction { rename, move, share, delete }

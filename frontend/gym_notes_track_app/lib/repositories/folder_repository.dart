@@ -170,6 +170,40 @@ class FolderRepository {
     return folder;
   }
 
+  /// Repository-level wrapper around [FolderDao.importFolder] that mirrors
+  /// the cache-and-broadcast bookkeeping done by [createFolder]. Kept as a
+  /// distinct entry point so calling code (the import service) can't
+  /// accidentally feed user-supplied timestamps into a normal create path.
+  Future<Folder> importFolder({
+    required String name,
+    String? parentId,
+    required DateTime createdAt,
+    String? noteSortOrder,
+    String? subfolderSortOrder,
+  }) async {
+    final folder = await _folderDao.importFolder(
+      name: name,
+      parentId: parentId,
+      createdAt: createdAt,
+      noteSortOrder: noteSortOrder,
+      subfolderSortOrder: subfolderSortOrder,
+    );
+
+    _folderCache[folder.id] = folder;
+    _invalidateParentCache(parentId);
+
+    _folderChangesController.add(
+      FolderChange(
+        type: FolderChangeType.created,
+        folderId: folder.id,
+        parentId: parentId,
+        folder: folder,
+      ),
+    );
+
+    return folder;
+  }
+
   Future<Folder?> updateFolder({
     required String id,
     String? name,

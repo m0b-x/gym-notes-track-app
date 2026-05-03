@@ -7,12 +7,14 @@ import '../l10n/app_localizations.dart';
 class SelectionActionBar extends StatelessWidget {
   final int count;
   final VoidCallback? onMove;
+  final VoidCallback? onShare;
   final VoidCallback? onDelete;
 
   const SelectionActionBar({
     super.key,
     required this.count,
     required this.onMove,
+    required this.onShare,
     required this.onDelete,
   });
 
@@ -37,6 +39,12 @@ class SelectionActionBar extends StatelessWidget {
                 label: l10n.moveSelected,
                 color: colorScheme.primary,
                 onPressed: enabled ? onMove : null,
+              ),
+              _Action(
+                icon: Icons.share_outlined,
+                label: l10n.shareSelected,
+                color: colorScheme.primary,
+                onPressed: enabled ? onShare : null,
               ),
               _Action(
                 icon: Icons.delete_outline,

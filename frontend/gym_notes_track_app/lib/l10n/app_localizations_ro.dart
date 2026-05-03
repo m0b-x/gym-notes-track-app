@@ -765,6 +765,38 @@ class AppLocalizationsRo extends AppLocalizations {
   String get shareNote => 'Partajează Notița';
 
   @override
+  String get shareFolder => 'Partajează Folderul';
+
+  @override
+  String get exportingFolder => 'Se exportă folderul...';
+
+  @override
+  String get folderExportError => 'Eroare la exportul folderului';
+
+  @override
+  String get importingFile => 'Se importă...';
+
+  @override
+  String get importFileError => 'Eroare la import';
+
+  @override
+  String get importNoteOrFolder => 'Importă';
+
+  @override
+  String importedSummary(int folders, int notes) {
+    return 'Importat: $folders foldere, $notes notițe';
+  }
+
+  @override
+  String get shareSelected => 'Distribuie';
+
+  @override
+  String get exportingSelection => 'Se exportă selecția...';
+
+  @override
+  String get selectionExportError => 'Eroare la exportul selecției';
+
+  @override
   String get noteOptions => 'Opțiuni Notiță';
 
   @override

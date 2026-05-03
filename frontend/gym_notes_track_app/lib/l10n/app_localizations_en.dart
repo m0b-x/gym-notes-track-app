@@ -759,6 +759,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shareNote => 'Share Note';
 
   @override
+  String get shareFolder => 'Share Folder';
+
+  @override
+  String get exportingFolder => 'Exporting folder...';
+
+  @override
+  String get folderExportError => 'Error exporting folder';
+
+  @override
+  String get importingFile => 'Importing...';
+
+  @override
+  String get importFileError => 'Error importing file';
+
+  @override
+  String get importNoteOrFolder => 'Import';
+
+  @override
+  String importedSummary(int folders, int notes) {
+    return 'Imported $folders folders, $notes notes';
+  }
+
+  @override
+  String get shareSelected => 'Share';
+
+  @override
+  String get exportingSelection => 'Exporting selection...';
+
+  @override
+  String get selectionExportError => 'Error exporting selection';
+
+  @override
   String get noteOptions => 'Note Options';
 
   @override

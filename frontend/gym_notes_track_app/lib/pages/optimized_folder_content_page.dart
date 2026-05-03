@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:file_picker/file_picker.dart';
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../l10n/app_localizations.dart';
+import '../bloc/import_export/import_export_bloc.dart';
+import '../bloc/import_export/import_export_event.dart';
+import '../bloc/import_export/import_export_state.dart';
 import '../bloc/optimized_folder/optimized_folder_bloc.dart';
 import '../bloc/optimized_folder/optimized_folder_event.dart';
 import '../bloc/optimized_folder/optimized_folder_state.dart';
@@ -15,6 +15,7 @@ import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
 import '../controllers/selection_controller.dart';
 import '../models/content_item.dart';
+import '../models/export_format.dart';
 import '../models/folder.dart';
 import '../models/folder_change.dart';
 import '../models/movable_item.dart';
@@ -36,7 +37,6 @@ import '../utils/custom_snackbar.dart';
 import '../widgets/app_dialogs.dart';
 import '../constants/app_colors.dart';
 import '../constants/folder_card_action.dart';
-import '../constants/json_keys.dart';
 import '../constants/note_card_action.dart';
 import '../services/app_navigator.dart';
 import '../widgets/move_history_sheet.dart';
@@ -86,6 +86,11 @@ class _OptimizedFolderContentPageState
   // drag is active, other selected cards are dimmed so the user sees the
   // whole batch is travelling along with the lifted card.
   bool _isDraggingMulti = false;
+
+  // Tracks whether an in-progress export/import loading dialog is currently
+  // mounted, so the [ImportExportBloc] listener can pop it exactly once on
+  // the terminal state transition.
+  bool _ioLoadingDialogOpen = false;
 
   /// Sync the local list from the bloc list, preserving local order if it
   /// contains exactly the same set of ids (covers the case where we just
@@ -366,6 +371,69 @@ class _OptimizedFolderContentPageState
     }
   }
 
+  /// Multi-select export: ask for the note format, then ship the whole
+  /// selection (notes + folders) through the bloc as a single zip. Folders
+  /// are zipped recursively; loose notes land at the archive root. Selection
+  /// stays active so the user can retry on failure; on success the listener
+  /// shows the share sheet and we clear it.
+  Future<void> _shareSelected() async {
+    final items = _selection.items.toList(growable: false);
+    if (items.isEmpty) return;
+
+    final l10n = AppLocalizations.of(context)!;
+    final hasNotes = items.any((r) => r.kind == MovableItemKind.note);
+
+    // Format only matters when at least one note will be written. If the
+    // selection is folders-only, default to JSON for round-trip fidelity
+    // and skip the prompt entirely.
+    ExportFormat format = ExportFormat.json;
+    if (hasNotes) {
+      final picked = await AppDialogs.choose<ExportFormat>(
+        context,
+        title: l10n.chooseExportFormat,
+        options: [
+          (
+            value: ExportFormat.markdown,
+            label: l10n.exportAsMarkdown,
+            icon: Icons.description_rounded,
+          ),
+          (
+            value: ExportFormat.json,
+            label: l10n.exportAsJson,
+            icon: Icons.data_object_rounded,
+          ),
+          (
+            value: ExportFormat.text,
+            label: l10n.exportAsText,
+            icon: Icons.text_snippet_rounded,
+          ),
+        ],
+      );
+      if (picked == null || !mounted) return;
+      format = picked;
+    }
+
+    final noteIds = <String>{};
+    final folderIds = <String>{};
+    for (final ref in items) {
+      if (ref.kind == MovableItemKind.note) {
+        noteIds.add(ref.id);
+      } else {
+        folderIds.add(ref.id);
+      }
+    }
+
+    context.read<ImportExportBloc>().add(
+      ExportItemsRequested(
+        noteIds: noteIds,
+        folderIds: folderIds,
+        noteFormat: format,
+        share: true,
+      ),
+    );
+    _selection.clear();
+  }
+
   Future<void> _deleteSelected() async {
     final l10n = AppLocalizations.of(context)!;
     final items = _selection.items.toList(growable: false);
@@ -515,6 +583,7 @@ class _OptimizedFolderContentPageState
           ? SelectionActionBar(
               count: _selection.count,
               onMove: _moveSelected,
+              onShare: _shareSelected,
               onDelete: _deleteSelected,
             )
           : null,
@@ -539,30 +608,116 @@ class _OptimizedFolderContentPageState
     // While in selection mode, intercept back to exit selection instead of
     // popping the route. Wraps the existing PopScope so it always gets first dibs.
     if (isSelecting) {
-      return PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (didPop, result) {
-          if (!didPop) _selection.clear();
-        },
-        child: scaffold,
+      return _wrapWithImportExportListener(
+        PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) _selection.clear();
+          },
+          child: scaffold,
+        ),
       );
     }
 
     // Wrap with PopScope to disable iOS swipe-back gesture in subfolders
     // so that drawer swipe gesture works instead
     if (!isRootPage && _folderSwipeEnabled) {
-      return PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (didPop, result) {
-          if (!didPop) {
-            AppNavigator.pop(context);
-          }
-        },
-        child: scaffold,
+      return _wrapWithImportExportListener(
+        PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) {
+              AppNavigator.pop(context);
+            }
+          },
+          child: scaffold,
+        ),
       );
     }
 
-    return scaffold;
+    return _wrapWithImportExportListener(scaffold);
+  }
+
+  /// Listens to [ImportExportBloc] from anywhere in the page subtree and
+  /// surfaces a single loading dialog plus snackbars for export/import
+  /// success and failure. The note and folder cards just dispatch events;
+  /// all UI feedback funnels through here so behavior stays consistent
+  /// whether the trigger came from a folder card or a note card.
+  Widget _wrapWithImportExportListener(Widget child) {
+    return BlocListener<ImportExportBloc, ImportExportState>(
+      listener: _onImportExportState,
+      child: child,
+    );
+  }
+
+  void _onImportExportState(BuildContext context, ImportExportState state) {
+    final l10n = AppLocalizations.of(context)!;
+    if (state is ImportExportInProgress) {
+      if (_ioLoadingDialogOpen) return;
+      _ioLoadingDialogOpen = true;
+      AppDialogs.showLoading(
+        context,
+        message: _progressMessage(state.operation, l10n),
+      );
+      return;
+    }
+
+    if (state is ImportExportInitial) return;
+
+    // Terminal state: pop the loading dialog once if it's still up.
+    if (_ioLoadingDialogOpen) {
+      _ioLoadingDialogOpen = false;
+      AppNavigator.pop(context);
+    }
+
+    if (state is ImportExportFailure) {
+      CustomSnackbar.showError(
+        context,
+        '${_failureMessage(state.operation, l10n)}: ${state.message}',
+      );
+    } else if (state is ImportExportImportSuccess) {
+      CustomSnackbar.showSuccess(
+        context,
+        l10n.importedSummary(
+          state.result.foldersImported,
+          state.result.notesImported,
+        ),
+      );
+      // The import wrote new folders/notes; refresh the visible list so
+      // the user sees them immediately.
+      _loadData();
+    }
+    // Reset the bloc back to Initial so the next operation starts from a
+    // clean slate (also so the next InProgress emission triggers).
+    context.read<ImportExportBloc>().add(const ImportExportReset());
+  }
+
+  String _progressMessage(ImportExportOperation op, AppLocalizations l10n) {
+    switch (op) {
+      case ImportExportOperation.exportNote:
+        return l10n.exportingNote;
+      case ImportExportOperation.exportFolder:
+        return l10n.exportingFolder;
+      case ImportExportOperation.exportItems:
+        return l10n.exportingSelection;
+      case ImportExportOperation.importFile:
+      case ImportExportOperation.importArchive:
+        return l10n.importingFile;
+    }
+  }
+
+  String _failureMessage(ImportExportOperation op, AppLocalizations l10n) {
+    switch (op) {
+      case ImportExportOperation.exportNote:
+        return l10n.noteExportError;
+      case ImportExportOperation.exportFolder:
+        return l10n.folderExportError;
+      case ImportExportOperation.exportItems:
+        return l10n.selectionExportError;
+      case ImportExportOperation.importFile:
+      case ImportExportOperation.importArchive:
+        return l10n.importFileError;
+    }
   }
 
   void _showQuickSortOptions() {
@@ -1209,11 +1364,55 @@ class _OptimizedFolderContentPageState
                     _createNewNote();
                   },
                 ),
+              ListTile(
+                leading: const Icon(Icons.file_download_outlined),
+                title: Text(AppLocalizations.of(context)!.importNoteOrFolder),
+                onTap: () {
+                  AppNavigator.pop(bottomSheetContext);
+                  _pickAndImport();
+                },
+              ),
             ],
           ),
         );
       },
     );
+  }
+
+  /// Opens the platform file picker, then dispatches the appropriate
+  /// import event. Routing by extension keeps the UI thin: the bloc and
+  /// service decide how to actually parse the file.
+  Future<void> _pickAndImport() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['zip', 'json', 'md', 'txt'],
+      withData: false,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final path = result.files.single.path;
+    if (path == null || !mounted) return;
+    final isArchive = path.toLowerCase().endsWith('.zip');
+    final bloc = context.read<ImportExportBloc>();
+    if (isArchive) {
+      bloc.add(
+        ImportArchiveRequested(
+          filePath: path,
+          targetParentFolderId: widget.folderId,
+        ),
+      );
+    } else {
+      // Importing a single note requires a destination folder.
+      if (widget.folderId == null) {
+        CustomSnackbar.showError(
+          context,
+          AppLocalizations.of(context)!.importFileError,
+        );
+        return;
+      }
+      bloc.add(
+        ImportFileRequested(filePath: path, targetFolderId: widget.folderId!),
+      );
+    }
   }
 
   void _showCreateFolderDialog() async {
@@ -1444,6 +1643,8 @@ class _FolderCardState extends State<_FolderCard> {
                       _showRenameDialog(context);
                     case FolderCardAction.move:
                       _showMoveDialog(context);
+                    case FolderCardAction.share:
+                      _shareFolder(context);
                     case FolderCardAction.delete:
                       _confirmDelete(context);
                   }
@@ -1466,6 +1667,16 @@ class _FolderCardState extends State<_FolderCard> {
                         const Icon(Icons.drive_file_move_outlined, size: 20),
                         const SizedBox(width: 12),
                         Text(AppLocalizations.of(context)!.moveToFolder),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: FolderCardAction.share,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.share_rounded, size: 20),
+                        const SizedBox(width: 12),
+                        Text(AppLocalizations.of(context)!.shareFolder),
                       ],
                     ),
                   ),
@@ -1611,6 +1822,12 @@ class _FolderCardState extends State<_FolderCard> {
       context,
       folder: widget.folder,
       currentParentId: widget.parentId,
+    );
+  }
+
+  void _shareFolder(BuildContext context) {
+    context.read<ImportExportBloc>().add(
+      ExportFolderRequested(folderId: widget.folder.id, share: true),
     );
   }
 
@@ -1969,89 +2186,31 @@ class _NoteCard extends StatelessWidget {
   }
 
   void _showExportFormatDialog(BuildContext context) async {
-    final format = await AppDialogs.choose<String>(
+    final format = await AppDialogs.choose<ExportFormat>(
       context,
       title: AppLocalizations.of(context)!.chooseExportFormat,
       options: [
         (
-          value: 'md',
+          value: ExportFormat.markdown,
           label: AppLocalizations.of(context)!.exportAsMarkdown,
           icon: Icons.description_rounded,
         ),
         (
-          value: 'json',
+          value: ExportFormat.json,
           label: AppLocalizations.of(context)!.exportAsJson,
           icon: Icons.data_object_rounded,
         ),
         (
-          value: 'txt',
+          value: ExportFormat.text,
           label: AppLocalizations.of(context)!.exportAsText,
           icon: Icons.text_snippet_rounded,
         ),
       ],
     );
     if (format == null || !context.mounted) return;
-    _exportNote(context, format);
-  }
-
-  Future<void> _exportNote(BuildContext context, String format) async {
-    AppDialogs.showLoading(
-      context,
-      message: AppLocalizations.of(context)!.exportingNote,
+    context.read<ImportExportBloc>().add(
+      ExportNoteRequested(metadata: metadata, format: format, share: true),
     );
-
-    try {
-      final noteRepository = GetIt.I<NoteRepository>();
-      final content = await noteRepository.loadContent(metadata.id);
-
-      String fileContent;
-      String extension;
-
-      switch (format) {
-        case 'md':
-          extension = 'md';
-          final title = metadata.title.isEmpty ? 'Untitled' : metadata.title;
-          fileContent = '# $title\n\n$content';
-          break;
-        case 'json':
-          extension = 'json';
-          final noteJson = {
-            JsonKeys.title: metadata.title,
-            JsonKeys.content: content,
-            JsonKeys.createdAt: metadata.createdAt.toIso8601String(),
-            JsonKeys.updatedAt: metadata.updatedAt.toIso8601String(),
-            JsonKeys.exportedAt: DateTime.now().toIso8601String(),
-          };
-          fileContent = const JsonEncoder.withIndent('  ').convert(noteJson);
-          break;
-        case 'txt':
-        default:
-          extension = 'txt';
-          fileContent = content;
-          break;
-      }
-
-      final tempDir = await getTemporaryDirectory();
-      final sanitizedTitle = metadata.title.isEmpty
-          ? 'note_${metadata.id.substring(0, 8)}'
-          : metadata.title.replaceAll(RegExp(r'[^\w\s-]'), '_');
-      final fileName = '$sanitizedTitle.$extension';
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsString(fileContent);
-
-      if (!context.mounted) return;
-      AppNavigator.pop(context);
-
-      await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
-    } catch (e) {
-      if (!context.mounted) return;
-      AppNavigator.pop(context);
-
-      CustomSnackbar.showError(
-        context,
-        '${AppLocalizations.of(context)!.noteExportError}: $e',
-      );
-    }
   }
 
   void _showRenameDialog(BuildContext context) async {

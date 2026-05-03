@@ -142,6 +142,35 @@ class FolderStorageService {
     return _folderToModel(folder);
   }
 
+  /// Service-level entry point for the import pipeline. Performs the same
+  /// uniqueness check as [createFolder] but routes through
+  /// [FolderRepository.importFolder] so the original `createdAt` and
+  /// per-folder sort preferences from the source archive are preserved.
+  Future<model.Folder> importFolder({
+    required String name,
+    String? parentId,
+    required DateTime createdAt,
+    String? noteSortOrder,
+    String? subfolderSortOrder,
+  }) async {
+    await initialize();
+    if (await folderNameExistsInParent(parentId: parentId, name: name)) {
+      throw DuplicateNameException(
+        kind: DuplicateNameKind.folder,
+        name: name.trim(),
+        parentId: parentId,
+      );
+    }
+    final folder = await _repository.importFolder(
+      name: name,
+      parentId: parentId,
+      createdAt: createdAt,
+      noteSortOrder: noteSortOrder,
+      subfolderSortOrder: subfolderSortOrder,
+    );
+    return _folderToModel(folder);
+  }
+
   Future<model.Folder?> updateFolder({
     required String folderId,
     String? name,

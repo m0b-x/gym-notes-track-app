@@ -766,6 +766,38 @@ class AppLocalizationsDe extends AppLocalizations {
   String get shareNote => 'Notiz teilen';
 
   @override
+  String get shareFolder => 'Ordner teilen';
+
+  @override
+  String get exportingFolder => 'Ordner wird exportiert...';
+
+  @override
+  String get folderExportError => 'Fehler beim Exportieren des Ordners';
+
+  @override
+  String get importingFile => 'Wird importiert...';
+
+  @override
+  String get importFileError => 'Fehler beim Importieren';
+
+  @override
+  String get importNoteOrFolder => 'Importieren';
+
+  @override
+  String importedSummary(int folders, int notes) {
+    return '$folders Ordner und $notes Notizen importiert';
+  }
+
+  @override
+  String get shareSelected => 'Teilen';
+
+  @override
+  String get exportingSelection => 'Auswahl wird exportiert...';
+
+  @override
+  String get selectionExportError => 'Fehler beim Exportieren der Auswahl';
+
+  @override
   String get noteOptions => 'Notiz-Optionen';
 
   @override

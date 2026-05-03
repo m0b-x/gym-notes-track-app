@@ -5,6 +5,7 @@ import '../../repositories/folder_repository.dart';
 import '../../services/folder_storage_service.dart';
 import '../../services/note_storage_service.dart';
 import '../../services/folder_search_service.dart';
+import '../../services/import_export_service.dart';
 import '../../services/markdown_bar_service.dart';
 import '../../services/counter_service.dart';
 import '../../services/mixed_reorder_service.dart';
@@ -14,6 +15,7 @@ import '../../services/recent_destinations_service.dart';
 import '../../services/folder_name_index.dart';
 import '../../bloc/optimized_folder/optimized_folder_bloc.dart';
 import '../../bloc/optimized_note/optimized_note_bloc.dart';
+import '../../bloc/import_export/import_export_bloc.dart';
 import '../../bloc/markdown_bar/markdown_bar_bloc.dart';
 import '../../bloc/counter/counter_bloc.dart';
 
@@ -85,6 +87,14 @@ Future<void> _registerServices() async {
       noteRepository: getIt<NoteRepository>(),
     ),
   );
+
+  getIt.registerSingleton<ImportExportService>(
+    ImportExportService(
+      noteStorage: noteStorageService,
+      folderStorage: folderStorageService,
+      noteRepository: getIt<NoteRepository>(),
+    ),
+  );
 }
 
 void _registerBlocs() {
@@ -105,6 +115,10 @@ void _registerBlocs() {
 
   getIt.registerFactory<CounterBloc>(
     () => CounterBloc(counterService: getIt<CounterService>()),
+  );
+
+  getIt.registerFactory<ImportExportBloc>(
+    () => ImportExportBloc(service: getIt<ImportExportService>()),
   );
 }
 

@@ -230,6 +230,22 @@
   "resetToDefaultsConfirm": "Ești sigur că vrei să resetezi toate setările la valorile implicite?",
   "settingsReset": "Setările au fost resetate la valorile implicite",
   "shareNote": "Partajează Notița",
+  "shareFolder": "Partajează Folderul",
+  "exportingFolder": "Se exportă folderul...",
+  "folderExportError": "Eroare la exportul folderului",
+  "importingFile": "Se importă...",
+  "importFileError": "Eroare la import",
+  "importNoteOrFolder": "Importă",
+  "importedSummary": "Importat: {folders} foldere, {notes} notițe",
+  "@importedSummary": {
+    "placeholders": {
+      "folders": {"type": "int"},
+      "notes": {"type": "int"}
+    }
+  },
+  "shareSelected": "Distribuie",
+  "exportingSelection": "Se exportă selecția...",
+  "selectionExportError": "Eroare la exportul selecției",
   "noteOptions": "Opțiuni Notiță",
   "exportingNote": "Se exportă notița...",
   "noteExportError": "Eroare la exportul notiței",

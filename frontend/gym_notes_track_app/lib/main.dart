@@ -3,16 +3,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:gym_notes_track_app/l10n/app_localizations.dart';
+import 'dart:async';
 import 'bloc/app_settings/app_settings_bloc.dart';
 import 'bloc/optimized_folder/optimized_folder_bloc.dart';
 import 'bloc/optimized_note/optimized_note_bloc.dart';
 import 'bloc/counter/counter_bloc.dart';
+import 'bloc/import_export/import_export_bloc.dart';
 import 'bloc/markdown_bar/markdown_bar_bloc.dart';
 import 'core/di/injection.dart';
 import 'pages/optimized_folder_content_page.dart';
 import 'pages/onboarding_page.dart';
 import 'services/app_navigator.dart';
 import 'services/counter_service.dart';
+import 'services/import_export_service.dart';
 import 'services/settings_service.dart';
 
 void main() async {
@@ -27,6 +30,11 @@ void main() async {
   );
 
   await configureDependencies();
+
+  // Best-effort sweep of stale exports left in the system temp dir
+  // (crashes, denied share dialogs, files from prior installs). Fire
+  // and forget so app launch isn't gated on filesystem hygiene.
+  unawaited(getIt<ImportExportService>().sweepStaleExports());
 
   runApp(const MyApp());
 }
@@ -90,6 +98,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         BlocProvider(
           create: (_) => getIt<CounterBloc>()..add(const LoadCounters()),
         ),
+        BlocProvider(create: (_) => getIt<ImportExportBloc>()),
       ],
       child: BlocBuilder<AppSettingsBloc, AppSettingsState>(
         builder: (context, settingsState) {
