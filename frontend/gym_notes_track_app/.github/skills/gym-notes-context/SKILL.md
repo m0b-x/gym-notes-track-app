@@ -44,6 +44,12 @@ Before writing code, confirm:
    - Preserve `createdAt`/`updatedAt` and folder sort preferences across round-trips by routing through the `importX` methods (`FolderDao.importFolder`, `NoteDao.importNote`, plus the matching repository/service wrappers). Use `createX` only for genuine user-initiated creates.
    - Bumping the archive schema requires bumping `ImportExportService.archiveVersion` *and* updating `_assertSupportedManifest` to accept the previous version.
    - Any export entry point must use `shareExport` (auto-cleans the temp file) and rely on the existing startup `sweepStaleExports` call in `main.dart`.
+8. Does the change touch the markdown preview?
+   - Keep the layering: `Page -> MarkdownPreviewBloc -> MarkdownRenderService -> LineBasedMarkdownBuilder` and `MarkdownPreviewBlocView -> SourceMappedMarkdownView`.
+   - Never put `InlineSpan`s or builders in bloc state; bump `renderHandle` and let the widget pull spans from `bloc.renderService` on demand.
+   - Theme dispatch (`PreviewThemeChanged`) belongs in `MarkdownPreviewBlocView` lifecycle hooks, never in `build()`.
+   - Forward scroll progress directly to `bloc.scrollController.updateProgress(...)`; do not route per-frame scroll signals through the event queue.
+   - Wire link taps via `MarkdownPreviewBlocView.onTapLink`. The page-level handler must validate URL schemes (allowed: `http`, `https`, `mailto`, `tel`) before calling `launchUrl`, and surface failures via `CustomSnackbar.showError` with the `linkOpenFailed` / `linkSchemeNotAllowed` ARB keys.
 
 ## 3. Style Rules To Enforce
 

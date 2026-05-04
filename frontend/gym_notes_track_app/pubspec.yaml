@@ -72,6 +72,9 @@ dependencies:
   # Line-based scrollable list for precise scroll positioning
   scrollable_positioned_list: ^0.3.8
 
+  # Open external URLs (markdown preview hyperlinks)
+  url_launcher: ^6.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -35,6 +35,7 @@ When changing the app, optimize for fast workout-session use:
 - Editor/markdown: local `packages/re_editor`, `flutter_markdown_plus`, `markdown`.
 - Search/debounce: `stream_transform`, FTS5, isolate-backed indexing utilities.
 - Sharing/import: `share_plus`, `file_picker`.
+- External links: `url_launcher` (markdown preview hyperlinks open via `LaunchMode.externalApplication`; only `http`, `https`, `mailto`, `tel` schemes are accepted).
 - Localization: Flutter gen-l10n with locales `en`, `de`, `ro`.
 
 ## Architecture Shape
@@ -62,6 +63,29 @@ Page/Widget -> BLoC -> Service -> Repository -> DAO -> Drift database
 - `lib/services/backup_service.dart`: JSON backup/restore. Keep versioned compatibility when adding persisted fields.
 - `lib/services/import_export_service.dart`: per-note and per-folder share/import (single files or `.zip` archives). Owns archive `manifest.json` versioning, temp-file cleanup, and unique-name resolution. The matching `ImportExportBloc` (`lib/bloc/import_export/`) is the only allowed entry point for the UI.
 - `lib/services/database_manager.dart`: multi-database management and active database selection.
+
+## Markdown Preview Pipeline
+The note-editor preview is fully BLoC-driven. Keep this layering intact:
+
+```text
+OptimizedNoteEditorPage
+  -> MarkdownPreviewBloc (lib/bloc/markdown_preview/)
+     -> MarkdownRenderService (lib/services/markdown_render_service.dart)
+        -> LineBasedMarkdownBuilder (lib/utils/line_based_markdown_builder.dart)
+  -> MarkdownPreviewBlocView (lib/widgets/markdown_preview_bloc_view.dart)
+     -> SourceMappedMarkdownView (lib/widgets/source_mapped_markdown_view.dart)
+```
+
+Non-negotiable invariants:
+
+- Bloc state is `Equatable` and contains only primitives + a `renderHandle: int` token. Never put `InlineSpan` trees, builders, or other heavy objects in state.
+- Spans are pulled from `bloc.renderService.builder` on demand; the widget rebuilds the heavy list only when `renderHandle`, `linesPerChunk`, or `fontSize` change (`buildWhen`).
+- The bloc owns its `MarkdownRenderService` and `PreviewScrollController` and disposes them in `close()`. The page wires callbacks via `bloc.bindCallbacks(onLinkTap:, onCheckboxTap:)`.
+- Theme dispatch (`PreviewThemeChanged`) happens from `MarkdownPreviewBlocView` lifecycle hooks (`didChangeDependencies` + a `DevOptions` listener) — never from `build()`. Equality is keyed on `(brightness, debugEnabled)` so closure-only changes do not trigger rebuilds.
+- Scroll progress bypasses the bloc event queue: the view calls `bloc.scrollController.updateProgress(progress)` directly to avoid per-frame state churn.
+- Adaptive chunk sizing in `MarkdownRenderService._computeAdaptiveChunkSize` is capped at `_maxAdaptiveChunkSize = 100` to keep `scrollToLineIndex` precision usable on huge notes.
+- The empty-preview placeholder text is locale-cached on the page (`_emptyPreviewPlaceholder`) and re-dispatched when the locale changes while the note is empty.
+- Preview hyperlinks: the page passes `_handleLinkTap` to `MarkdownPreviewBlocView.onTapLink`. The handler validates the scheme against `_allowedLinkSchemes` (`http`, `https`, `mailto`, `tel`), launches via `url_launcher` in `LaunchMode.externalApplication`, and shows a localized `CustomSnackbar.showError` (`linkSchemeNotAllowed` / `linkOpenFailed`) on rejection or failure. Do not bypass scheme validation.
 
 ## Data And Persistence Rules
 - The database uses Drift with a singleton active database and background `LazyDatabase` connection.

@@ -1731,4 +1731,10 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get selectAll => 'Selectează tot';
+
+  @override
+  String get linkOpenFailed => 'Linkul nu a putut fi deschis';
+
+  @override
+  String get linkSchemeNotAllowed => 'Tip de link nesuportat';
 }

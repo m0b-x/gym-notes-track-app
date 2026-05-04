@@ -1577,5 +1577,7 @@
   "moveSelected": "Verschieben",
   "deleteSelected": "Löschen",
   "deleteSelectedConfirm": "{count} ausgewählte Elemente löschen? Dies kann nicht rückgängig gemacht werden.",
-  "selectAll": "Alle auswählen"
+  "selectAll": "Alle auswählen",
+  "linkOpenFailed": "Link konnte nicht geöffnet werden",
+  "linkSchemeNotAllowed": "Linktyp nicht unterstützt"
 }

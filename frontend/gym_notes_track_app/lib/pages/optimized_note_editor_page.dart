@@ -1,14 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:re_editor/re_editor.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_localizations.dart';
 import '../widgets/app_dialogs.dart';
@@ -34,6 +31,7 @@ import '../widgets/debug_overlays.dart';
 import '../widgets/interactive_preview_scrollbar.dart';
 import '../widgets/markdown_bar.dart';
 import '../widgets/markdown_preview_bloc_view.dart';
+import '../widgets/note_export_dialog.dart';
 import '../widgets/modern_editor_wrapper.dart';
 import '../widgets/full_markdown_view.dart';
 import '../widgets/source_mapped_markdown_view.dart';
@@ -48,12 +46,13 @@ import '../utils/re_editor_search_controller.dart';
 import '../utils/text_history_observer.dart';
 import '../utils/text_position_utils.dart';
 import '../utils/markdown_list_utils.dart';
+import '../utils/paste_line_breaker.dart';
 import '../controllers/preview_scroll_controller.dart';
+import '../controllers/shortcut_applier.dart';
 import '../database/database.dart';
 import '../constants/app_constants.dart';
 import '../constants/app_spacing.dart';
 import '../constants/font_constants.dart';
-import '../constants/json_keys.dart';
 import '../constants/markdown_constants.dart';
 import '../constants/settings_keys.dart';
 
@@ -377,34 +376,20 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     );
   }
 
-  void _decreaseFontSize() {
-    if (_isPreviewMode) {
-      final next = (_previewFontSize - FontConstants.fontSizeStep).clamp(
-        FontConstants.minFontSize,
-        FontConstants.maxFontSize,
-      );
-      _previewBloc.add(PreviewFontSizeChanged(next));
-    } else {
-      setState(() {
-        _editorFontSize = (_editorFontSize - FontConstants.fontSizeStep).clamp(
-          FontConstants.minFontSize,
-          FontConstants.maxFontSize,
-        );
-      });
-    }
-    _saveFontSizes();
-  }
+  void _decreaseFontSize() => _adjustFontSize(-1);
+  void _increaseFontSize() => _adjustFontSize(1);
 
-  void _increaseFontSize() {
+  void _adjustFontSize(int direction) {
+    final delta = FontConstants.fontSizeStep * direction;
     if (_isPreviewMode) {
-      final next = (_previewFontSize + FontConstants.fontSizeStep).clamp(
+      final next = (_previewFontSize + delta).clamp(
         FontConstants.minFontSize,
         FontConstants.maxFontSize,
       );
       _previewBloc.add(PreviewFontSizeChanged(next));
     } else {
       setState(() {
-        _editorFontSize = (_editorFontSize + FontConstants.fontSizeStep).clamp(
+        _editorFontSize = (_editorFontSize + delta).clamp(
           FontConstants.minFontSize,
           FontConstants.maxFontSize,
         );
@@ -891,6 +876,46 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     }
   }
 
+  /// Schemes accepted from preview hyperlinks. Anything else (e.g.
+  /// `javascript:`, `file:`, `data:`) is rejected with a localized
+  /// snackbar so taps cannot be used as a code-execution surface.
+  static const _allowedLinkSchemes = {'http', 'https', 'mailto', 'tel'};
+
+  Future<void> _handleLinkTap(String rawUrl) async {
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return;
+
+    // Auto-prefix scheme-less URLs starting with `www.` so links like
+    // `www.example.com` written in markdown still launch.
+    final normalized = trimmed.toLowerCase().startsWith('www.')
+        ? 'https://$trimmed'
+        : trimmed;
+
+    final uri = Uri.tryParse(normalized);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final l10n = AppLocalizations.of(context)!;
+
+    if (uri == null ||
+        uri.scheme.isEmpty ||
+        !_allowedLinkSchemes.contains(uri.scheme.toLowerCase())) {
+      if (messenger != null && mounted) {
+        CustomSnackbar.showError(context, l10n.linkSchemeNotAllowed);
+      }
+      return;
+    }
+
+    try {
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && mounted) {
+        CustomSnackbar.showError(context, l10n.linkOpenFailed);
+      }
+    } catch (_) {
+      if (mounted) {
+        CustomSnackbar.showError(context, l10n.linkOpenFailed);
+      }
+    }
+  }
+
   void _handleCheckboxToggle(CheckboxToggleInfo info) {
     final text = _contentController.text;
     final startLine = TextPositionUtils.getLineFromOffset(text, info.start);
@@ -1090,129 +1115,33 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   /// Respects markdown syntax and skips code blocks.
   /// Only formats lines within the pasted range.
   void _handlePasteLineBreaking(int pasteStartOffset, int pasteEndOffset) {
-    // Check if feature is enabled
     if (!_autoBreakLongLines) return;
 
     _isProcessingTextChange = true;
-
-    final calculator = _createWidthCalculator();
-    final availableWidth = calculator.getAvailableTextWidth();
-    if (availableWidth == null || availableWidth <= 0) {
-      _isProcessingTextChange = false;
-      return;
-    }
-
-    final text = _contentController.text;
-    final codeLines = _contentController.codeLines;
-    final lineCount = codeLines.length;
-
-    // Find which lines contain the pasted text
-    final pasteStartLine = TextPositionUtils.getLineFromOffset(
-      text,
-      pasteStartOffset,
+    final result = PasteLineBreaker.run(
+      controller: _contentController,
+      calculator: _createWidthCalculator(),
+      pasteStartOffset: pasteStartOffset,
+      pasteEndOffset: pasteEndOffset,
     );
-    final pasteEndLine = TextPositionUtils.getLineFromOffset(
-      text,
-      pasteEndOffset,
-    );
-
-    // Only process the pasted lines
-    final linesToProcess = <String>[];
-    for (int i = pasteStartLine; i <= pasteEndLine && i < lineCount; i++) {
-      linesToProcess.add(codeLines[i].text);
-    }
-
-    // Use smart line breaking on pasted lines only
-    final result = calculator.breakLinesSmartly(linesToProcess, availableWidth);
-
-    if (result.linesModified > 0) {
-      // Reconstruct the full text with only the pasted portion modified
-      final beforePaste = <String>[];
-      for (int i = 0; i < pasteStartLine; i++) {
-        beforePaste.add(codeLines[i].text);
-      }
-
-      final afterPaste = <String>[];
-      for (int i = pasteEndLine + 1; i < lineCount; i++) {
-        afterPaste.add(codeLines[i].text);
-      }
-
-      final newText = [
-        ...beforePaste,
-        ...result.lines,
-        ...afterPaste,
-      ].join('\n');
-
-      if (newText != _contentController.text) {
-        // Calculate new cursor position after formatting
-        final beforePasteLength =
-            beforePaste.join('\n').length + (beforePaste.isNotEmpty ? 1 : 0);
-        final formattedPasteLength = result.lines.join('\n').length;
-        final newCursorOffset = beforePasteLength + formattedPasteLength;
-
-        final newCursorLine = TextPositionUtils.getLineFromOffset(
-          newText,
-          newCursorOffset,
+    if (result.reformatted) {
+      _previousTextLength = _contentController.textLength;
+      if (mounted) {
+        CustomSnackbar.show(
+          context,
+          AppLocalizations.of(context)!.linesFormatted(result.linesModified),
+          withToolbarOffset: true,
         );
-        final newCursorCol = TextPositionUtils.getColumnFromOffset(
-          newText,
-          newCursorOffset,
-        );
-
-        // Set value directly (not via `set text`) to bypass runRevocableOp.
-        // This makes the reformatting overwrite the paste's undo node
-        // so that paste + line-breaking is a single undo entry.
-        _contentController.value = CodeLineEditingValue(
-          codeLines: newText.codeLines,
-          selection: CodeLineSelection.collapsed(
-            index: newCursorLine,
-            offset: newCursorCol,
-          ),
-        );
-        _previousTextLength = newText.length;
-
-        // Show toast notification
-        if (mounted) {
-          CustomSnackbar.show(
-            context,
-            AppLocalizations.of(context)!.linesFormatted(result.linesModified),
-            withToolbarOffset: true,
-          );
-        }
       }
     }
-
     _isProcessingTextChange = false;
   }
 
-  int _getLineStartOffset(int lineIndex) {
-    int offset = 0;
-    final codeLines = _contentController.codeLines;
-    for (int i = 0; i < lineIndex && i < codeLines.length; i++) {
-      offset += codeLines[i].text.length + 1;
-    }
-    return offset;
-  }
+  int _getLineStartOffset(int lineIndex) =>
+      CodeLineOffsetUtils.lineStartOffset(_contentController, lineIndex);
 
-  /// Convert a CodeLinePosition to a character offset in the full text
-  int _getOffsetFromSelection(CodeLinePosition position) {
-    int offset = 0;
-    final codeLines = _contentController.codeLines;
-    final lineIndex = position.index.clamp(0, codeLines.length - 1);
-
-    // Add length of all lines before the target line
-    for (int i = 0; i < lineIndex; i++) {
-      offset += codeLines[i].text.length + 1; // +1 for newline
-    }
-
-    // Add column offset within the target line
-    if (lineIndex < codeLines.length) {
-      final lineLength = codeLines[lineIndex].text.length;
-      offset += position.offset.clamp(0, lineLength);
-    }
-
-    return offset;
-  }
+  int _getOffsetFromSelection(CodeLinePosition position) =>
+      CodeLineOffsetUtils.offsetFromPosition(_contentController, position);
 
   @override
   Widget build(BuildContext context) {
@@ -1576,6 +1505,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         bottom: kToolbarHeight,
       ),
       onCheckboxToggle: _handleCheckboxToggle,
+      onTapLink: _handleLinkTap,
       onDoubleTapLine: _handleDoubleTapLine,
       // Forward scroll progress to the preview controller so the
       // interactive scrollbar (which listens on the same controller)
@@ -1672,94 +1602,15 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     }
   }
 
-  void _showExportFormatDialog() async {
-    final format = await AppDialogs.choose<String>(
+  void _showExportFormatDialog() {
+    NoteExportDialog.show(
       context,
-      title: AppLocalizations.of(context)!.chooseExportFormat,
-      options: [
-        (
-          value: 'md',
-          label: AppLocalizations.of(context)!.exportAsMarkdown,
-          icon: Icons.description_rounded,
-        ),
-        (
-          value: 'json',
-          label: AppLocalizations.of(context)!.exportAsJson,
-          icon: Icons.data_object_rounded,
-        ),
-        (
-          value: 'txt',
-          label: AppLocalizations.of(context)!.exportAsText,
-          icon: Icons.text_snippet_rounded,
-        ),
-      ],
+      title: _titleController.text,
+      content: _contentController.text,
+      noteId: widget.noteId,
+      createdAt: widget.metadata?.createdAt,
+      updatedAt: widget.metadata?.updatedAt,
     );
-    if (format == null) return;
-    _shareNote(format);
-  }
-
-  Future<void> _shareNote(String format) async {
-    AppDialogs.showLoading(
-      context,
-      message: AppLocalizations.of(context)!.exportingNote,
-    );
-
-    try {
-      final title = _titleController.text.trim();
-      final content = _contentController.text;
-
-      String fileContent;
-      String extension;
-
-      switch (format) {
-        case 'md':
-          extension = 'md';
-          final noteTitle = title.isEmpty ? 'Untitled' : title;
-          fileContent = '# $noteTitle\n\n$content';
-          break;
-        case 'json':
-          extension = 'json';
-          final noteJson = {
-            JsonKeys.title: title,
-            JsonKeys.content: content,
-            JsonKeys.createdAt:
-                widget.metadata?.createdAt.toIso8601String() ??
-                DateTime.now().toIso8601String(),
-            JsonKeys.updatedAt:
-                widget.metadata?.updatedAt.toIso8601String() ??
-                DateTime.now().toIso8601String(),
-            JsonKeys.exportedAt: DateTime.now().toIso8601String(),
-          };
-          fileContent = const JsonEncoder.withIndent('  ').convert(noteJson);
-          break;
-        case 'txt':
-        default:
-          extension = 'txt';
-          fileContent = content;
-          break;
-      }
-
-      final tempDir = await getTemporaryDirectory();
-      final sanitizedTitle = title.isEmpty
-          ? 'note_${widget.noteId?.substring(0, 8) ?? 'new'}'
-          : title.replaceAll(RegExp(r'[^\w\s-]'), '_');
-      final fileName = '$sanitizedTitle.$extension';
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsString(fileContent);
-
-      if (!mounted) return;
-      AppNavigator.pop(context);
-
-      await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
-    } catch (e) {
-      if (!mounted) return;
-      AppNavigator.pop(context);
-
-      CustomSnackbar.showError(
-        context,
-        '${AppLocalizations.of(context)!.noteExportError}: $e',
-      );
-    }
   }
 
   void _editTitle() async {
@@ -1907,117 +1758,17 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     });
   }
 
-  Future<void> _applyShortcut(CustomMarkdownShortcut shortcut) async {
-    final selectedText = _contentController.selectedText;
-    final repeatCount = shortcut.repeatConfig?.count ?? 1;
-    final separator = shortcut.repeatConfig?.separator ?? '\n';
-    final beforeRepeatText = shortcut.repeatConfig?.beforeRepeatText ?? '';
-    final afterRepeatText = shortcut.repeatConfig?.afterRepeatText ?? '';
-
-    if (shortcut.insertType == 'date') {
-      final format = shortcut.dateFormat ?? 'yyyy-MM-dd';
-      final dateOffset = shortcut.dateOffset;
-      final repeatConfig = shortcut.repeatConfig;
-
-      // Calculate base date with offset
-      var baseDate = DateTime.now();
-      if (dateOffset != null) {
-        baseDate = DateTime(
-          baseDate.year + dateOffset.years,
-          baseDate.month + dateOffset.months,
-          baseDate.day + dateOffset.days,
-        );
-      }
-
-      // Generate repeated dates
-      final results = <String>[];
-      for (int i = 0; i < repeatCount; i++) {
-        var date = baseDate;
-
-        // Apply incremental date offset for each repetition
-        if (repeatConfig != null && repeatConfig.incrementDate && i > 0) {
-          date = DateTime(
-            baseDate.year + (repeatConfig.dateIncrementYears * i),
-            baseDate.month + (repeatConfig.dateIncrementMonths * i),
-            baseDate.day + (repeatConfig.dateIncrementDays * i),
-          );
-        }
-
-        final formatted = DateFormat(format).format(date);
-        final middle = selectedText.isNotEmpty && i == 0
-            ? selectedText
-            : formatted;
-        results.add('${shortcut.beforeText}$middle${shortcut.afterText}');
-      }
-
-      var wrapped = results.join(separator);
-
-      // Apply wrapper text around all repeated items
-      if (beforeRepeatText.isNotEmpty || afterRepeatText.isNotEmpty) {
-        wrapped = '$beforeRepeatText$wrapped$afterRepeatText';
-      }
-
-      _contentController.replaceSelection(wrapped);
-    } else if (shortcut.insertType == 'header') {
-      final selection = _contentController.selection;
-      final lineIndex = selection.startIndex;
-      final line = _contentController.codeLines[lineIndex];
-      final lineText = line.text;
-
-      final headerMatch = RegExp(r'^(#{1,6})\s').firstMatch(lineText);
-      String newLineText;
-
-      if (headerMatch != null) {
-        final currentHashes = headerMatch.group(1)!;
-        final textWithoutHeader = lineText.substring(headerMatch.end);
-
-        if (currentHashes.length >= 6) {
-          newLineText = textWithoutHeader;
-        } else {
-          newLineText = '$currentHashes# $textWithoutHeader';
-        }
-      } else {
-        newLineText = '# $lineText';
-      }
-
-      _contentController.selectLine(lineIndex);
-      _contentController.replaceSelection(newLineText);
-    } else if (shortcut.insertType == 'counter') {
-      final counterId = shortcut.counterId;
-      if (counterId == null) return;
-      final counterState = context.read<CounterBloc>().state;
-      if (counterState is! CounterLoaded) return;
-      if (!counterState.counters.any((c) => c.id == counterId)) return;
-      final currentValue = await _incrementCounter(counterId);
-      final valueStr = currentValue.toString();
-      final insertText = '${shortcut.beforeText}$valueStr${shortcut.afterText}';
-      _contentController.replaceSelection(insertText);
-    } else {
-      final before = shortcut.beforeText;
-      final after = shortcut.afterText;
-
-      final isSymmetricWrapper =
-          before == after && before.isNotEmpty && after.isNotEmpty;
-
-      String wrapped;
-      if (selectedText.isEmpty && isSymmetricWrapper) {
-        wrapped = before;
-      } else {
-        wrapped = '$before$selectedText$after';
-      }
-
-      // Apply repeat if configured
-      if (repeatCount > 1) {
-        wrapped = List.filled(repeatCount, wrapped).join(separator);
-      }
-
-      // Apply wrapper text around all repeated items
-      if (beforeRepeatText.isNotEmpty || afterRepeatText.isNotEmpty) {
-        wrapped = '$beforeRepeatText$wrapped$afterRepeatText';
-      }
-
-      _contentController.replaceSelection(wrapped);
-    }
+  Future<void> _applyShortcut(CustomMarkdownShortcut shortcut) {
+    return ShortcutApplier.apply(
+      controller: _contentController,
+      shortcut: shortcut,
+      incrementCounter: (counterId) async {
+        final counterState = context.read<CounterBloc>().state;
+        if (counterState is! CounterLoaded) return null;
+        if (!counterState.counters.any((c) => c.id == counterId)) return null;
+        return _incrementCounter(counterId);
+      },
+    );
   }
 
   /// Opens the bar switcher bottom sheet and applies the selection.

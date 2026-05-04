@@ -3249,6 +3249,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select all'**
   String get selectAll;
+
+  /// Snackbar shown when a markdown preview link cannot be launched
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open link'**
+  String get linkOpenFailed;
+
+  /// Snackbar shown when a markdown preview link uses an unsupported URL scheme
+  ///
+  /// In en, this message translates to:
+  /// **'Link type not supported'**
+  String get linkSchemeNotAllowed;
 }
 
 class _AppLocalizationsDelegate

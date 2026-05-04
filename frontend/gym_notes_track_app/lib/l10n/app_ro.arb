@@ -471,5 +471,7 @@
   "moveSelected": "Mută",
   "deleteSelected": "Șterge",
   "deleteSelectedConfirm": "Ștergi {count} elemente selectate? Această acțiune nu poate fi anulată.",
-  "selectAll": "Selectează tot"
+  "selectAll": "Selectează tot",
+  "linkOpenFailed": "Linkul nu a putut fi deschis",
+  "linkSchemeNotAllowed": "Tip de link nesuportat"
 }

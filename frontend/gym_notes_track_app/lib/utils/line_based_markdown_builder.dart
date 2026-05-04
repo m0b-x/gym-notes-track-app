@@ -7,6 +7,21 @@ import 'markdown_line_height_calculator.dart';
 typedef LinkTapCallback = void Function(String url);
 typedef CheckboxTapCallback = void Function(int start, int end, bool isChecked);
 
+/// Trailing characters trimmed from bare autolinks (GFM-style) so a
+/// sentence like `see https://example.com.` doesn't include the period.
+const _trailingPunctuation = {
+  '.',
+  ',',
+  ';',
+  ':',
+  '!',
+  '?',
+  ')',
+  ']',
+  '\'',
+  '"',
+};
+
 /// Style configuration for line-based markdown rendering.
 class LineMarkdownStyle {
   final double baseFontSize;
@@ -1171,6 +1186,24 @@ class LineBasedMarkdownBuilder {
         // Link text starts after '[', so +1
         final linkTextOffset = contentStart + match.start + 1;
         children.add(_buildLink(linkText, url, baseStyle, linkTextOffset));
+      } else if (match.group(13) != null) {
+        // Bare autolink: https?://... or www....
+        var url = match.group(13)!;
+        var consumed = url.length;
+        // GFM-style trailing punctuation trim so "see https://x.com."
+        // doesn't include the period in the link.
+        while (url.isNotEmpty &&
+            _trailingPunctuation.contains(url[url.length - 1])) {
+          url = url.substring(0, url.length - 1);
+          consumed--;
+        }
+        final href = url.toLowerCase().startsWith('www.')
+            ? 'https://$url'
+            : url;
+        final urlOffset = contentStart + match.start;
+        children.add(_buildLink(url, href, baseStyle, urlOffset));
+        pos = match.start + consumed;
+        continue;
       }
 
       pos = match.end;
@@ -1328,6 +1361,7 @@ class _MarkdownPatterns {
     r'(\*|_)(.*?)\5|' // Italic
     r'(~~)(.*?)\7|' // Strikethrough
     r'(`)(.*?)\9|' // Inline code
-    r'\[([^\]]+)\]\(([^)]+)\)', // Links
+    r'\[([^\]]+)\]\(([^)]+)\)|' // Links
+    r'(https?://[^\s<>()\[\]]+|www\.[^\s<>()\[\]]+)', // Bare autolinks
   );
 }

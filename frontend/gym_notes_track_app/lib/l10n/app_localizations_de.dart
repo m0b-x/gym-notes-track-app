@@ -1735,4 +1735,10 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get selectAll => 'Alle auswählen';
+
+  @override
+  String get linkOpenFailed => 'Link konnte nicht geöffnet werden';
+
+  @override
+  String get linkSchemeNotAllowed => 'Linktyp nicht unterstützt';
 }

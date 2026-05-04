@@ -2300,5 +2300,13 @@
   "selectAll": "Select all",
   "@selectAll": {
     "description": "Tooltip on the select-all action in selection mode"
+  },
+  "linkOpenFailed": "Couldn't open link",
+  "@linkOpenFailed": {
+    "description": "Snackbar shown when a markdown preview link cannot be launched"
+  },
+  "linkSchemeNotAllowed": "Link type not supported",
+  "@linkSchemeNotAllowed": {
+    "description": "Snackbar shown when a markdown preview link uses an unsupported URL scheme"
   }
 }

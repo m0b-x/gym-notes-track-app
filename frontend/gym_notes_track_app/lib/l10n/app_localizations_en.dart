@@ -1716,4 +1716,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get selectAll => 'Select all';
+
+  @override
+  String get linkOpenFailed => 'Couldn\'t open link';
+
+  @override
+  String get linkSchemeNotAllowed => 'Link type not supported';
 }
