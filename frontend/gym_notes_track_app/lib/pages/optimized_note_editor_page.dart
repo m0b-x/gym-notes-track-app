@@ -86,6 +86,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   final GlobalKey _lineNumbersKey = GlobalKey();
   final GlobalKey _scrollIndicatorKey = GlobalKey();
 
+  /// GlobalKey for the [SourceMappedMarkdownView] inside the bloc-view.
+  /// Owned by the page so the binding to [_previewController] is visible
+  /// in one place instead of going page → controller → bloc-view.
+  final GlobalKey<SourceMappedMarkdownViewState> _previewViewKey =
+      GlobalKey<SourceMappedMarkdownViewState>();
+
   bool _hasChanges = false;
   bool _isPreviewMode = false;
   bool _isLoading = true;
@@ -165,6 +171,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
   Timer? _lineCountDebounceTimer;
   Timer? _restorePositionTimer;
+  Timer? _previewProgressDebounce;
   int _lastLineCountTextLength = 0;
   double _previousKeyboardHeight = 0;
   bool _isTogglingPreview = false;
@@ -188,8 +195,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _searchController = ReEditorSearchController();
     _searchController.initialize(_contentController);
     _previewBloc = MarkdownPreviewBloc();
-    _previewController = _previewBloc.scrollController
-      ..bindView(GlobalKey<SourceMappedMarkdownViewState>());
+    _previewController = _previewBloc.scrollController..bindView(_previewViewKey);
+    _previewController.progress.addListener(_onPreviewProgressChanged);
 
     _titleController.addListener(_onTextChanged);
     _contentController.addListener(_onTextChanged);
@@ -230,6 +237,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   /// auto-save service; for brand-new notes that haven't been persisted
   /// yet we trigger an early create.
   void _saveOnLifecycleEvent() {
+    // Capture the current preview scroll position before the OS suspends
+    // us so reopening the note restores where the user actually was.
+    _saveCurrentPosition();
     final noteId = _effectiveNoteId;
     if (noteId != null) {
       // Existing (or already-created) note – force save via provider
@@ -238,6 +248,19 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       // Brand-new note never saved – create it now
       _createNewNoteEarly();
     }
+  }
+
+  /// Debounced reaction to preview scroll progress changes; persists the
+  /// position so a hot reload / app suspend / page rebuild keeps the
+  /// reader anchored.
+  void _onPreviewProgressChanged() {
+    if (!_isPreviewMode) return;
+    _previewProgressDebounce?.cancel();
+    _previewProgressDebounce = Timer(const Duration(milliseconds: 500), () {
+      if (mounted && _isPreviewMode) {
+        _saveCurrentPosition();
+      }
+    });
   }
 
   @override
@@ -296,6 +319,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   void _pushPreviewContent(String text) {
     final content = text.isEmpty ? _emptyPreviewPlaceholder! : text;
     _previewBloc.add(PreviewContentChanged(content));
+    // Keep search-over-preview matches aligned with what the preview is
+    // actually rendering. The controller dedupes on identical inputs and
+    // skips work entirely when no search is active.
+    if (_searchController.isSearching) {
+      _searchController.updateContent(content);
+    }
   }
 
   /// Forwards [_searchController]'s current matches into the preview
@@ -709,16 +738,12 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         });
       }
 
-      // Handle search
-      if (_searchController.isSearching && _searchController.query.isNotEmpty) {
-        final currentQuery = _searchController.query;
-        _searchController.updateContent(currentText);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            _searchController.search(currentQuery);
-          }
-        });
-      }
+      // Handle search: [_pushPreviewContent] above already synced the
+      // search content into the controller and (when search is active)
+      // re-ran the preview search synchronously, so there's nothing to
+      // do here for the preview path. Editor-mode search is handled in
+      // the "Switching to editor mode" branch below where the
+      // CodeFindController takes over.
 
       if (!isLargeNote) {
         return; // Early return for small notes - async callbacks handle the rest
@@ -737,6 +762,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       });
     }
 
+    // Capture the topmost source-line currently visible in the preview so
+    // we can scroll the editor to the same logical position. Falls back
+    // to the saved selection when the preview never mounted / scrolled.
+    final previewTopLine = _previewViewKey.currentState?.currentLineIndex;
+
     // Just flip the mode
     setState(() {
       _isPreviewMode = switchingToPreview;
@@ -744,7 +774,18 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
     // Restore editor scroll: ensure the cursor line is visible after
     // the keyboard animation finishes.
-    _restoreEditorPosition();
+    final lineCount = _contentController.lineCount;
+    if (previewTopLine != null && lineCount > 0) {
+      final clamped = previewTopLine.clamp(0, lineCount - 1);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _editorScrollController.makeCenterIfInvisible(
+          CodeLinePosition(index: clamped, offset: 0),
+        );
+      });
+    } else {
+      _restoreEditorPosition();
+    }
 
     _saveCurrentPosition();
   }
@@ -836,6 +877,8 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     DevOptions.instance.removeListener(_onDevOptionsChanged);
     _lineCountDebounceTimer?.cancel();
     _restorePositionTimer?.cancel();
+    _previewProgressDebounce?.cancel();
+    _previewController.progress.removeListener(_onPreviewProgressChanged);
     // _previewController is owned by _previewBloc — bloc disposes it.
     _previewBloc.close();
     _autoSaveService?.dispose();
@@ -956,11 +999,13 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     // Clamp line index to valid range
     final clampedLineIndex = lineIndex.clamp(0, lineCount - 1);
 
-    // Get the line text and set cursor at the end of the line
+    // Resolve the column inside the source line. The detector reports a
+    // best-effort column from the rendered span; clamp to the source
+    // line length so we never produce an out-of-range CodeLineSelection.
     final lineText = clampedLineIndex < _contentController.codeLines.length
         ? _contentController.codeLines[clampedLineIndex].text
         : '';
-    final endOfLineOffset = lineText.length;
+    final clampedColumn = columnOffset.clamp(0, lineText.length);
 
     // Switch to editor mode
     setState(() {
@@ -971,15 +1016,19 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      // Set cursor position at end of line
+      // Set cursor position at the tapped column (or end-of-line when the
+      // detector couldn't resolve a column, which it signals with -1).
       _contentController.selection = CodeLineSelection.collapsed(
         index: clampedLineIndex,
-        offset: endOfLineOffset,
+        offset: columnOffset < 0 ? lineText.length : clampedColumn,
       );
 
       // Scroll to make the line visible (centered if possible)
       _editorScrollController.makeCenterIfInvisible(
-        CodeLinePosition(index: clampedLineIndex, offset: endOfLineOffset),
+        CodeLinePosition(
+          index: clampedLineIndex,
+          offset: columnOffset < 0 ? lineText.length : clampedColumn,
+        ),
       );
 
       // Focus the editor
@@ -1248,26 +1297,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                       ),
                       if (_allShortcuts.isNotEmpty)
                         RepaintBoundary(
-                          child: MarkdownBar(
-                            shortcuts: _allShortcuts,
-                            isPreviewMode: _isPreviewMode,
-                            canUndo: false,
-                            canRedo: false,
-                            previewFontSize: _previewFontSize,
-                            shortcutRatio: _toolbarShortcutRatio,
-                            splitEnabled: _toolbarSplitEnabled,
-                            utilityConfigs: _utilityConfigs,
-                            onUndo: () {},
-                            onRedo: () {},
-                            onDecreaseFontSize: () {},
-                            onIncreaseFontSize: () {},
-                            onSettings: () {},
-                            onSwitchBar: _showBarSwitcher,
-                            onScrollToTop: () => _scrollToEdge(toTop: true),
-                            onScrollToBottom: () => _scrollToEdge(toTop: false),
-                            onShortcutPressed: (_) {},
-                            onReorderComplete: (_) {},
-                          ),
+                          child: _buildMarkdownBar(enabled: false),
                         ),
                     ],
                   )
@@ -1389,34 +1419,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            MarkdownBar(
-                              shortcuts: _allShortcuts,
-                              isPreviewMode: _isPreviewMode,
-                              canUndo: _historyObserver.canUndo,
-                              canRedo: _historyObserver.canRedo,
-                              previewFontSize: _isPreviewMode
-                                  ? _previewFontSize
-                                  : _editorFontSize,
-                              shortcutRatio: _toolbarShortcutRatio,
-                              splitEnabled: _toolbarSplitEnabled,
-                              utilityConfigs: _utilityConfigs,
-                              onUndo: () => _historyObserver.undo(),
-                              onRedo: () => _historyObserver.redo(),
-                              onPaste: () => _contentController.paste(),
-                              onSwitchBar: _showBarSwitcher,
-                              onDecreaseFontSize: _decreaseFontSize,
-                              onIncreaseFontSize: _increaseFontSize,
-                              onSettings: _openMarkdownSettings,
-                              onShortcutPressed: _handleShortcut,
-                              onReorderComplete: _handleReorderComplete,
-                              onUtilityReorderComplete:
-                                  _handleUtilityReorderComplete,
-                              onShare: _showExportFormatDialog,
-                              onCounter: _showCounterPicker,
-                              onScrollToTop: () => _scrollToEdge(toTop: true),
-                              onScrollToBottom: () =>
-                                  _scrollToEdge(toTop: false),
-                            ),
+                            _buildMarkdownBar(enabled: true),
                             SizedBox(
                               height: MediaQuery.of(context).padding.bottom,
                             ),
@@ -1481,6 +1484,42 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     );
   }
 
+  /// Builds the markdown toolbar shared between the loading skeleton
+  /// and the loaded note view. When [enabled] is `false` the toolbar
+  /// renders with disabled history/font/settings hooks (still showing
+  /// the layout) so the loading skeleton looks identical to the final
+  /// chrome.
+  Widget _buildMarkdownBar({required bool enabled}) {
+    return MarkdownBar(
+      shortcuts: _allShortcuts,
+      isPreviewMode: _isPreviewMode,
+      canUndo: enabled ? _historyObserver.canUndo : false,
+      canRedo: enabled ? _historyObserver.canRedo : false,
+      previewFontSize: enabled
+          ? (_isPreviewMode ? _previewFontSize : _editorFontSize)
+          : _previewFontSize,
+      shortcutRatio: _toolbarShortcutRatio,
+      splitEnabled: _toolbarSplitEnabled,
+      utilityConfigs: _utilityConfigs,
+      onUndo: enabled ? () => _historyObserver.undo() : () {},
+      onRedo: enabled ? () => _historyObserver.redo() : () {},
+      onPaste: enabled ? () => _contentController.paste() : null,
+      onSwitchBar: _showBarSwitcher,
+      onDecreaseFontSize: enabled ? _decreaseFontSize : () {},
+      onIncreaseFontSize: enabled ? _increaseFontSize : () {},
+      onSettings: enabled ? _openMarkdownSettings : () {},
+      onShortcutPressed: enabled ? _handleShortcut : (_) {},
+      onReorderComplete: enabled ? _handleReorderComplete : (_) {},
+      onUtilityReorderComplete: enabled
+          ? _handleUtilityReorderComplete
+          : null,
+      onShare: enabled ? _showExportFormatDialog : null,
+      onCounter: enabled ? _showCounterPicker : null,
+      onScrollToTop: () => _scrollToEdge(toTop: true),
+      onScrollToBottom: () => _scrollToEdge(toTop: false),
+    );
+  }
+
   Widget _buildPreview() {
     // For large notes, don't pre-build preview to avoid memory/CPU overhead
     // The preview will build when actually needed (when switching to preview mode)
@@ -1492,12 +1531,14 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
     // Keep the search controller's content in sync with what the
     // preview is rendering, so in-preview search continues to work.
-    if (_isPreviewMode) {
-      _searchController.updateContent(_previewBloc.state.content);
-    }
+    // NOTE: this used to call _searchController.updateContent(...) here
+    // (a ChangeNotifier mutation during build, which is illegal). The
+    // sync now happens once on toggle in [_togglePreviewMode] and on
+    // every preview content push (see [_pushPreviewContent]).
 
     final markdownView = MarkdownPreviewBlocView(
       bloc: _previewBloc,
+      viewKey: _previewViewKey,
       padding: const EdgeInsets.only(
         left: AppSpacing.lg,
         top: AppSpacing.lg,

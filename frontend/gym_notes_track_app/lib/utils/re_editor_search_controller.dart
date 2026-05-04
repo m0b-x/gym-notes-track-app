@@ -256,6 +256,9 @@ class ReEditorSearchController extends ChangeNotifier {
   /// Update content for preview mode search
   /// Only performs search if we're actively searching to avoid unnecessary CPU usage
   void updateContent(String content) {
+    if (identical(_previewContent, content) || _previewContent == content) {
+      return;
+    }
     _previewContent = content;
     // Only re-run preview search if we're actively searching
     if (_isSearching && _currentQuery.isNotEmpty) {
