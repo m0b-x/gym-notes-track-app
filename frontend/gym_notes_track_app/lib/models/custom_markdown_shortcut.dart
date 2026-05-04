@@ -30,7 +30,10 @@ class CounterBinding extends Equatable {
   final String counterId;
   final CounterOp op;
 
-  const CounterBinding({required this.counterId, this.op = CounterOp.increment});
+  const CounterBinding({
+    required this.counterId,
+    this.op = CounterOp.increment,
+  });
 
   Map<String, dynamic> toJson() => {
     JsonKeys.counterId: counterId,
@@ -277,7 +280,8 @@ class CustomMarkdownShortcut extends Equatable {
             )
           : null,
       counterId: json[JsonKeys.counterId] as String?,
-      counters: (json[JsonKeys.counters] as List?)
+      counters:
+          (json[JsonKeys.counters] as List?)
               ?.map((e) => CounterBinding.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],

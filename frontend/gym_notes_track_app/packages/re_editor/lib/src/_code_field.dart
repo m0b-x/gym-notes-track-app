@@ -1513,7 +1513,7 @@ class _CodeCursorLinePainter extends _CodeFieldExtraPainter {
 
   @override
   void paint(Canvas canvas, Size size, _CodeFieldRender render) {
-    if (_color == null || _color == Colors.transparent || _color!.alpha == 0) {
+    if (_color == null || _color == Colors.transparent || _color!.a == 0.0) {
       return;
     }
     if (!_selection.isCollapsed) {
@@ -1568,7 +1568,7 @@ abstract class _CodeFieldSelectionsPainter extends _CodeFieldExtraPainter {
 
   @override
   void paint(Canvas canvas, Size size, _CodeFieldRender render) {
-    if (_color == Colors.transparent || _color.alpha == 0) {
+    if (_color == Colors.transparent || _color.a == 0.0) {
       return;
     }
     final List<CodeLineRenderParagraph> paragraphs = render.displayParagraphs;
@@ -1730,7 +1730,7 @@ class _CodeFieldCursorPainter extends _CodeFieldExtraPainter {
     if (!_visible ||
         !_willDraw ||
         _color == Colors.transparent ||
-        _color.alpha == 0) {
+        _color.a == 0.0) {
       return;
     }
     final CodeLineRenderParagraph? paragraph =
@@ -1821,7 +1821,7 @@ class _CodeFieldFloatingCursorPainter extends _CodeFieldExtraPainter {
   void paint(Canvas canvas, Size size, _CodeFieldRender render) {
     if (!_position.isActive() ||
         _color == Colors.transparent ||
-        _color.alpha == 0) {
+        _color.a == 0.0) {
       return;
     }
     _drawFloatingCaret(canvas, _position.floatingCursorOffset!, size);

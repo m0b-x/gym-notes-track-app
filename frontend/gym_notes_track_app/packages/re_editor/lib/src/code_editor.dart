@@ -523,10 +523,10 @@ class _CodeEditorState extends State<CodeEditor> {
       backgroundColor: widget.style?.backgroundColor,
       selectionColor: widget.style?.selectionColor ??
           selectionTheme.selectionColor ??
-          theme.colorScheme.primary.withOpacity(0.4),
+          theme.colorScheme.primary.withValues(alpha: 0.4),
       highlightColor: widget.style?.highlightColor ??
           selectionTheme.selectionColor ??
-          theme.colorScheme.primary.withOpacity(0.4),
+          theme.colorScheme.primary.withValues(alpha: 0.4),
       cursorColor: widget.style?.cursorColor ??
           selectionTheme.cursorColor ??
           theme.colorScheme.primary,
@@ -572,11 +572,23 @@ class _CodeEditorState extends State<CodeEditor> {
       child = Focus(
           autofocus: autofocus,
           focusNode: _focusNode,
-          onKey: (node, event) {
-            if (event.isKeyPressed(LogicalKeyboardKey.backspace)) {
+          onKeyEvent: (node, event) {
+            // Only act on key-down events for the actual key in this event.
+            // Using `event.isKeyPressed(...)` (or the legacy raw key API)
+            // consults the global pressed-keys tracker, which can get stuck
+            // on a long-press (auto-repeat) when the matching key-up event
+            // is missed. That caused subsequent keystrokes (e.g. typing a
+            // letter after holding backspace) to also trigger
+            // `deleteBackward()`, making the typed character appear and
+            // then immediately disappear.
+            if (event is! KeyDownEvent) {
+              return KeyEventResult.ignored;
+            }
+            if (event.logicalKey == LogicalKeyboardKey.backspace) {
               _editingController.deleteBackward();
               return KeyEventResult.handled;
-            } else if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
+            } else if (event.logicalKey == LogicalKeyboardKey.enter ||
+                event.logicalKey == LogicalKeyboardKey.numpadEnter) {
               _editingController.applyNewLine();
               return KeyEventResult.handled;
             }

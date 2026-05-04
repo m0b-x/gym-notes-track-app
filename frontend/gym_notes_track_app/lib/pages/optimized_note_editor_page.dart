@@ -1888,8 +1888,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
             return _decrementCounter(counterId);
           case CounterOp.keep:
             // Counter existence already confirmed by the .any() guard above.
-            final counter = counterState.counters
-                .firstWhere((c) => c.id == counterId);
+            final counter = counterState.counters.firstWhere(
+              (c) => c.id == counterId,
+            );
             return counterState.counterValues[counterId] ?? counter.startValue;
         }
       },

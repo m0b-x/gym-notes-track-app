@@ -6,10 +6,7 @@ import '../models/custom_markdown_shortcut.dart';
 /// Async callback that mutates a counter (increment or decrement) and
 /// returns the post-mutation value, or `null` when the counter doesn't
 /// exist or isn't loaded.
-typedef CounterMutator = Future<int?> Function(
-  String counterId,
-  CounterOp op,
-);
+typedef CounterMutator = Future<int?> Function(String counterId, CounterOp op);
 
 /// Token regex matching `{c1}`, `{c2}`, etc. Each occurrence triggers
 /// one counter mutation when expanded.
@@ -52,9 +49,9 @@ class ShortcutApplier {
 
     final hasCounterToken =
         _counterTokenPattern.hasMatch(shortcut.beforeText) ||
-            _counterTokenPattern.hasMatch(shortcut.afterText) ||
-            _counterTokenPattern.hasMatch(beforeRepeatText) ||
-            _counterTokenPattern.hasMatch(afterRepeatText);
+        _counterTokenPattern.hasMatch(shortcut.afterText) ||
+        _counterTokenPattern.hasMatch(beforeRepeatText) ||
+        _counterTokenPattern.hasMatch(afterRepeatText);
 
     final baseDate = _resolveBaseDate(shortcut);
     final dateFormat = shortcut.dateFormat ?? 'yyyy-MM-dd';
