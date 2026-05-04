@@ -1,8 +1,16 @@
 part of re_editor;
 
-const CodeLines _kInitialCodeLines = CodeLines([
-  CodeLineSegment(codeLines: [CodeLine.empty])
-]);
+// Sentinel for an "empty" editor state. The cache fields on [CodeLines] mean
+// this can no longer be `const`, but both list levels are wrapped in
+// `List.unmodifiable` to restore the same throw-on-write protection that
+// `const` provided: any attempt to mutate the segments or their contents
+// throws [UnsupportedError] at runtime, while the cache fields (which are
+// instance members, not inside the lists) remain writable as required.
+final CodeLines _kInitialCodeLines = CodeLines(
+  List.unmodifiable([
+    CodeLineSegment.of(codeLines: List.unmodifiable([CodeLine.empty])),
+  ]),
+);
 
 const int _kUnitCodeWhitespace = 0x20;
 const List<String> _kClosures = ['{}', '[]', '()'];

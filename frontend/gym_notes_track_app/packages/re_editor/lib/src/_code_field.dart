@@ -534,9 +534,20 @@ class _CodeFieldRender extends RenderBox implements MouseTrackerAnnotation {
       Offset(_horizontalViewport?.pixels ?? 0, _verticalViewport.pixels);
 
   CodeLineRenderParagraph? findDisplayParagraphByLineIndex(int index) {
-    for (final CodeLineRenderParagraph paragraph in _displayParagraphs) {
-      if (paragraph.index == index) {
-        return paragraph;
+    // _displayParagraphs is sorted by `index` ascending and contiguous
+    // (or near-contiguous when chunks are involved); binary search for O(log n).
+    final list = _displayParagraphs;
+    int lo = 0;
+    int hi = list.length - 1;
+    while (lo <= hi) {
+      final int mid = (lo + hi) >> 1;
+      final int midIndex = list[mid].index;
+      if (midIndex == index) {
+        return list[mid];
+      } else if (midIndex < index) {
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
       }
     }
     return null;
@@ -1298,17 +1309,31 @@ class _CodeFieldRender extends RenderBox implements MouseTrackerAnnotation {
 
   CodeLineRenderParagraph? _findDisplayRenderParagraph(Offset offset,
       [bool canOverflow = false]) {
-    for (final CodeLineRenderParagraph paragraph in _displayParagraphs) {
-      if (paragraph.inVerticalRange(offset)) {
-        return paragraph;
+    final list = _displayParagraphs;
+    if (list.isEmpty) {
+      return null;
+    }
+    // Paragraphs are sorted top-to-bottom and non-overlapping vertically;
+    // binary search by `top`/`bottom` instead of an O(n) linear scan.
+    int lo = 0;
+    int hi = list.length - 1;
+    while (lo <= hi) {
+      final int mid = (lo + hi) >> 1;
+      final p = list[mid];
+      if (p.inVerticalRange(offset)) {
+        return p;
+      } else if (offset.dy < p.top) {
+        hi = mid - 1;
+      } else {
+        lo = mid + 1;
       }
     }
-    if (canOverflow && _displayParagraphs.isNotEmpty) {
-      final CodeLineRenderParagraph top = _displayParagraphs.first;
+    if (canOverflow) {
+      final CodeLineRenderParagraph top = list.first;
       if (offset.dy <= top.bottom) {
         return top;
       }
-      final CodeLineRenderParagraph bottom = _displayParagraphs.last;
+      final CodeLineRenderParagraph bottom = list.last;
       if (offset.dy >= bottom.top) {
         return bottom;
       }
@@ -1357,7 +1382,7 @@ class _CodeFieldRender extends RenderBox implements MouseTrackerAnnotation {
     final List<CodeLineRenderParagraph> paragraphs = [];
     for (int i = startIndex; i < _codes.length; i++) {
       final IParagraph paragraph = _buildParagraph(i, maxWidth);
-      _displayParagraphs.add(CodeLineRenderParagraph(
+      paragraphs.add(CodeLineRenderParagraph(
         index: i,
         paragraph: paragraph,
         offset: Offset(paddingLeft, offset + paddingTop),

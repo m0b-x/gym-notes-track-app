@@ -164,10 +164,22 @@ class _CodeHighlighter extends ValueNotifier<List<_HighlightResult>> {
 }
 
 class _CodeHighlightEngine {
+  // Debounce window for highlight requests. Each keystroke notifies the
+  // controller, which would otherwise enqueue a full-document tokenization
+  // job per character. Coalescing within this window keeps the isolate
+  // queue from growing unbounded under fast typing.
+  static const Duration _debounceDuration = Duration(milliseconds: 50);
+
   late final _IsolateTasker<_HighlightPayload, List<_HighlightResult>> _tasker;
 
   Highlight? _highlight;
   CodeHighlightTheme? _theme;
+
+  // Pending request state. Only the most recent (codes, callback) is kept;
+  // earlier ones are superseded.
+  Timer? _debounceTimer;
+  CodeLines? _pendingCodes;
+  IsolateCallback<List<_HighlightResult>>? _pendingCallback;
 
   _CodeHighlightEngine(final CodeHighlightTheme? theme) {
     this.theme = theme;
@@ -195,6 +207,10 @@ class _CodeHighlightEngine {
   }
 
   void dispose() {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    _pendingCodes = null;
+    _pendingCallback = null;
     _tasker.close();
   }
 
@@ -206,6 +222,29 @@ class _CodeHighlightEngine {
     }
     final Map<String, CodeHighlightThemeMode>? modes = _theme?.languages;
     if (modes == null) {
+      callback(const []);
+      return;
+    }
+    // Supersede any pending request — we only ever care about the latest
+    // document state. The previous callback is dropped intentionally.
+    _pendingCodes = codes;
+    _pendingCallback = callback;
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(_debounceDuration, _flush);
+  }
+
+  void _flush() {
+    _debounceTimer = null;
+    final CodeLines? codes = _pendingCodes;
+    final IsolateCallback<List<_HighlightResult>>? callback = _pendingCallback;
+    _pendingCodes = null;
+    _pendingCallback = null;
+    if (codes == null || callback == null) {
+      return;
+    }
+    final Highlight? highlight = _highlight;
+    final Map<String, CodeHighlightThemeMode>? modes = _theme?.languages;
+    if (highlight == null || modes == null) {
       callback(const []);
       return;
     }

@@ -201,6 +201,12 @@ class _ParagraphImpl extends IParagraph {
 }
 
 class _CodeParagraphProvider {
+  // Bound the cache so we don't retain `ui.Paragraph` (and its native skia
+  // memory) for every line ever scrolled past. Tuned for ~10x a typical
+  // viewport on mobile — large enough to hide cache misses during scroll,
+  // small enough to keep peak memory bounded on long documents.
+  static const int _kMaxCacheSize = 512;
+
   final Map<TextSpan, _ParagraphImpl> _cachedParagraphs;
 
   ui.TextStyle? _style;
@@ -249,6 +255,9 @@ class _CodeParagraphProvider {
     }
     final _ParagraphImpl? cache = _cachedParagraphs[span];
     if (cache != null) {
+      // Touch for LRU: re-insert at the tail (insertion order = recency).
+      _cachedParagraphs.remove(span);
+      _cachedParagraphs[span] = cache;
       return cache;
     }
     final _ParagraphImpl impl;
@@ -262,6 +271,10 @@ class _CodeParagraphProvider {
       impl = _build(span, plainText, false);
     }
     _cachedParagraphs[span] = impl;
+    if (_cachedParagraphs.length > _kMaxCacheSize) {
+      // Evict the oldest entry (head of the insertion-ordered map).
+      _cachedParagraphs.remove(_cachedParagraphs.keys.first);
+    }
     return impl;
   }
 

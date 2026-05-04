@@ -4,7 +4,11 @@ class CodeChunkController extends ValueNotifier<List<CodeChunk>> {
   late final CodeLineEditingController _controller;
   final CodeChunkAnalyzer _analyzer;
 
-  late final _IsolateTasker<_CodeChunkAnalyzePayload, _CodeChunkAnalyzeResult>
+  // Null when the analyzer is a no-op ([NonCodeChunkAnalyzer]). In that case
+  // no isolate is spawned and analysis is skipped entirely — important on
+  // low-end Android where each background isolate costs a platform thread
+  // and a separate Dart heap.
+  late final _IsolateTasker<_CodeChunkAnalyzePayload, _CodeChunkAnalyzeResult>?
       _tasker;
 
   late bool _shouldNotUpdateChunks;
@@ -14,10 +18,15 @@ class CodeChunkController extends ValueNotifier<List<CodeChunk>> {
     _controller = controller is _CodeLineEditingControllerDelegate
         ? controller.delegate
         : controller;
+    _shouldNotUpdateChunks = false;
+    if (_analyzer is NonCodeChunkAnalyzer) {
+      // Skip the isolate entirely; chunks are always empty.
+      _tasker = null;
+      return;
+    }
     _controller.addListener(_onCodeChanged);
     _tasker = _IsolateTasker<_CodeChunkAnalyzePayload, _CodeChunkAnalyzeResult>(
         'CodeChunk', _run);
-    _shouldNotUpdateChunks = false;
     _runChunkAnalyzeTask();
   }
 
@@ -87,11 +96,19 @@ class CodeChunkController extends ValueNotifier<List<CodeChunk>> {
   }
 
   CodeChunk? findByIndex(int index) {
-    for (final CodeChunk chunk in value) {
-      if (chunk.index == index) {
-        return chunk;
-      } else if (chunk.index > index) {
-        break;
+    // `value` is sorted by `index` ascending; binary search.
+    final list = value;
+    int lo = 0;
+    int hi = list.length - 1;
+    while (lo <= hi) {
+      final int mid = (lo + hi) >> 1;
+      final int midIndex = list[mid].index;
+      if (midIndex == index) {
+        return list[mid];
+      } else if (midIndex < index) {
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
       }
     }
     return null;
@@ -103,8 +120,10 @@ class CodeChunkController extends ValueNotifier<List<CodeChunk>> {
 
   @override
   void dispose() {
-    _controller.removeListener(_onCodeChanged);
-    _tasker.close();
+    if (_tasker != null) {
+      _controller.removeListener(_onCodeChanged);
+      _tasker!.close();
+    }
     super.dispose();
   }
 
@@ -123,8 +142,12 @@ class CodeChunkController extends ValueNotifier<List<CodeChunk>> {
   }
 
   void _runChunkAnalyzeTask() {
+    final tasker = _tasker;
+    if (tasker == null) {
+      return;
+    }
     final CodeLines codeLines = _controller.codeLines;
-    _tasker.run(_CodeChunkAnalyzePayload(_analyzer, codeLines), (result) {
+    tasker.run(_CodeChunkAnalyzePayload(_analyzer, codeLines), (result) {
       if (_controller.codeLines.equals(codeLines)) {
         value = result.chunks;
         _expandInvalidCollapsedChunks(result.invalidCollapsedChunkIndexes);

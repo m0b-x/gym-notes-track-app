@@ -5,7 +5,36 @@ const int _kCodeLineSegamentDefaultSize = 256;
 class CodeLines {
   final List<CodeLineSegment> segments;
 
-  const CodeLines(this.segments);
+  // Cached aggregates. `null` means stale and must be recomputed lazily.
+  // These avoid O(segments) folds on every call to length/lineCount/charCount,
+  // which are hit per frame and per line during scroll/paint/edit.
+  int? _lengthCache;
+  int? _lineCountCache;
+  int? _charCountCache;
+
+  // Cumulative end-offsets per segment. `_segmentEnds[i]` is the sum of
+  // `segments[0..i].length`. Used as a binary-search index by `operator []`.
+  // Stale when `null`.
+  List<int>? _segmentEnds;
+
+  // "Last segment hit" cache for sequential `operator []` access (the common
+  // pattern: paint loop, find iteration, line indicator, etc.).
+  int _lastHitSegment = 0;
+  int _lastHitStart = 0;
+  int _lastHitEnd = 0;
+
+  // Cache the joined-string form. Two slots because the editor concurrently
+  // asks for both the user-facing text (`asString(lineBreak, true)` via
+  // `controller.text`) and the highlight payload (`asString(lf, false)`).
+  // A single-slot cache would thrash between them on every keystroke.
+  String? _asStringCache0;
+  TextLineBreak? _asStringCache0LineBreak;
+  bool _asStringCache0ExpandChunks = true;
+  String? _asStringCache1;
+  TextLineBreak? _asStringCache1LineBreak;
+  bool _asStringCache1ExpandChunks = true;
+
+  CodeLines(this.segments);
 
   factory CodeLines.empty() {
     return CodeLines.of([]);
@@ -21,7 +50,9 @@ class CodeLines {
       if (segment.isEmpty) {
         continue;
       }
-      segments.add(segment.copyWith(dirty: true));
+      // `cloneShallowDirty` reuses cached lineCount/charCount instead of
+      // re-iterating segment.codeLines (was O(N) per keystroke).
+      segments.add(segment.cloneShallowDirty());
     }
     return CodeLines(segments);
   }
@@ -42,33 +73,108 @@ class CodeLines {
     return CodeLines(segments);
   }
 
+  /// Invalidate all derived caches after a structural mutation.
+  void _invalidate() {
+    _lengthCache = null;
+    _lineCountCache = null;
+    _charCountCache = null;
+    _segmentEnds = null;
+    _lastHitSegment = 0;
+    _lastHitStart = 0;
+    _lastHitEnd = 0;
+    _asStringCache0 = null;
+    _asStringCache0LineBreak = null;
+    _asStringCache1 = null;
+    _asStringCache1LineBreak = null;
+  }
+
+  /// (Re)build the prefix-sum index over segment lengths. O(segments).
+  List<int> _ensureSegmentEnds() {
+    var ends = _segmentEnds;
+    if (ends != null) {
+      return ends;
+    }
+    ends = List<int>.filled(segments.length, 0);
+    int total = 0;
+    for (int i = 0; i < segments.length; i++) {
+      total += segments[i].length;
+      ends[i] = total;
+    }
+    _segmentEnds = ends;
+    _lengthCache = total;
+    return ends;
+  }
+
   CodeLine get first => segments.first.first;
 
   CodeLine get last => segments.last.last;
 
-  int get length => segments.fold(
-      0, (previousValue, element) => previousValue += element.length);
+  int get length {
+    final cached = _lengthCache;
+    if (cached != null) {
+      return cached;
+    }
+    int total = 0;
+    for (final CodeLineSegment segment in segments) {
+      total += segment.length;
+    }
+    return _lengthCache = total;
+  }
 
   bool get isEmpty => segments.isEmpty || length == 0;
 
   bool get isNotEmpty => !isEmpty;
 
-  int get lineCount => segments.fold(
-      0, (previousValue, element) => previousValue += element.lineCount);
+  int get lineCount {
+    final cached = _lineCountCache;
+    if (cached != null) {
+      return cached;
+    }
+    int total = 0;
+    for (final CodeLineSegment segment in segments) {
+      total += segment.lineCount;
+    }
+    return _lineCountCache = total;
+  }
 
-  int get charCount => segments.fold(
-      0, (previousValue, element) => previousValue += element.charCount);
+  int get charCount {
+    final cached = _charCountCache;
+    if (cached != null) {
+      return cached;
+    }
+    int total = 0;
+    for (final CodeLineSegment segment in segments) {
+      total += segment.charCount;
+    }
+    return _charCountCache = total;
+  }
 
   CodeLine operator [](int index) {
-    int offset = 0;
-    for (final CodeLineSegment segment in segments) {
-      if (index - offset >= segment.length) {
-        offset += segment.length;
+    // Fast path: same segment as the previous lookup (very common during
+    // sequential paint/iteration).
+    if (index >= _lastHitStart && index < _lastHitEnd) {
+      return segments[_lastHitSegment][index - _lastHitStart];
+    }
+    final List<int> ends = _ensureSegmentEnds();
+    if (ends.isEmpty || index < 0 || index >= ends.last) {
+      throw RangeError.range(index, 0, ends.isEmpty ? -1 : ends.last - 1);
+    }
+    // Binary search for the segment whose [start, end) contains `index`.
+    int lo = 0;
+    int hi = ends.length - 1;
+    while (lo < hi) {
+      final int mid = (lo + hi) >> 1;
+      if (ends[mid] <= index) {
+        lo = mid + 1;
       } else {
-        return segment[index - offset];
+        hi = mid;
       }
     }
-    throw RangeError.range(index, 0, length - 1);
+    final int segStart = lo == 0 ? 0 : ends[lo - 1];
+    _lastHitSegment = lo;
+    _lastHitStart = segStart;
+    _lastHitEnd = ends[lo];
+    return segments[lo][index - segStart];
   }
 
   void operator []=(int index, CodeLine value) {
@@ -83,6 +189,8 @@ class CodeLines {
           segments[i] = segment;
         }
         segment[index - offset] = value;
+        // Aggregates may change (lineCount/charCount when chunks differ).
+        _invalidate();
         return;
       }
     }
@@ -100,11 +208,13 @@ class CodeLines {
       }
       segment.add(value);
     }
+    _invalidate();
   }
 
   void addAll(Iterable<CodeLine> iterable) {
     if (isEmpty) {
       segments.addAll(CodeLines.of(iterable).segments);
+      _invalidate();
       return;
     }
     final CodeLineSegment segment = segments.last;
@@ -127,6 +237,7 @@ class CodeLines {
         count = 0;
       }
     }
+    _invalidate();
   }
 
   void addFrom(CodeLines codeLines, int start, [int? end]) {
@@ -136,6 +247,7 @@ class CodeLines {
     }
     if (isEmpty) {
       segments.addAll(sub.segments);
+      _invalidate();
       return;
     }
     final List<CodeLineSegment> appendSegments = sub.segments;
@@ -152,6 +264,7 @@ class CodeLines {
         segments.add(appendSegment);
       }
     }
+    _invalidate();
   }
 
   bool equals(CodeLines? codeLines) {
@@ -245,9 +358,20 @@ class CodeLines {
 
   void clear() {
     segments.clear();
+    _invalidate();
   }
 
   String asString(TextLineBreak lineBreak, [bool expandChunks = true]) {
+    if (_asStringCache0 != null &&
+        _asStringCache0LineBreak == lineBreak &&
+        _asStringCache0ExpandChunks == expandChunks) {
+      return _asStringCache0!;
+    }
+    if (_asStringCache1 != null &&
+        _asStringCache1LineBreak == lineBreak &&
+        _asStringCache1ExpandChunks == expandChunks) {
+      return _asStringCache1!;
+    }
     final StringBuffer sb = StringBuffer();
     final int length = this.length;
     int count = 0;
@@ -264,7 +388,15 @@ class CodeLines {
         }
       }
     }
-    return sb.toString();
+    final String result = sb.toString();
+    // Round-robin slots: shift slot 0 to slot 1 and put the new entry in 0.
+    _asStringCache1 = _asStringCache0;
+    _asStringCache1LineBreak = _asStringCache0LineBreak;
+    _asStringCache1ExpandChunks = _asStringCache0ExpandChunks;
+    _asStringCache0 = result;
+    _asStringCache0LineBreak = lineBreak;
+    _asStringCache0ExpandChunks = expandChunks;
+    return result;
   }
 
   int index2lineIndex(int index) {
@@ -419,6 +551,19 @@ class CodeLineSegment with ListMixin<CodeLine> {
   CodeLineSegment clone([int start = 0, int? end]) =>
       CodeLineSegment.of(codeLines: codeLines.sublist(start, end));
 
+  /// Create a `dirty=true` shallow copy of this segment that shares the
+  /// underlying `codeLines` list. Used by `CodeLines.from()` so that we do
+  /// not re-fold `codeLines` to recompute `lineCount` / `charCount` on every
+  /// edit (it can be O(total document lines) otherwise).
+  CodeLineSegment cloneShallowDirty() {
+    return _CodeLineSegmentQuckLineCount._withCounts(
+      codeLines: codeLines,
+      dirty: true,
+      lineCount: lineCount,
+      charCount: charCount,
+    );
+  }
+
   CodeLineSegment copyWith({
     List<CodeLine>? codeLines,
     bool? dirty,
@@ -428,7 +573,7 @@ class CodeLineSegment with ListMixin<CodeLine> {
   }
 
   @override
-  int get hashCode => Object.hash(codeLines, lineCount, dirty);
+  int get hashCode => Object.hash(codeLines.length, lineCount, dirty);
 
   @override
   bool operator ==(Object other) {
