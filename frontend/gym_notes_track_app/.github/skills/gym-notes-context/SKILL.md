@@ -37,6 +37,7 @@ Before writing code, confirm:
    - Keep cursor and preview position persistence behavior intact.
 5. Does the change affect counters?
    - Respect `scope` (`global` vs `perNote`), `isPinned`, ordering, and `noteId == ''` for global values in `counter_values`.
+   - Counter shortcuts use `CustomMarkdownShortcut.counters` (`List<CounterBinding>`, max 2) with `{c1}` / `{c2}` tokens in `beforeText` / `afterText` / repeat wrapper text. Each binding has its own `CounterOp` (`increment` / `decrement`). Tokens are expanded by `ShortcutApplier` via the `CounterMutator` callback, which routes through `CounterBloc` and respects scope. Each token occurrence mutates once per repeat iteration. Keep the legacy `counterId` field populated when `insertType == 'counter'` so existing single-counter shortcuts continue to work; rely on `shortcut.effectiveCounters` to read bindings uniformly in new code.
 6. Does the change affect backup/restore?
    - Add new persisted fields to backup export/import without breaking older backups.
 7. Does the change touch import/export of notes or folders?
@@ -50,6 +51,11 @@ Before writing code, confirm:
    - Theme dispatch (`PreviewThemeChanged`) belongs in `MarkdownPreviewBlocView` lifecycle hooks, never in `build()`.
    - Forward scroll progress directly to `bloc.scrollController.updateProgress(...)`; do not route per-frame scroll signals through the event queue.
    - Wire link taps via `MarkdownPreviewBlocView.onTapLink`. The page-level handler must validate URL schemes (allowed: `http`, `https`, `mailto`, `tel`) before calling `launchUrl`, and surface failures via `CustomSnackbar.showError` with the `linkOpenFailed` / `linkSchemeNotAllowed` ARB keys.
+   - **Content sync pattern**: call `bloc.bindContentProvider(() => controller.text)` once in `initState`. On every keystroke call `bloc.markContentDirty()` (free). Dispatch `PreviewContentRefreshRequested` (debounced) for background refresh of the offstage preview; use `PreviewContentChanged` only for eager pushes (toggle, checkbox, locale change, load). Never dispatch `PreviewContentChanged` inside `build()`.
+   - **Search sync**: `_pushPreviewContent` and `_scheduleLivePreviewRefresh` call `_searchController.updateContent(content)` when searching. Never call `updateContent` from `build()`.
+   - **Preview view key**: the page owns `final GlobalKey<SourceMappedMarkdownViewState> _previewViewKey`. Bind it with `bloc.scrollController.bindView(_previewViewKey)` in `initState` and pass `viewKey: _previewViewKey` to `MarkdownPreviewBlocView`. Read `_previewViewKey.currentState?.currentLineIndex` for preview→editor scroll mapping on toggle.
+   - **Toolbar**: use `_buildMarkdownBar({required bool enabled})` helper for both loading and loaded paths. Never duplicate the `MarkdownBar(...)` instantiation.
+   - **re_editor package**: preserve the 2-slot `asString` cache, bounded LRU paragraph cache, binary-search paragraph/chunk lookups, 50 ms highlight debounce, and `cloneShallowDirty()` contract. Any new mutation path on `CodeLines` must call `cloneShallowDirty()`.
 
 ## 3. Style Rules To Enforce
 
@@ -98,3 +104,8 @@ Typical mapping:
 - Hardcoding user-facing strings in Dart instead of using ARB + `AppLocalizations`.
 - Introducing heavy work on the editor's hot path (per-keystroke string copies, synchronous DB writes, expensive rebuilds).
 - Adding decorative UI churn that causes layout shifts in the editor, toolbar, counters, or folder/note lists.
+- Calling `_searchController.updateContent` or any `ChangeNotifier.notifyListeners`-triggering method inside `build()`.
+- Dispatching `PreviewContentChanged` eagerly on every keystroke — use `markContentDirty` + `PreviewContentRefreshRequested` for background/debounced refreshes.
+- Creating an anonymous `GlobalKey<SourceMappedMarkdownViewState>()` inline — always hold it as a named page field so preview→editor scroll mapping and `viewKey:` wiring both reference the same instance.
+- Duplicating the `MarkdownBar(...)` widget tree; use `_buildMarkdownBar({required bool enabled})`.
+- Bypassing `cloneShallowDirty()` when adding new mutation paths to `CodeLines` in the re_editor package.

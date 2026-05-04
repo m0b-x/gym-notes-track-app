@@ -2680,6 +2680,66 @@ abstract class AppLocalizations {
   /// **'Insert Counter Value'**
   String get insertCounter;
 
+  /// Section header for the counter bindings list inside a shortcut
+  ///
+  /// In en, this message translates to:
+  /// **'Counter Bindings'**
+  String get counterBindingsTitle;
+
+  /// Helper text explaining the counter bindings + tokens system
+  ///
+  /// In en, this message translates to:
+  /// **'Bind up to two counters to this shortcut and use the c1 and c2 tokens (in curly braces) inside the before/after text to insert their values. Each token expansion mutates the counter once per repeat.'**
+  String get counterBindingsDescription;
+
+  /// Button label for adding the first counter binding
+  ///
+  /// In en, this message translates to:
+  /// **'Add counter binding'**
+  String get addCounterBinding;
+
+  /// Button label for adding a second counter binding
+  ///
+  /// In en, this message translates to:
+  /// **'Add second counter binding'**
+  String get addSecondCounterBinding;
+
+  /// Tooltip for removing a counter binding
+  ///
+  /// In en, this message translates to:
+  /// **'Remove counter binding'**
+  String get removeCounterBinding;
+
+  /// Hint above the {c1}/{c2} insert chips
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a token to insert it where the cursor is.'**
+  String get counterTokensHint;
+
+  /// Label for the increment/decrement segmented control
+  ///
+  /// In en, this message translates to:
+  /// **'Operation'**
+  String get counterOperation;
+
+  /// Counter operation: increment
+  ///
+  /// In en, this message translates to:
+  /// **'Increment'**
+  String get counterOpIncrement;
+
+  /// Counter operation: read current value without changing it
+  ///
+  /// In en, this message translates to:
+  /// **'Keep'**
+  String get counterOpKeep;
+
+  /// Counter operation: decrement
+  ///
+  /// In en, this message translates to:
+  /// **'Decrement'**
+  String get counterOpDecrement;
+
   /// Label for counter selection dropdown
   ///
   /// In en, this message translates to:

@@ -1392,6 +1392,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get insertCounter => 'Insert Counter Value';
 
   @override
+  String get counterBindingsTitle => 'Counter Bindings';
+
+  @override
+  String get counterBindingsDescription =>
+      'Bind up to two counters to this shortcut and use the c1 and c2 tokens (in curly braces) inside the before/after text to insert their values. Each token expansion mutates the counter once per repeat.';
+
+  @override
+  String get addCounterBinding => 'Add counter binding';
+
+  @override
+  String get addSecondCounterBinding => 'Add second counter binding';
+
+  @override
+  String get removeCounterBinding => 'Remove counter binding';
+
+  @override
+  String get counterTokensHint =>
+      'Tap a token to insert it where the cursor is.';
+
+  @override
+  String get counterOperation => 'Operation';
+
+  @override
+  String get counterOpIncrement => 'Increment';
+
+  @override
+  String get counterOpKeep => 'Keep';
+
+  @override
+  String get counterOpDecrement => 'Decrement';
+
+  @override
   String get selectCounter => 'Select Counter';
 
   @override

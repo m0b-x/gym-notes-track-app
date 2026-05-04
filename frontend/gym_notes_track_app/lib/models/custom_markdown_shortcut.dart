@@ -2,6 +2,59 @@ import 'package:equatable/equatable.dart';
 
 import '../constants/json_keys.dart';
 
+/// Operation a [CounterBinding] performs each time its token is expanded.
+enum CounterOp {
+  increment,
+  keep,
+  decrement;
+
+  String toJson() => name;
+
+  static CounterOp fromJson(Object? value) {
+    if (value is String) {
+      for (final op in CounterOp.values) {
+        if (op.name == value) return op;
+      }
+    }
+    return CounterOp.increment;
+  }
+}
+
+/// Binds a counter to a shortcut so its value can be expanded via the
+/// `{c1}` / `{c2}` tokens in [CustomMarkdownShortcut.beforeText] /
+/// [CustomMarkdownShortcut.afterText].
+///
+/// Each occurrence of the matching token triggers exactly one operation
+/// (increment, keep, or decrement) and substitutes the resulting value.
+class CounterBinding extends Equatable {
+  final String counterId;
+  final CounterOp op;
+
+  const CounterBinding({required this.counterId, this.op = CounterOp.increment});
+
+  Map<String, dynamic> toJson() => {
+    JsonKeys.counterId: counterId,
+    JsonKeys.counterOp: op.toJson(),
+  };
+
+  factory CounterBinding.fromJson(Map<String, dynamic> json) {
+    return CounterBinding(
+      counterId: json[JsonKeys.counterId] as String,
+      op: CounterOp.fromJson(json[JsonKeys.counterOp]),
+    );
+  }
+
+  CounterBinding copyWith({String? counterId, CounterOp? op}) {
+    return CounterBinding(
+      counterId: counterId ?? this.counterId,
+      op: op ?? this.op,
+    );
+  }
+
+  @override
+  List<Object?> get props => [counterId, op];
+}
+
 /// Represents a date offset configuration for shortcuts
 class DateOffset extends Equatable {
   final int days;
@@ -140,6 +193,19 @@ class CustomMarkdownShortcut extends Equatable {
   final RepeatConfig? repeatConfig;
   final String? counterId;
 
+  /// Counter bindings used by the `{c1}` / `{c2}` tokens in
+  /// [beforeText] / [afterText] / repeat wrapper text.
+  ///
+  /// `counters[0]` corresponds to `{c1}`, `counters[1]` to `{c2}`. Up to
+  /// two bindings are supported. Each binding can independently increment
+  /// or decrement its counter.
+  ///
+  /// For backward compatibility, when this list is empty but [counterId]
+  /// is non-null (legacy single-counter shortcuts), [effectiveCounters]
+  /// synthesises a single increment binding so applier logic can rely on
+  /// the new field uniformly.
+  final List<CounterBinding> counters;
+
   const CustomMarkdownShortcut({
     required this.id,
     required this.label,
@@ -154,7 +220,19 @@ class CustomMarkdownShortcut extends Equatable {
     this.dateOffset,
     this.repeatConfig,
     this.counterId,
+    this.counters = const [],
   });
+
+  /// Returns the effective counter binding list, synthesising one from
+  /// [counterId] when the new [counters] field is empty (legacy data).
+  List<CounterBinding> get effectiveCounters {
+    if (counters.isNotEmpty) return counters;
+    final legacy = counterId;
+    if (legacy != null && legacy.isNotEmpty) {
+      return [CounterBinding(counterId: legacy)];
+    }
+    return const [];
+  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -171,6 +249,8 @@ class CustomMarkdownShortcut extends Equatable {
       if (dateOffset != null) JsonKeys.dateOffset: dateOffset!.toJson(),
       if (repeatConfig != null) JsonKeys.repeatConfig: repeatConfig!.toJson(),
       if (counterId != null) JsonKeys.counterId: counterId,
+      if (counters.isNotEmpty)
+        JsonKeys.counters: counters.map((c) => c.toJson()).toList(),
     };
   }
 
@@ -197,6 +277,10 @@ class CustomMarkdownShortcut extends Equatable {
             )
           : null,
       counterId: json[JsonKeys.counterId] as String?,
+      counters: (json[JsonKeys.counters] as List?)
+              ?.map((e) => CounterBinding.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
     );
   }
 
@@ -217,6 +301,7 @@ class CustomMarkdownShortcut extends Equatable {
     bool clearDateOffset = false,
     bool clearRepeatConfig = false,
     bool clearCounterId = false,
+    List<CounterBinding>? counters,
   }) {
     return CustomMarkdownShortcut(
       id: id ?? this.id,
@@ -234,6 +319,7 @@ class CustomMarkdownShortcut extends Equatable {
           ? null
           : (repeatConfig ?? this.repeatConfig),
       counterId: clearCounterId ? null : (counterId ?? this.counterId),
+      counters: counters ?? this.counters,
     );
   }
 
@@ -252,5 +338,6 @@ class CustomMarkdownShortcut extends Equatable {
     dateOffset,
     repeatConfig,
     counterId,
+    counters,
   ];
 }

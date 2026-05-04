@@ -1853,6 +1853,46 @@
     "description": "Status label when a utility button is hidden"
   },
   "insertCounter": "Insert Counter Value",
+  "counterBindingsTitle": "Counter Bindings",
+  "@counterBindingsTitle": {
+    "description": "Section header for the counter bindings list inside a shortcut"
+  },
+  "counterBindingsDescription": "Bind up to two counters to this shortcut and use the c1 and c2 tokens (in curly braces) inside the before/after text to insert their values. Each token expansion mutates the counter once per repeat.",
+  "@counterBindingsDescription": {
+    "description": "Helper text explaining the counter bindings + tokens system"
+  },
+  "addCounterBinding": "Add counter binding",
+  "@addCounterBinding": {
+    "description": "Button label for adding the first counter binding"
+  },
+  "addSecondCounterBinding": "Add second counter binding",
+  "@addSecondCounterBinding": {
+    "description": "Button label for adding a second counter binding"
+  },
+  "removeCounterBinding": "Remove counter binding",
+  "@removeCounterBinding": {
+    "description": "Tooltip for removing a counter binding"
+  },
+  "counterTokensHint": "Tap a token to insert it where the cursor is.",
+  "@counterTokensHint": {
+    "description": "Hint above the {c1}/{c2} insert chips"
+  },
+  "counterOperation": "Operation",
+  "@counterOperation": {
+    "description": "Label for the increment/decrement segmented control"
+  },
+  "counterOpIncrement": "Increment",
+  "@counterOpIncrement": {
+    "description": "Counter operation: increment"
+  },
+  "counterOpKeep": "Keep",
+  "@counterOpKeep": {
+    "description": "Counter operation: read current value without changing it"
+  },
+  "counterOpDecrement": "Decrement",
+  "@counterOpDecrement": {
+    "description": "Counter operation: decrement"
+  },
   "@insertCounter": {
     "description": "Insert type option for counter shortcuts"
   },

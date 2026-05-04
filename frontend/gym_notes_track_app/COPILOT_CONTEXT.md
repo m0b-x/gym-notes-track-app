@@ -81,8 +81,15 @@ Non-negotiable invariants:
 - Bloc state is `Equatable` and contains only primitives + a `renderHandle: int` token. Never put `InlineSpan` trees, builders, or other heavy objects in state.
 - Spans are pulled from `bloc.renderService.builder` on demand; the widget rebuilds the heavy list only when `renderHandle`, `linesPerChunk`, or `fontSize` change (`buildWhen`).
 - The bloc owns its `MarkdownRenderService` and `PreviewScrollController` and disposes them in `close()`. The page wires callbacks via `bloc.bindCallbacks(onLinkTap:, onCheckboxTap:)`.
+- **Content sync**: use `bloc.bindContentProvider(() => _contentController.text)` once in `initState` and call `bloc.markContentDirty()` on every keystroke (free `int++`). Dispatch `PreviewContentRefreshRequested` (not `PreviewContentChanged`) when you want a lazy refresh; the bloc short-circuits when the dirty version hasn't moved since the last consume. Only use `PreviewContentChanged` for eager pushes (toggle, checkbox, locale change, content load).
+- **Live refresh**: `_scheduleLivePreviewRefresh()` (called from `_onTextChanged`) debounces `PreviewContentRefreshRequested` at 500 ms for non-large notes (`lineCount <= AppConstants.previewPreloadLineThreshold = 3000`). It is gated on `!_isLoading` and `state.hasTheme` so the first build is never blocked. The debounce timer is cancelled in `dispose()`.
+- **Search content sync**: `_pushPreviewContent` calls `_searchController.updateContent(content)` when `_searchController.isSearching`; `_scheduleLivePreviewRefresh` does the same after dispatch. Never call `updateContent` inside `build()`. `ReEditorSearchController.updateContent` deduplicates on `identical/==` so redundant calls are free.
 - Theme dispatch (`PreviewThemeChanged`) happens from `MarkdownPreviewBlocView` lifecycle hooks (`didChangeDependencies` + a `DevOptions` listener) — never from `build()`. Equality is keyed on `(brightness, debugEnabled)` so closure-only changes do not trigger rebuilds.
 - Scroll progress bypasses the bloc event queue: the view calls `bloc.scrollController.updateProgress(progress)` directly to avoid per-frame state churn.
+- **Preview view key**: the page holds `final GlobalKey<SourceMappedMarkdownViewState> _previewViewKey = GlobalKey<...>()` as a field. It is bound to the scroll controller in `initState` via `_previewController = _previewBloc.scrollController..bindView(_previewViewKey)` and passed explicitly to `MarkdownPreviewBlocView(viewKey: _previewViewKey)`. Access state via `_previewViewKey.currentState` (e.g. `currentLineIndex`) for preview→editor scroll mapping.
+- **Preview→editor scroll**: on toggle back to editor, compare `_previewViewKey.currentState?.currentLineIndex` against `(savedBaseIndex ~/ linesPerChunk) * linesPerChunk` to detect real user scrolling. Only snap the editor and move the caret when the user actually moved the preview; otherwise fall back to `_restoreEditorPosition()` which honors the exact saved selection.
+- **Toolbar helper**: use `_buildMarkdownBar({required bool enabled})` for both the loading-skeleton and loaded paths. Pass `enabled: false` when loading to preserve layout without wiring live callbacks.
+- **Double-tap from preview**: `_handleDoubleTapLine` parks the cursor at end-of-line. `DoubleTapLineDetector` currently always passes `columnOffset = 0` (column resolution from styled spans needs `TextPainter` introspection — future work). Forward-compatible: when a future detector passes `columnOffset > 0`, the handler clamps it to the line length.
 - Adaptive chunk sizing in `MarkdownRenderService._computeAdaptiveChunkSize` is capped at `_maxAdaptiveChunkSize = 100` to keep `scrollToLineIndex` precision usable on huge notes.
 - The empty-preview placeholder text is locale-cached on the page (`_emptyPreviewPlaceholder`) and re-dispatched when the locale changes while the note is empty.
 - Preview hyperlinks: the page passes `_handleLinkTap` to `MarkdownPreviewBlocView.onTapLink`. The handler validates the scheme against `_allowedLinkSchemes` (`http`, `https`, `mailto`, `tel`), launches via `url_launcher` in `LaunchMode.externalApplication`, and shows a localized `CustomSnackbar.showError` (`linkSchemeNotAllowed` / `linkOpenFailed`) on rejection or failure. Do not bypass scheme validation.
@@ -94,6 +101,7 @@ Non-negotiable invariants:
 - Reorder operations should be transactional and preserve user-defined positions.
 - Search uses both SQLite/FTS and an app-level index; keep indexes in sync when notes are created, updated, deleted, or moved.
 - Counters use `noteId == ''` for global values in `counter_values`; per-note values use the real note id.
+- Custom markdown shortcuts can bind up to two counters via `CustomMarkdownShortcut.counters` (`List<CounterBinding>`). Each binding has a `counterId` and a `CounterOp` (`increment` / `decrement`). The `{c1}` / `{c2}` tokens in `beforeText` / `afterText` / repeat wrapper text expand to the matching binding's post-mutation value at insertion time. Each token occurrence triggers exactly one mutation per repeat iteration. Token expansion runs through `ShortcutApplier` via the `CounterMutator` callback, which routes to `CounterBloc` (`IncrementCounter` / `DecrementCounter`) and respects the global vs per-note scope contract. The legacy `counterId` field is preserved for backwards compatibility — when `counters` is empty but `counterId` is set, `effectiveCounters` synthesises a single increment binding so applier logic stays uniform.
 - Settings are stored through `UserSettingsDao`, `SettingsService`, and `SettingsKeys`. Do not scatter raw string keys.
 
 ## Import/Export Pipeline Rules
@@ -144,7 +152,15 @@ Release/device helper scripts exist:
 Run only the commands relevant to the change. For UI-only Dart changes, `dart analyze lib` is usually the minimum validation. For l10n changes, run `flutter gen-l10n`. For Drift changes, run build_runner before analysis.
 
 ## Generated And Local Package Notes
-- `packages/re_editor/` is a local editor fork. Treat it as part of the workspace, but avoid changing it unless the editor behavior truly requires package-level work.
+- `packages/re_editor/` is a local editor fork, perf-tuned for this app. Key optimizations to preserve:
+  - `CodeLines.asString` uses a 2-slot round-robin cache (LF+trimNewlines vs LF-only calls alternate without thrashing).
+  - `_CodeLineSegmentQuckLineCount` sub-counts with a `_hashCache` field; `==` short-circuits on length/dirty/lineCount/charCount before deep comparison.
+  - `findDisplayParagraphByLineIndex` and `_findDisplayRenderParagraph` in `_code_field.dart` use binary search on the sorted paragraph array.
+  - `_CodeParagraphCache` is a bounded LRU (max 512 entries) that evicts head on overflow.
+  - `_CodeHighlight` debounces highlight requests at 50 ms to avoid per-keystroke re-highlight.
+  - `_kInitialCodeLines` uses `List.unmodifiable` on both levels for write-protection (no `const` because sub-objects aren't `const`).
+  - When adding new mutation paths to `CodeLines`, call `cloneShallowDirty()` (not the public constructor) to preserve the `_segmentEnds` / `_asStringCache` reset contract.
+- Treat `packages/re_editor/` as part of the workspace for bug/perf fixes, but avoid API-breaking changes.
 - Generated localization Dart files are outputs from ARB files.
 - `lib/database/database.g.dart` is generated by Drift.
 - Android/iOS/macOS/Linux/Windows/web folders are platform shells; prefer app-level fixes in `lib/` unless the issue is platform-specific.

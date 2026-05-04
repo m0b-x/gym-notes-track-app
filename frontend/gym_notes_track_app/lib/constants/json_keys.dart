@@ -50,6 +50,10 @@ class JsonKeys {
   static const String counterScope = 'counterScope';
   static const String counterIsPinned = 'isPinned';
 
+  // Counter bindings (per-shortcut multi-counter support)
+  static const String counters = 'counters';
+  static const String counterOp = 'op';
+
   static const String wordToNoteIds = 'wordToNoteIds';
   static const String termFrequency = 'termFrequency';
 

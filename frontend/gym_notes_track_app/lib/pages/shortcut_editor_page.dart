@@ -49,9 +49,10 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
   // Advanced mode toggle
   late bool _isAdvancedMode;
 
-  // Counter state
-  String? _selectedCounterId;
+  // Counter state — up to two bindings expanded via {c1} / {c2} tokens.
+  List<CounterBinding> _counterBindings = [];
   List<Counter> _availableCounters = [];
+  static const int _maxCounterBindings = 2;
 
   // Date offset state
   late int _dateOffsetDays;
@@ -146,10 +147,15 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
       text: repeatConfig?.afterRepeatText ?? '',
     );
 
+    // Counter bindings must be initialised before _hasAdvancedFeatures() so
+    // the check for length > 1, non-increment ops and token presence is
+    // accurate when opening an existing shortcut.
+    _counterBindings = List<CounterBinding>.from(
+      widget.shortcut?.effectiveCounters ?? const [],
+    );
+
     // Auto-enable advanced mode if any advanced features are configured
     _isAdvancedMode = _hasAdvancedFeatures();
-
-    _selectedCounterId = widget.shortcut?.counterId;
 
     _loadShortcuts();
     _loadCounters();
@@ -165,7 +171,18 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
         _dateOffsetMonths != 0 ||
         _dateOffsetYears != 0 ||
         _beforeRepeatController.text.isNotEmpty ||
-        _afterRepeatController.text.isNotEmpty;
+        _afterRepeatController.text.isNotEmpty ||
+        _counterBindings.length > 1 ||
+        _counterBindings.any((b) => b.op != CounterOp.increment) ||
+        _hasCounterToken();
+  }
+
+  bool _hasCounterToken() {
+    final pattern = RegExp(r'\{c\d+\}');
+    return pattern.hasMatch(_beforeController.text) ||
+        pattern.hasMatch(_afterController.text) ||
+        pattern.hasMatch(_beforeRepeatController.text) ||
+        pattern.hasMatch(_afterRepeatController.text);
   }
 
   void _resetAdvancedFeatures() {
@@ -181,6 +198,13 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
       _dateOffsetDays = 0;
       _dateOffsetMonths = 0;
       _dateOffsetYears = 0;
+      // Collapse to a single increment binding (or none) so the simple
+      // counter dropdown can still drive insertType='counter' shortcuts.
+      if (_counterBindings.isNotEmpty) {
+        _counterBindings = [
+          _counterBindings.first.copyWith(op: CounterOp.increment),
+        ];
+      }
     });
   }
 
@@ -250,7 +274,20 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
       setState(() {
         _availableCounters = List.from(updated.counters);
         if (_availableCounters.isNotEmpty) {
-          _selectedCounterId = _availableCounters.last.id;
+          final newCounterId = _availableCounters.last.id;
+          if (_counterBindings.isEmpty) {
+            _counterBindings = [CounterBinding(counterId: newCounterId)];
+          } else if (_counterBindings.length < _maxCounterBindings) {
+            _counterBindings = [
+              ..._counterBindings,
+              CounterBinding(counterId: newCounterId),
+            ];
+          } else {
+            _counterBindings = [
+              ..._counterBindings.sublist(0, _counterBindings.length - 1),
+              CounterBinding(counterId: newCounterId),
+            ];
+          }
         }
       });
     }
@@ -504,7 +541,10 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
       dateOffset: dateOffset,
       repeatConfig: repeatConfig,
       isVisible: widget.shortcut?.isVisible ?? true,
-      counterId: _insertType == 'counter' ? _selectedCounterId : null,
+      counterId: _insertType == 'counter' && _counterBindings.isNotEmpty
+          ? _counterBindings.first.counterId
+          : null,
+      counters: List.unmodifiable(_counterBindings),
     );
 
     widget.onSave(shortcut);
@@ -1003,6 +1043,242 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
     );
   }
 
+  Widget _buildCounterBindingsList() {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < _counterBindings.length; i++)
+          Padding(
+            padding: EdgeInsets.only(
+              bottom: i == _counterBindings.length - 1 ? 0 : 12,
+            ),
+            child: _buildCounterBindingRow(i),
+          ),
+        if (_counterBindings.length < _maxCounterBindings) ...[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _addCounterBinding,
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(
+              _counterBindings.isEmpty
+                  ? l10n.addCounterBinding
+                  : l10n.addSecondCounterBinding,
+            ),
+          ),
+        ],
+        if (_counterBindings.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            l10n.counterTokensHint,
+            style: TextStyle(
+              fontSize: 12,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (int i = 0; i < _counterBindings.length; i++)
+                ActionChip(
+                  avatar: const Icon(Icons.add, size: 16),
+                  label: Text('{c${i + 1}}'),
+                  onPressed: () => _insertTokenAtCursor('{c${i + 1}}'),
+                ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCounterBindingRow(int index) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final binding = _counterBindings[index];
+    final hasCounter = _availableCounters.any((c) => c.id == binding.counterId);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '{c${index + 1}}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onPrimaryContainer,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                tooltip: l10n.removeCounterBinding,
+                onPressed: () => _removeCounterBinding(index),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (_availableCounters.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                l10n.noCountersYet,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            )
+          else
+            DropdownButtonFormField<String>(
+              initialValue: hasCounter ? binding.counterId : null,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                isDense: true,
+              ),
+              hint: Text(l10n.selectCounter),
+              items: _availableCounters.map((c) {
+                final scopeLabel = c.scope == CounterScope.global
+                    ? l10n.global
+                    : l10n.perNote;
+                return DropdownMenuItem(
+                  value: c.id,
+                  child: Text('${c.name} ($scopeLabel)'),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() {
+                  _counterBindings = [
+                    for (int i = 0; i < _counterBindings.length; i++)
+                      if (i == index)
+                        _counterBindings[i].copyWith(counterId: value)
+                      else
+                        _counterBindings[i],
+                  ];
+                });
+              },
+            ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: SegmentedButton<CounterOp>(
+                  segments: [
+                    ButtonSegment(
+                      value: CounterOp.increment,
+                      label: Text(l10n.counterOpIncrement),
+                      icon: const Icon(Icons.add, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: CounterOp.keep,
+                      label: Text(l10n.counterOpKeep),
+                      icon: const Icon(Icons.drag_handle, size: 16),
+                    ),
+                    ButtonSegment(
+                      value: CounterOp.decrement,
+                      label: Text(l10n.counterOpDecrement),
+                      icon: const Icon(Icons.remove, size: 16),
+                    ),
+                  ],
+                  selected: {binding.op},
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onSelectionChanged: (selection) {
+                    if (selection.isEmpty) return;
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _counterBindings = [
+                        for (int i = 0; i < _counterBindings.length; i++)
+                          if (i == index)
+                            _counterBindings[i].copyWith(op: selection.first)
+                          else
+                            _counterBindings[i],
+                      ];
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addCounterBinding() {
+    if (_counterBindings.length >= _maxCounterBindings) return;
+    setState(() {
+      final defaultCounterId = _availableCounters.isNotEmpty
+          ? _availableCounters.first.id
+          : '';
+      _counterBindings = [
+        ..._counterBindings,
+        CounterBinding(counterId: defaultCounterId),
+      ];
+    });
+  }
+
+  void _removeCounterBinding(int index) {
+    setState(() {
+      final list = List<CounterBinding>.from(_counterBindings);
+      list.removeAt(index);
+      _counterBindings = list;
+    });
+  }
+
+  /// Inserts [token] (e.g. `{c1}`) into whichever before/after field is
+  /// focused. Falls back to appending to `beforeText` when nothing is
+  /// focused so the action always has a visible effect.
+  void _insertTokenAtCursor(String token) {
+    final field = _resolveActiveField();
+    // When nothing is focused, fall back to the before field and focus it
+    // so the user can see where the token landed.
+    final controller = field?.$1 ?? _beforeController;
+    final focusNode = field?.$2 ?? _beforeFocusNode;
+    final selection = controller.selection;
+    final text = controller.text;
+    final start = selection.isValid
+        ? selection.start.clamp(0, text.length)
+        : text.length;
+    final end = selection.isValid
+        ? selection.end.clamp(0, text.length)
+        : text.length;
+    final newText = text.replaceRange(start, end, token);
+    controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: start + token.length),
+    );
+    focusNode.requestFocus();
+  }
+
   DateTime _getPreviewDate() {
     var date = DateTime.now();
     date = DateTime(
@@ -1016,43 +1292,81 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
   String _generatePreviewText() {
     String result;
 
-    if (_insertType == 'date') {
-      final baseDate = _getPreviewDate();
-      final results = <String>[];
-
-      for (int i = 0; i < _repeatCount; i++) {
-        var date = baseDate;
-        if (_incrementDateOnRepeat && i > 0) {
+    final hasCounterToken = _hasCounterToken();
+    String renderMiddle(int iteration) {
+      if (_insertType == 'date') {
+        var date = _getPreviewDate();
+        if (_incrementDateOnRepeat && iteration > 0) {
           date = DateTime(
-            date.year + (_dateIncrementYears * i),
-            date.month + (_dateIncrementMonths * i),
-            date.day + (_dateIncrementDays * i),
+            date.year + (_dateIncrementYears * iteration),
+            date.month + (_dateIncrementMonths * iteration),
+            date.day + (_dateIncrementDays * iteration),
           );
         }
-        final formatted = DateFormat(_selectedDateFormat).format(date);
-        results.add(
-          '${_beforeController.text}$formatted${_afterController.text}',
-        );
+        return DateFormat(_selectedDateFormat).format(date);
       }
-
-      result = results.join(_repeatSeparator);
-    } else {
-      final single = '${_beforeController.text}text${_afterController.text}';
-      if (_repeatCount > 1) {
-        result = List.filled(_repeatCount, single).join(_repeatSeparator);
-      } else {
-        result = single;
+      if (_insertType == 'counter' &&
+          !hasCounterToken &&
+          _counterBindings.isNotEmpty) {
+        return _previewCounterValue(0, iteration);
       }
+      return 'text';
     }
+
+    final results = <String>[];
+    for (int i = 0; i < _repeatCount; i++) {
+      final middle = renderMiddle(i);
+      final before = _expandPreviewTokens(_beforeController.text, i);
+      final after = _expandPreviewTokens(_afterController.text, i);
+      results.add('$before$middle$after');
+    }
+    result = results.join(_repeatSeparator);
 
     // Apply wrapper text around all repeated items
     if (_beforeRepeatController.text.isNotEmpty ||
         _afterRepeatController.text.isNotEmpty) {
-      result =
-          '${_beforeRepeatController.text}$result${_afterRepeatController.text}';
+      final beforeWrap = _expandPreviewTokens(
+        _beforeRepeatController.text,
+        _repeatCount,
+      );
+      final afterWrap = _expandPreviewTokens(
+        _afterRepeatController.text,
+        _repeatCount + 1,
+      );
+      result = '$beforeWrap$result$afterWrap';
     }
 
     return result;
+  }
+
+  /// Substitutes `{cN}` tokens with deterministic preview values so the
+  /// user can see exactly which token resolves to which counter.
+  String _expandPreviewTokens(String input, int iteration) {
+    if (input.isEmpty) return input;
+    return input.replaceAllMapped(RegExp(r'\{c(\d+)\}'), (match) {
+      final index = int.tryParse(match.group(1) ?? '') ?? 0;
+      final bindingIndex = index - 1;
+      if (bindingIndex < 0 || bindingIndex >= _counterBindings.length) {
+        return match.group(0)!;
+      }
+      return _previewCounterValue(bindingIndex, iteration);
+    });
+  }
+
+  String _previewCounterValue(int bindingIndex, int iteration) {
+    if (bindingIndex < 0 || bindingIndex >= _counterBindings.length) return '?';
+    final binding = _counterBindings[bindingIndex];
+    final counter = _availableCounters
+        .where((c) => c.id == binding.counterId)
+        .firstOrNull;
+    final base = counter?.startValue ?? 1;
+    final step = counter?.step ?? 1;
+    if (binding.op == CounterOp.keep) return base.toString();
+    final delta = (iteration + 1) * step;
+    final value = binding.op == CounterOp.increment
+        ? base + delta - step
+        : base - delta + step;
+    return value.toString();
   }
 
   @override
@@ -1191,7 +1505,15 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                         )
                       else
                         DropdownButtonFormField<String>(
-                          initialValue: _selectedCounterId,
+                          initialValue:
+                              _counterBindings.isNotEmpty &&
+                                  _availableCounters.any(
+                                    (c) =>
+                                        c.id ==
+                                        _counterBindings.first.counterId,
+                                  )
+                              ? _counterBindings.first.counterId
+                              : null,
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
                             contentPadding: EdgeInsets.symmetric(
@@ -1211,7 +1533,19 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                           }).toList(),
                           onChanged: (value) {
                             setState(() {
-                              _selectedCounterId = value;
+                              if (value == null) return;
+                              if (_counterBindings.isEmpty) {
+                                _counterBindings = [
+                                  CounterBinding(counterId: value),
+                                ];
+                              } else {
+                                _counterBindings = [
+                                  _counterBindings.first.copyWith(
+                                    counterId: value,
+                                  ),
+                                  ..._counterBindings.skip(1),
+                                ];
+                              }
                             });
                           },
                         ),
@@ -1355,6 +1689,21 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                           _buildDateIncrementSection(),
                         ],
                       ],
+                      // Counter bindings section (always available in
+                      // advanced mode, regardless of insertType — lets users
+                      // combine date + counter, two counters, etc.).
+                      const SizedBox(height: 16),
+                      _buildSectionHeader(l10n.counterBindingsTitle, Icons.tag),
+                      const SizedBox(height: 8),
+                      Text(
+                        l10n.counterBindingsDescription,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildCounterBindingsList(),
                     ],
                     const SizedBox(height: 16),
                     Container(

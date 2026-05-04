@@ -1771,6 +1771,24 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     return currentValue + counter.step;
   }
 
+  /// Decrements the given counter and returns its post-decrement value.
+  Future<int> _decrementCounter(String counterId) async {
+    final bloc = context.read<CounterBloc>();
+    final counterState = bloc.state;
+    if (counterState is! CounterLoaded) return 0;
+
+    final counter = counterState.counters
+        .where((c) => c.id == counterId)
+        .firstOrNull;
+    if (counter == null) return 0;
+
+    final currentValue =
+        counterState.counterValues[counterId] ?? counter.startValue;
+    final noteId = _effectiveNoteId ?? widget.noteId;
+    bloc.add(DecrementCounter(counterId: counterId, noteId: noteId));
+    return currentValue - counter.step;
+  }
+
   Future<void> _showCounterPicker() async {
     final counterState = context.read<CounterBloc>().state;
     if (counterState is! CounterLoaded) return;
@@ -1859,11 +1877,21 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     return ShortcutApplier.apply(
       controller: _contentController,
       shortcut: shortcut,
-      incrementCounter: (counterId) async {
+      mutateCounter: (counterId, op) async {
         final counterState = context.read<CounterBloc>().state;
         if (counterState is! CounterLoaded) return null;
         if (!counterState.counters.any((c) => c.id == counterId)) return null;
-        return _incrementCounter(counterId);
+        switch (op) {
+          case CounterOp.increment:
+            return _incrementCounter(counterId);
+          case CounterOp.decrement:
+            return _decrementCounter(counterId);
+          case CounterOp.keep:
+            // Counter existence already confirmed by the .any() guard above.
+            final counter = counterState.counters
+                .firstWhere((c) => c.id == counterId);
+            return counterState.counterValues[counterId] ?? counter.startValue;
+        }
       },
     );
   }

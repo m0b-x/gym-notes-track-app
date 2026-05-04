@@ -1405,6 +1405,38 @@ class AppLocalizationsDe extends AppLocalizations {
   String get insertCounter => 'Zählerwert einfügen';
 
   @override
+  String get counterBindingsTitle => 'Zähler-Bindungen';
+
+  @override
+  String get counterBindingsDescription =>
+      'Binde bis zu zwei Zähler an dieses Kürzel und verwende die Tokens c1 und c2 (in geschweiften Klammern) im Davor/Danach-Text, um ihre Werte einzufügen. Jede Token-Auflösung verändert den Zähler einmal pro Wiederholung.';
+
+  @override
+  String get addCounterBinding => 'Zähler-Bindung hinzufügen';
+
+  @override
+  String get addSecondCounterBinding => 'Zweite Zähler-Bindung hinzufügen';
+
+  @override
+  String get removeCounterBinding => 'Zähler-Bindung entfernen';
+
+  @override
+  String get counterTokensHint =>
+      'Tippe ein Token, um es an der Cursor-Position einzufügen.';
+
+  @override
+  String get counterOperation => 'Operation';
+
+  @override
+  String get counterOpIncrement => 'Erhöhen';
+
+  @override
+  String get counterOpKeep => 'Beibehalten';
+
+  @override
+  String get counterOpDecrement => 'Verringern';
+
+  @override
   String get selectCounter => 'Zähler auswählen';
 
   @override

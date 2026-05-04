@@ -1401,6 +1401,38 @@ class AppLocalizationsRo extends AppLocalizations {
   String get insertCounter => 'Inserează Valoare Contor';
 
   @override
+  String get counterBindingsTitle => 'Legături cu contoare';
+
+  @override
+  String get counterBindingsDescription =>
+      'Leagă până la două contoare la această scurtătură și folosește tokenele c1 și c2 (în acolade) în textul înainte/după pentru a insera valorile lor. Fiecare apariție a unui token modifică contorul o dată pe fiecare repetare.';
+
+  @override
+  String get addCounterBinding => 'Adaugă legătură contor';
+
+  @override
+  String get addSecondCounterBinding => 'Adaugă a doua legătură contor';
+
+  @override
+  String get removeCounterBinding => 'Elimină legătura contor';
+
+  @override
+  String get counterTokensHint =>
+      'Apasă un token pentru a-l insera la poziția cursorului.';
+
+  @override
+  String get counterOperation => 'Operație';
+
+  @override
+  String get counterOpIncrement => 'Incrementează';
+
+  @override
+  String get counterOpKeep => 'Păstrează';
+
+  @override
+  String get counterOpDecrement => 'Decrementează';
+
+  @override
   String get selectCounter => 'Selectează Contorul';
 
   @override
