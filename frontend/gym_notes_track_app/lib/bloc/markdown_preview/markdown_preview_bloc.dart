@@ -59,11 +59,26 @@ class MarkdownPreviewBloc
   LinkTapCallback? _onLinkTap;
   CheckboxTapCallback? _onCheckboxTap;
 
+  /// Optional pull-style content source. When set, callers can
+  /// dispatch [PreviewContentRefreshRequested] (and bump the dirty
+  /// version via [markContentDirty]) instead of materializing the
+  /// editor text and dispatching [PreviewContentChanged] eagerly.
+  /// See [bindContentProvider].
+  String Function()? _contentProvider;
+
+  /// Monotonic counter incremented by [markContentDirty]. Cheap to
+  /// bump on every keystroke. The handler for
+  /// [PreviewContentRefreshRequested] short-circuits when this hasn't
+  /// moved since the last consumed pull.
+  int _contentVersion = 0;
+  int _lastConsumedContentVersion = -1;
+
   MarkdownPreviewBloc({MarkdownRenderService? renderService})
     : _renderService = renderService ?? MarkdownRenderService(),
       _scrollController = PreviewScrollController(),
       super(const MarkdownPreviewState()) {
     on<PreviewContentChanged>(_onContentChanged);
+    on<PreviewContentRefreshRequested>(_onContentRefreshRequested);
     on<PreviewFontSizeChanged>(_onFontSizeChanged);
     on<PreviewSearchUpdated>(_onSearchUpdated);
     on<PreviewLinesPerChunkChanged>(_onLinesPerChunkChanged);
@@ -137,6 +152,23 @@ class MarkdownPreviewBloc
     _onCheckboxTap = onCheckboxTap;
   }
 
+  /// Binds a pull-style content source. Subsequent
+  /// [PreviewContentRefreshRequested] events read from [provider]
+  /// instead of carrying a content payload, so callers can defer the
+  /// (now-cached but still O(n) for the equality compare) string
+  /// materialization until the bloc actually needs it.
+  void bindContentProvider(String Function() provider) {
+    _contentProvider = provider;
+  }
+
+  /// Marks the bound content as dirty without dispatching anything.
+  /// Cheap (single `int` increment); safe to call on every keystroke.
+  /// A subsequent [PreviewContentRefreshRequested] dispatch is what
+  /// actually triggers the refresh.
+  void markContentDirty() {
+    _contentVersion++;
+  }
+
   /// Pre-warm the LRU chunk cache for [chunkIndex]. Forwarded to the
   /// service. Used by the view to look ahead in the scroll direction.
   void preWarmChunk(int chunkIndex) {
@@ -152,11 +184,39 @@ class MarkdownPreviewBloc
     Emitter<MarkdownPreviewState> emit,
   ) {
     if (event.content == state.content && state.hasTheme) {
-      // Identical content and we already prepared once — nothing to do.
+      // Identical content and we already prepared once — nothing to
+      // re-prepare. Still mark the dirty counter as consumed so a
+      // subsequent [PreviewContentRefreshRequested] doesn't pull and
+      // string-compare for nothing.
+      _lastConsumedContentVersion = _contentVersion;
       return;
     }
+    // Treat an explicit content push as "version consumed" so a
+    // subsequent refresh request doesn't redundantly reprepare with
+    // identical text.
+    _lastConsumedContentVersion = _contentVersion;
     final next = state.copyWith(content: event.content);
     _emitPrepared(next, emit);
+  }
+
+  void _onContentRefreshRequested(
+    PreviewContentRefreshRequested event,
+    Emitter<MarkdownPreviewState> emit,
+  ) {
+    final provider = _contentProvider;
+    if (provider == null) return;
+    if (_contentVersion == _lastConsumedContentVersion && state.hasTheme) {
+      // Nothing dirtied the content since the last consumed pull.
+      return;
+    }
+    _lastConsumedContentVersion = _contentVersion;
+    final content = provider();
+    if (content == state.content && state.hasTheme) {
+      // Version moved but text is identical (e.g. keystrokes that
+      // cancelled out). Nothing to reprepare.
+      return;
+    }
+    _emitPrepared(state.copyWith(content: content), emit);
   }
 
   void _onFontSizeChanged(

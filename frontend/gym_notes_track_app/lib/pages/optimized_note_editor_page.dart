@@ -172,6 +172,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   Timer? _lineCountDebounceTimer;
   Timer? _restorePositionTimer;
   Timer? _previewProgressDebounce;
+  Timer? _livePreviewDebounce;
   int _lastLineCountTextLength = 0;
   double _previousKeyboardHeight = 0;
   bool _isTogglingPreview = false;
@@ -195,7 +196,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _searchController = ReEditorSearchController();
     _searchController.initialize(_contentController);
     _previewBloc = MarkdownPreviewBloc();
-    _previewController = _previewBloc.scrollController..bindView(_previewViewKey);
+    _previewBloc.bindContentProvider(() => _contentController.text);
+    _previewController = _previewBloc.scrollController
+      ..bindView(_previewViewKey);
     _previewController.progress.addListener(_onPreviewProgressChanged);
 
     _titleController.addListener(_onTextChanged);
@@ -562,6 +565,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     }
 
     _debouncedLineCountUpdate();
+    _scheduleLivePreviewRefresh();
 
     if (_effectiveNoteId != null) {
       _autoSaveService?.onContentChanged(_titleController.text);
@@ -570,6 +574,35 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       _maybeCreateNewNoteEarly();
     }
   }
+
+  /// Keeps the offstage preview hot while the user is typing so a
+  /// subsequent toggle (or `previewWhenKeyboardHidden` reveal) shows
+  /// up-to-date content without a re-prepare hitch on the toggle
+  /// frame. Skipped for large notes (lazy path) and while the page
+  /// is still loading.
+  ///
+  /// The bloc tracks its own dirty version, so the cheap part
+  /// ([MarkdownPreviewBloc.markContentDirty]) runs on every
+  /// keystroke; the actual reprepare only fires once the user idles
+  /// for [_kLivePreviewDebounce]. When nothing has changed by the
+  /// time the timer fires, the bloc short-circuits the refresh.
+  void _scheduleLivePreviewRefresh() {
+    _previewBloc.markContentDirty();
+    if (_isLoading) return;
+    if (!_previewBloc.state.hasTheme) return;
+    final lineCount = _contentController.lineCount;
+    if (lineCount > AppConstants.previewPreloadLineThreshold) return;
+    _livePreviewDebounce?.cancel();
+    _livePreviewDebounce = Timer(_kLivePreviewDebounce, () {
+      if (!mounted) return;
+      _previewBloc.add(const PreviewContentRefreshRequested());
+      if (_searchController.isSearching) {
+        _searchController.updateContent(_contentController.text);
+      }
+    });
+  }
+
+  static const Duration _kLivePreviewDebounce = Duration(milliseconds: 500);
 
   /// Triggers early creation as soon as the note has any title or content.
   void _maybeCreateNewNoteEarly() {
@@ -763,9 +796,23 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     }
 
     // Capture the topmost source-line currently visible in the preview so
-    // we can scroll the editor to the same logical position. Falls back
-    // to the saved selection when the preview never mounted / scrolled.
+    // we can scroll the editor to the same logical position.
+    //
+    // Caveat: when entering preview we already scrolled to the cursor's
+    // chunk, so a `currentLineIndex` that floors to the same chunk as
+    // the saved selection means the user *didn't* meaningfully scroll —
+    // in that case the saved selection is the truer target. Otherwise
+    // (the user paged through the preview) we honor the new reading
+    // location and also move the caret so subsequent typing happens at
+    // a visible position.
     final previewTopLine = _previewViewKey.currentState?.currentLineIndex;
+    final linesPerChunk = _previewBloc.renderService.linesPerChunk;
+    final savedBaseIndex = _savedEditorSelection?.baseIndex;
+    final userMovedPreview =
+        previewTopLine != null &&
+        linesPerChunk > 0 &&
+        savedBaseIndex != null &&
+        (savedBaseIndex ~/ linesPerChunk) * linesPerChunk != previewTopLine;
 
     // Just flip the mode
     setState(() {
@@ -775,8 +822,15 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     // Restore editor scroll: ensure the cursor line is visible after
     // the keyboard animation finishes.
     final lineCount = _contentController.lineCount;
-    if (previewTopLine != null && lineCount > 0) {
+    if (userMovedPreview && lineCount > 0) {
       final clamped = previewTopLine.clamp(0, lineCount - 1);
+      // Move the caret to the new line so subsequent typing lands on a
+      // visible row (otherwise the cursor stays at the pre-preview
+      // position which may be far off-screen after this scroll).
+      _contentController.selection = CodeLineSelection.collapsed(
+        index: clamped,
+        offset: 0,
+      );
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _editorScrollController.makeCenterIfInvisible(
@@ -878,6 +932,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _lineCountDebounceTimer?.cancel();
     _restorePositionTimer?.cancel();
     _previewProgressDebounce?.cancel();
+    _livePreviewDebounce?.cancel();
     _previewController.progress.removeListener(_onPreviewProgressChanged);
     // _previewController is owned by _previewBloc — bloc disposes it.
     _previewBloc.close();
@@ -989,7 +1044,15 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _previewController.scrollToSourceOffset(charOffset);
   }
 
-  /// Handle double-tap on preview to navigate to source line in editor
+  /// Handle double-tap on preview to navigate to source line in editor.
+  ///
+  /// [columnOffset] is reserved for a future detector that can resolve
+  /// the tapped glyph's column from the rendered span layout. The
+  /// current [DoubleTapLineDetector] always passes `0` because column
+  /// resolution would require [TextPainter] introspection over styled
+  /// markdown spans. Until that lands we park the cursor at end-of-line
+  /// — a stable, predictable convention that avoids dropping the caret
+  /// in front of leading markdown markup (e.g. `#`, `>`, `- [ ]`).
   void _handleDoubleTapLine(int lineIndex, int columnOffset) {
     if (!_isPreviewMode) return;
 
@@ -999,13 +1062,13 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     // Clamp line index to valid range
     final clampedLineIndex = lineIndex.clamp(0, lineCount - 1);
 
-    // Resolve the column inside the source line. The detector reports a
-    // best-effort column from the rendered span; clamp to the source
-    // line length so we never produce an out-of-range CodeLineSelection.
+    // Get the line text and resolve the cursor offset.
     final lineText = clampedLineIndex < _contentController.codeLines.length
         ? _contentController.codeLines[clampedLineIndex].text
         : '';
-    final clampedColumn = columnOffset.clamp(0, lineText.length);
+    final cursorOffset = columnOffset > 0
+        ? columnOffset.clamp(0, lineText.length)
+        : lineText.length;
 
     // Switch to editor mode
     setState(() {
@@ -1016,19 +1079,14 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      // Set cursor position at the tapped column (or end-of-line when the
-      // detector couldn't resolve a column, which it signals with -1).
       _contentController.selection = CodeLineSelection.collapsed(
         index: clampedLineIndex,
-        offset: columnOffset < 0 ? lineText.length : clampedColumn,
+        offset: cursorOffset,
       );
 
       // Scroll to make the line visible (centered if possible)
       _editorScrollController.makeCenterIfInvisible(
-        CodeLinePosition(
-          index: clampedLineIndex,
-          offset: columnOffset < 0 ? lineText.length : clampedColumn,
-        ),
+        CodeLinePosition(index: clampedLineIndex, offset: cursorOffset),
       );
 
       // Focus the editor
@@ -1510,9 +1568,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       onSettings: enabled ? _openMarkdownSettings : () {},
       onShortcutPressed: enabled ? _handleShortcut : (_) {},
       onReorderComplete: enabled ? _handleReorderComplete : (_) {},
-      onUtilityReorderComplete: enabled
-          ? _handleUtilityReorderComplete
-          : null,
+      onUtilityReorderComplete: enabled ? _handleUtilityReorderComplete : null,
       onShare: enabled ? _showExportFormatDialog : null,
       onCounter: enabled ? _showCounterPicker : null,
       onScrollToTop: () => _scrollToEdge(toTop: true),

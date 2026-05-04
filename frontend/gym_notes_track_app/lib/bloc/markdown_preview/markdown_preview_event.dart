@@ -63,6 +63,20 @@ final class PreviewLinesPerChunkChanged extends MarkdownPreviewEvent {
   List<Object?> get props => [linesPerChunk];
 }
 
+/// Requests the bloc to pull the latest source text from its bound
+/// content provider (see [MarkdownPreviewBloc.bindContentProvider]).
+///
+/// Used by call sites that don't want to materialize the editor text
+/// just to dispatch it: they call
+/// [MarkdownPreviewBloc.markContentDirty] on every keystroke (free)
+/// and dispatch this event when they actually want a refresh. The
+/// bloc internally compares the dirty version against the version it
+/// last consumed and short-circuits when nothing has changed,
+/// avoiding even the string-equality compare against `state.content`.
+final class PreviewContentRefreshRequested extends MarkdownPreviewEvent {
+  const PreviewContentRefreshRequested();
+}
+
 /// Toggles the parent page's preview/edit mode flag. The bloc only
 /// records this; it does not by itself change the rendering pipeline.
 final class PreviewModeToggled extends MarkdownPreviewEvent {
