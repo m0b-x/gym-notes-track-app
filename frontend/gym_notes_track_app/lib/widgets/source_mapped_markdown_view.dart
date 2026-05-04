@@ -6,6 +6,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../constants/app_spacing.dart';
 import '../constants/markdown_constants.dart';
 import '../models/dev_options.dart';
+import '../services/markdown_render_service.dart';
 import '../utils/line_based_markdown_builder.dart';
 import 'double_tap_line_detector.dart';
 import 'full_markdown_view.dart';
@@ -34,6 +35,18 @@ class SourceMappedMarkdownView extends StatefulWidget {
   /// Lines per chunk for preview performance (higher = better performance, lower = more precise scroll)
   final int linesPerChunk;
 
+  /// Optional externally-owned [MarkdownRenderService]. When supplied,
+  /// the widget uses this service for all builder access and does
+  /// **not** dispose it (the owner is responsible for disposal). When
+  /// `null`, the widget owns a private service and disposes it with
+  /// the [State].
+  ///
+  /// This indirection lets the same widget be driven either by its
+  /// own params (legacy / standalone usage) or by an external owner
+  /// such as `MarkdownPreviewBloc`, without changing rendering
+  /// behavior.
+  final MarkdownRenderService? service;
+
   const SourceMappedMarkdownView({
     super.key,
     required this.data,
@@ -46,6 +59,7 @@ class SourceMappedMarkdownView extends StatefulWidget {
     this.onScrollProgress,
     this.onDoubleTapLine,
     this.linesPerChunk = 10,
+    this.service,
   });
 
   @override
@@ -64,17 +78,17 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
   final ItemPositionsListener _itemPositionsListener =
       ItemPositionsListener.create();
 
-  /// Line-based markdown builder (with chunking)
-  LineBasedMarkdownBuilder? _builder;
+  /// Owns the [LineBasedMarkdownBuilder] lifecycle for this view
+  /// **only** when no external service was supplied via
+  /// [SourceMappedMarkdownView.service]. When external, [_ownedService]
+  /// stays `null` and we never dispose the service.
+  late final MarkdownRenderService? _ownedService;
 
-  /// Cache invalidation tracking
-  String? _lastData;
-  double? _lastFontSize;
-  List<TextRange>? _lastHighlights;
-  int? _lastHighlightIndex;
-  ThemeData? _lastTheme;
-  int? _lastLinesPerChunk;
-  bool? _lastDebugEnabled;
+  /// The active service — either externally provided or owned.
+  MarkdownRenderService get _renderService => widget.service ?? _ownedService!;
+
+  /// Convenience accessor for the active builder.
+  LineBasedMarkdownBuilder? get _builder => _renderService.builder;
 
   /// Debounce timer for rapid data changes
   Timer? _rebuildDebounce;
@@ -170,6 +184,7 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
   @override
   void initState() {
     super.initState();
+    _ownedService = widget.service == null ? MarkdownRenderService() : null;
     // Listen to scroll position changes and notify parent
     _itemPositionsListener.itemPositions.addListener(_onPositionsChanged);
   }
@@ -178,8 +193,10 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
   void dispose() {
     _rebuildDebounce?.cancel();
     _itemPositionsListener.itemPositions.removeListener(_onPositionsChanged);
-    // Dispose the builder to clean up gesture recognizers
-    _builder?.dispose();
+    // Only dispose the service we own. An externally-supplied service
+    // is the caller's responsibility (e.g. a bloc disposes its own
+    // service in `close()`).
+    _ownedService?.dispose();
     super.dispose();
   }
 
@@ -207,24 +224,17 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
   /// Pre-warm cache for chunks in the scroll direction
   void _preWarmAdjacentChunks(int currentChunk) {
     if (_builder == null) return;
-    final chunkCount = _builder!.chunkCount;
 
     // Pre-warm 2 chunks ahead in scroll direction
     if (_lastScrollDirection > 0) {
       // Scrolling down - pre-warm next chunks
       for (int i = 1; i <= 2; i++) {
-        final nextChunk = currentChunk + i;
-        if (nextChunk < chunkCount) {
-          _builder!.buildChunk(nextChunk);
-        }
+        _renderService.preWarmChunk(currentChunk + i);
       }
     } else if (_lastScrollDirection < 0) {
       // Scrolling up - pre-warm previous chunks
       for (int i = 1; i <= 2; i++) {
-        final prevChunk = currentChunk - i;
-        if (prevChunk >= 0) {
-          _builder!.buildChunk(prevChunk);
-        }
+        _renderService.preWarmChunk(currentChunk - i);
       }
     }
   }
@@ -369,90 +379,24 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
     }
   }
 
-  bool _shouldRebuild(ThemeData theme) {
-    final devOptions = DevOptions.instance;
-    final debugEnabled =
-        devOptions.colorMarkdownBlocks || devOptions.showBlockBoundaries;
-
-    return _builder == null ||
-        _lastData != widget.data ||
-        _lastFontSize != widget.fontSize ||
-        !_highlightsEqual(_lastHighlights, widget.searchHighlights) ||
-        _lastHighlightIndex != widget.currentHighlightIndex ||
-        _lastTheme?.brightness != theme.brightness ||
-        _lastLinesPerChunk != widget.linesPerChunk ||
-        _lastDebugEnabled != debugEnabled;
-  }
-
-  /// Deep equality check for highlights list
-  bool _highlightsEqual(List<TextRange>? a, List<TextRange>? b) {
-    if (identical(a, b)) return true;
-    if (a == null || b == null) return false;
-    if (a.length != b.length) return false;
-    for (int i = 0; i < a.length; i++) {
-      if (a[i].start != b[i].start || a[i].end != b[i].end) return false;
-    }
-    return true;
-  }
-
   void _buildCache(BuildContext context) {
     final theme = Theme.of(context);
-
-    if (!_shouldRebuild(theme)) {
-      return;
-    }
-
     final devOptions = DevOptions.instance;
     final debugEnabled =
         devOptions.colorMarkdownBlocks || devOptions.showBlockBoundaries;
 
-    _lastData = widget.data;
-    _lastFontSize = widget.fontSize;
-    _lastHighlights = widget.searchHighlights;
-    _lastHighlightIndex = widget.currentHighlightIndex;
-    _lastTheme = theme;
-    _lastLinesPerChunk = widget.linesPerChunk;
-    _lastDebugEnabled = debugEnabled;
-
-    final mdStyle = LineMarkdownStyle.fromTheme(theme, widget.fontSize);
-
-    // Use adaptive chunk size for very large documents
-    // This reduces total chunk count which improves list performance
-    final lineCount = '\\n'.allMatches(widget.data).length + 1;
-    final adaptiveChunkSize = _computeAdaptiveChunkSize(
-      lineCount,
-      widget.linesPerChunk,
-    );
-
-    // Dispose the old builder to clean up gesture recognizers before
-    // creating a new one — prevents a memory leak on every content change.
-    _builder?.dispose();
-
-    _builder = LineBasedMarkdownBuilder(
-      style: mdStyle,
-      onLinkTap: _handleLinkTap,
-      onCheckboxTap: _handleCheckboxTap,
+    _renderService.prepareWithStyle(
+      data: widget.data,
+      fontSize: widget.fontSize,
+      brightness: theme.brightness,
+      style: LineMarkdownStyle.fromTheme(theme, widget.fontSize),
+      linesPerChunk: widget.linesPerChunk,
+      debugEnabled: debugEnabled,
       searchHighlights: widget.searchHighlights,
       currentHighlightIndex: widget.currentHighlightIndex,
-      linesPerChunk: adaptiveChunkSize,
+      onLinkTap: _handleLinkTap,
+      onCheckboxTap: _handleCheckboxTap,
     );
-
-    // Parse source into lines and compute offsets
-    _builder!.prepare(widget.data);
-  }
-
-  /// Compute adaptive chunk size based on document size
-  /// Larger documents use larger chunks to reduce total item count
-  int _computeAdaptiveChunkSize(int lineCount, int baseChunkSize) {
-    if (lineCount < 1000) {
-      return baseChunkSize; // Small docs: use configured size
-    } else if (lineCount < 10000) {
-      return baseChunkSize * 2; // Medium docs: 2x chunk size
-    } else if (lineCount < 50000) {
-      return baseChunkSize * 5; // Large docs: 5x chunk size (50 lines/chunk)
-    } else {
-      return baseChunkSize * 10; // Huge docs: 10x chunk size (100 lines/chunk)
-    }
   }
 
   void _handleLinkTap(String url) {

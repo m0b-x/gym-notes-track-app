@@ -16,6 +16,7 @@ import '../bloc/optimized_note/optimized_note_bloc.dart';
 import '../bloc/optimized_note/optimized_note_event.dart';
 import '../bloc/optimized_note/optimized_note_state.dart';
 import '../bloc/markdown_bar/markdown_bar_bloc.dart';
+import '../bloc/markdown_preview/markdown_preview_bloc.dart';
 import '../bloc/counter/counter_bloc.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/dev_options.dart';
@@ -32,6 +33,7 @@ import '../widgets/bar_switcher_sheet.dart';
 import '../widgets/debug_overlays.dart';
 import '../widgets/interactive_preview_scrollbar.dart';
 import '../widgets/markdown_bar.dart';
+import '../widgets/markdown_preview_bloc_view.dart';
 import '../widgets/modern_editor_wrapper.dart';
 import '../widgets/full_markdown_view.dart';
 import '../widgets/source_mapped_markdown_view.dart';
@@ -102,9 +104,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   // Preview settings
   bool _showPreviewScrollbar = false;
 
-  // Preview performance settings
-  int _previewLinesPerChunk = 10;
-
   // Toolbar settings
   double _toolbarShortcutRatio = SettingsKeys.defaultToolbarShortcutRatio;
   bool _toolbarSplitEnabled = SettingsKeys.defaultToolbarSplitEnabled;
@@ -132,11 +131,32 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   /// Cached reference so we can dispatch [SetNoteContext] during [dispose].
   late final CounterBloc _counterBloc;
 
-  double _previewFontSize = FontConstants.defaultFontSize;
+  /// Owns the markdown preview render pipeline (parse, chunk cache,
+  /// scroll progress, search highlights). Created in [initState] and
+  /// disposed in [dispose]. Provided to descendants via
+  /// [BlocProvider.value] in [build]. Preview font size and lines-per-chunk
+  /// live in this bloc's state — read via getters below.
+  late final MarkdownPreviewBloc _previewBloc;
+
+  /// Convenience accessor for the current preview font size, sourced
+  /// from [_previewBloc.state.fontSize]. Used by the toolbar build
+  /// and by [_saveFontSizes].
+  double get _previewFontSize => _previewBloc.state.fontSize;
+
+  /// Convenience accessor for the current preview chunk size,
+  /// sourced from [_previewBloc.state.linesPerChunk]. Used by the
+  /// editor's chunk debug visualization so editor and preview always
+  /// agree on chunk boundaries.
+  int get _previewLinesPerChunk => _previewBloc.state.linesPerChunk;
+
+  /// Localized placeholder shown in preview when the note is empty.
+  /// Refreshed in [didChangeDependencies] whenever the locale
+  /// changes so the bloc never holds a stale translation.
+  String? _emptyPreviewPlaceholder;
+
   double _editorFontSize = FontConstants.defaultFontSize;
   List<CustomMarkdownShortcut> _allShortcuts = [];
   int _previousTextLength = 0;
-  String _cachedPreviewContent = '';
   bool _isProcessingTextChange = false;
   int _cachedLineCount = 1;
   int _cachedCharCount = 0;
@@ -168,11 +188,13 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _editorScrollController = CodeScrollController();
     _searchController = ReEditorSearchController();
     _searchController.initialize(_contentController);
-    _previewController = PreviewScrollController()
+    _previewBloc = MarkdownPreviewBloc();
+    _previewController = _previewBloc.scrollController
       ..bindView(GlobalKey<SourceMappedMarkdownViewState>());
 
     _titleController.addListener(_onTextChanged);
     _contentController.addListener(_onTextChanged);
+    _searchController.addListener(_onSearchChanged);
 
     if (widget.noteId != null) {
       _loadNoteContent();
@@ -222,6 +244,18 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
+    // Refresh the cached "no content yet" placeholder on locale
+    // change. If the underlying note is empty, re-dispatch so the
+    // bloc swaps the stale translation for the new one.
+    final placeholder = AppLocalizations.of(context)!.noContentYet;
+    if (_emptyPreviewPlaceholder != placeholder) {
+      _emptyPreviewPlaceholder = placeholder;
+      if (_contentController.text.isEmpty) {
+        _pushPreviewContent('');
+      }
+    }
+
     // Track keyboard visibility to scroll cursor into view when keyboard appears
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
     if (_scrollCursorOnKeyboard &&
@@ -241,10 +275,55 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     if (_previewWhenKeyboardHidden &&
         _previousKeyboardHeight > 0 &&
         keyboardHeight == 0) {
-      _cachedPreviewContent = _contentController.text;
+      _pushPreviewContent(_contentController.text);
     }
 
     _previousKeyboardHeight = keyboardHeight;
+  }
+
+  /// Dispatches the latest preview source into [_previewBloc],
+  /// substituting the cached localized "no content yet" placeholder
+  /// when the note is empty so the preview still renders something
+  /// readable.
+  ///
+  /// The bloc is a no-op when the content is identical to what was
+  /// last prepared, so this is safe to call liberally on toggles,
+  /// keyboard dismissal, content load, and checkbox toggles.
+  ///
+  /// [_emptyPreviewPlaceholder] is initialised in
+  /// [didChangeDependencies] which is guaranteed by the framework to
+  /// run before any user-driven event reaches this method, so the
+  /// non-null assertion is safe.
+  void _pushPreviewContent(String text) {
+    final content = text.isEmpty ? _emptyPreviewPlaceholder! : text;
+    _previewBloc.add(PreviewContentChanged(content));
+  }
+
+  /// Forwards [_searchController]'s current matches into the preview
+  /// bloc whenever the search state changes. The dispatch always
+  /// runs (even when the editor is showing) so the bloc's cached
+  /// highlights stay in sync — otherwise toggling back into preview
+  /// after closing search in editor mode would render stale matches.
+  ///
+  /// Both bloc handlers short-circuit identical inputs so this is
+  /// cheap, and search-controller change notifications are bounded
+  /// to actual search activity (open / close / next / prev / typing
+  /// in the search field), not per-character note edits.
+  void _onSearchChanged() {
+    if (_searchController.isSearching) {
+      _previewBloc.add(
+        PreviewSearchUpdated(
+          highlights: _searchController.matches
+              .map((m) => TextRange(start: m.start, end: m.end))
+              .toList(growable: false),
+          currentIndex: _searchController.currentMatchIndex,
+        ),
+      );
+    } else {
+      _previewBloc.add(
+        const PreviewSearchUpdated(highlights: null, currentIndex: null),
+      );
+    }
   }
 
   Future<void> _initializePositionService() async {
@@ -269,16 +348,19 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       SettingsKeys.editorFontSize,
     );
 
-    if (mounted) {
+    if (!mounted) return;
+
+    if (previewSize != null) {
+      _previewBloc.add(
+        PreviewFontSizeChanged(
+          double.tryParse(previewSize) ?? FontConstants.defaultFontSize,
+        ),
+      );
+    }
+    if (editorSize != null) {
       setState(() {
-        if (previewSize != null) {
-          _previewFontSize =
-              double.tryParse(previewSize) ?? FontConstants.defaultFontSize;
-        }
-        if (editorSize != null) {
-          _editorFontSize =
-              double.tryParse(editorSize) ?? FontConstants.defaultFontSize;
-        }
+        _editorFontSize =
+            double.tryParse(editorSize) ?? FontConstants.defaultFontSize;
       });
     }
   }
@@ -296,32 +378,38 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   }
 
   void _decreaseFontSize() {
-    setState(() {
-      if (_isPreviewMode) {
-        _previewFontSize = (_previewFontSize - FontConstants.fontSizeStep)
-            .clamp(FontConstants.minFontSize, FontConstants.maxFontSize);
-      } else {
+    if (_isPreviewMode) {
+      final next = (_previewFontSize - FontConstants.fontSizeStep).clamp(
+        FontConstants.minFontSize,
+        FontConstants.maxFontSize,
+      );
+      _previewBloc.add(PreviewFontSizeChanged(next));
+    } else {
+      setState(() {
         _editorFontSize = (_editorFontSize - FontConstants.fontSizeStep).clamp(
           FontConstants.minFontSize,
           FontConstants.maxFontSize,
         );
-      }
-    });
+      });
+    }
     _saveFontSizes();
   }
 
   void _increaseFontSize() {
-    setState(() {
-      if (_isPreviewMode) {
-        _previewFontSize = (_previewFontSize + FontConstants.fontSizeStep)
-            .clamp(FontConstants.minFontSize, FontConstants.maxFontSize);
-      } else {
+    if (_isPreviewMode) {
+      final next = (_previewFontSize + FontConstants.fontSizeStep).clamp(
+        FontConstants.minFontSize,
+        FontConstants.maxFontSize,
+      );
+      _previewBloc.add(PreviewFontSizeChanged(next));
+    } else {
+      setState(() {
         _editorFontSize = (_editorFontSize + FontConstants.fontSizeStep).clamp(
           FontConstants.minFontSize,
           FontConstants.maxFontSize,
         );
-      }
-    });
+      });
+    }
     _saveFontSizes();
   }
 
@@ -349,7 +437,6 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         _wordWrap = wordWrap;
         _showCursorLine = showCursorLine;
         _showPreviewScrollbar = showPreviewScrollbar;
-        _previewLinesPerChunk = previewLinesPerChunk;
         _autoBreakLongLines = autoBreakLongLines;
         _previewWhenKeyboardHidden = previewWhenKeyboardHidden;
         _scrollCursorOnKeyboard = scrollCursorOnKeyboard;
@@ -357,6 +444,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         _toolbarSplitEnabled = toolbarSplit;
         _utilityConfigs = utilityConfigs;
       });
+      _previewBloc.add(PreviewLinesPerChunkChanged(previewLinesPerChunk));
     }
   }
 
@@ -566,9 +654,18 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       );
     }
 
-    // Update cached preview content BEFORE switching
+    // Update cached preview content BEFORE switching modes.
+    //
+    // Ordering note: [_pushPreviewContent] dispatches a bloc event,
+    // whose handler runs as a microtask. Microtasks drain before
+    // the next frame is built, so by the time
+    // [WidgetsBinding.addPostFrameCallback] below fires, the bloc
+    // has already emitted, the [BlocBuilder] has rebuilt, and the
+    // [SourceMappedMarkdownView] has prepared its render service.
+    // Scroll calls inside the post-frame callback therefore run
+    // against a populated list.
     if (switchingToPreview) {
-      _cachedPreviewContent = currentText!;
+      _pushPreviewContent(currentText!);
       final lineIndex = _contentController.selection.baseIndex;
 
       // Save editor position so we can restore it when switching back.
@@ -754,13 +851,15 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     DevOptions.instance.removeListener(_onDevOptionsChanged);
     _lineCountDebounceTimer?.cancel();
     _restorePositionTimer?.cancel();
-    _previewController.dispose();
+    // _previewController is owned by _previewBloc — bloc disposes it.
+    _previewBloc.close();
     _autoSaveService?.dispose();
     _titleController.dispose();
     _historyObserver.dispose();
     _contentController.dispose();
     _contentFocusNode.dispose();
     _editorScrollController.dispose();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -812,8 +911,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _hasChanges = true;
 
     if (_isPreviewMode) {
-      _cachedPreviewContent = _contentController.text;
-      setState(() {});
+      _pushPreviewContent(_contentController.text);
     }
   }
 
@@ -1118,283 +1216,287 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocListener(
-      listeners: [
-        BlocListener<OptimizedNoteBloc, OptimizedNoteState>(
-          listener: (context, state) {
-            if (state is OptimizedNoteCreated) {
-              _effectiveNoteId = state.metadata.id;
-              _isCreatingNewNote = false;
-              _counterBloc.add(SetNoteContext(noteId: _effectiveNoteId));
-              ShortcutHandlerFactory.counterHandler.setActiveNoteId(
-                _effectiveNoteId,
-              );
-              _autoSaveService?.startTracking(
-                _titleController.text,
-                _contentController.text,
-                contentProvider: () => _contentController.text,
-              );
-            } else if (state is OptimizedNoteContentLoaded) {
-              final content = state.note.content ?? '';
-              setState(() {
-                _contentController.text = content;
-                _previousTextLength = content.length;
-                _cachedPreviewContent = content;
-                _cachedLineCount = '\n'.allMatches(content).length + 1;
-                _cachedCharCount = content.length;
-                _isLoading = false;
-              });
-              _restoreSavedPosition();
-            }
-          },
-        ),
-        BlocListener<MarkdownBarBloc, MarkdownBarState>(
-          listener: (context, state) {
-            if (state is MarkdownBarLoaded) {
-              setState(() {
-                _activeBarProfileId = state.activeProfileId;
-                _allShortcuts = List.from(state.currentShortcuts);
-              });
-              ShortcutHandlerFactory.counterHandler.setActiveNoteId(
-                _effectiveNoteId ?? widget.noteId,
-              );
-            }
-          },
-        ),
-      ],
-      child: PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (didPop, result) async {
-          if (!didPop) {
-            await _saveBeforeExit();
-            if (context.mounted) {
-              AppNavigator.pop(context);
-            }
-          }
-        },
-        child: Scaffold(
-          drawer: const AppDrawer(),
-          drawerEnableOpenDragGesture: _noteSwipeEnabled,
-          appBar: NoteAppBar(
-            title: _titleController.text.isEmpty
-                ? AppLocalizations.of(context)!.newNote
-                : _titleController.text,
-            hasChanges: _hasChanges,
-            saveStatusNotifier: _autoSaveService?.saveStatusNotifier,
-            onTitleTap: _editTitle,
-            actions: [
-              IconButton(
-                icon: Icon(
-                  _searchController.isSearching
-                      ? Icons.search_off
-                      : Icons.search,
-                ),
-                onPressed: _toggleSearch,
-                tooltip: AppLocalizations.of(context)!.search,
-              ),
-              Tooltip(
-                message: _isPreviewMode
-                    ? AppLocalizations.of(context)!.previewMarkdown
-                    : AppLocalizations.of(context)!.switchToEditMode,
-                waitDuration: AppConstants.debounceDelay,
-                child: IconButton(
-                  icon: Icon(_isPreviewMode ? Icons.visibility : Icons.edit),
-                  onPressed: () => _togglePreviewMode(),
-                ),
-              ),
-            ],
+    return BlocProvider<MarkdownPreviewBloc>.value(
+      value: _previewBloc,
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<OptimizedNoteBloc, OptimizedNoteState>(
+            listener: (context, state) {
+              if (state is OptimizedNoteCreated) {
+                _effectiveNoteId = state.metadata.id;
+                _isCreatingNewNote = false;
+                _counterBloc.add(SetNoteContext(noteId: _effectiveNoteId));
+                ShortcutHandlerFactory.counterHandler.setActiveNoteId(
+                  _effectiveNoteId,
+                );
+                _autoSaveService?.startTracking(
+                  _titleController.text,
+                  _contentController.text,
+                  contentProvider: () => _contentController.text,
+                );
+              } else if (state is OptimizedNoteContentLoaded) {
+                final content = state.note.content ?? '';
+                setState(() {
+                  _contentController.text = content;
+                  _previousTextLength = content.length;
+                  _cachedLineCount = '\n'.allMatches(content).length + 1;
+                  _cachedCharCount = content.length;
+                  _isLoading = false;
+                });
+                _pushPreviewContent(content);
+                _restoreSavedPosition();
+              }
+            },
           ),
-          body: _isLoading
-              ? Column(
-                  children: [
-                    if (_showStatsBar)
-                      RepaintBoundary(child: _buildNoteStats(context)),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Container(
-                          color: Theme.of(context).scaffoldBackgroundColor,
+          BlocListener<MarkdownBarBloc, MarkdownBarState>(
+            listener: (context, state) {
+              if (state is MarkdownBarLoaded) {
+                setState(() {
+                  _activeBarProfileId = state.activeProfileId;
+                  _allShortcuts = List.from(state.currentShortcuts);
+                });
+                ShortcutHandlerFactory.counterHandler.setActiveNoteId(
+                  _effectiveNoteId ?? widget.noteId,
+                );
+              }
+            },
+          ),
+        ],
+        child: PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (!didPop) {
+              await _saveBeforeExit();
+              if (context.mounted) {
+                AppNavigator.pop(context);
+              }
+            }
+          },
+          child: Scaffold(
+            drawer: const AppDrawer(),
+            drawerEnableOpenDragGesture: _noteSwipeEnabled,
+            appBar: NoteAppBar(
+              title: _titleController.text.isEmpty
+                  ? AppLocalizations.of(context)!.newNote
+                  : _titleController.text,
+              hasChanges: _hasChanges,
+              saveStatusNotifier: _autoSaveService?.saveStatusNotifier,
+              onTitleTap: _editTitle,
+              actions: [
+                IconButton(
+                  icon: Icon(
+                    _searchController.isSearching
+                        ? Icons.search_off
+                        : Icons.search,
+                  ),
+                  onPressed: _toggleSearch,
+                  tooltip: AppLocalizations.of(context)!.search,
+                ),
+                Tooltip(
+                  message: _isPreviewMode
+                      ? AppLocalizations.of(context)!.previewMarkdown
+                      : AppLocalizations.of(context)!.switchToEditMode,
+                  waitDuration: AppConstants.debounceDelay,
+                  child: IconButton(
+                    icon: Icon(_isPreviewMode ? Icons.visibility : Icons.edit),
+                    onPressed: () => _togglePreviewMode(),
+                  ),
+                ),
+              ],
+            ),
+            body: _isLoading
+                ? Column(
+                    children: [
+                      if (_showStatsBar)
+                        RepaintBoundary(child: _buildNoteStats(context)),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Container(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                          ),
                         ),
                       ),
-                    ),
-                    if (_allShortcuts.isNotEmpty)
-                      RepaintBoundary(
-                        child: MarkdownBar(
-                          shortcuts: _allShortcuts,
-                          isPreviewMode: _isPreviewMode,
-                          canUndo: false,
-                          canRedo: false,
-                          previewFontSize: _previewFontSize,
-                          shortcutRatio: _toolbarShortcutRatio,
-                          splitEnabled: _toolbarSplitEnabled,
-                          utilityConfigs: _utilityConfigs,
-                          onUndo: () {},
-                          onRedo: () {},
-                          onDecreaseFontSize: () {},
-                          onIncreaseFontSize: () {},
-                          onSettings: () {},
-                          onSwitchBar: _showBarSwitcher,
-                          onScrollToTop: () => _scrollToEdge(toTop: true),
-                          onScrollToBottom: () => _scrollToEdge(toTop: false),
-                          onShortcutPressed: (_) {},
-                          onReorderComplete: (_) {},
-                        ),
-                      ),
-                  ],
-                )
-              : Column(
-                  children: [
-                    // Search bar
-                    if (_searchController.isSearching)
-                      NoteSearchBar(
-                        searchController: _searchController,
-                        onClose: () => setState(() {}),
-                        onNavigateToMatch: _navigateToSearchMatch,
-                        showReplaceField: !_isPreviewMode,
-                        onReplace: _handleSearchReplace,
-                      ),
-                    if (_showStatsBar)
-                      RepaintBoundary(child: _buildNoteStats(context)),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.lg,
-                        ),
-                        child: Builder(
-                          builder: (context) {
-                            final keyboardVisible =
-                                MediaQuery.of(context).viewInsets.bottom > 0;
-                            // Show preview if:
-                            // 1. User toggled preview mode manually, OR
-                            // 2. previewWhenKeyboardHidden is enabled AND keyboard is hidden
-                            final showPreview =
-                                _isPreviewMode ||
-                                (_previewWhenKeyboardHidden &&
-                                    !keyboardVisible);
-
-                            // Only calculate debug info if any debug option is enabled
-                            final devOptions = DevOptions.instance;
-                            if (!devOptions.anyEnabled) {
-                              return Stack(
-                                children: [
-                                  Offstage(
-                                    offstage: showPreview,
-                                    child: IgnorePointer(
-                                      ignoring: showPreview,
-                                      child: _buildEditor(),
-                                    ),
-                                  ),
-                                  Offstage(
-                                    offstage: !showPreview,
-                                    child: IgnorePointer(
-                                      ignoring: !showPreview,
-                                      child: _buildPreview(),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }
-
-                            final selection = _contentController.selection;
-                            final cursorLine = selection.baseIndex + 1;
-                            final cursorColumn = selection.baseOffset;
-                            final cursorOffset =
-                                _getLineStartOffset(selection.baseIndex) +
-                                selection.baseOffset;
-                            final int? selStart;
-                            final int? selEnd;
-                            if (selection.isCollapsed) {
-                              selStart = null;
-                              selEnd = null;
-                            } else {
-                              // Get start and end offsets based on normalized selection
-                              final baseOff =
-                                  _getLineStartOffset(selection.baseIndex) +
-                                  selection.baseOffset;
-                              final extentOff =
-                                  _getLineStartOffset(selection.extentIndex) +
-                                  selection.extentOffset;
-                              if (baseOff <= extentOff) {
-                                selStart = baseOff;
-                                selEnd = extentOff;
-                              } else {
-                                selStart = extentOff;
-                                selEnd = baseOff;
-                              }
-                            }
-                            final noteSize = _contentController.textLength;
-
-                            return DebugOverlayStack(
-                              cursorLine: cursorLine,
-                              cursorColumn: cursorColumn,
-                              cursorOffset: cursorOffset,
-                              selectionStart: selStart,
-                              selectionEnd: selEnd,
-                              noteSize: noteSize,
-                              child: Stack(
-                                children: [
-                                  Offstage(
-                                    offstage: showPreview,
-                                    child: IgnorePointer(
-                                      ignoring: showPreview,
-                                      child: _buildEditor(),
-                                    ),
-                                  ),
-                                  Offstage(
-                                    offstage: !showPreview,
-                                    child: IgnorePointer(
-                                      ignoring: !showPreview,
-                                      child: _buildPreview(),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    // Always show toolbar — in preview mode it provides
-                    // utility actions; in edit mode it appears with keyboard.
-                    RepaintBoundary(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          MarkdownBar(
+                      if (_allShortcuts.isNotEmpty)
+                        RepaintBoundary(
+                          child: MarkdownBar(
                             shortcuts: _allShortcuts,
                             isPreviewMode: _isPreviewMode,
-                            canUndo: _historyObserver.canUndo,
-                            canRedo: _historyObserver.canRedo,
-                            previewFontSize: _isPreviewMode
-                                ? _previewFontSize
-                                : _editorFontSize,
+                            canUndo: false,
+                            canRedo: false,
+                            previewFontSize: _previewFontSize,
                             shortcutRatio: _toolbarShortcutRatio,
                             splitEnabled: _toolbarSplitEnabled,
                             utilityConfigs: _utilityConfigs,
-                            onUndo: () => _historyObserver.undo(),
-                            onRedo: () => _historyObserver.redo(),
-                            onPaste: () => _contentController.paste(),
+                            onUndo: () {},
+                            onRedo: () {},
+                            onDecreaseFontSize: () {},
+                            onIncreaseFontSize: () {},
+                            onSettings: () {},
                             onSwitchBar: _showBarSwitcher,
-                            onDecreaseFontSize: _decreaseFontSize,
-                            onIncreaseFontSize: _increaseFontSize,
-                            onSettings: _openMarkdownSettings,
-                            onShortcutPressed: _handleShortcut,
-                            onReorderComplete: _handleReorderComplete,
-                            onUtilityReorderComplete:
-                                _handleUtilityReorderComplete,
-                            onShare: _showExportFormatDialog,
-                            onCounter: _showCounterPicker,
                             onScrollToTop: () => _scrollToEdge(toTop: true),
                             onScrollToBottom: () => _scrollToEdge(toTop: false),
+                            onShortcutPressed: (_) {},
+                            onReorderComplete: (_) {},
                           ),
-                          SizedBox(
-                            height: MediaQuery.of(context).padding.bottom,
+                        ),
+                    ],
+                  )
+                : Column(
+                    children: [
+                      // Search bar
+                      if (_searchController.isSearching)
+                        NoteSearchBar(
+                          searchController: _searchController,
+                          onClose: () => setState(() {}),
+                          onNavigateToMatch: _navigateToSearchMatch,
+                          showReplaceField: !_isPreviewMode,
+                          onReplace: _handleSearchReplace,
+                        ),
+                      if (_showStatsBar)
+                        RepaintBoundary(child: _buildNoteStats(context)),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.lg,
                           ),
-                        ],
+                          child: Builder(
+                            builder: (context) {
+                              final keyboardVisible =
+                                  MediaQuery.of(context).viewInsets.bottom > 0;
+                              // Show preview if:
+                              // 1. User toggled preview mode manually, OR
+                              // 2. previewWhenKeyboardHidden is enabled AND keyboard is hidden
+                              final showPreview =
+                                  _isPreviewMode ||
+                                  (_previewWhenKeyboardHidden &&
+                                      !keyboardVisible);
+
+                              // Only calculate debug info if any debug option is enabled
+                              final devOptions = DevOptions.instance;
+                              if (!devOptions.anyEnabled) {
+                                return Stack(
+                                  children: [
+                                    Offstage(
+                                      offstage: showPreview,
+                                      child: IgnorePointer(
+                                        ignoring: showPreview,
+                                        child: _buildEditor(),
+                                      ),
+                                    ),
+                                    Offstage(
+                                      offstage: !showPreview,
+                                      child: IgnorePointer(
+                                        ignoring: !showPreview,
+                                        child: _buildPreview(),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }
+
+                              final selection = _contentController.selection;
+                              final cursorLine = selection.baseIndex + 1;
+                              final cursorColumn = selection.baseOffset;
+                              final cursorOffset =
+                                  _getLineStartOffset(selection.baseIndex) +
+                                  selection.baseOffset;
+                              final int? selStart;
+                              final int? selEnd;
+                              if (selection.isCollapsed) {
+                                selStart = null;
+                                selEnd = null;
+                              } else {
+                                // Get start and end offsets based on normalized selection
+                                final baseOff =
+                                    _getLineStartOffset(selection.baseIndex) +
+                                    selection.baseOffset;
+                                final extentOff =
+                                    _getLineStartOffset(selection.extentIndex) +
+                                    selection.extentOffset;
+                                if (baseOff <= extentOff) {
+                                  selStart = baseOff;
+                                  selEnd = extentOff;
+                                } else {
+                                  selStart = extentOff;
+                                  selEnd = baseOff;
+                                }
+                              }
+                              final noteSize = _contentController.textLength;
+
+                              return DebugOverlayStack(
+                                cursorLine: cursorLine,
+                                cursorColumn: cursorColumn,
+                                cursorOffset: cursorOffset,
+                                selectionStart: selStart,
+                                selectionEnd: selEnd,
+                                noteSize: noteSize,
+                                child: Stack(
+                                  children: [
+                                    Offstage(
+                                      offstage: showPreview,
+                                      child: IgnorePointer(
+                                        ignoring: showPreview,
+                                        child: _buildEditor(),
+                                      ),
+                                    ),
+                                    Offstage(
+                                      offstage: !showPreview,
+                                      child: IgnorePointer(
+                                        ignoring: !showPreview,
+                                        child: _buildPreview(),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                      // Always show toolbar — in preview mode it provides
+                      // utility actions; in edit mode it appears with keyboard.
+                      RepaintBoundary(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            MarkdownBar(
+                              shortcuts: _allShortcuts,
+                              isPreviewMode: _isPreviewMode,
+                              canUndo: _historyObserver.canUndo,
+                              canRedo: _historyObserver.canRedo,
+                              previewFontSize: _isPreviewMode
+                                  ? _previewFontSize
+                                  : _editorFontSize,
+                              shortcutRatio: _toolbarShortcutRatio,
+                              splitEnabled: _toolbarSplitEnabled,
+                              utilityConfigs: _utilityConfigs,
+                              onUndo: () => _historyObserver.undo(),
+                              onRedo: () => _historyObserver.redo(),
+                              onPaste: () => _contentController.paste(),
+                              onSwitchBar: _showBarSwitcher,
+                              onDecreaseFontSize: _decreaseFontSize,
+                              onIncreaseFontSize: _increaseFontSize,
+                              onSettings: _openMarkdownSettings,
+                              onShortcutPressed: _handleShortcut,
+                              onReorderComplete: _handleReorderComplete,
+                              onUtilityReorderComplete:
+                                  _handleUtilityReorderComplete,
+                              onShare: _showExportFormatDialog,
+                              onCounter: _showCounterPicker,
+                              onScrollToTop: () => _scrollToEdge(toTop: true),
+                              onScrollToBottom: () =>
+                                  _scrollToEdge(toTop: false),
+                            ),
+                            SizedBox(
+                              height: MediaQuery.of(context).padding.bottom,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
         ),
       ),
     );
@@ -1459,43 +1561,29 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       return const SizedBox.shrink();
     }
 
-    // Use cached content to avoid re-parsing on every keystroke
-    // Content is updated only when switching to preview mode
-    final content = _cachedPreviewContent.isEmpty
-        ? AppLocalizations.of(context)!.noContentYet
-        : _cachedPreviewContent;
-
-    // Only update search content when we're actually in preview mode
+    // Keep the search controller's content in sync with what the
+    // preview is rendering, so in-preview search continues to work.
     if (_isPreviewMode) {
-      _searchController.updateContent(content);
+      _searchController.updateContent(_previewBloc.state.content);
     }
 
-    // Use Listenable.merge to listen to both search and dev options changes
-    final markdownView = ListenableBuilder(
-      listenable: Listenable.merge([_searchController, DevOptions.instance]),
-      builder: (context, _) => SourceMappedMarkdownView(
-        key: _previewController.viewKey,
-        data: content,
-        fontSize: _previewFontSize,
-        padding: const EdgeInsets.only(
-          left: AppSpacing.lg,
-          top: AppSpacing.lg,
-          right: AppSpacing.lg,
-          bottom: kToolbarHeight,
-        ),
-        onCheckboxToggle: _handleCheckboxToggle,
-        linesPerChunk: _previewLinesPerChunk,
-        onScrollProgress: _previewController.updateProgress,
-        onDoubleTapLine: _handleDoubleTapLine,
-        searchHighlights: _isPreviewMode && _searchController.isSearching
-            ? _searchController.matches
-                  .map((m) => TextRange(start: m.start, end: m.end))
-                  .toList()
-            : null,
-        currentHighlightIndex: _isPreviewMode && _searchController.isSearching
-            ? _searchController.currentMatchIndex
-            : null,
+    final markdownView = MarkdownPreviewBlocView(
+      bloc: _previewBloc,
+      padding: const EdgeInsets.only(
+        left: AppSpacing.lg,
+        top: AppSpacing.lg,
+        right: AppSpacing.lg,
+        bottom: kToolbarHeight,
       ),
+      onCheckboxToggle: _handleCheckboxToggle,
+      onDoubleTapLine: _handleDoubleTapLine,
+      // Forward scroll progress to the preview controller so the
+      // interactive scrollbar (which listens on the same controller)
+      // keeps tracking position. The bloc already mirrors progress
+      // into [_previewController] via [_onScrollProgressChanged]
+      // when [_previewController] is the bloc's own scroll controller,
+      // so this callback is a defensive no-op when they match.
+      onScrollProgress: null,
     );
 
     // If scrollbar is disabled, just return the markdown view
