@@ -392,6 +392,7 @@
   "counterOpDecrement": "Decrementează",
   "selectCounter": "Selectează Contorul",
   "noCountersYet": "Niciun contor creat încă",
+  "noCountersYetHint": "Niciun contor creat încă. Folosește butonul \"Adaugă Contor\" de mai jos pentru a crea unul.",
   "addCounter": "Adaugă Contor",
   "counterName": "Nume Contor",
   "startValue": "Valoare Inițială",

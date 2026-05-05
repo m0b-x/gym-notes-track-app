@@ -2752,6 +2752,12 @@ abstract class AppLocalizations {
   /// **'No counters created yet'**
   String get noCountersYet;
 
+  /// Info banner shown in the counter insert type section when no counters exist
+  ///
+  /// In en, this message translates to:
+  /// **'No counters created yet. Use the \"Add counter\" button below to create one.'**
+  String get noCountersYetHint;
+
   /// Button to create a new counter
   ///
   /// In en, this message translates to:

@@ -1443,6 +1443,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get noCountersYet => 'Noch keine Zähler erstellt';
 
   @override
+  String get noCountersYetHint =>
+      'Noch keine Zähler erstellt. Verwende die Schaltfläche \"Zähler hinzufügen\" unten, um einen zu erstellen.';
+
+  @override
   String get addCounter => 'Zähler hinzufügen';
 
   @override

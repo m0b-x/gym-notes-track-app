@@ -1430,6 +1430,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noCountersYet => 'No counters created yet';
 
   @override
+  String get noCountersYetHint =>
+      'No counters created yet. Use the \"Add counter\" button below to create one.';
+
+  @override
   String get addCounter => 'Add Counter';
 
   @override

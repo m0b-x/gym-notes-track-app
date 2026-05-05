@@ -1188,21 +1188,28 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
           Row(
             children: [
               Expanded(
-                child: SegmentedButton<CounterOp>(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Each segment needs roughly 80 px; below that shrink the
+                    // label font so everything stays on one line.
+                    final perSegment = constraints.maxWidth / 3;
+                    final fontSize = (perSegment / 5).clamp(10.0, 13.0);
+                    final labelStyle = TextStyle(fontSize: fontSize);
+                    return SegmentedButton<CounterOp>(
                   segments: [
                     ButtonSegment(
                       value: CounterOp.increment,
-                      label: Text(l10n.counterOpIncrement),
+                      label: Text(l10n.counterOpIncrement, style: labelStyle),
                       icon: const Icon(Icons.add, size: 16),
                     ),
                     ButtonSegment(
                       value: CounterOp.keep,
-                      label: Text(l10n.counterOpKeep),
+                      label: Text(l10n.counterOpKeep, style: labelStyle),
                       icon: const Icon(Icons.drag_handle, size: 16),
                     ),
                     ButtonSegment(
                       value: CounterOp.decrement,
-                      label: Text(l10n.counterOpDecrement),
+                      label: Text(l10n.counterOpDecrement, style: labelStyle),
                       icon: const Icon(Icons.remove, size: 16),
                     ),
                   ],
@@ -1223,6 +1230,8 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                             _counterBindings[i],
                       ];
                     });
+                  },
+                );
                   },
                 ),
               ),
@@ -1494,14 +1503,43 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                       Text(l10n.selectCounter),
                       const SizedBox(height: 8),
                       if (_availableCounters.isEmpty)
-                        Text(
-                          l10n.noCountersYet,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withValues(alpha: 0.5),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .secondaryContainer
+                                .withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .secondary
+                                  .withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                size: 18,
+                                color:
+                                    Theme.of(context).colorScheme.secondary,
                               ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  l10n.noCountersYetHint,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSecondaryContainer,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         )
                       else
                         DropdownButtonFormField<String>(

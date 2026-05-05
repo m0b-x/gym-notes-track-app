@@ -1904,6 +1904,10 @@
   "@noCountersYet": {
     "description": "Empty state when no counters exist"
   },
+  "noCountersYetHint": "No counters created yet. Use the \"Add counter\" button below to create one.",
+  "@noCountersYetHint": {
+    "description": "Info banner shown in the counter insert type section when no counters exist"
+  },
   "addCounter": "Add Counter",
   "@addCounter": {
     "description": "Button to create a new counter"

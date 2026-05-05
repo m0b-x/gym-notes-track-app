@@ -1439,6 +1439,10 @@ class AppLocalizationsRo extends AppLocalizations {
   String get noCountersYet => 'Niciun contor creat încă';
 
   @override
+  String get noCountersYetHint =>
+      'Niciun contor creat încă. Folosește butonul \"Adaugă Contor\" de mai jos pentru a crea unul.';
+
+  @override
   String get addCounter => 'Adaugă Contor';
 
   @override

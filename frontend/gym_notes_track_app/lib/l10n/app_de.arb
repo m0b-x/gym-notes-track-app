@@ -1498,6 +1498,7 @@
   "counterOpDecrement": "Verringern",
   "selectCounter": "Zähler auswählen",
   "noCountersYet": "Noch keine Zähler erstellt",
+  "noCountersYetHint": "Noch keine Zähler erstellt. Verwende die Schaltfläche \"Zähler hinzufügen\" unten, um einen zu erstellen.",
   "addCounter": "Zähler hinzufügen",
   "counterName": "Zählername",
   "startValue": "Startwert",
