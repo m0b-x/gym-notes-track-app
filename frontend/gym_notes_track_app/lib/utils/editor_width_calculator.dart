@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../constants/markdown_constants.dart';
+import 'markdown_link_patterns.dart';
 
 /// Configuration for editor width calculation
 class EditorWidthConfig {
@@ -58,6 +59,10 @@ class EditorWidthCalculator {
   static final _boldPattern = RegExp(r'\*\*[^*]+\*\*|__[^_]+__');
   static final _italicPattern = RegExp(r'\*[^*]+\*|_[^_]+_');
   static final _codeBlockFencePattern = RegExp(r'^```');
+
+  /// Bare URL pattern shared with [LineBasedMarkdownBuilder] so the paste
+  /// reformatter never splits a URL the preview would render as a link.
+  static final _bareUrlPattern = MarkdownLinkPatterns.bareUrl;
 
   /// Cached TextPainter reused across measurements to avoid re-allocation.
   late final TextPainter _textPainter;
@@ -193,8 +198,15 @@ class EditorWidthCalculator {
       if (breakPoint <= 0) breakPoint = 1;
 
       result.add(remaining.substring(0, breakPoint).trimRight());
-      remaining = remaining.substring(breakPoint).trimLeft();
-      offset += breakPoint;
+      // Track the leading-whitespace `trimLeft` strips so `offset` stays in
+      // sync with the original-line coordinates that `protectedRanges` is
+      // expressed in. Without this correction, breaking at a space before a
+      // protected range (e.g. the space before a URL) leaves `offset` one
+      // short, and the next iteration's protected-range check would be
+      // off-by-one inside the URL — splitting it mid-token.
+      final preTrimSuffix = remaining.substring(breakPoint);
+      remaining = preTrimSuffix.trimLeft();
+      offset += breakPoint + (preTrimSuffix.length - remaining.length);
     }
 
     if (remaining.isNotEmpty) {
@@ -208,13 +220,18 @@ class EditorWidthCalculator {
   List<_Range> _findProtectedRanges(String line) {
     final ranges = <_Range>[];
 
-    // Find all patterns and add their ranges
+    // Find all patterns and add their ranges.
+    // Images must come before links (they share the [text](url) syntax).
+    // Bare URLs come last so a markdown link [text](https://...) is
+    // already covered by _linkPattern and the URL portion is not
+    // double-counted.
     for (final pattern in [
-      _imagePattern, // Check images first (they contain link pattern)
+      _imagePattern,
       _linkPattern,
       _inlineCodePattern,
       _boldPattern,
       _italicPattern,
+      _bareUrlPattern,
     ]) {
       for (final match in pattern.allMatches(line)) {
         ranges.add(_Range(match.start, match.end));
@@ -263,15 +280,21 @@ class EditorWidthCalculator {
       // If break point is inside a protected range, move it before the range
       if (absoluteBreakPoint > range.start && absoluteBreakPoint < range.end) {
         final adjustedBreakPoint = range.start - lineOffset;
-        // Only adjust if it gives us a valid break point
+        // Prefer breaking just before the protected range.
         if (adjustedBreakPoint > 0) {
           return adjustedBreakPoint;
         }
-        // If we can't break before, try after the range
+        // Can't break before — try breaking just after the range.
         final afterRange = range.end - lineOffset;
         if (afterRange < remainingLength) {
           return afterRange;
         }
+        // The protected range covers the rest of `remaining` (e.g. a bare
+        // URL that fills the line end with no trailing text).  Signal that
+        // no break is possible by returning `remainingLength`; the caller
+        // will emit the whole remaining as one unbroken line and exit the
+        // while loop.
+        return remainingLength;
       }
     }
 

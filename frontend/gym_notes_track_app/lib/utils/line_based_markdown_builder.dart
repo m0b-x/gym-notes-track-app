@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/markdown_constants.dart';
 import 'markdown_line_height_calculator.dart';
+import 'markdown_link_patterns.dart';
 
 typedef LinkTapCallback = void Function(String url);
 typedef CheckboxTapCallback = void Function(int start, int end, bool isChecked);
@@ -1362,6 +1363,6 @@ class _MarkdownPatterns {
     r'(~~)(.*?)\7|' // Strikethrough
     r'(`)(.*?)\9|' // Inline code
     r'\[([^\]]+)\]\(([^)]+)\)|' // Links
-    r'(https?://[^\s<>()\[\]]+|www\.[^\s<>()\[\]]+)', // Bare autolinks
+    '(${MarkdownLinkPatterns.bareUrl.pattern})', // Bare autolinks (shared)
   );
 }
