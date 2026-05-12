@@ -869,9 +869,6 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
         const SizedBox(height: 12),
         TextField(
           controller: _beforeRepeatController,
-          // See note on the body Column: use onTapOutside (TapRegion-based)
-          // to dismiss the keyboard. Never wrap in a GestureDetector.
-          onTapOutside: (_) => FocusScope.of(context).unfocus(),
           decoration: InputDecoration(
             labelText: AppLocalizations.of(context)!.beforeAllRepeats,
             hintText: AppLocalizations.of(context)!.beforeAllRepeatsHint,
@@ -888,7 +885,6 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
         const SizedBox(height: 12),
         TextField(
           controller: _afterRepeatController,
-          onTapOutside: (_) => FocusScope.of(context).unfocus(),
           decoration: InputDecoration(
             labelText: AppLocalizations.of(context)!.afterAllRepeats,
             hintText: AppLocalizations.of(context)!.afterAllRepeatsHint,
@@ -1421,17 +1417,6 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
             ),
       body: Column(
         children: [
-          // ⚠️ DO NOT wrap this Expanded/SingleChildScrollView in a
-          // GestureDetector with onTap:FocusScope.unfocus(). On mobile that
-          // puts a TapGestureRecognizer into the gesture arena that competes
-          // with every TextField's internal TapAndPanGestureRecognizer; the
-          // outer one wins simple taps, which cancels the TextField's tap →
-          // the cursor cannot be re-positioned, selections cannot be
-          // collapsed, and only drag-extend works (it's claimed exclusively
-          // by the TextField). The correct way to dismiss the keyboard on
-          // tap-outside is TextField.onTapOutside (TapRegion-based), which
-          // does not enter the gesture arena. It is already wired on every
-          // TextField below — keep it that way.
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
@@ -1470,7 +1455,6 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: _labelController,
-                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
                     onChanged: (_) {
                       if (_labelError != null) {
                         setState(() => _labelError = null);
@@ -1794,7 +1778,6 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                   TextField(
                     controller: _beforeController,
                     focusNode: _beforeFocusNode,
-                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
                     maxLines: null,
                     minLines: 3,
                     keyboardType: TextInputType.multiline,
@@ -1833,7 +1816,6 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                   TextField(
                     controller: _afterController,
                     focusNode: _afterFocusNode,
-                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
                     maxLines: null,
                     minLines: 3,
                     keyboardType: TextInputType.multiline,
@@ -1947,31 +1929,39 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
             ),
           ),
           if (showToolbar && _shortcuts.isNotEmpty)
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                border: Border(
-                  top: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                    width: 1,
+            // TextFieldTapRegion marks the MarkdownBar as belonging to the
+            // text-field tap group. This means: (a) any current/future
+            // TextField.onTapOutside callback in this tree will NOT fire
+            // when the user taps a markdown shortcut button, and (b) the
+            // focused TextField won't be unfocused, so _resolveActiveField()
+            // continues to return the correct controller in _handleShortcut.
+            TextFieldTapRegion(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                      width: 1,
+                    ),
                   ),
                 ),
-              ),
-              child: MarkdownBar(
-                shortcuts: _shortcuts.where((s) => s.isVisible).toList(),
-                isPreviewMode: false,
-                canUndo: false,
-                canRedo: false,
-                previewFontSize: 16,
-                onUndo: () {},
-                onRedo: () {},
-                onDecreaseFontSize: () {},
-                onIncreaseFontSize: () {},
-                onSettings: () {},
-                onShortcutPressed: _handleShortcut,
-                showSettings: false,
-                showBackground: false,
-                showReorder: false,
+                child: MarkdownBar(
+                  shortcuts: _shortcuts.where((s) => s.isVisible).toList(),
+                  isPreviewMode: false,
+                  canUndo: false,
+                  canRedo: false,
+                  previewFontSize: 16,
+                  onUndo: () {},
+                  onRedo: () {},
+                  onDecreaseFontSize: () {},
+                  onIncreaseFontSize: () {},
+                  onSettings: () {},
+                  onShortcutPressed: _handleShortcut,
+                  showSettings: false,
+                  showBackground: false,
+                  showReorder: false,
+                ),
               ),
             ),
         ],
