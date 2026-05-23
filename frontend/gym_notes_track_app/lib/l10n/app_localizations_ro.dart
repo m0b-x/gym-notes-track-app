@@ -12,6 +12,33 @@ class AppLocalizationsRo extends AppLocalizations {
   String get appTitle => 'Gym Notes';
 
   @override
+  String get calendar => 'Calendar';
+
+  @override
+  String get calendarDesc => 'Planifică antrenamente și evenimente';
+
+  @override
+  String get calendarNoEventsForDay => 'Niciun eveniment pentru această zi';
+
+  @override
+  String get addEvent => 'Adaugă eveniment';
+
+  @override
+  String get eventTitle => 'Titlu';
+
+  @override
+  String get eventAllDay => 'Toată ziua';
+
+  @override
+  String get calendarFormatMonth => 'Lună';
+
+  @override
+  String get calendarFormatTwoWeeks => '2 săptămâni';
+
+  @override
+  String get calendarFormatWeek => 'Săptămână';
+
+  @override
   String get welcomeToGymNotes => 'Bine ai venit la Gym Notes';
 
   @override

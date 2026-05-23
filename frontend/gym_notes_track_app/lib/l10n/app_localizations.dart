@@ -106,6 +106,60 @@ abstract class AppLocalizations {
   /// **'Gym Notes'**
   String get appTitle;
 
+  /// Drawer item and page title for the calendar feature
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar'**
+  String get calendar;
+
+  /// Drawer subtitle for the calendar feature
+  ///
+  /// In en, this message translates to:
+  /// **'Plan gym sessions and events'**
+  String get calendarDesc;
+
+  /// Empty state shown when the selected calendar day has no events
+  ///
+  /// In en, this message translates to:
+  /// **'No events for this day'**
+  String get calendarNoEventsForDay;
+
+  /// Button or tooltip for creating a calendar event
+  ///
+  /// In en, this message translates to:
+  /// **'Add event'**
+  String get addEvent;
+
+  /// Label for a calendar event title field
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get eventTitle;
+
+  /// Label for an all-day calendar event
+  ///
+  /// In en, this message translates to:
+  /// **'All day'**
+  String get eventAllDay;
+
+  /// Calendar format option for month view
+  ///
+  /// In en, this message translates to:
+  /// **'Month'**
+  String get calendarFormatMonth;
+
+  /// Calendar format option for two-week view
+  ///
+  /// In en, this message translates to:
+  /// **'2 weeks'**
+  String get calendarFormatTwoWeeks;
+
+  /// Calendar format option for week view
+  ///
+  /// In en, this message translates to:
+  /// **'Week'**
+  String get calendarFormatWeek;
+
   /// Welcome message on onboarding screen
   ///
   /// In en, this message translates to:

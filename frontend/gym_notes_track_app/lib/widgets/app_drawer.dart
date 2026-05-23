@@ -159,6 +159,17 @@ class _AppDrawerState extends State<AppDrawer> {
                   },
                 ),
 
+                _buildMenuItem(
+                  context: context,
+                  icon: Icons.calendar_month_rounded,
+                  title: AppLocalizations.of(context)!.calendar,
+                  subtitle: AppLocalizations.of(context)!.calendarDesc,
+                  onTap: () {
+                    AppNavigator.pop(context);
+                    AppNavigator.toCalendar(context);
+                  },
+                ),
+
                 // Developer options divider and menu (only shown when unlocked)
                 ListenableBuilder(
                   listenable: DevOptions.instance,

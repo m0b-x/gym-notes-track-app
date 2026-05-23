@@ -12,6 +12,33 @@ class AppLocalizationsDe extends AppLocalizations {
   String get appTitle => 'Gym Notizen';
 
   @override
+  String get calendar => 'Kalender';
+
+  @override
+  String get calendarDesc => 'Trainings und Ereignisse planen';
+
+  @override
+  String get calendarNoEventsForDay => 'Keine Ereignisse an diesem Tag';
+
+  @override
+  String get addEvent => 'Ereignis hinzufügen';
+
+  @override
+  String get eventTitle => 'Titel';
+
+  @override
+  String get eventAllDay => 'Ganztägig';
+
+  @override
+  String get calendarFormatMonth => 'Monat';
+
+  @override
+  String get calendarFormatTwoWeeks => '2 Wochen';
+
+  @override
+  String get calendarFormatWeek => 'Woche';
+
+  @override
   String get welcomeToGymNotes => 'Willkommen bei Gym Notizen';
 
   @override

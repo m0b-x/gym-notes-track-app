@@ -31,8 +31,11 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
   late TextEditingController _labelController;
   late TextEditingController _beforeController;
   late TextEditingController _afterController;
+  late FocusNode _labelFocusNode;
   late FocusNode _beforeFocusNode;
   late FocusNode _afterFocusNode;
+  late FocusNode _beforeRepeatFocusNode;
+  late FocusNode _afterRepeatFocusNode;
   late IconData _selectedIcon;
   late String _insertType;
   late String _selectedDateFormat;
@@ -108,8 +111,11 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
     );
     _afterController.addListener(() => setState(() {}));
 
+    _labelFocusNode = FocusNode();
     _beforeFocusNode = FocusNode();
     _afterFocusNode = FocusNode();
+    _beforeRepeatFocusNode = FocusNode();
+    _afterRepeatFocusNode = FocusNode();
 
     // Use simple focus listeners only to rebuild toolbar visibility —
     // no state variables tracking active controller to avoid cursor loop.
@@ -215,8 +221,11 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
     _afterController.dispose();
     _beforeRepeatController.dispose();
     _afterRepeatController.dispose();
+    _labelFocusNode.dispose();
     _beforeFocusNode.dispose();
     _afterFocusNode.dispose();
+    _beforeRepeatFocusNode.dispose();
+    _afterRepeatFocusNode.dispose();
     super.dispose();
   }
 
@@ -869,6 +878,8 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
         const SizedBox(height: 12),
         TextField(
           controller: _beforeRepeatController,
+          focusNode: _beforeRepeatFocusNode,
+          onTapOutside: (_) => _beforeRepeatFocusNode.unfocus(),
           decoration: InputDecoration(
             labelText: AppLocalizations.of(context)!.beforeAllRepeats,
             hintText: AppLocalizations.of(context)!.beforeAllRepeatsHint,
@@ -885,6 +896,8 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
         const SizedBox(height: 12),
         TextField(
           controller: _afterRepeatController,
+          focusNode: _afterRepeatFocusNode,
+          onTapOutside: (_) => _afterRepeatFocusNode.unfocus(),
           decoration: InputDecoration(
             labelText: AppLocalizations.of(context)!.afterAllRepeats,
             hintText: AppLocalizations.of(context)!.afterAllRepeatsHint,
@@ -1455,6 +1468,8 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: _labelController,
+                    focusNode: _labelFocusNode,
+                    onTapOutside: (_) => _labelFocusNode.unfocus(),
                     onChanged: (_) {
                       if (_labelError != null) {
                         setState(() => _labelError = null);
@@ -1778,6 +1793,7 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                   TextField(
                     controller: _beforeController,
                     focusNode: _beforeFocusNode,
+                    onTapOutside: (_) => _beforeFocusNode.unfocus(),
                     maxLines: null,
                     minLines: 3,
                     keyboardType: TextInputType.multiline,
@@ -1816,6 +1832,7 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                   TextField(
                     controller: _afterController,
                     focusNode: _afterFocusNode,
+                    onTapOutside: (_) => _afterFocusNode.unfocus(),
                     maxLines: null,
                     minLines: 3,
                     keyboardType: TextInputType.multiline,

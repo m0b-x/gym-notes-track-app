@@ -3,6 +3,15 @@
   "@appTitle": {
     "description": "The title of the application"
   },
+  "calendar": "Kalender",
+  "calendarDesc": "Trainings und Ereignisse planen",
+  "calendarNoEventsForDay": "Keine Ereignisse an diesem Tag",
+  "addEvent": "Ereignis hinzufügen",
+  "eventTitle": "Titel",
+  "eventAllDay": "Ganztägig",
+  "calendarFormatMonth": "Monat",
+  "calendarFormatTwoWeeks": "2 Wochen",
+  "calendarFormatWeek": "Woche",
   "welcomeToGymNotes": "Willkommen bei Gym Notizen",
   "onboardingDescription": "Verfolge deine Trainings und Notizen an einem Ort. Starte mit einem neuen Arbeitsbereich oder stelle ein vorheriges Backup wieder her.",
   "startFresh": "Neu starten",

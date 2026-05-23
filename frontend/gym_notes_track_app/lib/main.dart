@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:gym_notes_track_app/l10n/app_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'dart:async';
 import 'bloc/app_settings/app_settings_bloc.dart';
 import 'bloc/optimized_folder/optimized_folder_bloc.dart';
@@ -20,6 +21,7 @@ import 'services/settings_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting();
 
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(

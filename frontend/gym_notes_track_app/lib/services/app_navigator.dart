@@ -3,6 +3,7 @@ import '../models/counter.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/note_metadata.dart';
 import '../pages/controls_settings_page.dart';
+import '../pages/calendar_page.dart';
 import '../pages/counter_management_page.dart';
 import '../pages/counter_per_note_page.dart';
 import '../pages/database_settings_page.dart';
@@ -148,6 +149,10 @@ abstract final class AppNavigator {
     String? noteId,
   }) {
     return push<SettingsResult>(context, CounterManagementPage(noteId: noteId));
+  }
+
+  static Future<void> toCalendar(BuildContext context) {
+    return push(context, const CalendarPage());
   }
 
   static Future<void> toCounterPerNote(

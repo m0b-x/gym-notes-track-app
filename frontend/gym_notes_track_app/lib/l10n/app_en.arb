@@ -3,6 +3,42 @@
   "@appTitle": {
     "description": "The title of the application"
   },
+  "calendar": "Calendar",
+  "@calendar": {
+    "description": "Drawer item and page title for the calendar feature"
+  },
+  "calendarDesc": "Plan gym sessions and events",
+  "@calendarDesc": {
+    "description": "Drawer subtitle for the calendar feature"
+  },
+  "calendarNoEventsForDay": "No events for this day",
+  "@calendarNoEventsForDay": {
+    "description": "Empty state shown when the selected calendar day has no events"
+  },
+  "addEvent": "Add event",
+  "@addEvent": {
+    "description": "Button or tooltip for creating a calendar event"
+  },
+  "eventTitle": "Title",
+  "@eventTitle": {
+    "description": "Label for a calendar event title field"
+  },
+  "eventAllDay": "All day",
+  "@eventAllDay": {
+    "description": "Label for an all-day calendar event"
+  },
+  "calendarFormatMonth": "Month",
+  "@calendarFormatMonth": {
+    "description": "Calendar format option for month view"
+  },
+  "calendarFormatTwoWeeks": "2 weeks",
+  "@calendarFormatTwoWeeks": {
+    "description": "Calendar format option for two-week view"
+  },
+  "calendarFormatWeek": "Week",
+  "@calendarFormatWeek": {
+    "description": "Calendar format option for week view"
+  },
   "welcomeToGymNotes": "Welcome to Gym Notes",
   "@welcomeToGymNotes": {
     "description": "Welcome message on onboarding screen"
