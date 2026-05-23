@@ -6,6 +6,7 @@ import 'package:gym_notes_track_app/l10n/app_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'dart:async';
 import 'bloc/app_settings/app_settings_bloc.dart';
+import 'bloc/calendar/calendar_bloc.dart';
 import 'bloc/optimized_folder/optimized_folder_bloc.dart';
 import 'bloc/optimized_note/optimized_note_bloc.dart';
 import 'bloc/counter/counter_bloc.dart';
@@ -101,6 +102,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           create: (_) => getIt<CounterBloc>()..add(const LoadCounters()),
         ),
         BlocProvider(create: (_) => getIt<ImportExportBloc>()),
+        BlocProvider(
+          create: (_) => CalendarBloc()..add(const LoadCalendarEvents()),
+        ),
       ],
       child: BlocBuilder<AppSettingsBloc, AppSettingsState>(
         builder: (context, settingsState) {

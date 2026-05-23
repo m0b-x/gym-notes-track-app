@@ -22,50 +22,36 @@ final class CalendarPageLoaded extends CalendarPageState {
   final List<CalendarEvent> allEvents;
   final DateTime focusedDay;
   final DateTime selectedDay;
-  final Map<DateTime, List<CalendarEvent>> expandedByDay;
   final CalendarFormat format;
 
   const CalendarPageLoaded({
     required this.allEvents,
     required this.focusedDay,
     required this.selectedDay,
-    required this.expandedByDay,
     this.format = CalendarFormat.month,
   });
 
+  /// Events whose recurrence rule produces an occurrence on [selectedDay].
   List<CalendarEvent> get selectedEvents {
-    return expandedByDay[DateTime.utc(
-          selectedDay.year,
-          selectedDay.month,
-          selectedDay.day,
-        )] ??
-        const [];
+    return allEvents.where((e) => e.occursOn(selectedDay)).toList();
   }
 
   CalendarPageLoaded copyWith({
     List<CalendarEvent>? allEvents,
     DateTime? focusedDay,
     DateTime? selectedDay,
-    Map<DateTime, List<CalendarEvent>>? expandedByDay,
     CalendarFormat? format,
   }) {
     return CalendarPageLoaded(
       allEvents: allEvents ?? this.allEvents,
       focusedDay: focusedDay ?? this.focusedDay,
       selectedDay: selectedDay ?? this.selectedDay,
-      expandedByDay: expandedByDay ?? this.expandedByDay,
       format: format ?? this.format,
     );
   }
 
   @override
-  List<Object?> get props => [
-    allEvents,
-    focusedDay,
-    selectedDay,
-    expandedByDay,
-    format,
-  ];
+  List<Object?> get props => [allEvents, focusedDay, selectedDay, format];
 }
 
 final class CalendarPageError extends CalendarPageState {

@@ -39,6 +39,163 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calendarFormatWeek => 'Week';
 
   @override
+  String get dayBarWeekend => 'Weekend';
+
+  @override
+  String get dayBarPublicHoliday => 'Public holiday';
+
+  @override
+  String get publicHolidayNewYear => 'New Year\'s Day';
+
+  @override
+  String get publicHolidayLabourDay => 'Labour Day';
+
+  @override
+  String get publicHolidayChristmasDay => 'Christmas Day';
+
+  @override
+  String get publicHolidaySecondChristmasDay => 'Boxing Day';
+
+  @override
+  String get eventCategoryGym => 'Gym';
+
+  @override
+  String get eventCategoryCardio => 'Cardio';
+
+  @override
+  String get eventCategoryRest => 'Rest';
+
+  @override
+  String get eventCategoryHoliday => 'Holiday';
+
+  @override
+  String get eventCategoryCompetition => 'Competition';
+
+  @override
+  String get eventCategoryMeasurement => 'Measurement';
+
+  @override
+  String get eventCategoryOther => 'Other';
+
+  @override
+  String get eventType => 'Type';
+
+  @override
+  String get recurrence => 'Repeats';
+
+  @override
+  String get recurrenceNone => 'Once';
+
+  @override
+  String get recurrenceDaily => 'Daily';
+
+  @override
+  String get recurrenceWeekly => 'Weekly';
+
+  @override
+  String get recurrenceMonthly => 'Monthly';
+
+  @override
+  String get recurrenceYearly => 'Yearly';
+
+  @override
+  String get editEvent => 'Edit event';
+
+  @override
+  String get deleteEvent => 'Delete event';
+
+  @override
+  String deleteEventConfirm(String title) {
+    return 'Delete \"$title\"? This cannot be undone.';
+  }
+
+  @override
+  String get iconLabel => 'Icon';
+
+  @override
+  String get iconDefault => 'Default for category';
+
+  @override
+  String get iconCustom => 'Custom icon';
+
+  @override
+  String get pickIcon => 'Choose icon';
+
+  @override
+  String get pickCategory => 'Change category';
+
+  @override
+  String get resetToDefault => 'Reset to Default';
+
+  @override
+  String get eventDate => 'Date';
+
+  @override
+  String get startsOn => 'Starts on this date';
+
+  @override
+  String get repeatMode => 'Repeats';
+
+  @override
+  String get repeatOnce => 'One time';
+
+  @override
+  String get repeatRecurring => 'Recurring';
+
+  @override
+  String get frequency => 'Frequency';
+
+  @override
+  String get recurrenceWorkdays => 'Workdays';
+
+  @override
+  String get recurrenceWeekends => 'Weekends';
+
+  @override
+  String get recurrenceHolidaysOnly => 'Public holidays only';
+
+  @override
+  String recurrenceWeeklyOn(String days) {
+    return 'Weekly · $days';
+  }
+
+  @override
+  String get weekdays => 'Weekdays';
+
+  @override
+  String get weeklyDaysHint => 'Pick at least one weekday';
+
+  @override
+  String get iconGroupStrength => 'Strength';
+
+  @override
+  String get iconGroupCardio => 'Cardio';
+
+  @override
+  String get iconGroupSports => 'Sports';
+
+  @override
+  String get iconGroupRecovery => 'Recovery';
+
+  @override
+  String get iconGroupBody => 'Body & nutrition';
+
+  @override
+  String get iconGroupMeasurement => 'Measurement';
+
+  @override
+  String get iconGroupAchievements => 'Achievements';
+
+  @override
+  String get iconGroupTravel => 'Travel';
+
+  @override
+  String get iconGroupTime => 'Time';
+
+  @override
+  String get iconGroupGeneric => 'Other';
+
+  @override
   String get welcomeToGymNotes => 'Welcome to Gym Notes';
 
   @override
@@ -222,9 +379,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get markdownShortcutsDesc => 'Customize toolbar buttons and actions';
-
-  @override
-  String get resetToDefault => 'Reset to Default';
 
   @override
   String get removeAllCustom => 'Remove All Custom';

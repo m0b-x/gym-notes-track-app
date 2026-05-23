@@ -39,6 +39,163 @@ class AppLocalizationsDe extends AppLocalizations {
   String get calendarFormatWeek => 'Woche';
 
   @override
+  String get dayBarWeekend => 'Wochenende';
+
+  @override
+  String get dayBarPublicHoliday => 'Feiertag';
+
+  @override
+  String get publicHolidayNewYear => 'Neujahr';
+
+  @override
+  String get publicHolidayLabourDay => 'Tag der Arbeit';
+
+  @override
+  String get publicHolidayChristmasDay => 'Weihnachten';
+
+  @override
+  String get publicHolidaySecondChristmasDay => 'Zweiter Weihnachtsfeiertag';
+
+  @override
+  String get eventCategoryGym => 'Training';
+
+  @override
+  String get eventCategoryCardio => 'Cardio';
+
+  @override
+  String get eventCategoryRest => 'Ruhetag';
+
+  @override
+  String get eventCategoryHoliday => 'Urlaub';
+
+  @override
+  String get eventCategoryCompetition => 'Wettkampf';
+
+  @override
+  String get eventCategoryMeasurement => 'Messung';
+
+  @override
+  String get eventCategoryOther => 'Sonstiges';
+
+  @override
+  String get eventType => 'Typ';
+
+  @override
+  String get recurrence => 'Wiederholung';
+
+  @override
+  String get recurrenceNone => 'Einmalig';
+
+  @override
+  String get recurrenceDaily => 'Täglich';
+
+  @override
+  String get recurrenceWeekly => 'Wöchentlich';
+
+  @override
+  String get recurrenceMonthly => 'Monatlich';
+
+  @override
+  String get recurrenceYearly => 'Jährlich';
+
+  @override
+  String get editEvent => 'Ereignis bearbeiten';
+
+  @override
+  String get deleteEvent => 'Ereignis löschen';
+
+  @override
+  String deleteEventConfirm(String title) {
+    return '\"$title\" löschen? Dies kann nicht rückgängig gemacht werden.';
+  }
+
+  @override
+  String get iconLabel => 'Symbol';
+
+  @override
+  String get iconDefault => 'Standard für Kategorie';
+
+  @override
+  String get iconCustom => 'Eigenes Symbol';
+
+  @override
+  String get pickIcon => 'Symbol wählen';
+
+  @override
+  String get pickCategory => 'Kategorie ändern';
+
+  @override
+  String get resetToDefault => 'Auf Standard zurücksetzen';
+
+  @override
+  String get eventDate => 'Datum';
+
+  @override
+  String get startsOn => 'Beginnt an diesem Datum';
+
+  @override
+  String get repeatMode => 'Wiederholung';
+
+  @override
+  String get repeatOnce => 'Einmalig';
+
+  @override
+  String get repeatRecurring => 'Wiederkehrend';
+
+  @override
+  String get frequency => 'Häufigkeit';
+
+  @override
+  String get recurrenceWorkdays => 'Werktage';
+
+  @override
+  String get recurrenceWeekends => 'Wochenende';
+
+  @override
+  String get recurrenceHolidaysOnly => 'Nur an Feiertagen';
+
+  @override
+  String recurrenceWeeklyOn(String days) {
+    return 'Wöchentlich · $days';
+  }
+
+  @override
+  String get weekdays => 'Wochentage';
+
+  @override
+  String get weeklyDaysHint => 'Wähle mindestens einen Wochentag';
+
+  @override
+  String get iconGroupStrength => 'Kraft';
+
+  @override
+  String get iconGroupCardio => 'Ausdauer';
+
+  @override
+  String get iconGroupSports => 'Sportarten';
+
+  @override
+  String get iconGroupRecovery => 'Erholung';
+
+  @override
+  String get iconGroupBody => 'Körper & Ernährung';
+
+  @override
+  String get iconGroupMeasurement => 'Messung';
+
+  @override
+  String get iconGroupAchievements => 'Erfolge';
+
+  @override
+  String get iconGroupTravel => 'Reise';
+
+  @override
+  String get iconGroupTime => 'Zeit';
+
+  @override
+  String get iconGroupGeneric => 'Sonstiges';
+
+  @override
   String get welcomeToGymNotes => 'Willkommen bei Gym Notizen';
 
   @override
@@ -224,9 +381,6 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get markdownShortcutsDesc =>
       'Symbolleisten-Schaltflächen und Aktionen anpassen';
-
-  @override
-  String get resetToDefault => 'Auf Standard zurücksetzen';
 
   @override
   String get removeAllCustom => 'Alle benutzerdefinierten entfernen';

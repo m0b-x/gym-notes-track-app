@@ -160,6 +160,312 @@ abstract class AppLocalizations {
   /// **'Week'**
   String get calendarFormatWeek;
 
+  /// Tooltip/semantics label for the weekend bar in a calendar day cell
+  ///
+  /// In en, this message translates to:
+  /// **'Weekend'**
+  String get dayBarWeekend;
+
+  /// Tooltip/semantics label for the public holiday bar in a calendar day cell
+  ///
+  /// In en, this message translates to:
+  /// **'Public holiday'**
+  String get dayBarPublicHoliday;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'New Year\'s Day'**
+  String get publicHolidayNewYear;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'Labour Day'**
+  String get publicHolidayLabourDay;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'Christmas Day'**
+  String get publicHolidayChristmasDay;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'Boxing Day'**
+  String get publicHolidaySecondChristmasDay;
+
+  /// Calendar event category: gym session
+  ///
+  /// In en, this message translates to:
+  /// **'Gym'**
+  String get eventCategoryGym;
+
+  /// Calendar event category: cardio
+  ///
+  /// In en, this message translates to:
+  /// **'Cardio'**
+  String get eventCategoryCardio;
+
+  /// Calendar event category: rest/recovery day
+  ///
+  /// In en, this message translates to:
+  /// **'Rest'**
+  String get eventCategoryRest;
+
+  /// Calendar event category: personal holiday/time off
+  ///
+  /// In en, this message translates to:
+  /// **'Holiday'**
+  String get eventCategoryHoliday;
+
+  /// Calendar event category: competition
+  ///
+  /// In en, this message translates to:
+  /// **'Competition'**
+  String get eventCategoryCompetition;
+
+  /// Calendar event category: body measurement
+  ///
+  /// In en, this message translates to:
+  /// **'Measurement'**
+  String get eventCategoryMeasurement;
+
+  /// Calendar event category: other
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get eventCategoryOther;
+
+  /// Section label in the calendar event editor for selecting the category
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get eventType;
+
+  /// Section label in the calendar event editor for the recurrence rule
+  ///
+  /// In en, this message translates to:
+  /// **'Repeats'**
+  String get recurrence;
+
+  /// Recurrence option meaning the event occurs once (no repeat)
+  ///
+  /// In en, this message translates to:
+  /// **'Once'**
+  String get recurrenceNone;
+
+  /// Recurrence option meaning the event repeats every day
+  ///
+  /// In en, this message translates to:
+  /// **'Daily'**
+  String get recurrenceDaily;
+
+  /// Recurrence option meaning the event repeats every week on the same weekday
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly'**
+  String get recurrenceWeekly;
+
+  /// Recurrence option meaning the event repeats every month on the same day
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly'**
+  String get recurrenceMonthly;
+
+  /// Recurrence option meaning the event repeats every year on the same date
+  ///
+  /// In en, this message translates to:
+  /// **'Yearly'**
+  String get recurrenceYearly;
+
+  /// Title of the calendar event editor when modifying an existing event
+  ///
+  /// In en, this message translates to:
+  /// **'Edit event'**
+  String get editEvent;
+
+  /// Title of the confirmation dialog for deleting a calendar event
+  ///
+  /// In en, this message translates to:
+  /// **'Delete event'**
+  String get deleteEvent;
+
+  /// Confirmation prompt before deleting a calendar event
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{title}\"? This cannot be undone.'**
+  String deleteEventConfirm(String title);
+
+  /// Section label in the event editor for the icon picker
+  ///
+  /// In en, this message translates to:
+  /// **'Icon'**
+  String get iconLabel;
+
+  /// Shown when no explicit icon has been chosen for an event
+  ///
+  /// In en, this message translates to:
+  /// **'Default for category'**
+  String get iconDefault;
+
+  /// Shown when the user picked a specific icon for an event
+  ///
+  /// In en, this message translates to:
+  /// **'Custom icon'**
+  String get iconCustom;
+
+  /// Title of the icon picker bottom sheet / subtitle of the picker tile
+  ///
+  /// In en, this message translates to:
+  /// **'Choose icon'**
+  String get pickIcon;
+
+  /// Subtitle on the category picker tile in the event editor
+  ///
+  /// In en, this message translates to:
+  /// **'Change category'**
+  String get pickCategory;
+
+  /// Reset to default button text
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to Default'**
+  String get resetToDefault;
+
+  /// Section label in the event editor for the event date / recurrence anchor
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get eventDate;
+
+  /// Subtitle shown under the date row for recurring events
+  ///
+  /// In en, this message translates to:
+  /// **'Starts on this date'**
+  String get startsOn;
+
+  /// Section label for the one-time / recurring toggle
+  ///
+  /// In en, this message translates to:
+  /// **'Repeats'**
+  String get repeatMode;
+
+  /// Segmented control option: event occurs only once
+  ///
+  /// In en, this message translates to:
+  /// **'One time'**
+  String get repeatOnce;
+
+  /// Segmented control option: event recurs on a schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Recurring'**
+  String get repeatRecurring;
+
+  /// Section label for the recurrence frequency chips
+  ///
+  /// In en, this message translates to:
+  /// **'Frequency'**
+  String get frequency;
+
+  /// Recurrence option: every Mon-Fri excluding public holidays
+  ///
+  /// In en, this message translates to:
+  /// **'Workdays'**
+  String get recurrenceWorkdays;
+
+  /// Recurrence option: every Saturday and Sunday
+  ///
+  /// In en, this message translates to:
+  /// **'Weekends'**
+  String get recurrenceWeekends;
+
+  /// Recurrence option: only on public holidays
+  ///
+  /// In en, this message translates to:
+  /// **'Public holidays only'**
+  String get recurrenceHolidaysOnly;
+
+  /// Recurrence label shown in summaries for weekly events with explicit weekdays
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly · {days}'**
+  String recurrenceWeeklyOn(String days);
+
+  /// Section label for the per-weekday chips in the editor
+  ///
+  /// In en, this message translates to:
+  /// **'Weekdays'**
+  String get weekdays;
+
+  /// Validation hint shown when the user clears all weekday selections
+  ///
+  /// In en, this message translates to:
+  /// **'Pick at least one weekday'**
+  String get weeklyDaysHint;
+
+  /// Icon picker group: strength training
+  ///
+  /// In en, this message translates to:
+  /// **'Strength'**
+  String get iconGroupStrength;
+
+  /// Icon picker group: cardio
+  ///
+  /// In en, this message translates to:
+  /// **'Cardio'**
+  String get iconGroupCardio;
+
+  /// Icon picker group: team/racket sports
+  ///
+  /// In en, this message translates to:
+  /// **'Sports'**
+  String get iconGroupSports;
+
+  /// Icon picker group: rest and recovery
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery'**
+  String get iconGroupRecovery;
+
+  /// Icon picker group: body and nutrition
+  ///
+  /// In en, this message translates to:
+  /// **'Body & nutrition'**
+  String get iconGroupBody;
+
+  /// Icon picker group: measurement
+  ///
+  /// In en, this message translates to:
+  /// **'Measurement'**
+  String get iconGroupMeasurement;
+
+  /// Icon picker group: achievements
+  ///
+  /// In en, this message translates to:
+  /// **'Achievements'**
+  String get iconGroupAchievements;
+
+  /// Icon picker group: travel
+  ///
+  /// In en, this message translates to:
+  /// **'Travel'**
+  String get iconGroupTravel;
+
+  /// Icon picker group: time and schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get iconGroupTime;
+
+  /// Icon picker group: miscellaneous icons
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get iconGroupGeneric;
+
   /// Welcome message on onboarding screen
   ///
   /// In en, this message translates to:
@@ -495,12 +801,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Customize toolbar buttons and actions'**
   String get markdownShortcutsDesc;
-
-  /// Reset to default button text
-  ///
-  /// In en, this message translates to:
-  /// **'Reset to Default'**
-  String get resetToDefault;
 
   /// Remove all custom shortcuts button text
   ///

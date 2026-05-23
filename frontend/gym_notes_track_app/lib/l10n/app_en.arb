@@ -39,6 +39,202 @@
   "@calendarFormatWeek": {
     "description": "Calendar format option for week view"
   },
+  "dayBarWeekend": "Weekend",
+  "@dayBarWeekend": {
+    "description": "Tooltip/semantics label for the weekend bar in a calendar day cell"
+  },
+  "dayBarPublicHoliday": "Public holiday",
+  "@dayBarPublicHoliday": {
+    "description": "Tooltip/semantics label for the public holiday bar in a calendar day cell"
+  },
+  "publicHolidayNewYear": "New Year's Day",
+  "@publicHolidayNewYear": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidayLabourDay": "Labour Day",
+  "@publicHolidayLabourDay": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidayChristmasDay": "Christmas Day",
+  "@publicHolidayChristmasDay": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidaySecondChristmasDay": "Boxing Day",
+  "@publicHolidaySecondChristmasDay": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "eventCategoryGym": "Gym",
+  "@eventCategoryGym": {
+    "description": "Calendar event category: gym session"
+  },
+  "eventCategoryCardio": "Cardio",
+  "@eventCategoryCardio": {
+    "description": "Calendar event category: cardio"
+  },
+  "eventCategoryRest": "Rest",
+  "@eventCategoryRest": {
+    "description": "Calendar event category: rest/recovery day"
+  },
+  "eventCategoryHoliday": "Holiday",
+  "@eventCategoryHoliday": {
+    "description": "Calendar event category: personal holiday/time off"
+  },
+  "eventCategoryCompetition": "Competition",
+  "@eventCategoryCompetition": {
+    "description": "Calendar event category: competition"
+  },
+  "eventCategoryMeasurement": "Measurement",
+  "@eventCategoryMeasurement": {
+    "description": "Calendar event category: body measurement"
+  },
+  "eventCategoryOther": "Other",
+  "@eventCategoryOther": {
+    "description": "Calendar event category: other"
+  },
+  "eventType": "Type",
+  "@eventType": {
+    "description": "Section label in the calendar event editor for selecting the category"
+  },
+  "recurrence": "Repeats",
+  "@recurrence": {
+    "description": "Section label in the calendar event editor for the recurrence rule"
+  },
+  "recurrenceNone": "Once",
+  "@recurrenceNone": {
+    "description": "Recurrence option meaning the event occurs once (no repeat)"
+  },
+  "recurrenceDaily": "Daily",
+  "@recurrenceDaily": {
+    "description": "Recurrence option meaning the event repeats every day"
+  },
+  "recurrenceWeekly": "Weekly",
+  "@recurrenceWeekly": {
+    "description": "Recurrence option meaning the event repeats every week on the same weekday"
+  },
+  "recurrenceMonthly": "Monthly",
+  "@recurrenceMonthly": {
+    "description": "Recurrence option meaning the event repeats every month on the same day"
+  },
+  "recurrenceYearly": "Yearly",
+  "@recurrenceYearly": {
+    "description": "Recurrence option meaning the event repeats every year on the same date"
+  },
+  "editEvent": "Edit event",
+  "@editEvent": {
+    "description": "Title of the calendar event editor when modifying an existing event"
+  },
+  "deleteEvent": "Delete event",
+  "@deleteEvent": {
+    "description": "Title of the confirmation dialog for deleting a calendar event"
+  },
+  "deleteEventConfirm": "Delete \"{title}\"? This cannot be undone.",
+  "@deleteEventConfirm": {
+    "description": "Confirmation prompt before deleting a calendar event",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Leg day"
+      }
+    }
+  },
+  "iconLabel": "Icon",
+  "@iconLabel": {
+    "description": "Section label in the event editor for the icon picker"
+  },
+  "iconDefault": "Default for category",
+  "@iconDefault": {
+    "description": "Shown when no explicit icon has been chosen for an event"
+  },
+  "iconCustom": "Custom icon",
+  "@iconCustom": {
+    "description": "Shown when the user picked a specific icon for an event"
+  },
+  "pickIcon": "Choose icon",
+  "@pickIcon": {
+    "description": "Title of the icon picker bottom sheet / subtitle of the picker tile"
+  },
+  "pickCategory": "Change category",
+  "@pickCategory": {
+    "description": "Subtitle on the category picker tile in the event editor"
+  },
+  "resetToDefault": "Reset to default",
+  "@resetToDefault": {
+    "description": "Tooltip on the button that clears the custom icon override"
+  },
+  "eventDate": "Date",
+  "@eventDate": {
+    "description": "Section label in the event editor for the event date / recurrence anchor"
+  },
+  "startsOn": "Starts on this date",
+  "@startsOn": {
+    "description": "Subtitle shown under the date row for recurring events"
+  },
+  "repeatMode": "Repeats",
+  "@repeatMode": {
+    "description": "Section label for the one-time / recurring toggle"
+  },
+  "repeatOnce": "One time",
+  "@repeatOnce": {
+    "description": "Segmented control option: event occurs only once"
+  },
+  "repeatRecurring": "Recurring",
+  "@repeatRecurring": {
+    "description": "Segmented control option: event recurs on a schedule"
+  },
+  "frequency": "Frequency",
+  "@frequency": {
+    "description": "Section label for the recurrence frequency chips"
+  },
+  "recurrenceWorkdays": "Workdays",
+  "@recurrenceWorkdays": {
+    "description": "Recurrence option: every Mon-Fri excluding public holidays"
+  },
+  "recurrenceWeekends": "Weekends",
+  "@recurrenceWeekends": {
+    "description": "Recurrence option: every Saturday and Sunday"
+  },
+  "recurrenceHolidaysOnly": "Public holidays only",
+  "@recurrenceHolidaysOnly": {
+    "description": "Recurrence option: only on public holidays"
+  },
+  "recurrenceWeeklyOn": "Weekly · {days}",
+  "@recurrenceWeeklyOn": {
+    "description": "Recurrence label shown in summaries for weekly events with explicit weekdays",
+    "placeholders": {
+      "days": {
+        "type": "String",
+        "example": "Mon, Wed, Fri"
+      }
+    }
+  },
+  "weekdays": "Weekdays",
+  "@weekdays": {
+    "description": "Section label for the per-weekday chips in the editor"
+  },
+  "weeklyDaysHint": "Pick at least one weekday",
+  "@weeklyDaysHint": {
+    "description": "Validation hint shown when the user clears all weekday selections"
+  },
+  "iconGroupStrength": "Strength",
+  "@iconGroupStrength": { "description": "Icon picker group: strength training" },
+  "iconGroupCardio": "Cardio",
+  "@iconGroupCardio": { "description": "Icon picker group: cardio" },
+  "iconGroupSports": "Sports",
+  "@iconGroupSports": { "description": "Icon picker group: team/racket sports" },
+  "iconGroupRecovery": "Recovery",
+  "@iconGroupRecovery": { "description": "Icon picker group: rest and recovery" },
+  "iconGroupBody": "Body & nutrition",
+  "@iconGroupBody": { "description": "Icon picker group: body and nutrition" },
+  "iconGroupMeasurement": "Measurement",
+  "@iconGroupMeasurement": { "description": "Icon picker group: measurement" },
+  "iconGroupAchievements": "Achievements",
+  "@iconGroupAchievements": { "description": "Icon picker group: achievements" },
+  "iconGroupTravel": "Travel",
+  "@iconGroupTravel": { "description": "Icon picker group: travel" },
+  "iconGroupTime": "Time",
+  "@iconGroupTime": { "description": "Icon picker group: time and schedule" },
+  "iconGroupGeneric": "Other",
+  "@iconGroupGeneric": { "description": "Icon picker group: miscellaneous icons" },
   "welcomeToGymNotes": "Welcome to Gym Notes",
   "@welcomeToGymNotes": {
     "description": "Welcome message on onboarding screen"

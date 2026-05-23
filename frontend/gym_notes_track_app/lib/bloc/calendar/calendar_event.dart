@@ -50,3 +50,21 @@ final class CreateCalendarEvent extends CalendarPageEvent {
   @override
   List<Object?> get props => [event];
 }
+
+final class UpdateCalendarEvent extends CalendarPageEvent {
+  final CalendarEvent event;
+
+  const UpdateCalendarEvent({required this.event});
+
+  @override
+  List<Object?> get props => [event];
+}
+
+final class DeleteCalendarEvent extends CalendarPageEvent {
+  final String eventId;
+
+  const DeleteCalendarEvent({required this.eventId});
+
+  @override
+  List<Object?> get props => [eventId];
+}

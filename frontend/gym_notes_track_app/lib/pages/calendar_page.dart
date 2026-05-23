@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:uuid/uuid.dart';
 
 import '../bloc/calendar/calendar_bloc.dart';
 import '../l10n/app_localizations.dart';
 import '../models/calendar_event.dart';
+import '../services/day_bars_resolver.dart';
+import '../services/day_summary_resolver.dart';
+import '../widgets/calendar_day_bars.dart';
+import '../widgets/day_summary_panel.dart';
+import '../widgets/event_editor_sheet.dart';
 
 class CalendarPage extends StatelessWidget {
   const CalendarPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => CalendarBloc()..add(const LoadCalendarEvents()),
-      child: const _CalendarView(),
-    );
+    return const _CalendarView();
   }
 }
 
@@ -37,11 +38,22 @@ class _CalendarView extends StatelessWidget {
             return Center(child: Text(state.message));
           }
           final loaded = state as CalendarPageLoaded;
+          final summaryResolver = DaySummaryResolver.defaults(l10n);
+          final entries = summaryResolver.resolve(
+            loaded.selectedDay,
+            loaded.selectedEvents,
+          );
           return Column(
             children: [
               _CalendarTable(state: loaded),
               const Divider(height: 1),
-              Expanded(child: _SelectedEventsList(events: loaded.selectedEvents)),
+              Expanded(
+                child: DaySummaryPanel(
+                  entries: entries,
+                  onEventTap: (event) =>
+                      _openEditorSheet(context, initialEvent: event),
+                ),
+              ),
             ],
           );
         },
@@ -53,7 +65,7 @@ class _CalendarView extends StatelessWidget {
               : DateTime.now();
           return FloatingActionButton(
             tooltip: l10n.addEvent,
-            onPressed: () => _showAddEventDialog(context, selectedDay),
+            onPressed: () => _openEditorSheet(context, day: selectedDay),
             child: const Icon(Icons.add_rounded),
           );
         },
@@ -61,57 +73,28 @@ class _CalendarView extends StatelessWidget {
     );
   }
 
-  Future<void> _showAddEventDialog(BuildContext context, DateTime day) async {
-    final l10n = AppLocalizations.of(context)!;
-    final controller = TextEditingController();
-    final title = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(l10n.addEvent),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: InputDecoration(labelText: l10n.eventTitle),
-            maxLength: 120,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (value) {
-              final trimmed = value.trim();
-              if (trimmed.isNotEmpty) {
-                Navigator.of(dialogContext).pop(trimmed);
-              }
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(l10n.cancel),
-            ),
-            FilledButton(
-              onPressed: () {
-                final trimmed = controller.text.trim();
-                if (trimmed.isNotEmpty) {
-                  Navigator.of(dialogContext).pop(trimmed);
-                }
-              },
-              child: Text(l10n.save),
-            ),
-          ],
-        );
-      },
+  Future<void> _openEditorSheet(
+    BuildContext context, {
+    CalendarEvent? initialEvent,
+    DateTime? day,
+  }) async {
+    final result = await EventEditorSheet.show(
+      context,
+      defaultDate: initialEvent?.startDate ?? day ?? DateTime.now(),
+      initialEvent: initialEvent,
     );
-    controller.dispose();
-    if (title == null || !context.mounted) return;
-    context.read<CalendarBloc>().add(
-      CreateCalendarEvent(
-        event: CalendarEvent(
-          id: const Uuid().v4(),
-          title: title,
-          category: CalendarEventCategory.gym,
-          startDate: day,
-        ),
-      ),
-    );
+    if (result == null || !context.mounted) return;
+    final bloc = context.read<CalendarBloc>();
+    switch (result) {
+      case EventEditorSaved(:final event):
+        if (initialEvent == null) {
+          bloc.add(CreateCalendarEvent(event: event));
+        } else {
+          bloc.add(UpdateCalendarEvent(event: event));
+        }
+      case EventEditorDeleted(:final id):
+        bloc.add(DeleteCalendarEvent(eventId: id));
+    }
   }
 }
 
@@ -125,6 +108,8 @@ class _CalendarTable extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
+    final calendarBloc = context.read<CalendarBloc>();
+    final barsResolver = DayBarsResolver.defaults(l10n);
 
     return TableCalendar<CalendarEvent>(
       firstDay: DateTime.utc(2000, 1, 1),
@@ -132,7 +117,7 @@ class _CalendarTable extends StatelessWidget {
       focusedDay: state.focusedDay,
       selectedDayPredicate: (day) => isSameDay(state.selectedDay, day),
       calendarFormat: state.format,
-      eventLoader: context.read<CalendarBloc>().eventsForDay,
+      eventLoader: calendarBloc.eventsForDay,
       startingDayOfWeek: StartingDayOfWeek.monday,
       locale: l10n.localeName,
       availableCalendarFormats: {
@@ -156,10 +141,21 @@ class _CalendarTable extends StatelessWidget {
           shape: BoxShape.circle,
         ),
         selectedTextStyle: TextStyle(color: colorScheme.onPrimary),
-        markerDecoration: BoxDecoration(
-          color: colorScheme.tertiary,
-          shape: BoxShape.circle,
-        ),
+        // Default dot markers are replaced by markerBuilder bars below.
+        markersMaxCount: 0,
+      ),
+      calendarBuilders: CalendarBuilders<CalendarEvent>(
+        markerBuilder: (context, day, events) {
+          final bars = barsResolver.resolve(day, events);
+          if (bars.isEmpty) return const SizedBox.shrink();
+          return Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: CalendarDayBars(bars: bars),
+            ),
+          );
+        },
       ),
       onDaySelected: (selectedDay, focusedDay) {
         context.read<CalendarBloc>().add(
@@ -175,67 +171,5 @@ class _CalendarTable extends StatelessWidget {
         context.read<CalendarBloc>().add(ChangeCalendarFormat(format: format));
       },
     );
-  }
-}
-
-class _SelectedEventsList extends StatelessWidget {
-  final List<CalendarEvent> events;
-
-  const _SelectedEventsList({required this.events});
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    if (events.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.event_available_rounded,
-              size: 48,
-              color: colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              l10n.calendarNoEventsForDay,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: events.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final event = events[index];
-        return Card(
-          child: ListTile(
-            leading: Icon(Icons.circle, color: _categoryColor(event.category), size: 14),
-            title: Text(event.title),
-            subtitle: Text(event.allDay ? l10n.eventAllDay : ''),
-          ),
-        );
-      },
-    );
-  }
-
-  Color _categoryColor(CalendarEventCategory category) {
-    return switch (category) {
-      CalendarEventCategory.gym => const Color(0xFF1E88E5),
-      CalendarEventCategory.cardio => const Color(0xFFE53935),
-      CalendarEventCategory.rest => const Color(0xFF43A047),
-      CalendarEventCategory.holiday => const Color(0xFFFFB300),
-      CalendarEventCategory.competition => const Color(0xFF8E24AA),
-      CalendarEventCategory.measurement => const Color(0xFF00897B),
-      CalendarEventCategory.other => const Color(0xFF757575),
-    };
   }
 }

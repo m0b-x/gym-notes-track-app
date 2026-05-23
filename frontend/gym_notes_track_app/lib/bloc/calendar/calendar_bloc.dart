@@ -14,12 +14,17 @@ class CalendarBloc extends Bloc<CalendarPageEvent, CalendarPageState> {
     on<ChangeFocusedDay>(_onChangeFocusedDay);
     on<ChangeCalendarFormat>(_onChangeFormat);
     on<CreateCalendarEvent>(_onCreateEvent);
+    on<UpdateCalendarEvent>(_onUpdateEvent);
+    on<DeleteCalendarEvent>(_onDeleteEvent);
   }
 
+  /// O(N) lookup over all events using [CalendarEvent.occursOn]. Fine for
+  /// the in-memory Phase 1 slice; replace with a windowed cache once Drift
+  /// persistence lands.
   List<CalendarEvent> eventsForDay(DateTime day) {
     final current = state;
     if (current is! CalendarPageLoaded) return const [];
-    return current.expandedByDay[_dateOnly(day)] ?? const [];
+    return current.allEvents.where((e) => e.occursOn(day)).toList();
   }
 
   void _onLoad(LoadCalendarEvents event, Emitter<CalendarPageState> emit) {
@@ -29,15 +34,11 @@ class CalendarBloc extends Bloc<CalendarPageEvent, CalendarPageState> {
         allEvents: const [],
         focusedDay: today,
         selectedDay: today,
-        expandedByDay: const {},
       ),
     );
   }
 
-  void _onSelectDay(
-    SelectCalendarDay event,
-    Emitter<CalendarPageState> emit,
-  ) {
+  void _onSelectDay(SelectCalendarDay event, Emitter<CalendarPageState> emit) {
     final current = state;
     if (current is! CalendarPageLoaded) return;
     emit(
@@ -77,26 +78,42 @@ class CalendarBloc extends Bloc<CalendarPageEvent, CalendarPageState> {
     final normalized = event.event.copyWith(
       startDate: _dateOnly(event.event.startDate),
     );
-    final nextEvents = [...current.allEvents, normalized];
     emit(
       current.copyWith(
-        allEvents: nextEvents,
-        expandedByDay: _buildEventsByDay(nextEvents),
+        allEvents: [...current.allEvents, normalized],
         selectedDay: normalized.startDate,
         focusedDay: normalized.startDate,
       ),
     );
   }
 
-  static Map<DateTime, List<CalendarEvent>> _buildEventsByDay(
-    List<CalendarEvent> events,
+  void _onUpdateEvent(
+    UpdateCalendarEvent event,
+    Emitter<CalendarPageState> emit,
   ) {
-    final result = <DateTime, List<CalendarEvent>>{};
-    for (final event in events) {
-      final day = _dateOnly(event.startDate);
-      result.putIfAbsent(day, () => []).add(event);
-    }
-    return result;
+    final current = state;
+    if (current is! CalendarPageLoaded) return;
+    final normalized = event.event.copyWith(
+      startDate: _dateOnly(event.event.startDate),
+    );
+    final next = [
+      for (final e in current.allEvents)
+        if (e.id == normalized.id) normalized else e,
+    ];
+    emit(current.copyWith(allEvents: next));
+  }
+
+  void _onDeleteEvent(
+    DeleteCalendarEvent event,
+    Emitter<CalendarPageState> emit,
+  ) {
+    final current = state;
+    if (current is! CalendarPageLoaded) return;
+    final next = current.allEvents
+        .where((e) => e.id != event.eventId)
+        .toList(growable: false);
+    if (next.length == current.allEvents.length) return;
+    emit(current.copyWith(allEvents: next));
   }
 
   static DateTime _dateOnly(DateTime date) {

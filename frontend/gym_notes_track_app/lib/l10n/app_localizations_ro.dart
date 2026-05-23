@@ -39,6 +39,163 @@ class AppLocalizationsRo extends AppLocalizations {
   String get calendarFormatWeek => 'Săptămână';
 
   @override
+  String get dayBarWeekend => 'Weekend';
+
+  @override
+  String get dayBarPublicHoliday => 'Sărbătoare legală';
+
+  @override
+  String get publicHolidayNewYear => 'Anul Nou';
+
+  @override
+  String get publicHolidayLabourDay => 'Ziua Muncii';
+
+  @override
+  String get publicHolidayChristmasDay => 'Crăciun';
+
+  @override
+  String get publicHolidaySecondChristmasDay => 'A doua zi de Crăciun';
+
+  @override
+  String get eventCategoryGym => 'Sală';
+
+  @override
+  String get eventCategoryCardio => 'Cardio';
+
+  @override
+  String get eventCategoryRest => 'Odihnă';
+
+  @override
+  String get eventCategoryHoliday => 'Concediu';
+
+  @override
+  String get eventCategoryCompetition => 'Competiție';
+
+  @override
+  String get eventCategoryMeasurement => 'Măsurare';
+
+  @override
+  String get eventCategoryOther => 'Altele';
+
+  @override
+  String get eventType => 'Tip';
+
+  @override
+  String get recurrence => 'Repetare';
+
+  @override
+  String get recurrenceNone => 'O singură dată';
+
+  @override
+  String get recurrenceDaily => 'Zilnic';
+
+  @override
+  String get recurrenceWeekly => 'Săptămânal';
+
+  @override
+  String get recurrenceMonthly => 'Lunar';
+
+  @override
+  String get recurrenceYearly => 'Anual';
+
+  @override
+  String get editEvent => 'Editează eveniment';
+
+  @override
+  String get deleteEvent => 'Șterge eveniment';
+
+  @override
+  String deleteEventConfirm(String title) {
+    return 'Ștergi \"$title\"? Această acțiune nu poate fi anulată.';
+  }
+
+  @override
+  String get iconLabel => 'Pictogramă';
+
+  @override
+  String get iconDefault => 'Implicit pentru categorie';
+
+  @override
+  String get iconCustom => 'Pictogramă personalizată';
+
+  @override
+  String get pickIcon => 'Alege pictogramă';
+
+  @override
+  String get pickCategory => 'Schimbă categoria';
+
+  @override
+  String get resetToDefault => 'Resetează la Implicit';
+
+  @override
+  String get eventDate => 'Dată';
+
+  @override
+  String get startsOn => 'Începe la această dată';
+
+  @override
+  String get repeatMode => 'Repetare';
+
+  @override
+  String get repeatOnce => 'O singură dată';
+
+  @override
+  String get repeatRecurring => 'Recurent';
+
+  @override
+  String get frequency => 'Frecvență';
+
+  @override
+  String get recurrenceWorkdays => 'Zile lucrătoare';
+
+  @override
+  String get recurrenceWeekends => 'Weekend';
+
+  @override
+  String get recurrenceHolidaysOnly => 'Doar sărbători legale';
+
+  @override
+  String recurrenceWeeklyOn(String days) {
+    return 'Săptămânal · $days';
+  }
+
+  @override
+  String get weekdays => 'Zilele săptămânii';
+
+  @override
+  String get weeklyDaysHint => 'Selectează cel puțin o zi';
+
+  @override
+  String get iconGroupStrength => 'Forță';
+
+  @override
+  String get iconGroupCardio => 'Cardio';
+
+  @override
+  String get iconGroupSports => 'Sporturi';
+
+  @override
+  String get iconGroupRecovery => 'Recuperare';
+
+  @override
+  String get iconGroupBody => 'Corp & nutriție';
+
+  @override
+  String get iconGroupMeasurement => 'Măsurători';
+
+  @override
+  String get iconGroupAchievements => 'Realizări';
+
+  @override
+  String get iconGroupTravel => 'Călătorie';
+
+  @override
+  String get iconGroupTime => 'Timp';
+
+  @override
+  String get iconGroupGeneric => 'Altele';
+
+  @override
   String get welcomeToGymNotes => 'Bine ai venit la Gym Notes';
 
   @override
@@ -224,9 +381,6 @@ class AppLocalizationsRo extends AppLocalizations {
   @override
   String get markdownShortcutsDesc =>
       'Personalizează butoanele și acțiunile din bara de instrumente';
-
-  @override
-  String get resetToDefault => 'Resetează la Implicit';
 
   @override
   String get removeAllCustom => 'Elimină Toate Personalizate';
