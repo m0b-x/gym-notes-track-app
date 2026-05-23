@@ -1,5 +1,6 @@
 import 'dart:convert';
 import '../database/database.dart';
+import '../database/database_lifecycle.dart';
 import '../models/dev_options.dart';
 
 /// Service for persisting developer options settings
@@ -11,8 +12,16 @@ class DevOptionsService {
     if (_instance == null) {
       _instance = DevOptionsService._();
       await _instance!._init();
+      DatabaseLifecycle.registerResetHandler(reset);
     }
     return _instance!;
+  }
+
+  /// Drops the cached singleton so the next [getInstance] rebinds to the
+  /// currently-active [AppDatabase]. Invoked by [DatabaseLifecycle] when the
+  /// active database changes.
+  static void reset() {
+    _instance = null;
   }
 
   DevOptionsService._();

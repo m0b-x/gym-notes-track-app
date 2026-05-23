@@ -160,6 +160,54 @@ abstract class AppLocalizations {
   /// **'Week'**
   String get calendarFormatWeek;
 
+  /// Title of the calendar filter sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Filters'**
+  String get calendarFiltersTitle;
+
+  /// Section label for choosing the calendar view range (month/2 weeks/week)
+  ///
+  /// In en, this message translates to:
+  /// **'View range'**
+  String get calendarViewRange;
+
+  /// Section label for the visible event categories filter
+  ///
+  /// In en, this message translates to:
+  /// **'Event categories'**
+  String get calendarEventCategories;
+
+  /// Button to select every event category
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get calendarSelectAll;
+
+  /// Button to deselect every event category
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get calendarClearAll;
+
+  /// Tooltip for the calendar filter button
+  ///
+  /// In en, this message translates to:
+  /// **'Filter calendar'**
+  String get filterCalendar;
+
+  /// Tooltip for the button that jumps the calendar back to today
+  ///
+  /// In en, this message translates to:
+  /// **'Go to today'**
+  String get goToToday;
+
+  /// Generic confirm button label
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get apply;
+
   /// Tooltip/semantics label for the weekend bar in a calendar day cell
   ///
   /// In en, this message translates to:
@@ -195,6 +243,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Boxing Day'**
   String get publicHolidaySecondChristmasDay;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'Epiphany'**
+  String get publicHolidayEpiphany;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'Good Friday'**
+  String get publicHolidayGoodFriday;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'Easter Sunday'**
+  String get publicHolidayEasterSunday;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'Easter Monday'**
+  String get publicHolidayEasterMonday;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'Ascension Day'**
+  String get publicHolidayAscension;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'Pentecost'**
+  String get publicHolidayPentecost;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'Whit Monday'**
+  String get publicHolidayWhitMonday;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'Assumption of Mary'**
+  String get publicHolidayAssumption;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'All Saints\' Day'**
+  String get publicHolidayAllSaints;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'Christmas Eve'**
+  String get publicHolidayChristmasEve;
+
+  /// Public holiday name shown in the calendar day summary
+  ///
+  /// In en, this message translates to:
+  /// **'New Year\'s Eve'**
+  String get publicHolidayNewYearsEve;
 
   /// Calendar event category: gym session
   ///
@@ -2427,6 +2541,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} lines per chunk (higher = better performance, lower = more precise search scroll)'**
   String previewLinesPerChunkDesc(int count);
+
+  /// Calendar settings section title
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar'**
+  String get calendarSection;
+
+  /// Label for the calendar max-day-bars slider
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum bars per day'**
+  String get calendarMaxDayBars;
+
+  /// Description for calendar max day bars slider
+  ///
+  /// In en, this message translates to:
+  /// **'Show up to {count} bars per day. Extra categories collapse into a +N indicator.'**
+  String calendarMaxDayBarsDesc(int count);
 
   /// Section title for date offset settings
   ///

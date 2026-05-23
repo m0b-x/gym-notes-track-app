@@ -39,6 +39,30 @@ class AppLocalizationsRo extends AppLocalizations {
   String get calendarFormatWeek => 'Săptămână';
 
   @override
+  String get calendarFiltersTitle => 'Filtre';
+
+  @override
+  String get calendarViewRange => 'Interval de vizualizare';
+
+  @override
+  String get calendarEventCategories => 'Categorii de evenimente';
+
+  @override
+  String get calendarSelectAll => 'Selectează tot';
+
+  @override
+  String get calendarClearAll => 'Șterge';
+
+  @override
+  String get filterCalendar => 'Filtrează calendarul';
+
+  @override
+  String get goToToday => 'Mergi la azi';
+
+  @override
+  String get apply => 'Aplică';
+
+  @override
   String get dayBarWeekend => 'Weekend';
 
   @override
@@ -55,6 +79,39 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get publicHolidaySecondChristmasDay => 'A doua zi de Crăciun';
+
+  @override
+  String get publicHolidayEpiphany => 'Bobotează';
+
+  @override
+  String get publicHolidayGoodFriday => 'Vinerea Mare';
+
+  @override
+  String get publicHolidayEasterSunday => 'Paștele';
+
+  @override
+  String get publicHolidayEasterMonday => 'A doua zi de Paște';
+
+  @override
+  String get publicHolidayAscension => 'Înălțarea Domnului';
+
+  @override
+  String get publicHolidayPentecost => 'Rusaliile';
+
+  @override
+  String get publicHolidayWhitMonday => 'A doua zi de Rusalii';
+
+  @override
+  String get publicHolidayAssumption => 'Adormirea Maicii Domnului';
+
+  @override
+  String get publicHolidayAllSaints => 'Ziua Tuturor Sfinților';
+
+  @override
+  String get publicHolidayChristmasEve => 'Ajunul Crăciunului';
+
+  @override
+  String get publicHolidayNewYearsEve => 'Revelionul';
 
   @override
   String get eventCategoryGym => 'Sală';
@@ -1263,6 +1320,17 @@ class AppLocalizationsRo extends AppLocalizations {
   @override
   String previewLinesPerChunkDesc(int count) {
     return '$count linii per bucată (mai mare = performanță mai bună, mai mic = derulare căutare mai precisă)';
+  }
+
+  @override
+  String get calendarSection => 'Calendar';
+
+  @override
+  String get calendarMaxDayBars => 'Numărul maxim de bare pe zi';
+
+  @override
+  String calendarMaxDayBarsDesc(int count) {
+    return 'Afișează până la $count bare pe zi. Restul categoriilor sunt grupate într-un indicator +N.';
   }
 
   @override

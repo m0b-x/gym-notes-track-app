@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../database/database.dart';
+import '../database/database_lifecycle.dart';
 import '../constants/settings_keys.dart';
 
 class NotePositionData {
@@ -54,8 +55,16 @@ class NotePositionService {
     if (_instance == null) {
       _instance = NotePositionService._();
       _instance!._db = await AppDatabase.getInstance();
+      DatabaseLifecycle.registerResetHandler(reset);
     }
     return _instance!;
+  }
+
+  /// Drops the cached singleton so the next [getInstance] rebinds to the
+  /// currently-active [AppDatabase]. Invoked by [DatabaseLifecycle] when the
+  /// active database changes.
+  static void reset() {
+    _instance = null;
   }
 
   String _getPositionKey(String noteId) =>

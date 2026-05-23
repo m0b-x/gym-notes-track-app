@@ -49,6 +49,9 @@ class SettingsKeys {
   // Preview performance settings
   static const String previewLinesPerChunk = 'preview_lines_per_chunk';
 
+  // Calendar settings
+  static const String calendarMaxDayBars = 'calendar_max_day_bars';
+
   // Note position (prefix for per-note storage)
   static const String notePositionPrefix = 'note_position_';
 
@@ -81,4 +84,9 @@ class SettingsKeys {
 
   // Default values for preview performance
   static const int defaultPreviewLinesPerChunk = 10;
+
+  // Default values for calendar
+  /// Maximum number of bars shown in a calendar day cell before an "+X"
+  /// overflow indicator is rendered in place of the last bar.
+  static const int defaultCalendarMaxDayBars = 3;
 }

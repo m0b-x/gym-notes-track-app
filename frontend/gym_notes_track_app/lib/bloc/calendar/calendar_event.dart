@@ -42,6 +42,15 @@ final class ChangeCalendarFormat extends CalendarPageEvent {
   List<Object?> get props => [format];
 }
 
+final class ChangeVisibleCategories extends CalendarPageEvent {
+  final Set<CalendarEventCategory> categories;
+
+  const ChangeVisibleCategories({required this.categories});
+
+  @override
+  List<Object?> get props => [categories];
+}
+
 final class CreateCalendarEvent extends CalendarPageEvent {
   final CalendarEvent event;
 

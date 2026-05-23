@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../config/default_markdown_shortcuts.dart';
 import '../database/database.dart';
+import '../database/database_lifecycle.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/markdown_bar_profile.dart';
 
@@ -44,6 +45,7 @@ class MarkdownBarService extends ChangeNotifier {
       _instance = MarkdownBarService._();
       _instance!._db = await AppDatabase.getInstance();
       await _instance!._load();
+      DatabaseLifecycle.registerResetHandler(reset);
     }
     return _instance!;
   }

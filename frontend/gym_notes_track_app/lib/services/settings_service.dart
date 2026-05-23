@@ -1,5 +1,6 @@
 import '../constants/settings_keys.dart';
 import '../database/database.dart';
+import '../database/database_lifecycle.dart';
 import '../models/utility_button_config.dart';
 
 /// Service for managing app settings using SQLite database
@@ -13,8 +14,16 @@ class SettingsService {
     if (_instance == null) {
       _instance = SettingsService._();
       _instance!._db = await AppDatabase.getInstance();
+      DatabaseLifecycle.registerResetHandler(reset);
     }
     return _instance!;
+  }
+
+  /// Drops the cached singleton so the next [getInstance] rebinds to the
+  /// currently-active [AppDatabase]. Invoked by [DatabaseLifecycle] when the
+  /// active database changes.
+  static void reset() {
+    _instance = null;
   }
 
   // Helper methods for type conversion
@@ -237,6 +246,18 @@ class SettingsService {
 
   Future<void> setPreviewLinesPerChunk(int value) async {
     await _setInt(SettingsKeys.previewLinesPerChunk, value);
+  }
+
+  // Calendar - Max number of bars shown per day cell (overflow shows "+N").
+  Future<int> getCalendarMaxDayBars() async {
+    return _getInt(
+      SettingsKeys.calendarMaxDayBars,
+      SettingsKeys.defaultCalendarMaxDayBars,
+    );
+  }
+
+  Future<void> setCalendarMaxDayBars(int value) async {
+    await _setInt(SettingsKeys.calendarMaxDayBars, value);
   }
 
   // Toolbar settings - Shortcut/utility ratio

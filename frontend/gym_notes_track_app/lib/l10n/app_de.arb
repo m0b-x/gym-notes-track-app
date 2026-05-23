@@ -12,12 +12,31 @@
   "calendarFormatMonth": "Monat",
   "calendarFormatTwoWeeks": "2 Wochen",
   "calendarFormatWeek": "Woche",
+  "calendarFiltersTitle": "Filter",
+  "calendarViewRange": "Ansichtsbereich",
+  "calendarEventCategories": "Ereigniskategorien",
+  "calendarSelectAll": "Alle auswählen",
+  "calendarClearAll": "Leeren",
+  "filterCalendar": "Kalender filtern",
+  "goToToday": "Zu heute springen",
+  "apply": "Übernehmen",
   "dayBarWeekend": "Wochenende",
   "dayBarPublicHoliday": "Feiertag",
   "publicHolidayNewYear": "Neujahr",
   "publicHolidayLabourDay": "Tag der Arbeit",
   "publicHolidayChristmasDay": "Weihnachten",
   "publicHolidaySecondChristmasDay": "Zweiter Weihnachtsfeiertag",
+  "publicHolidayEpiphany": "Heilige Drei Könige",
+  "publicHolidayGoodFriday": "Karfreitag",
+  "publicHolidayEasterSunday": "Ostersonntag",
+  "publicHolidayEasterMonday": "Ostermontag",
+  "publicHolidayAscension": "Christi Himmelfahrt",
+  "publicHolidayPentecost": "Pfingstsonntag",
+  "publicHolidayWhitMonday": "Pfingstmontag",
+  "publicHolidayAssumption": "Mariä Himmelfahrt",
+  "publicHolidayAllSaints": "Allerheiligen",
+  "publicHolidayChristmasEve": "Heiligabend",
+  "publicHolidayNewYearsEve": "Silvester",
   "eventCategoryGym": "Training",
   "eventCategoryCardio": "Cardio",
   "eventCategoryRest": "Ruhetag",
@@ -1410,6 +1429,16 @@
   "previewLinesPerChunkDesc": "{count} Zeilen pro Block (höher = bessere Leistung, niedriger = präziseres Scroll-Suchen)",
   "@previewLinesPerChunkDesc": {
     "description": "Description for lines per chunk setting",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calendarSection": "Kalender",
+  "calendarMaxDayBars": "Maximale Balken pro Tag",
+  "calendarMaxDayBarsDesc": "Zeige bis zu {count} Balken pro Tag. Weitere Kategorien werden als +N angezeigt.",
+  "@calendarMaxDayBarsDesc": {
     "placeholders": {
       "count": {
         "type": "int"

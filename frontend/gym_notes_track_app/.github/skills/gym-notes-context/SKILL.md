@@ -58,10 +58,12 @@ Before writing code, confirm:
    - **re_editor package**: preserve the 2-slot `asString` cache, bounded LRU paragraph cache, binary-search paragraph/chunk lookups, 50 ms highlight debounce, and `cloneShallowDirty()` contract. Any new mutation path on `CodeLines` must call `cloneShallowDirty()`.
 9. Does the change affect the calendar/events feature?
    - Preserve the current drawer route: `AppDrawer` closes the drawer, then calls `AppNavigator.toCalendar(context)`, and `toCalendar` must remain a normal `push` so the previous page stays on the navigation stack.
-   - The current Phase 0 calendar slice is in-memory only: `lib/pages/calendar_page.dart`, `lib/bloc/calendar/`, and `lib/models/calendar_event.dart`. Future persistence work should extend these files rather than replacing them wholesale.
+   - Custom calendar events are now persisted via `CalendarEventService` → `CalendarEventDao` → `calendar_events` Drift table (schema v10). `CalendarBloc` is constructed via DI with the service and reloads its cache on `LoadCalendarEvents`. Public holidays live in the `public_holidays` table seeded by `PublicHolidayService` with add-if-not-exists semantics over a six-year forward window.
    - `TableCalendar.eventLoader` must stay a pure O(1) lookup through `CalendarBloc.eventsForDay`; do not dispatch events, call services, or perform recurrence expansion from `eventLoader`.
    - Persisted events require a Drift table/migration, DAO, repository, service, backup export/import, and `dart run build_runner build --delete-conflicting-outputs` before analysis.
    - User-visible calendar strings must be added to all three ARB files and regenerated with `flutter gen-l10n`.
+10. Does the change add a new DB-backed singleton service (or convert an existing one)?
+    - Follow the `DatabaseLifecycle` contract — see the **Database Lifecycle** section below. Every singleton holding a `late AppDatabase _db` (or any cached state derived from the DB) MUST expose a static `reset()` and register it with `DatabaseLifecycle.registerResetHandler(reset)` inside its `getInstance()` first-time-init block. Skipping this leaves the singleton bound to a closed database after a multi-database switch.
 
 ## 3. Style Rules To Enforce
 
@@ -76,9 +78,9 @@ Before writing code, confirm:
 
 `table_calendar: ^3.2.0` is installed and `main.dart` initializes locale date formatting with `initializeDateFormatting()`. The calendar is reachable from the drawer (entry after Counter management). `AppDrawer` closes the drawer first, then calls `AppNavigator.toCalendar(context)`, which **must remain a normal `push`** so the previous page stays on the stack.
 
-### Status (in-memory, not yet persisted)
+### Status (persisted as of schema v10)
 
-All calendar state lives in `CalendarBloc` and is wiped on app restart. Persistence (Drift table, DAO, repository, service, backup version bump) is **still TODO**. Do not consider any calendar work durable until that is done.
+Custom events and public holidays survive hot restart. `CalendarBloc` depends on `CalendarEventService` (singleton, in-memory cache backed by the `calendar_events` table). Public holidays are seeded into the `public_holidays` table by `PublicHolidayService` on every startup using insert-if-not-exists, then mirrored into the static cache consumed by `PublicHolidays.isHoliday`/`PublicHolidays.holidayOn`. Backup/restore for these two tables is **still TODO** (mirrors the counters situation — they are not in the ZIP archive yet).
 
 ### Files and their roles
 
@@ -102,7 +104,7 @@ All calendar state lives in `CalendarBloc` and is wiped on app restart. Persiste
   - `CalendarIcons.forCategory(CalendarEventCategory) → IconData` — category default.
   - `CalendarIcons.resolve(CalendarEvent) → IconData` — override wins, else category default. **Always use `resolve` on read paths** so explicit icons appear in summaries.
   - `CalendarIcons.groups → List<IconGroup>` — ordered list of `IconGroup(IconGroupId id, List<String> iconKeys)`. Localize group labels via the `iconGroup*` ARB keys (`iconGroupStrength`, `iconGroupCardio`, …) — pick label with a sealed `switch` on `IconGroupId` in the picker, never via a generic `byKey` lookup (none exists).
-- [lib/constants/public_holidays.dart](lib/constants/public_holidays.dart) — `PublicHolidays.isHoliday(DateTime)`. Used by `WorkdaysRecurrence` (exclusion) and `PublicHolidaysOnlyRecurrence` (inclusion).
+- [lib/constants/public_holidays.dart](lib/constants/public_holidays.dart) — sync facade. `PublicHolidays.isHoliday(DateTime)` and `PublicHolidays.holidayOn(DateTime) → PublicHolidayInfo?` consult an in-memory cache populated by `PublicHolidayService.getInstance()` at startup. Use `PublicHolidays.labelOf(info, l10n)` for display (handles both built-in enum entries and user-added custom labels). The `PublicHoliday` enum now spans 15 values incl. movable feasts (Good Friday, Easter Sunday/Monday, Ascension, Pentecost, Whit Monday). Fallback static map covers the fixed-date subset when the cache is empty (tests, pre-init).
 - [lib/widgets/calendar_day_bars.dart](lib/widgets/calendar_day_bars.dart) — colored bar strip rendered via `TableCalendar.calendarBuilders.markerBuilder`. Reads from `DayBarsResolver` (provider/resolver pattern in `lib/services/day_bars_resolver.dart`). Lookup must be O(1) per day; never iterate events inside the marker builder.
 - [lib/services/day_summary_resolver.dart](lib/services/day_summary_resolver.dart) — composes the bottom panel for the selected day. Providers implement `DaySummaryProvider`. `EventSummaryProvider` is the calendar-event implementation:
   - `icon: CalendarIcons.resolve(event)` — picks up explicit icon overrides.
@@ -168,15 +170,59 @@ Icon group labels (one per `IconGroupId`):
 
 `recurrenceWeeklyOn` is a placeholder string — keep the `{days}` metadata in `app_en.arb`.
 
-### Persistence migration plan (still TODO)
+### Persistence layout (schema v10)
 
-When durably persisting events:
-1. Add a `calendar_events` Drift table (id, title, category, start_date, all_day, icon_key, rule_kind, rule_payload (JSON for `WeeklyRecurrence.weekdays`)). Bump schema version. Write a migration.
-2. Persist `iconKey` as the string key (not an `IconData` — `IconData` is not stable across Flutter versions).
-3. Serialize the sealed `RecurrenceRule` as `{kind: ..., weekdays?: [..]}` JSON in the row.
-4. Add `CalendarEventDao` → `CalendarEventRepository` → `CalendarEventService`. Wire `CalendarBloc` to load from the service on `CalendarRefreshed` and on app start. Keep the in-memory cache so `eventsForDay` remains O(1).
-5. Add backup export/import support (bump `ImportExportService.archiveVersion`, keep older versions readable via `_assertSupportedManifest`).
-6. Run `dart run build_runner build --delete-conflicting-outputs`, then `dart analyze lib`.
+- `lib/database/tables/calendar_events_table.dart` — `CalendarEvents`: `id, title, category (enum.name), startDate (date-only UTC), allDay, iconKey?, ruleKind, rulePayload? (JSON), createdAt, updatedAt`.
+- `lib/database/tables/public_holidays_table.dart` — `PublicHolidaysTable` (table name `public_holidays`): `date (PK, UTC date-only), nameKey, customLabel?`. Built-in rows use `nameKey == PublicHoliday.name`; user-added rows use the sentinel `kCustomPublicHolidayKey` (`'custom'`).
+- `lib/database/daos/calendar_event_dao.dart` — `getAll`, `upsert(CalendarEventsCompanion)`, `deleteById`, `deleteAll`.
+- `lib/database/daos/public_holiday_dao.dart` — `getAll`, `insertIfMissing({date, nameKey, customLabel?}) → bool` (uses `InsertMode.insertOrIgnore`), `deleteOn`, `deleteAll`.
+- `lib/services/calendar_event_service.dart` — singleton (`getInstance()` pattern). Owns row↔domain mapping including sealed-`RecurrenceRule` JSON serialization (`{kind, weekdays?}`). Exposes synchronous `events` getter used by `CalendarBloc`.
+- `lib/services/public_holiday_service.dart` — singleton. Seeds default holidays for the current year + 5 forward years on every startup. Movable Christian feasts are derived from Easter Sunday via Meeus/Jones/Butcher (`_easterSunday(year)`).
+- DI registration in `lib/core/di/injection.dart`: both services are awaited in `_registerServices`; `CalendarBloc` is a factory taking `service: getIt<CalendarEventService>()`. `main.dart` uses `getIt<CalendarBloc>()..add(const LoadCalendarEvents())`.
+
+Still TODO: include `calendar_events` and `public_holidays` in `ImportExportService` archive output (bump `archiveVersion`, extend `_assertSupportedManifest`). Counters are also not yet in the archive — handle them in the same pass if/when this is picked up.
+
+## Database Lifecycle (multi-database safety)
+
+The app supports switching between multiple local databases on the database settings page. Every DB-backed singleton (`late AppDatabase _db`, cached rows, derived state) holds references that become stale when the active database changes. `lib/database/database_lifecycle.dart` provides the registry that keeps this correct-by-construction so we no longer rely solely on the "restart required" dialog to mask stale state.
+
+### The contract for any DB-backed singleton
+
+Every service that caches DB-derived state MUST:
+
+1. Expose `static void reset() { _instance = null; ... }` that nulls the singleton and cancels any timers/streams it owns.
+2. Call `DatabaseLifecycle.registerResetHandler(reset)` inside the `getInstance()` first-time-init block — **after** the instance is fully constructed and assigned to `_instance` (so a handler firing mid-init can't observe a half-built service).
+3. If the service publishes data into a separate static cache (like `PublicHolidayService` does with `PublicHolidays._cache`), `reset()` must also clear that static cache. Otherwise the synchronous facade keeps returning the previous database's data until the new instance republishes.
+
+The canonical pattern:
+
+```dart
+static Future<MyService> getInstance() async {
+  if (_instance == null) {
+    _instance = MyService._();
+    _instance!._db = await AppDatabase.getInstance();
+    await _instance!._load();
+    DatabaseLifecycle.registerResetHandler(reset);
+  }
+  return _instance!;
+}
+
+static void reset() {
+  _instance = null;
+}
+```
+
+Services currently following this contract: `CounterService`, `CalendarEventService`, `PublicHolidayService`, `MarkdownBarService`, `SettingsService`, `DevOptionsService`, `BackupService`, `NotePositionService`. New singletons must join this list.
+
+### Where the hook fires
+
+`AppDatabase.getInstance({databaseName})` calls `DatabaseLifecycle.notifyDatabaseSwitching()` immediately before closing the previous `_instance`. `AppDatabase.deleteAllData()` does the same. The registry is self-clearing (handlers fire once per notify, then the list empties) so re-registration on the next `getInstance()` is the only way handlers stay subscribed — there is no `unregister`. The restart-required dialog after a manual DB switch stays in place because BLoC instances held by widgets still need a process restart to rebind; the lifecycle hook makes correctness independent of that dialog.
+
+### Anti-patterns
+
+- Holding a `late AppDatabase _db` in a singleton without a `reset()` + registration. This is a latent crash-after-switch.
+- Caching DB data in a top-level `static` variable without a way to clear it from the owning service's `reset()`. Mirror the `PublicHolidays` / `PublicHolidayService` pairing.
+- Registering a handler from a constructor that runs more than once per singleton lifetime — it duplicates. Always register from the `getInstance()` `if (_instance == null)` branch.
 
 ### Hard rules for calendar work
 

@@ -39,6 +39,38 @@
   "@calendarFormatWeek": {
     "description": "Calendar format option for week view"
   },
+  "calendarFiltersTitle": "Filters",
+  "@calendarFiltersTitle": {
+    "description": "Title of the calendar filter sheet"
+  },
+  "calendarViewRange": "View range",
+  "@calendarViewRange": {
+    "description": "Section label for choosing the calendar view range (month/2 weeks/week)"
+  },
+  "calendarEventCategories": "Event categories",
+  "@calendarEventCategories": {
+    "description": "Section label for the visible event categories filter"
+  },
+  "calendarSelectAll": "Select all",
+  "@calendarSelectAll": {
+    "description": "Button to select every event category"
+  },
+  "calendarClearAll": "Clear",
+  "@calendarClearAll": {
+    "description": "Button to deselect every event category"
+  },
+  "filterCalendar": "Filter calendar",
+  "@filterCalendar": {
+    "description": "Tooltip for the calendar filter button"
+  },
+  "goToToday": "Go to today",
+  "@goToToday": {
+    "description": "Tooltip for the button that jumps the calendar back to today"
+  },
+  "apply": "Apply",
+  "@apply": {
+    "description": "Generic confirm button label"
+  },
   "dayBarWeekend": "Weekend",
   "@dayBarWeekend": {
     "description": "Tooltip/semantics label for the weekend bar in a calendar day cell"
@@ -61,6 +93,50 @@
   },
   "publicHolidaySecondChristmasDay": "Boxing Day",
   "@publicHolidaySecondChristmasDay": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidayEpiphany": "Epiphany",
+  "@publicHolidayEpiphany": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidayGoodFriday": "Good Friday",
+  "@publicHolidayGoodFriday": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidayEasterSunday": "Easter Sunday",
+  "@publicHolidayEasterSunday": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidayEasterMonday": "Easter Monday",
+  "@publicHolidayEasterMonday": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidayAscension": "Ascension Day",
+  "@publicHolidayAscension": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidayPentecost": "Pentecost",
+  "@publicHolidayPentecost": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidayWhitMonday": "Whit Monday",
+  "@publicHolidayWhitMonday": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidayAssumption": "Assumption of Mary",
+  "@publicHolidayAssumption": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidayAllSaints": "All Saints' Day",
+  "@publicHolidayAllSaints": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidayChristmasEve": "Christmas Eve",
+  "@publicHolidayChristmasEve": {
+    "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidayNewYearsEve": "New Year's Eve",
+  "@publicHolidayNewYearsEve": {
     "description": "Public holiday name shown in the calendar day summary"
   },
   "eventCategoryGym": "Gym",
@@ -1673,6 +1749,23 @@
   "previewLinesPerChunkDesc": "{count} lines per chunk (higher = better performance, lower = more precise search scroll)",
   "@previewLinesPerChunkDesc": {
     "description": "Description for lines per chunk setting",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calendarSection": "Calendar",
+  "@calendarSection": {
+    "description": "Calendar settings section title"
+  },
+  "calendarMaxDayBars": "Maximum bars per day",
+  "@calendarMaxDayBars": {
+    "description": "Label for the calendar max-day-bars slider"
+  },
+  "calendarMaxDayBarsDesc": "Show up to {count} bars per day. Extra categories collapse into a +N indicator.",
+  "@calendarMaxDayBarsDesc": {
+    "description": "Description for calendar max day bars slider",
     "placeholders": {
       "count": {
         "type": "int"

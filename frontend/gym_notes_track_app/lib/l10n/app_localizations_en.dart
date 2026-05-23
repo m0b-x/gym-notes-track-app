@@ -39,6 +39,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calendarFormatWeek => 'Week';
 
   @override
+  String get calendarFiltersTitle => 'Filters';
+
+  @override
+  String get calendarViewRange => 'View range';
+
+  @override
+  String get calendarEventCategories => 'Event categories';
+
+  @override
+  String get calendarSelectAll => 'Select all';
+
+  @override
+  String get calendarClearAll => 'Clear';
+
+  @override
+  String get filterCalendar => 'Filter calendar';
+
+  @override
+  String get goToToday => 'Go to today';
+
+  @override
+  String get apply => 'Apply';
+
+  @override
   String get dayBarWeekend => 'Weekend';
 
   @override
@@ -55,6 +79,39 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get publicHolidaySecondChristmasDay => 'Boxing Day';
+
+  @override
+  String get publicHolidayEpiphany => 'Epiphany';
+
+  @override
+  String get publicHolidayGoodFriday => 'Good Friday';
+
+  @override
+  String get publicHolidayEasterSunday => 'Easter Sunday';
+
+  @override
+  String get publicHolidayEasterMonday => 'Easter Monday';
+
+  @override
+  String get publicHolidayAscension => 'Ascension Day';
+
+  @override
+  String get publicHolidayPentecost => 'Pentecost';
+
+  @override
+  String get publicHolidayWhitMonday => 'Whit Monday';
+
+  @override
+  String get publicHolidayAssumption => 'Assumption of Mary';
+
+  @override
+  String get publicHolidayAllSaints => 'All Saints\' Day';
+
+  @override
+  String get publicHolidayChristmasEve => 'Christmas Eve';
+
+  @override
+  String get publicHolidayNewYearsEve => 'New Year\'s Eve';
 
   @override
   String get eventCategoryGym => 'Gym';
@@ -1256,6 +1313,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String previewLinesPerChunkDesc(int count) {
     return '$count lines per chunk (higher = better performance, lower = more precise search scroll)';
+  }
+
+  @override
+  String get calendarSection => 'Calendar';
+
+  @override
+  String get calendarMaxDayBars => 'Maximum bars per day';
+
+  @override
+  String calendarMaxDayBarsDesc(int count) {
+    return 'Show up to $count bars per day. Extra categories collapse into a +N indicator.';
   }
 
   @override

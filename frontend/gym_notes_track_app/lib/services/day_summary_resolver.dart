@@ -67,7 +67,7 @@ class PublicHolidaySummaryProvider implements DaySummaryProvider {
         key: 'holiday',
         icon: Icons.celebration_rounded,
         color: CalendarColors.publicHoliday,
-        title: PublicHolidays.nameOf(holiday, l10n),
+        title: PublicHolidays.labelOf(holiday, l10n),
         subtitle: l10n.dayBarPublicHoliday,
         priority: 150,
       ),

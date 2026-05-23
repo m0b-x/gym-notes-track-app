@@ -50,6 +50,11 @@ class DatabaseMigrations {
       toVersion: DatabaseSchema.v9NameUniquenessIndexes,
       migrate: _migrateV8ToV9,
     ),
+    Migration(
+      fromVersion: DatabaseSchema.v9NameUniquenessIndexes,
+      toVersion: DatabaseSchema.v10CalendarTables,
+      migrate: _migrateV9ToV10,
+    ),
   ];
 
   Future<void> runMigrations(Migrator m, int from, int to) async {
@@ -258,5 +263,36 @@ class DatabaseMigrations {
   /// for fresh installs (where createAllIndexes already created them).
   Future<void> _migrateV8ToV9(Migrator m, GeneratedDatabase db) async {
     await DatabaseIndexes(_db).createUniqueNameIndexes();
+  }
+
+  /// v9→v10: Add calendar events and public holidays tables.
+  ///
+  /// Uses raw `CREATE TABLE` statements that freeze the schema at the
+  /// v10 shape (mirroring the v6 counters precedent). Any future column
+  /// added to `CalendarEvents`/`PublicHolidaysTable` must ship its own
+  /// migration step rather than relying on the live Drift declaration.
+  Future<void> _migrateV9ToV10(Migrator m, GeneratedDatabase db) async {
+    await _db.customStatement(
+      'CREATE TABLE IF NOT EXISTS calendar_events ('
+      '  id TEXT NOT NULL PRIMARY KEY, '
+      '  title TEXT NOT NULL, '
+      '  category TEXT NOT NULL, '
+      '  start_date INTEGER NOT NULL, '
+      '  all_day INTEGER NOT NULL DEFAULT 1, '
+      '  icon_key TEXT, '
+      '  rule_kind TEXT NOT NULL, '
+      '  rule_payload TEXT, '
+      '  created_at INTEGER NOT NULL, '
+      '  updated_at INTEGER NOT NULL'
+      ')',
+    );
+    await _db.customStatement(
+      'CREATE TABLE IF NOT EXISTS public_holidays ('
+      '  date INTEGER NOT NULL PRIMARY KEY, '
+      '  name_key TEXT NOT NULL, '
+      '  custom_label TEXT'
+      ')',
+    );
+    await DatabaseIndexes(_db).createCalendarIndexes();
   }
 }

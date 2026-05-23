@@ -6,8 +6,14 @@ import '../models/day_bar.dart';
 ///
 /// Designed to be cheap: a `Column` of `DecoratedBox`es with no animations.
 /// Use through `TableCalendar.calendarBuilders.markerBuilder`.
+///
+/// When [bars] contains more than [maxBars] entries, the first
+/// `maxBars - 1` bars are rendered followed by a compact "+N" overflow
+/// indicator that takes the slot of the last bar. The widget never grows
+/// beyond [maxBars] visual rows so calendar cells keep a stable height.
 class CalendarDayBars extends StatelessWidget {
   final List<DayBar> bars;
+  final int maxBars;
   final double barHeight;
   final double spacing;
   final double horizontalInset;
@@ -15,6 +21,7 @@ class CalendarDayBars extends StatelessWidget {
   const CalendarDayBars({
     super.key,
     required this.bars,
+    this.maxBars = 3,
     this.barHeight = 3,
     this.spacing = 1.5,
     this.horizontalInset = 6,
@@ -22,14 +29,21 @@ class CalendarDayBars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (bars.isEmpty) return const SizedBox.shrink();
+    if (bars.isEmpty || maxBars <= 0) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final hasOverflow = bars.length > maxBars;
+    // Reserve the last slot for the "+N" indicator when overflowing.
+    final visibleCount = hasOverflow ? maxBars - 1 : bars.length;
+    final hiddenCount = hasOverflow ? bars.length - visibleCount : 0;
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: horizontalInset),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (var i = 0; i < bars.length; i++) ...[
+          for (var i = 0; i < visibleCount; i++) ...[
             if (i > 0) SizedBox(height: spacing),
             Semantics(
               label: bars[i].semanticLabel,
@@ -42,7 +56,35 @@ class CalendarDayBars extends StatelessWidget {
               ),
             ),
           ],
+          if (hasOverflow) ...[
+            if (visibleCount > 0) SizedBox(height: spacing),
+            _OverflowChip(
+              count: hiddenCount,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class _OverflowChip extends StatelessWidget {
+  final int count;
+  final Color color;
+
+  const _OverflowChip({required this.count, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '+$count',
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: 9,
+        fontWeight: FontWeight.w600,
+        height: 1.0,
+        color: color,
       ),
     );
   }

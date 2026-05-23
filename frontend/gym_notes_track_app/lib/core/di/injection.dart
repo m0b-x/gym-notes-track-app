@@ -8,6 +8,8 @@ import '../../services/folder_search_service.dart';
 import '../../services/import_export_service.dart';
 import '../../services/markdown_bar_service.dart';
 import '../../services/counter_service.dart';
+import '../../services/calendar_event_service.dart';
+import '../../services/public_holiday_service.dart';
 import '../../services/mixed_reorder_service.dart';
 import '../../services/move_history_service.dart';
 import '../../services/move_history_store.dart';
@@ -18,6 +20,7 @@ import '../../bloc/optimized_note/optimized_note_bloc.dart';
 import '../../bloc/import_export/import_export_bloc.dart';
 import '../../bloc/markdown_bar/markdown_bar_bloc.dart';
 import '../../bloc/counter/counter_bloc.dart';
+import '../../bloc/calendar/calendar_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -65,6 +68,12 @@ Future<void> _registerServices() async {
 
   final counterService = await CounterService.getInstance();
   getIt.registerSingleton<CounterService>(counterService);
+
+  final publicHolidayService = await PublicHolidayService.getInstance();
+  getIt.registerSingleton<PublicHolidayService>(publicHolidayService);
+
+  final calendarEventService = await CalendarEventService.getInstance();
+  getIt.registerSingleton<CalendarEventService>(calendarEventService);
 
   getIt.registerSingleton<MoveHistoryService>(
     MoveHistoryService(store: InMemoryMoveHistoryStore()),
@@ -115,6 +124,10 @@ void _registerBlocs() {
 
   getIt.registerFactory<CounterBloc>(
     () => CounterBloc(counterService: getIt<CounterService>()),
+  );
+
+  getIt.registerFactory<CalendarBloc>(
+    () => CalendarBloc(service: getIt<CalendarEventService>()),
   );
 
   getIt.registerFactory<ImportExportBloc>(

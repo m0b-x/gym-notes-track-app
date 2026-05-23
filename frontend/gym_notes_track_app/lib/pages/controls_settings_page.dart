@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
+import '../constants/settings_keys.dart';
 import '../widgets/app_dialogs.dart';
 import '../services/settings_service.dart';
 import '../utils/custom_snackbar.dart';
@@ -42,6 +43,9 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
   // Preview performance settings
   int _previewLinesPerChunk = 10;
 
+  // Calendar settings
+  int _calendarMaxDayBars = 3;
+
   @override
   void initState() {
     super.initState();
@@ -67,6 +71,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     final scrollCursorOnKeyboard = await settings.getScrollCursorOnKeyboard();
     final showPreviewScrollbar = await settings.getShowPreviewScrollbar();
     final previewLinesPerChunk = await settings.getPreviewLinesPerChunk();
+    final calendarMaxDayBars = await settings.getCalendarMaxDayBars();
 
     setState(() {
       _settings = settings;
@@ -86,6 +91,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _scrollCursorOnKeyboard = scrollCursorOnKeyboard;
       _showPreviewScrollbar = showPreviewScrollbar;
       _previewLinesPerChunk = previewLinesPerChunk;
+      _calendarMaxDayBars = calendarMaxDayBars;
       _isLoading = false;
     });
   }
@@ -395,6 +401,35 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
                     ],
                   ),
 
+                  const SizedBox(height: 16),
+
+                  // Calendar section
+                  _buildSectionCard(
+                    context: context,
+                    colorScheme: colorScheme,
+                    icon: Icons.calendar_month_rounded,
+                    title: l10n.calendarSection,
+                    children: [
+                      _buildSliderTile(
+                        context: context,
+                        colorScheme: colorScheme,
+                        title: l10n.calendarMaxDayBars,
+                        subtitle: l10n.calendarMaxDayBarsDesc(
+                          _calendarMaxDayBars,
+                        ),
+                        value: _calendarMaxDayBars.toDouble(),
+                        min: 1,
+                        max: 6,
+                        divisions: 5,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _calendarMaxDayBars = value.round());
+                          await _settings?.setCalendarMaxDayBars(value.round());
+                        },
+                      ),
+                    ],
+                  ),
+
                   const SizedBox(height: 32),
 
                   // Reset button
@@ -548,6 +583,9 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     await _settings?.setShowCursorLine(false);
     await _settings?.setAutoBreakLongLines(true);
     await _settings?.setPreviewWhenKeyboardHidden(false);
+    await _settings?.setCalendarMaxDayBars(
+      SettingsKeys.defaultCalendarMaxDayBars,
+    );
 
     setState(() {
       _folderSwipeEnabled = true;
@@ -563,6 +601,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showCursorLine = false;
       _autoBreakLongLines = true;
       _previewWhenKeyboardHidden = false;
+      _calendarMaxDayBars = SettingsKeys.defaultCalendarMaxDayBars;
     });
 
     if (!mounted) return;

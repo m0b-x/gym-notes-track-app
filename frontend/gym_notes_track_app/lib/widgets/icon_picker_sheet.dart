@@ -9,11 +9,7 @@ class IconPickerSheet extends StatelessWidget {
   final String? initialKey;
   final Color tint;
 
-  const IconPickerSheet({
-    super.key,
-    required this.tint,
-    this.initialKey,
-  });
+  const IconPickerSheet({super.key, required this.tint, this.initialKey});
 
   static Future<String?> show(
     BuildContext context, {
@@ -131,7 +127,9 @@ class _IconTile extends StatelessWidget {
     final icon = CalendarIcons.forKey(iconKey);
     if (icon == null) return const SizedBox.shrink();
 
-    final bg = selected ? tint.withValues(alpha: 0.18) : theme.colorScheme.surfaceContainerHighest;
+    final bg = selected
+        ? tint.withValues(alpha: 0.18)
+        : theme.colorScheme.surfaceContainerHighest;
     final fg = selected ? tint : theme.colorScheme.onSurfaceVariant;
     final border = selected
         ? Border.all(color: tint, width: 2)

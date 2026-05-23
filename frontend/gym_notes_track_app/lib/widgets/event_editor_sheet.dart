@@ -223,10 +223,7 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
   }
 
   Future<void> _pickCategory() async {
-    final picked = await CategoryPickerSheet.show(
-      context,
-      selected: _category,
-    );
+    final picked = await CategoryPickerSheet.show(context, selected: _category);
     if (picked == null || !mounted) return;
     setState(() => _category = picked);
   }
@@ -371,7 +368,9 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
                             CalendarIcons.forCategory(_category),
                       ),
                     ),
-                    title: _iconKey == null ? l10n.iconDefault : l10n.iconCustom,
+                    title: _iconKey == null
+                        ? l10n.iconDefault
+                        : l10n.iconCustom,
                     subtitle: l10n.pickIcon,
                     trailing: _iconKey == null
                         ? const Icon(Icons.chevron_right_rounded)
@@ -436,10 +435,7 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
                           for (var w = 1; w <= 7; w++)
                             FilterChip(
                               label: Text(
-                                RecurrenceFormatter.weekdayShort(
-                                  w,
-                                  localeName,
-                                ),
+                                RecurrenceFormatter.weekdayShort(w, localeName),
                               ),
                               selected: _weekdays.contains(w),
                               onSelected: (_) => _toggleWeekday(w),
@@ -460,20 +456,17 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
                   ],
                   if (_isEditing) ...[
                     const SizedBox(height: 24),
-                    Align(
-                      alignment: AlignmentDirectional.center,
-                      child: TextButton.icon(
-                        onPressed: _onDelete,
-                        icon: Icon(
-                          Icons.delete_outline_rounded,
-                          color: theme.colorScheme.error,
-                        ),
-                        label: Text(
-                          l10n.delete,
-                          style: TextStyle(color: theme.colorScheme.error),
-                        ),
+                    FilledButton.icon(
+                      onPressed: _onDelete,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: theme.colorScheme.errorContainer,
+                        foregroundColor: theme.colorScheme.onErrorContainer,
+                        minimumSize: const Size.fromHeight(48),
                       ),
+                      icon: const Icon(Icons.delete_rounded),
+                      label: Text(l10n.delete),
                     ),
+                    const SizedBox(height: 8),
                   ],
                 ],
               ),

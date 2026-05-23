@@ -93,16 +93,20 @@ class EventCategoryDayBarProvider implements DayBarProvider {
   }
 }
 
-/// Chains a list of [DayBarProvider]s and returns a sorted, deduplicated,
-/// length-capped list of bars for a given day.
+/// Chains a list of [DayBarProvider]s and returns a sorted, deduplicated
+/// list of bars for a given day.
 ///
 /// To add a new bar type, implement [DayBarProvider] and pass it into the
 /// constructor — no other call sites need to change.
+///
+/// Note: this resolver does **not** cap the returned list. The
+/// [CalendarDayBars] widget decides how many bars to render and renders a
+/// "+N" overflow indicator for the remainder, controlled by the user's
+/// `calendarMaxDayBars` setting.
 class DayBarsResolver {
   final List<DayBarProvider> providers;
-  final int maxBars;
 
-  const DayBarsResolver({required this.providers, this.maxBars = 4});
+  const DayBarsResolver({required this.providers});
 
   /// Default resolver bundling weekend + public holiday + event categories.
   factory DayBarsResolver.defaults(AppLocalizations l10n) {
@@ -124,7 +128,6 @@ class DayBarsResolver {
     }
     final sorted = byKey.values.toList()
       ..sort((a, b) => a.priority.compareTo(b.priority));
-    if (sorted.length <= maxBars) return sorted;
-    return sorted.sublist(0, maxBars);
+    return sorted;
   }
 }

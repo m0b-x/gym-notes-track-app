@@ -10,6 +10,7 @@ class DatabaseIndexes {
     await _createNoteIndexes();
     await _createChunkIndexes();
     await _createCounterIndexes();
+    await createCalendarIndexes();
     await _createFtsTable();
     await createUniqueNameIndexes();
   }
@@ -70,6 +71,16 @@ class DatabaseIndexes {
   Future<void> _createCounterIndexes() async {
     await _db.customStatement(
       'CREATE INDEX IF NOT EXISTS idx_counter_values_counter ON counter_values(counter_id)',
+    );
+  }
+
+  /// Indexes for the calendar feature. Public because the v10 migration
+  /// calls this directly so existing installs get the index without
+  /// re-running the full `createAllIndexes` path.
+  Future<void> createCalendarIndexes() async {
+    await _db.customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_calendar_events_start_date '
+      'ON calendar_events(start_date)',
     );
   }
 

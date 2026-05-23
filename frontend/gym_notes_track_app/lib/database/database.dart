@@ -13,13 +13,18 @@ import 'tables/sync_metadata_table.dart';
 import 'tables/user_settings_table.dart';
 import 'tables/counters_table.dart';
 import 'tables/counter_values_table.dart';
+import 'tables/calendar_events_table.dart';
+import 'tables/public_holidays_table.dart';
 import 'daos/folder_dao.dart';
 import 'daos/note_dao.dart';
 import 'daos/content_chunk_dao.dart';
 import 'daos/sync_dao.dart';
 import 'daos/user_settings_dao.dart';
 import 'daos/counter_dao.dart';
+import 'daos/calendar_event_dao.dart';
+import 'daos/public_holiday_dao.dart';
 import 'crdt/hlc.dart';
+import 'database_lifecycle.dart';
 import 'loading_interceptor.dart';
 import 'migrations/migrations.dart';
 
@@ -34,6 +39,8 @@ part 'database.g.dart';
     UserSettings,
     Counters,
     CounterValues,
+    CalendarEvents,
+    PublicHolidaysTable,
   ],
   daos: [
     FolderDao,
@@ -42,6 +49,8 @@ part 'database.g.dart';
     SyncDao,
     UserSettingsDao,
     CounterDao,
+    CalendarEventDao,
+    PublicHolidayDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -59,8 +68,13 @@ class AppDatabase extends _$AppDatabase {
     final dbManager = await DatabaseManager.getInstance();
     final activeName = databaseName ?? dbManager.getActiveDatabaseName();
 
-    // If instance exists and we're requesting a different database, close current one
+    // If instance exists and we're requesting a different database, close current one.
+    // Notify lifecycle listeners FIRST so any singleton holding a `late AppDatabase`
+    // reference (CounterService, CalendarEventService, etc.) drops it before we
+    // close the underlying connection. Without this, the next access from a stale
+    // singleton would hit a closed database.
     if (_instance != null && _currentDatabaseName != activeName) {
+      DatabaseLifecycle.notifyDatabaseSwitching();
       await _instance!.close();
       _instance = null;
       _currentDatabaseName = null;
@@ -79,8 +93,10 @@ class AppDatabase extends _$AppDatabase {
   static Future<void> deleteAllData() async {
     // Close the current instance if it exists
     if (_instance != null) {
+      DatabaseLifecycle.notifyDatabaseSwitching();
       await _instance!.close();
       _instance = null;
+      _currentDatabaseName = null;
     }
 
     // Get the database folder path

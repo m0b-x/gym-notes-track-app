@@ -3597,6 +3597,894 @@ class CounterValuesCompanion extends UpdateCompanion<CounterValueRow> {
   }
 }
 
+class $CalendarEventsTable extends CalendarEvents
+    with TableInfo<$CalendarEventsTable, CalendarEventRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CalendarEventsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startDateMeta = const VerificationMeta(
+    'startDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
+    'start_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _allDayMeta = const VerificationMeta('allDay');
+  @override
+  late final GeneratedColumn<bool> allDay = GeneratedColumn<bool>(
+    'all_day',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("all_day" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _iconKeyMeta = const VerificationMeta(
+    'iconKey',
+  );
+  @override
+  late final GeneratedColumn<String> iconKey = GeneratedColumn<String>(
+    'icon_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ruleKindMeta = const VerificationMeta(
+    'ruleKind',
+  );
+  @override
+  late final GeneratedColumn<String> ruleKind = GeneratedColumn<String>(
+    'rule_kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rulePayloadMeta = const VerificationMeta(
+    'rulePayload',
+  );
+  @override
+  late final GeneratedColumn<String> rulePayload = GeneratedColumn<String>(
+    'rule_payload',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    title,
+    category,
+    startDate,
+    allDay,
+    iconKey,
+    ruleKind,
+    rulePayload,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'calendar_events';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CalendarEventRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryMeta);
+    }
+    if (data.containsKey('start_date')) {
+      context.handle(
+        _startDateMeta,
+        startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startDateMeta);
+    }
+    if (data.containsKey('all_day')) {
+      context.handle(
+        _allDayMeta,
+        allDay.isAcceptableOrUnknown(data['all_day']!, _allDayMeta),
+      );
+    }
+    if (data.containsKey('icon_key')) {
+      context.handle(
+        _iconKeyMeta,
+        iconKey.isAcceptableOrUnknown(data['icon_key']!, _iconKeyMeta),
+      );
+    }
+    if (data.containsKey('rule_kind')) {
+      context.handle(
+        _ruleKindMeta,
+        ruleKind.isAcceptableOrUnknown(data['rule_kind']!, _ruleKindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ruleKindMeta);
+    }
+    if (data.containsKey('rule_payload')) {
+      context.handle(
+        _rulePayloadMeta,
+        rulePayload.isAcceptableOrUnknown(
+          data['rule_payload']!,
+          _rulePayloadMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CalendarEventRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CalendarEventRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      )!,
+      startDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}start_date'],
+      )!,
+      allDay: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}all_day'],
+      )!,
+      iconKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_key'],
+      ),
+      ruleKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rule_kind'],
+      )!,
+      rulePayload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}rule_payload'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CalendarEventsTable createAlias(String alias) {
+    return $CalendarEventsTable(attachedDatabase, alias);
+  }
+}
+
+class CalendarEventRow extends DataClass
+    implements Insertable<CalendarEventRow> {
+  final String id;
+  final String title;
+  final String category;
+  final DateTime startDate;
+  final bool allDay;
+  final String? iconKey;
+  final String ruleKind;
+  final String? rulePayload;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const CalendarEventRow({
+    required this.id,
+    required this.title,
+    required this.category,
+    required this.startDate,
+    required this.allDay,
+    this.iconKey,
+    required this.ruleKind,
+    this.rulePayload,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['title'] = Variable<String>(title);
+    map['category'] = Variable<String>(category);
+    map['start_date'] = Variable<DateTime>(startDate);
+    map['all_day'] = Variable<bool>(allDay);
+    if (!nullToAbsent || iconKey != null) {
+      map['icon_key'] = Variable<String>(iconKey);
+    }
+    map['rule_kind'] = Variable<String>(ruleKind);
+    if (!nullToAbsent || rulePayload != null) {
+      map['rule_payload'] = Variable<String>(rulePayload);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  CalendarEventsCompanion toCompanion(bool nullToAbsent) {
+    return CalendarEventsCompanion(
+      id: Value(id),
+      title: Value(title),
+      category: Value(category),
+      startDate: Value(startDate),
+      allDay: Value(allDay),
+      iconKey: iconKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(iconKey),
+      ruleKind: Value(ruleKind),
+      rulePayload: rulePayload == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rulePayload),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory CalendarEventRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CalendarEventRow(
+      id: serializer.fromJson<String>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      category: serializer.fromJson<String>(json['category']),
+      startDate: serializer.fromJson<DateTime>(json['startDate']),
+      allDay: serializer.fromJson<bool>(json['allDay']),
+      iconKey: serializer.fromJson<String?>(json['iconKey']),
+      ruleKind: serializer.fromJson<String>(json['ruleKind']),
+      rulePayload: serializer.fromJson<String?>(json['rulePayload']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'title': serializer.toJson<String>(title),
+      'category': serializer.toJson<String>(category),
+      'startDate': serializer.toJson<DateTime>(startDate),
+      'allDay': serializer.toJson<bool>(allDay),
+      'iconKey': serializer.toJson<String?>(iconKey),
+      'ruleKind': serializer.toJson<String>(ruleKind),
+      'rulePayload': serializer.toJson<String?>(rulePayload),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  CalendarEventRow copyWith({
+    String? id,
+    String? title,
+    String? category,
+    DateTime? startDate,
+    bool? allDay,
+    Value<String?> iconKey = const Value.absent(),
+    String? ruleKind,
+    Value<String?> rulePayload = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => CalendarEventRow(
+    id: id ?? this.id,
+    title: title ?? this.title,
+    category: category ?? this.category,
+    startDate: startDate ?? this.startDate,
+    allDay: allDay ?? this.allDay,
+    iconKey: iconKey.present ? iconKey.value : this.iconKey,
+    ruleKind: ruleKind ?? this.ruleKind,
+    rulePayload: rulePayload.present ? rulePayload.value : this.rulePayload,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  CalendarEventRow copyWithCompanion(CalendarEventsCompanion data) {
+    return CalendarEventRow(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      category: data.category.present ? data.category.value : this.category,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      allDay: data.allDay.present ? data.allDay.value : this.allDay,
+      iconKey: data.iconKey.present ? data.iconKey.value : this.iconKey,
+      ruleKind: data.ruleKind.present ? data.ruleKind.value : this.ruleKind,
+      rulePayload: data.rulePayload.present
+          ? data.rulePayload.value
+          : this.rulePayload,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CalendarEventRow(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('category: $category, ')
+          ..write('startDate: $startDate, ')
+          ..write('allDay: $allDay, ')
+          ..write('iconKey: $iconKey, ')
+          ..write('ruleKind: $ruleKind, ')
+          ..write('rulePayload: $rulePayload, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    title,
+    category,
+    startDate,
+    allDay,
+    iconKey,
+    ruleKind,
+    rulePayload,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CalendarEventRow &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.category == this.category &&
+          other.startDate == this.startDate &&
+          other.allDay == this.allDay &&
+          other.iconKey == this.iconKey &&
+          other.ruleKind == this.ruleKind &&
+          other.rulePayload == this.rulePayload &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
+  final Value<String> id;
+  final Value<String> title;
+  final Value<String> category;
+  final Value<DateTime> startDate;
+  final Value<bool> allDay;
+  final Value<String?> iconKey;
+  final Value<String> ruleKind;
+  final Value<String?> rulePayload;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const CalendarEventsCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.category = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.allDay = const Value.absent(),
+    this.iconKey = const Value.absent(),
+    this.ruleKind = const Value.absent(),
+    this.rulePayload = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CalendarEventsCompanion.insert({
+    required String id,
+    required String title,
+    required String category,
+    required DateTime startDate,
+    this.allDay = const Value.absent(),
+    this.iconKey = const Value.absent(),
+    required String ruleKind,
+    this.rulePayload = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       title = Value(title),
+       category = Value(category),
+       startDate = Value(startDate),
+       ruleKind = Value(ruleKind),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<CalendarEventRow> custom({
+    Expression<String>? id,
+    Expression<String>? title,
+    Expression<String>? category,
+    Expression<DateTime>? startDate,
+    Expression<bool>? allDay,
+    Expression<String>? iconKey,
+    Expression<String>? ruleKind,
+    Expression<String>? rulePayload,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (category != null) 'category': category,
+      if (startDate != null) 'start_date': startDate,
+      if (allDay != null) 'all_day': allDay,
+      if (iconKey != null) 'icon_key': iconKey,
+      if (ruleKind != null) 'rule_kind': ruleKind,
+      if (rulePayload != null) 'rule_payload': rulePayload,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CalendarEventsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? title,
+    Value<String>? category,
+    Value<DateTime>? startDate,
+    Value<bool>? allDay,
+    Value<String?>? iconKey,
+    Value<String>? ruleKind,
+    Value<String?>? rulePayload,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return CalendarEventsCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      category: category ?? this.category,
+      startDate: startDate ?? this.startDate,
+      allDay: allDay ?? this.allDay,
+      iconKey: iconKey ?? this.iconKey,
+      ruleKind: ruleKind ?? this.ruleKind,
+      rulePayload: rulePayload ?? this.rulePayload,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<DateTime>(startDate.value);
+    }
+    if (allDay.present) {
+      map['all_day'] = Variable<bool>(allDay.value);
+    }
+    if (iconKey.present) {
+      map['icon_key'] = Variable<String>(iconKey.value);
+    }
+    if (ruleKind.present) {
+      map['rule_kind'] = Variable<String>(ruleKind.value);
+    }
+    if (rulePayload.present) {
+      map['rule_payload'] = Variable<String>(rulePayload.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CalendarEventsCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('category: $category, ')
+          ..write('startDate: $startDate, ')
+          ..write('allDay: $allDay, ')
+          ..write('iconKey: $iconKey, ')
+          ..write('ruleKind: $ruleKind, ')
+          ..write('rulePayload: $rulePayload, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PublicHolidaysTableTable extends PublicHolidaysTable
+    with TableInfo<$PublicHolidaysTableTable, PublicHolidayRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PublicHolidaysTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameKeyMeta = const VerificationMeta(
+    'nameKey',
+  );
+  @override
+  late final GeneratedColumn<String> nameKey = GeneratedColumn<String>(
+    'name_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _customLabelMeta = const VerificationMeta(
+    'customLabel',
+  );
+  @override
+  late final GeneratedColumn<String> customLabel = GeneratedColumn<String>(
+    'custom_label',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [date, nameKey, customLabel];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'public_holidays';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PublicHolidayRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('name_key')) {
+      context.handle(
+        _nameKeyMeta,
+        nameKey.isAcceptableOrUnknown(data['name_key']!, _nameKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameKeyMeta);
+    }
+    if (data.containsKey('custom_label')) {
+      context.handle(
+        _customLabelMeta,
+        customLabel.isAcceptableOrUnknown(
+          data['custom_label']!,
+          _customLabelMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {date};
+  @override
+  PublicHolidayRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PublicHolidayRow(
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}date'],
+      )!,
+      nameKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name_key'],
+      )!,
+      customLabel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}custom_label'],
+      ),
+    );
+  }
+
+  @override
+  $PublicHolidaysTableTable createAlias(String alias) {
+    return $PublicHolidaysTableTable(attachedDatabase, alias);
+  }
+}
+
+class PublicHolidayRow extends DataClass
+    implements Insertable<PublicHolidayRow> {
+  /// UTC date-only (year, month, day) — the primary key.
+  final DateTime date;
+  final String nameKey;
+  final String? customLabel;
+  const PublicHolidayRow({
+    required this.date,
+    required this.nameKey,
+    this.customLabel,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['date'] = Variable<DateTime>(date);
+    map['name_key'] = Variable<String>(nameKey);
+    if (!nullToAbsent || customLabel != null) {
+      map['custom_label'] = Variable<String>(customLabel);
+    }
+    return map;
+  }
+
+  PublicHolidaysTableCompanion toCompanion(bool nullToAbsent) {
+    return PublicHolidaysTableCompanion(
+      date: Value(date),
+      nameKey: Value(nameKey),
+      customLabel: customLabel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customLabel),
+    );
+  }
+
+  factory PublicHolidayRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PublicHolidayRow(
+      date: serializer.fromJson<DateTime>(json['date']),
+      nameKey: serializer.fromJson<String>(json['nameKey']),
+      customLabel: serializer.fromJson<String?>(json['customLabel']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'date': serializer.toJson<DateTime>(date),
+      'nameKey': serializer.toJson<String>(nameKey),
+      'customLabel': serializer.toJson<String?>(customLabel),
+    };
+  }
+
+  PublicHolidayRow copyWith({
+    DateTime? date,
+    String? nameKey,
+    Value<String?> customLabel = const Value.absent(),
+  }) => PublicHolidayRow(
+    date: date ?? this.date,
+    nameKey: nameKey ?? this.nameKey,
+    customLabel: customLabel.present ? customLabel.value : this.customLabel,
+  );
+  PublicHolidayRow copyWithCompanion(PublicHolidaysTableCompanion data) {
+    return PublicHolidayRow(
+      date: data.date.present ? data.date.value : this.date,
+      nameKey: data.nameKey.present ? data.nameKey.value : this.nameKey,
+      customLabel: data.customLabel.present
+          ? data.customLabel.value
+          : this.customLabel,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PublicHolidayRow(')
+          ..write('date: $date, ')
+          ..write('nameKey: $nameKey, ')
+          ..write('customLabel: $customLabel')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(date, nameKey, customLabel);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PublicHolidayRow &&
+          other.date == this.date &&
+          other.nameKey == this.nameKey &&
+          other.customLabel == this.customLabel);
+}
+
+class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
+  final Value<DateTime> date;
+  final Value<String> nameKey;
+  final Value<String?> customLabel;
+  final Value<int> rowid;
+  const PublicHolidaysTableCompanion({
+    this.date = const Value.absent(),
+    this.nameKey = const Value.absent(),
+    this.customLabel = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PublicHolidaysTableCompanion.insert({
+    required DateTime date,
+    required String nameKey,
+    this.customLabel = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : date = Value(date),
+       nameKey = Value(nameKey);
+  static Insertable<PublicHolidayRow> custom({
+    Expression<DateTime>? date,
+    Expression<String>? nameKey,
+    Expression<String>? customLabel,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (date != null) 'date': date,
+      if (nameKey != null) 'name_key': nameKey,
+      if (customLabel != null) 'custom_label': customLabel,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PublicHolidaysTableCompanion copyWith({
+    Value<DateTime>? date,
+    Value<String>? nameKey,
+    Value<String?>? customLabel,
+    Value<int>? rowid,
+  }) {
+    return PublicHolidaysTableCompanion(
+      date: date ?? this.date,
+      nameKey: nameKey ?? this.nameKey,
+      customLabel: customLabel ?? this.customLabel,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (date.present) {
+      map['date'] = Variable<DateTime>(date.value);
+    }
+    if (nameKey.present) {
+      map['name_key'] = Variable<String>(nameKey.value);
+    }
+    if (customLabel.present) {
+      map['custom_label'] = Variable<String>(customLabel.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PublicHolidaysTableCompanion(')
+          ..write('date: $date, ')
+          ..write('nameKey: $nameKey, ')
+          ..write('customLabel: $customLabel, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3607,6 +4495,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $UserSettingsTable userSettings = $UserSettingsTable(this);
   late final $CountersTable counters = $CountersTable(this);
   late final $CounterValuesTable counterValues = $CounterValuesTable(this);
+  late final $CalendarEventsTable calendarEvents = $CalendarEventsTable(this);
+  late final $PublicHolidaysTableTable publicHolidaysTable =
+      $PublicHolidaysTableTable(this);
   late final FolderDao folderDao = FolderDao(this as AppDatabase);
   late final NoteDao noteDao = NoteDao(this as AppDatabase);
   late final ContentChunkDao contentChunkDao = ContentChunkDao(
@@ -3617,6 +4508,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this as AppDatabase,
   );
   late final CounterDao counterDao = CounterDao(this as AppDatabase);
+  late final CalendarEventDao calendarEventDao = CalendarEventDao(
+    this as AppDatabase,
+  );
+  late final PublicHolidayDao publicHolidayDao = PublicHolidayDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3629,6 +4526,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     userSettings,
     counters,
     counterValues,
+    calendarEvents,
+    publicHolidaysTable,
   ];
 }
 
@@ -5437,6 +6336,489 @@ typedef $$CounterValuesTableProcessedTableManager =
       CounterValueRow,
       PrefetchHooks Function()
     >;
+typedef $$CalendarEventsTableCreateCompanionBuilder =
+    CalendarEventsCompanion Function({
+      required String id,
+      required String title,
+      required String category,
+      required DateTime startDate,
+      Value<bool> allDay,
+      Value<String?> iconKey,
+      required String ruleKind,
+      Value<String?> rulePayload,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$CalendarEventsTableUpdateCompanionBuilder =
+    CalendarEventsCompanion Function({
+      Value<String> id,
+      Value<String> title,
+      Value<String> category,
+      Value<DateTime> startDate,
+      Value<bool> allDay,
+      Value<String?> iconKey,
+      Value<String> ruleKind,
+      Value<String?> rulePayload,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$CalendarEventsTableFilterComposer
+    extends Composer<_$AppDatabase, $CalendarEventsTable> {
+  $$CalendarEventsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get allDay => $composableBuilder(
+    column: $table.allDay,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iconKey => $composableBuilder(
+    column: $table.iconKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ruleKind => $composableBuilder(
+    column: $table.ruleKind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get rulePayload => $composableBuilder(
+    column: $table.rulePayload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CalendarEventsTableOrderingComposer
+    extends Composer<_$AppDatabase, $CalendarEventsTable> {
+  $$CalendarEventsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get allDay => $composableBuilder(
+    column: $table.allDay,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get iconKey => $composableBuilder(
+    column: $table.iconKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ruleKind => $composableBuilder(
+    column: $table.ruleKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get rulePayload => $composableBuilder(
+    column: $table.rulePayload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CalendarEventsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CalendarEventsTable> {
+  $$CalendarEventsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<bool> get allDay =>
+      $composableBuilder(column: $table.allDay, builder: (column) => column);
+
+  GeneratedColumn<String> get iconKey =>
+      $composableBuilder(column: $table.iconKey, builder: (column) => column);
+
+  GeneratedColumn<String> get ruleKind =>
+      $composableBuilder(column: $table.ruleKind, builder: (column) => column);
+
+  GeneratedColumn<String> get rulePayload => $composableBuilder(
+    column: $table.rulePayload,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$CalendarEventsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CalendarEventsTable,
+          CalendarEventRow,
+          $$CalendarEventsTableFilterComposer,
+          $$CalendarEventsTableOrderingComposer,
+          $$CalendarEventsTableAnnotationComposer,
+          $$CalendarEventsTableCreateCompanionBuilder,
+          $$CalendarEventsTableUpdateCompanionBuilder,
+          (
+            CalendarEventRow,
+            BaseReferences<
+              _$AppDatabase,
+              $CalendarEventsTable,
+              CalendarEventRow
+            >,
+          ),
+          CalendarEventRow,
+          PrefetchHooks Function()
+        > {
+  $$CalendarEventsTableTableManager(
+    _$AppDatabase db,
+    $CalendarEventsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CalendarEventsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CalendarEventsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CalendarEventsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> category = const Value.absent(),
+                Value<DateTime> startDate = const Value.absent(),
+                Value<bool> allDay = const Value.absent(),
+                Value<String?> iconKey = const Value.absent(),
+                Value<String> ruleKind = const Value.absent(),
+                Value<String?> rulePayload = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CalendarEventsCompanion(
+                id: id,
+                title: title,
+                category: category,
+                startDate: startDate,
+                allDay: allDay,
+                iconKey: iconKey,
+                ruleKind: ruleKind,
+                rulePayload: rulePayload,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String title,
+                required String category,
+                required DateTime startDate,
+                Value<bool> allDay = const Value.absent(),
+                Value<String?> iconKey = const Value.absent(),
+                required String ruleKind,
+                Value<String?> rulePayload = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => CalendarEventsCompanion.insert(
+                id: id,
+                title: title,
+                category: category,
+                startDate: startDate,
+                allDay: allDay,
+                iconKey: iconKey,
+                ruleKind: ruleKind,
+                rulePayload: rulePayload,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CalendarEventsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CalendarEventsTable,
+      CalendarEventRow,
+      $$CalendarEventsTableFilterComposer,
+      $$CalendarEventsTableOrderingComposer,
+      $$CalendarEventsTableAnnotationComposer,
+      $$CalendarEventsTableCreateCompanionBuilder,
+      $$CalendarEventsTableUpdateCompanionBuilder,
+      (
+        CalendarEventRow,
+        BaseReferences<_$AppDatabase, $CalendarEventsTable, CalendarEventRow>,
+      ),
+      CalendarEventRow,
+      PrefetchHooks Function()
+    >;
+typedef $$PublicHolidaysTableTableCreateCompanionBuilder =
+    PublicHolidaysTableCompanion Function({
+      required DateTime date,
+      required String nameKey,
+      Value<String?> customLabel,
+      Value<int> rowid,
+    });
+typedef $$PublicHolidaysTableTableUpdateCompanionBuilder =
+    PublicHolidaysTableCompanion Function({
+      Value<DateTime> date,
+      Value<String> nameKey,
+      Value<String?> customLabel,
+      Value<int> rowid,
+    });
+
+class $$PublicHolidaysTableTableFilterComposer
+    extends Composer<_$AppDatabase, $PublicHolidaysTableTable> {
+  $$PublicHolidaysTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<DateTime> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nameKey => $composableBuilder(
+    column: $table.nameKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customLabel => $composableBuilder(
+    column: $table.customLabel,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PublicHolidaysTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $PublicHolidaysTableTable> {
+  $$PublicHolidaysTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nameKey => $composableBuilder(
+    column: $table.nameKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get customLabel => $composableBuilder(
+    column: $table.customLabel,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PublicHolidaysTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PublicHolidaysTableTable> {
+  $$PublicHolidaysTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get nameKey =>
+      $composableBuilder(column: $table.nameKey, builder: (column) => column);
+
+  GeneratedColumn<String> get customLabel => $composableBuilder(
+    column: $table.customLabel,
+    builder: (column) => column,
+  );
+}
+
+class $$PublicHolidaysTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PublicHolidaysTableTable,
+          PublicHolidayRow,
+          $$PublicHolidaysTableTableFilterComposer,
+          $$PublicHolidaysTableTableOrderingComposer,
+          $$PublicHolidaysTableTableAnnotationComposer,
+          $$PublicHolidaysTableTableCreateCompanionBuilder,
+          $$PublicHolidaysTableTableUpdateCompanionBuilder,
+          (
+            PublicHolidayRow,
+            BaseReferences<
+              _$AppDatabase,
+              $PublicHolidaysTableTable,
+              PublicHolidayRow
+            >,
+          ),
+          PublicHolidayRow,
+          PrefetchHooks Function()
+        > {
+  $$PublicHolidaysTableTableTableManager(
+    _$AppDatabase db,
+    $PublicHolidaysTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PublicHolidaysTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PublicHolidaysTableTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PublicHolidaysTableTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<DateTime> date = const Value.absent(),
+                Value<String> nameKey = const Value.absent(),
+                Value<String?> customLabel = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PublicHolidaysTableCompanion(
+                date: date,
+                nameKey: nameKey,
+                customLabel: customLabel,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required DateTime date,
+                required String nameKey,
+                Value<String?> customLabel = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PublicHolidaysTableCompanion.insert(
+                date: date,
+                nameKey: nameKey,
+                customLabel: customLabel,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PublicHolidaysTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PublicHolidaysTableTable,
+      PublicHolidayRow,
+      $$PublicHolidaysTableTableFilterComposer,
+      $$PublicHolidaysTableTableOrderingComposer,
+      $$PublicHolidaysTableTableAnnotationComposer,
+      $$PublicHolidaysTableTableCreateCompanionBuilder,
+      $$PublicHolidaysTableTableUpdateCompanionBuilder,
+      (
+        PublicHolidayRow,
+        BaseReferences<
+          _$AppDatabase,
+          $PublicHolidaysTableTable,
+          PublicHolidayRow
+        >,
+      ),
+      PublicHolidayRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5455,4 +6837,8 @@ class $AppDatabaseManager {
       $$CountersTableTableManager(_db, _db.counters);
   $$CounterValuesTableTableManager get counterValues =>
       $$CounterValuesTableTableManager(_db, _db.counterValues);
+  $$CalendarEventsTableTableManager get calendarEvents =>
+      $$CalendarEventsTableTableManager(_db, _db.calendarEvents);
+  $$PublicHolidaysTableTableTableManager get publicHolidaysTable =>
+      $$PublicHolidaysTableTableTableManager(_db, _db.publicHolidaysTable);
 }

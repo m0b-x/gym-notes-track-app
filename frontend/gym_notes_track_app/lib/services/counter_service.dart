@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../database/database.dart';
+import '../database/database_lifecycle.dart';
 import '../database/daos/counter_dao.dart';
 import '../models/counter.dart';
 
@@ -63,6 +64,7 @@ class CounterService {
       _instance!._db = await AppDatabase.getInstance();
       _instance!._dao = _instance!._db.counterDao;
       await _instance!._load();
+      DatabaseLifecycle.registerResetHandler(reset);
     }
     return _instance!;
   }

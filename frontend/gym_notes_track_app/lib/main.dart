@@ -103,7 +103,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
         BlocProvider(create: (_) => getIt<ImportExportBloc>()),
         BlocProvider(
-          create: (_) => CalendarBloc()..add(const LoadCalendarEvents()),
+          create: (_) => getIt<CalendarBloc>()..add(const LoadCalendarEvents()),
         ),
       ],
       child: BlocBuilder<AppSettingsBloc, AppSettingsState>(

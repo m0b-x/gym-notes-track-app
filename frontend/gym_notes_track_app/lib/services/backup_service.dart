@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../database/database.dart';
+import '../database/database_lifecycle.dart';
 import '../constants/json_keys.dart';
 import 'counter_service.dart';
 import 'markdown_bar_service.dart';
@@ -18,8 +19,16 @@ class BackupService {
     if (_instance == null) {
       _instance = BackupService._();
       _instance!._db = await AppDatabase.getInstance();
+      DatabaseLifecycle.registerResetHandler(reset);
     }
     return _instance!;
+  }
+
+  /// Drops the cached singleton so the next [getInstance] rebinds to the
+  /// currently-active [AppDatabase]. Invoked by [DatabaseLifecycle] when the
+  /// active database changes.
+  static void reset() {
+    _instance = null;
   }
 
   Future<Map<String, dynamic>> exportAllData() async {
