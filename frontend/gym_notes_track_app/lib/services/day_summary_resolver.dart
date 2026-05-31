@@ -8,6 +8,7 @@ import '../models/calendar_event.dart';
 import '../models/day_summary_entry.dart';
 import '../models/recurrence_rule.dart';
 import 'recurrence_formatter.dart';
+import 'event_time_formatter.dart';
 
 /// Contract for anything that contributes entries to the calendar's bottom
 /// "day summary" panel.
@@ -100,10 +101,16 @@ class EventSummaryProvider implements DaySummaryProvider {
   }
 
   String? _subtitleFor(CalendarEvent event) {
+    final time = event.time;
     final parts = <String>[
       if (event.rule is! OneTimeRecurrence)
         RecurrenceFormatter.format(event.rule, l10n, l10n.localeName),
-      if (event.allDay) l10n.eventAllDay,
+      // Timed events show their range; all-day events show the explicit
+      // "All day" badge so the type is never ambiguous in the list.
+      if (time != null)
+        EventTimeFormatter.formatRange(time, l10n)
+      else
+        l10n.eventAllDay,
     ];
     return parts.isEmpty ? null : parts.join(' \u00b7 ');
   }

@@ -142,6 +142,48 @@ abstract class AppLocalizations {
   /// **'All day'**
   String get eventAllDay;
 
+  /// Subtitle hint under the All day toggle in the event editor
+  ///
+  /// In en, this message translates to:
+  /// **'Event spans the entire day'**
+  String get eventAllDayHint;
+
+  /// Section label for time-of-day controls in the event editor
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get eventTimeSection;
+
+  /// Label for the event start-time picker
+  ///
+  /// In en, this message translates to:
+  /// **'Start time'**
+  String get eventStartTime;
+
+  /// Label for the event end-time picker when set
+  ///
+  /// In en, this message translates to:
+  /// **'End time'**
+  String get eventEndTime;
+
+  /// Title shown when an event has no end time set
+  ///
+  /// In en, this message translates to:
+  /// **'No end time'**
+  String get eventEndTimeNone;
+
+  /// Hint shown beneath the end-time picker when no end is set
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to add an end time'**
+  String get eventEndTimeHint;
+
+  /// Hint shown when the chosen end time crosses midnight
+  ///
+  /// In en, this message translates to:
+  /// **'Ends next day'**
+  String get eventCrossesMidnight;
+
   /// Calendar format option for month view
   ///
   /// In en, this message translates to:
@@ -309,6 +351,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New Year\'s Eve'**
   String get publicHolidayNewYearsEve;
+
+  /// Romanian public holiday on January 24
+  ///
+  /// In en, this message translates to:
+  /// **'Union of the Romanian Principalities Day'**
+  String get publicHolidayUnificationDay;
+
+  /// Public holiday on June 1
+  ///
+  /// In en, this message translates to:
+  /// **'Children\'s Day'**
+  String get publicHolidayChildrensDay;
+
+  /// Public holiday on November 30
+  ///
+  /// In en, this message translates to:
+  /// **'Saint Andrew\'s Day'**
+  String get publicHolidayStAndrewDay;
+
+  /// Romanian public holiday on December 1
+  ///
+  /// In en, this message translates to:
+  /// **'Romanian National Day'**
+  String get publicHolidayNationalDayRomania;
+
+  /// Settings tile title for the holiday profile selector
+  ///
+  /// In en, this message translates to:
+  /// **'Holiday set'**
+  String get holidayProfileTitle;
+
+  /// Holiday profile name for the default Catholic-leaning Christian set
+  ///
+  /// In en, this message translates to:
+  /// **'Christian (Western)'**
+  String get holidayProfileGeneric;
+
+  /// Holiday profile name for Romanian national + Orthodox Christian holidays
+  ///
+  /// In en, this message translates to:
+  /// **'Romania'**
+  String get holidayProfileRomania;
+
+  /// Holiday profile name for the empty set
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get holidayProfileNone;
 
   /// Calendar event category: gym session
   ///

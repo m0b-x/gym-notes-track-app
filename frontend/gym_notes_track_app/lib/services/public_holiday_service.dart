@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../constants/public_holidays.dart';
+import '../constants/settings_keys.dart';
 import '../database/database.dart';
 import '../database/database_lifecycle.dart';
 import '../database/daos/public_holiday_dao.dart';
@@ -9,16 +10,25 @@ import '../database/daos/public_holiday_dao.dart';
 /// in-memory cache used by [PublicHolidays.isHoliday]/[PublicHolidays.holidayOn].
 ///
 /// On [getInstance] it:
-///   1. Seeds the default built-in holidays for the current year and the
-///      five following years using insert-if-not-exists semantics, so the
+///   1. Reads the user's selected [HolidayProfile] from `user_settings`
+///      (defaulting to [HolidayProfile.generic] for backward compat with
+///      pre-profile installs).
+///   2. Seeds that profile's holidays for the current year and the five
+///      following years using insert-if-not-exists semantics, so the
 ///      window naturally rolls forward and never overwrites user edits.
-///   2. Loads every row into memory and publishes the cache via
+///   3. Loads every row into memory and publishes the cache via
 ///      [PublicHolidays.updateCache].
+///
+/// Switching profiles is a single call to [setProfile]: rows tagged with
+/// the previous profile are dropped, the new profile is seeded, and the
+/// cache is republished. User-added customs (rows whose `profile` column
+/// equals [kCustomHolidayProfileKey]) survive every switch.
 class PublicHolidayService {
   static PublicHolidayService? _instance;
 
   late AppDatabase _db;
   late PublicHolidayDao _dao;
+  HolidayProfile _profile = HolidayProfile.generic;
   Map<DateTime, PublicHolidayInfo> _cache = const {};
 
   /// Number of upcoming years (inclusive of the current year) that
@@ -33,6 +43,7 @@ class PublicHolidayService {
     final service = PublicHolidayService._();
     service._db = await AppDatabase.getInstance();
     service._dao = service._db.publicHolidayDao;
+    service._profile = await service._readProfile();
     await service._seedDefaults();
     await service._load();
     _instance = service;
@@ -49,10 +60,49 @@ class PublicHolidayService {
     PublicHolidays.updateCache(const {});
   }
 
+  /// The currently active holiday profile.
+  HolidayProfile get profile => _profile;
+
   /// Unmodifiable view over the in-memory cache. Callers must never mutate
   /// the returned map — use [addCustom] / [removeOn] to change persisted
   /// holiday data and let the service republish the cache.
   Map<DateTime, PublicHolidayInfo> get cache => Map.unmodifiable(_cache);
+
+  // ── Profile management ───────────────────────────────────────────────
+
+  /// Switches the active holiday profile.
+  ///
+  /// Atomically: deletes every built-in row owned by the *previous*
+  /// profile, persists the new selection, seeds the new profile's
+  /// holidays for the covered year window, and republishes the cache.
+  /// Custom rows (`profile = 'custom'`) are never touched.
+  ///
+  /// No-op when [next] equals the current [profile].
+  Future<void> setProfile(HolidayProfile next) async {
+    if (next == _profile) return;
+    final previous = _profile;
+    await _db.transaction(() async {
+      await _dao.deleteProfile(previous.name);
+      await _writeProfile(next);
+      _profile = next;
+      await _seedDefaults();
+    });
+    await _load();
+  }
+
+  Future<HolidayProfile> _readProfile() async {
+    final raw = await _db.userSettingsDao.getValue(SettingsKeys.holidayProfile);
+    return PublicHolidays.profileFromName(raw);
+  }
+
+  Future<void> _writeProfile(HolidayProfile profile) async {
+    await _db.userSettingsDao.setValue(
+      SettingsKeys.holidayProfile,
+      profile.name,
+    );
+  }
+
+  // ── Cache load / DB seed ─────────────────────────────────────────────
 
   Future<void> _load() async {
     final rows = await _dao.getAll();
@@ -64,6 +114,9 @@ class PublicHolidayService {
       } else {
         final builtIn = _nameToHoliday[row.nameKey];
         if (builtIn != null) {
+          // Last write wins when multiple built-ins land on the same
+          // date (rare, e.g. profile-specific overlap). The composite
+          // PK guarantees they're distinct rows in storage.
           next[key] = PublicHolidayInfo.builtIn(builtIn);
         }
       }
@@ -85,10 +138,11 @@ class PublicHolidayService {
     try {
       await _db.transaction(() async {
         for (var year = startYear; year <= endYearInclusive; year++) {
-          for (final seed in _buildDefaultSeeds(year)) {
+          for (final seed in _buildSeeds(_profile, year)) {
             await _dao.insertIfMissing(
               date: seed.date,
               nameKey: seed.holiday.name,
+              profile: _profile.name,
             );
           }
         }
@@ -98,10 +152,26 @@ class PublicHolidayService {
     }
   }
 
-  /// All built-in holidays for a single [year]. Movable Christian feasts
-  /// are derived from Easter Sunday via the Anonymous Gregorian algorithm.
-  Iterable<_HolidaySeed> _buildDefaultSeeds(int year) sync* {
-    final easter = _easterSunday(year);
+  /// Returns the holidays to seed for [profile] in [year].
+  ///
+  /// Each profile's date math lives in its own helper for testability
+  /// and so adding a new region is a localized change. Movable feasts
+  /// derive from Easter Sunday (Gregorian for [HolidayProfile.generic],
+  /// Orthodox for [HolidayProfile.romania]).
+  static Iterable<_HolidaySeed> _buildSeeds(HolidayProfile profile, int year) {
+    return switch (profile) {
+      HolidayProfile.generic => _genericSeeds(year),
+      HolidayProfile.romania => _romaniaSeeds(year),
+      HolidayProfile.none => const [],
+    };
+  }
+
+  /// Catholic-leaning Christian set — historical default. Matches the
+  /// holidays the app shipped before profiles existed, so an installed
+  /// user's Calendar looks identical after upgrading until they actively
+  /// switch profiles.
+  static Iterable<_HolidaySeed> _genericSeeds(int year) sync* {
+    final easter = _easterSundayGregorian(year);
     yield _HolidaySeed(DateTime.utc(year, 1, 1), PublicHoliday.newYear);
     yield _HolidaySeed(DateTime.utc(year, 1, 6), PublicHoliday.epiphany);
     yield _HolidaySeed(
@@ -137,9 +207,49 @@ class PublicHolidayService {
     yield _HolidaySeed(DateTime.utc(year, 12, 31), PublicHoliday.newYearsEve);
   }
 
+  /// Romanian official non-working days — civil holidays + Orthodox
+  /// Christian feasts. Easter dates are computed via the Julian-calendar
+  /// Meeus algorithm and converted to Gregorian.
+  static Iterable<_HolidaySeed> _romaniaSeeds(int year) sync* {
+    final easter = _easterSundayOrthodox(year);
+    yield _HolidaySeed(DateTime.utc(year, 1, 1), PublicHoliday.newYear);
+    yield _HolidaySeed(DateTime.utc(year, 1, 24), PublicHoliday.unificationDay);
+    yield _HolidaySeed(
+      easter.subtract(const Duration(days: 2)),
+      PublicHoliday.goodFriday,
+    );
+    yield _HolidaySeed(easter, PublicHoliday.easterSunday);
+    yield _HolidaySeed(
+      easter.add(const Duration(days: 1)),
+      PublicHoliday.easterMonday,
+    );
+    yield _HolidaySeed(DateTime.utc(year, 5, 1), PublicHoliday.labourDay);
+    yield _HolidaySeed(DateTime.utc(year, 6, 1), PublicHoliday.childrensDay);
+    yield _HolidaySeed(
+      easter.add(const Duration(days: 49)),
+      PublicHoliday.pentecost,
+    );
+    yield _HolidaySeed(
+      easter.add(const Duration(days: 50)),
+      PublicHoliday.whitMonday,
+    );
+    yield _HolidaySeed(DateTime.utc(year, 8, 15), PublicHoliday.assumption);
+    yield _HolidaySeed(DateTime.utc(year, 11, 30), PublicHoliday.stAndrewDay);
+    yield _HolidaySeed(
+      DateTime.utc(year, 12, 1),
+      PublicHoliday.nationalDayRomania,
+    );
+    yield _HolidaySeed(DateTime.utc(year, 12, 25), PublicHoliday.christmasDay);
+    yield _HolidaySeed(
+      DateTime.utc(year, 12, 26),
+      PublicHoliday.secondChristmasDay,
+    );
+  }
+
   /// Anonymous Gregorian algorithm (Meeus/Jones/Butcher) — returns Easter
-  /// Sunday for the given Gregorian [year] as a date-only UTC `DateTime`.
-  static DateTime _easterSunday(int year) {
+  /// Sunday in the Gregorian calendar for [year] as a date-only UTC
+  /// `DateTime`.
+  static DateTime _easterSundayGregorian(int year) {
     final a = year % 19;
     final b = year ~/ 100;
     final c = year % 100;
@@ -157,6 +267,42 @@ class PublicHolidayService {
     return DateTime.utc(year, month, day);
   }
 
+  /// Returns Eastern Orthodox Easter Sunday for [year] in the proleptic
+  /// Gregorian calendar.
+  ///
+  /// Uses the Meeus Julian algorithm to compute the date in the Julian
+  /// calendar, then adds the Julian → Gregorian offset for that year.
+  /// The offset is **13 days for the entire 1900–2099 window** (year 2000
+  /// is a Gregorian leap year, so the expected jump at the 2000 century
+  /// boundary does not happen). It increments by 1 at every non-leap
+  /// century boundary thereafter (2100, 2200, 2300; 2400 is leap so no
+  /// jump).
+  static DateTime _easterSundayOrthodox(int year) {
+    final a = year % 4;
+    final b = year % 7;
+    final c = year % 19;
+    final d = (19 * c + 15) % 30;
+    final e = (2 * a + 4 * b - d + 34) % 7;
+    final julianMonth = (d + e + 114) ~/ 31;
+    final julianDay = ((d + e + 114) % 31) + 1;
+    final julianDate = DateTime.utc(year, julianMonth, julianDay);
+    return julianDate.add(Duration(days: _julianToGregorianOffset(year)));
+  }
+
+  /// Days by which the Julian calendar lags the Gregorian calendar in
+  /// the given Gregorian [year]. Constant 13 across 1900–2099. Past 2099
+  /// it increments at every non-leap century boundary; we extend the
+  /// formula symbolically so we never have to revisit this code, even if
+  /// the seed window stretches into the 22nd century.
+  static int _julianToGregorianOffset(int year) {
+    if (year < 1900) return 13; // pre-1900 callers fall outside our domain
+    var offset = 13;
+    for (var c = 21; c <= year ~/ 100; c++) {
+      if (c % 4 != 0) offset += 1;
+    }
+    return offset;
+  }
+
   static final Map<String, PublicHoliday> _nameToHoliday = {
     for (final v in PublicHoliday.values) v.name: v,
   };
@@ -170,12 +316,13 @@ class PublicHolidayService {
   }
 
   /// Adds a user-defined custom holiday. No-op if a row already exists
-  /// for [date].
+  /// for the same `(date, nameKey='custom')` pair.
   Future<void> addCustom(DateTime date, String label) async {
     final key = DateTime.utc(date.year, date.month, date.day);
     final inserted = await _dao.insertIfMissing(
       date: key,
       nameKey: kCustomPublicHolidayKey,
+      profile: kCustomHolidayProfileKey,
       customLabel: label,
     );
     if (inserted) await _load();
@@ -189,10 +336,11 @@ class PublicHolidayService {
 
   // ── Backup export / import ────────────────────────────────────────────
 
-  /// Snapshot of every holiday row (both built-in and user-custom) for
+  /// Snapshot of every holiday row (built-in and user-custom) for
   /// inclusion in a full-app backup. User edits to the built-in set
   /// (deletions for a given year, custom additions) round-trip exactly
-  /// because we mirror the row shape verbatim.
+  /// because we mirror the row shape verbatim, including the new
+  /// `profile` column for forward/backward compatibility.
   Future<List<Map<String, dynamic>>> exportData() async {
     final rows = await _dao.getAll();
     return [
@@ -200,6 +348,7 @@ class PublicHolidayService {
         {
           'dateMs': row.date.millisecondsSinceEpoch,
           'nameKey': row.nameKey,
+          'profile': row.profile,
           'customLabel': row.customLabel,
         },
     ];
@@ -207,8 +356,10 @@ class PublicHolidayService {
 
   /// Replaces every persisted holiday with the contents of [data]. The
   /// next startup will re-seed any built-in rows that are still missing
-  /// (idempotent), so a backup taken before a new built-in was added
-  /// will not block the seeder from filling it in.
+  /// for the active profile (idempotent), so a backup taken before a
+  /// new built-in was added will not block the seeder from filling it
+  /// in. Backups missing a `profile` field are treated as `generic`
+  /// (matches the v12 → v13 migration's back-fill behaviour).
   Future<void> importData(List<dynamic> data) async {
     await _dao.deleteAll();
     for (final raw in data) {
@@ -220,10 +371,16 @@ class PublicHolidayService {
       final date = _dateOnlyUtc(
         DateTime.fromMillisecondsSinceEpoch(dateMs, isUtc: true),
       );
+      final profile =
+          (map['profile'] as String?) ??
+          (nameKey == kCustomPublicHolidayKey
+              ? kCustomHolidayProfileKey
+              : HolidayProfile.generic.name);
       try {
         await _dao.insertIfMissing(
           date: date,
           nameKey: nameKey,
+          profile: profile,
           customLabel: map['customLabel'] as String?,
         );
       } catch (e) {

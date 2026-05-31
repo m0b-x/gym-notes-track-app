@@ -30,6 +30,27 @@ class AppLocalizationsRo extends AppLocalizations {
   String get eventAllDay => 'Toată ziua';
 
   @override
+  String get eventAllDayHint => 'Evenimentul durează toată ziua';
+
+  @override
+  String get eventTimeSection => 'Ora';
+
+  @override
+  String get eventStartTime => 'Ora de început';
+
+  @override
+  String get eventEndTime => 'Ora de sfârșit';
+
+  @override
+  String get eventEndTimeNone => 'Fără oră de sfârșit';
+
+  @override
+  String get eventEndTimeHint => 'Atinge pentru a adăuga o oră de sfârșit';
+
+  @override
+  String get eventCrossesMidnight => 'Se termină a doua zi';
+
+  @override
   String get calendarFormatMonth => 'Lună';
 
   @override
@@ -112,6 +133,30 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get publicHolidayNewYearsEve => 'Revelionul';
+
+  @override
+  String get publicHolidayUnificationDay => 'Ziua Unirii Principatelor Române';
+
+  @override
+  String get publicHolidayChildrensDay => 'Ziua Copilului';
+
+  @override
+  String get publicHolidayStAndrewDay => 'Sfântul Andrei';
+
+  @override
+  String get publicHolidayNationalDayRomania => 'Ziua Națională a României';
+
+  @override
+  String get holidayProfileTitle => 'Set sărbători';
+
+  @override
+  String get holidayProfileGeneric => 'Creștin (occidental)';
+
+  @override
+  String get holidayProfileRomania => 'România';
+
+  @override
+  String get holidayProfileNone => 'Niciunul';
 
   @override
   String get eventCategoryGym => 'Sală';

@@ -1,5 +1,35 @@
 import '../l10n/app_localizations.dart';
 
+/// Available built-in holiday profiles.
+///
+/// Each profile is a curated list of holidays for a region or tradition.
+/// `PublicHolidayService` seeds the active profile into the database on
+/// startup using insert-if-not-exists semantics; switching profiles
+/// (via `setProfile`) wipes the previous profile's seeded rows and
+/// re-seeds, while user-added custom rows always survive.
+///
+/// To add a new profile:
+///   1. Add a value here.
+///   2. Add a builder branch in `PublicHolidayService._buildSeeds`.
+///   3. Localize its display name in `PublicHolidays.profileNameOf`
+///      and add the matching ARB key (`holidayProfile<EnumName>`).
+enum HolidayProfile {
+  /// Catholic-leaning Christian set with Gregorian Easter. Historical
+  /// default — matches what the app shipped before profiles existed.
+  generic,
+
+  /// Romanian national + Orthodox Christian set (Orthodox Easter dates).
+  romania,
+
+  /// Empty set: no built-in holidays. Users can still add customs.
+  none,
+}
+
+/// Sentinel `profile` value used in the `public_holidays` table for
+/// user-added rows. Distinct from any [HolidayProfile.name] so profile
+/// switches can purge built-ins without touching customs.
+const String kCustomHolidayProfileKey = 'custom';
+
 /// Known public holidays recognized by the app.
 ///
 /// Built-in holidays are seeded into the `public_holidays` Drift table on
@@ -12,8 +42,10 @@ import '../l10n/app_localizations.dart';
 ///   1. Add a value to [PublicHoliday].
 ///   2. Localize its label in [PublicHolidays.nameOf] and in the ARB files
 ///      (key pattern: `publicHoliday<EnumName>`).
-///   3. Add it to the seed list in `PublicHolidayService._buildDefaultSeeds`.
+///   3. Add it to the appropriate per-profile seed list in
+///      `PublicHolidayService._buildSeeds`.
 enum PublicHoliday {
+  // ── Christian / shared ─────────────────────────────────────────────
   newYear,
   epiphany,
   goodFriday,
@@ -29,6 +61,19 @@ enum PublicHoliday {
   christmasDay,
   secondChristmasDay,
   newYearsEve,
+
+  // ── Romania-specific ───────────────────────────────────────────────
+  /// 24 January — Unification of the Romanian Principalities.
+  unificationDay,
+
+  /// 1 June — Children's Day.
+  childrensDay,
+
+  /// 30 November — Saint Andrew's Day.
+  stAndrewDay,
+
+  /// 1 December — Romanian National Day.
+  nationalDayRomania,
 }
 
 /// Sentinel `name_key` used in the `public_holidays` table for user-added
@@ -121,7 +166,32 @@ abstract final class PublicHolidays {
       PublicHoliday.christmasDay => l10n.publicHolidayChristmasDay,
       PublicHoliday.secondChristmasDay => l10n.publicHolidaySecondChristmasDay,
       PublicHoliday.newYearsEve => l10n.publicHolidayNewYearsEve,
+      PublicHoliday.unificationDay => l10n.publicHolidayUnificationDay,
+      PublicHoliday.childrensDay => l10n.publicHolidayChildrensDay,
+      PublicHoliday.stAndrewDay => l10n.publicHolidayStAndrewDay,
+      PublicHoliday.nationalDayRomania => l10n.publicHolidayNationalDayRomania,
     };
+  }
+
+  /// Resolves the localized display name for a [HolidayProfile].
+  static String profileNameOf(HolidayProfile profile, AppLocalizations l10n) {
+    return switch (profile) {
+      HolidayProfile.generic => l10n.holidayProfileGeneric,
+      HolidayProfile.romania => l10n.holidayProfileRomania,
+      HolidayProfile.none => l10n.holidayProfileNone,
+    };
+  }
+
+  /// Parses a stored [HolidayProfile.name] back into the enum, falling
+  /// back to [HolidayProfile.generic] for unrecognized values (forward
+  /// compatibility with backups taken from a future version that adds
+  /// new profiles).
+  static HolidayProfile profileFromName(String? name) {
+    if (name == null) return HolidayProfile.generic;
+    for (final value in HolidayProfile.values) {
+      if (value.name == name) return value;
+    }
+    return HolidayProfile.generic;
   }
 
   /// Convenience: resolves the localized display label for any

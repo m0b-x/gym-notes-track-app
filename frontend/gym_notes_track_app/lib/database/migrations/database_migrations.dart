@@ -65,6 +65,11 @@ class DatabaseMigrations {
       toVersion: DatabaseSchema.v12CalendarDescription,
       migrate: _migrateV11ToV12,
     ),
+    Migration(
+      fromVersion: DatabaseSchema.v12CalendarDescription,
+      toVersion: DatabaseSchema.v13HolidayProfiles,
+      migrate: _migrateV12ToV13,
+    ),
   ];
 
   Future<void> runMigrations(Migrator m, int from, int to) async {
@@ -356,6 +361,58 @@ class DatabaseMigrations {
       await _db.customStatement(
         'ALTER TABLE calendar_events ADD COLUMN description TEXT',
       );
+    }
+  }
+
+  /// v12→v13: Holiday profiles.
+  ///
+  /// Reshapes `public_holidays` to support multiple region/tradition
+  /// presets (`generic`, `romania`, ...) chosen by the user:
+  ///
+  /// 1. Adds a `profile` column that records which preset seeded each
+  ///    row, or the sentinel `'custom'` for user-added rows.
+  /// 2. Replaces the date-only primary key with a composite
+  ///    `(date, name_key)` PK so the same calendar day can carry
+  ///    multiple distinct holidays (e.g. Easter Monday + a user note,
+  ///    or two different built-ins that happen to coincide).
+  ///
+  /// Existing rows are back-filled: built-ins receive `profile='generic'`
+  /// (matching the historical Catholic-leaning seed set) and customs
+  /// receive `profile='custom'`. Idempotent via `PRAGMA table_info`.
+  Future<void> _migrateV12ToV13(Migrator m, GeneratedDatabase db) async {
+    final existing = <String>{
+      for (final row
+          in await _db.customSelect('PRAGMA table_info(public_holidays)').get())
+        row.read<String>('name'),
+    };
+    // Already migrated (e.g. partial upgrade re-run).
+    if (existing.contains('profile')) return;
+
+    // SQLite cannot change a primary key in place — rebuild the table.
+    await _db.customStatement('PRAGMA foreign_keys = OFF');
+    try {
+      await _db.customStatement(
+        'CREATE TABLE public_holidays_new ('
+        '  date INTEGER NOT NULL, '
+        '  name_key TEXT NOT NULL, '
+        "  profile TEXT NOT NULL DEFAULT 'generic', "
+        '  custom_label TEXT, '
+        '  PRIMARY KEY (date, name_key)'
+        ')',
+      );
+      await _db.customStatement(
+        'INSERT INTO public_holidays_new (date, name_key, profile, custom_label) '
+        'SELECT date, name_key, '
+        "  CASE WHEN name_key = 'custom' THEN 'custom' ELSE 'generic' END, "
+        '  custom_label '
+        'FROM public_holidays',
+      );
+      await _db.customStatement('DROP TABLE public_holidays');
+      await _db.customStatement(
+        'ALTER TABLE public_holidays_new RENAME TO public_holidays',
+      );
+    } finally {
+      await _db.customStatement('PRAGMA foreign_keys = ON');
     }
   }
 }

@@ -12,12 +12,72 @@ enum CalendarEventCategory {
   other,
 }
 
+/// Time-of-day annotation for a [CalendarEvent].
+///
+/// An event is considered **timed** iff it carries a non-null
+/// [CalendarEvent.time]; otherwise it is **all-day**. This is the single
+/// source of truth — the persisted `all_day` column in `calendar_events`
+/// is derived from this on write and ignored on read.
+///
+/// [startMinute] is minutes since local midnight in `[0, 1440)`.
+/// [durationMinutes] is optional. When `null` the event is a point in
+/// time with no defined end; when set it must be `>= 1`. Values larger
+/// than `1440 - startMinute` represent an event that crosses midnight —
+/// allowed by the model, rendered by the UI.
+class EventTime extends Equatable {
+  /// Smallest legal start-of-day value (00:00, inclusive).
+  static const int minStartMinute = 0;
+
+  /// Smallest illegal start-of-day value (24:00, exclusive).
+  static const int minutesPerDay = 1440;
+
+  final int startMinute;
+  final int? durationMinutes;
+
+  const EventTime({required this.startMinute, this.durationMinutes})
+    : assert(
+        startMinute >= minStartMinute && startMinute < minutesPerDay,
+        'startMinute must be in [0, 1440)',
+      ),
+      assert(
+        durationMinutes == null || durationMinutes > 0,
+        'durationMinutes must be positive when set',
+      );
+
+  /// Hour component of the start (`0..23`).
+  int get startHour => startMinute ~/ 60;
+
+  /// Minute component of the start (`0..59`).
+  int get startMinuteOfHour => startMinute % 60;
+
+  /// End offset in minutes since the same midnight, or `null` when no
+  /// duration is set. May exceed `minutesPerDay` for events that span
+  /// midnight; presentation is the caller's responsibility.
+  int? get endMinute =>
+      durationMinutes == null ? null : startMinute + durationMinutes!;
+
+  EventTime copyWith({
+    int? startMinute,
+    int? durationMinutes,
+    bool clearDuration = false,
+  }) {
+    return EventTime(
+      startMinute: startMinute ?? this.startMinute,
+      durationMinutes: clearDuration
+          ? null
+          : (durationMinutes ?? this.durationMinutes),
+    );
+  }
+
+  @override
+  List<Object?> get props => [startMinute, durationMinutes];
+}
+
 class CalendarEvent extends Equatable {
   final String id;
   final String title;
   final CalendarEventCategory category;
   final DateTime startDate;
-  final bool allDay;
   final RecurrenceRule rule;
 
   /// Optional inclusive upper bound for [rule] occurrences. When non-null
@@ -26,6 +86,12 @@ class CalendarEvent extends Equatable {
   ///
   /// Ignored for one-time events (their start *is* their end).
   final DateTime? endDate;
+
+  /// Optional time-of-day annotation. When `null`, the event is treated as
+  /// **all-day** (this is also what [allDay] returns). When non-null, the
+  /// event is **timed** with the start and optional duration described by
+  /// [EventTime].
+  final EventTime? time;
 
   /// Optional free-form description / notes for the event (e.g., "focus on
   /// hamstrings, drop sets on the third exercise"). `null` or empty means
@@ -41,24 +107,30 @@ class CalendarEvent extends Equatable {
     required this.title,
     required this.category,
     required this.startDate,
-    this.allDay = true,
     this.rule = const OneTimeRecurrence(),
     this.endDate,
+    this.time,
     this.description,
     this.iconKey,
   });
+
+  /// Derived: `true` iff this event has no [time] annotation. This is the
+  /// canonical answer; the persisted `all_day` column is a write-time
+  /// mirror used only for SQL filtering, never trusted on read.
+  bool get allDay => time == null;
 
   CalendarEvent copyWith({
     String? id,
     String? title,
     CalendarEventCategory? category,
     DateTime? startDate,
-    bool? allDay,
     RecurrenceRule? rule,
     DateTime? endDate,
+    EventTime? time,
     String? description,
     String? iconKey,
     bool clearEndDate = false,
+    bool clearTime = false,
     bool clearDescription = false,
     bool clearIconKey = false,
   }) {
@@ -67,9 +139,9 @@ class CalendarEvent extends Equatable {
       title: title ?? this.title,
       category: category ?? this.category,
       startDate: startDate ?? this.startDate,
-      allDay: allDay ?? this.allDay,
       rule: rule ?? this.rule,
       endDate: clearEndDate ? null : (endDate ?? this.endDate),
+      time: clearTime ? null : (time ?? this.time),
       description: clearDescription ? null : (description ?? this.description),
       iconKey: clearIconKey ? null : (iconKey ?? this.iconKey),
     );
@@ -98,9 +170,9 @@ class CalendarEvent extends Equatable {
     title,
     category,
     startDate,
-    allDay,
     rule,
     endDate,
+    time,
     description,
     iconKey,
   ];

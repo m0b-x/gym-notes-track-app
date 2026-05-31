@@ -1,24 +1,44 @@
 import 'package:drift/drift.dart';
 
-/// Persisted public holidays. Each row is a specific dated holiday.
+/// Persisted public holidays.
 ///
-/// [nameKey] holds the localizable enum name (e.g. `newYear`, `easterMonday`)
-/// for built-in holidays. User-added rows use the sentinel `custom` and
-/// store their display string in [customLabel].
+/// Each row is a single dated holiday. The composite primary key
+/// `(date, name_key)` allows multiple holidays to coexist on the same
+/// day — e.g. a built-in [PublicHoliday.easterMonday] and a user-added
+/// custom note for that date — which the previous date-only PK could
+/// not represent.
 ///
-/// Movable holidays (Easter) are seeded as concrete dated rows per year by
-/// `PublicHolidayService` using add-if-not-exists semantics, so the year
-/// window naturally extends forward without manual migrations.
+/// Columns:
+/// - [date]: UTC date-only (year, month, day).
+/// - [nameKey]: localizable enum name (e.g. `newYear`, `easterMonday`)
+///   for built-in holidays. User-added rows use the sentinel `custom`
+///   and store their display string in [customLabel].
+/// - [profile]: which `HolidayProfile` owns this row. Built-in rows are
+///   tagged with the profile that seeded them (e.g. `generic`,
+///   `romania`); custom rows use the sentinel `custom`. This lets the
+///   service swap profiles cleanly: rows tagged with the *previous*
+///   profile are deleted, rows tagged `custom` survive every switch.
+///
+/// Movable holidays (Easter and its dependents) are seeded as concrete
+/// dated rows per year by `PublicHolidayService` using add-if-not-exists
+/// semantics, so the year window naturally extends forward without
+/// manual migrations.
 @DataClassName('PublicHolidayRow')
 class PublicHolidaysTable extends Table {
   @override
   String get tableName => 'public_holidays';
 
-  /// UTC date-only (year, month, day) — the primary key.
+  /// UTC date-only (year, month, day).
   DateTimeColumn get date => dateTime()();
   TextColumn get nameKey => text()();
+
+  /// Owning `HolidayProfile.name` for built-in rows, or the sentinel
+  /// `custom` for user-added rows. Defaulted in SQL so legacy rows from
+  /// schema versions ≤ 12 (which had no profile concept) cleanly back-fill
+  /// to the historical Catholic-leaning seed set.
+  TextColumn get profile => text().withDefault(const Constant('generic'))();
   TextColumn get customLabel => text().nullable()();
 
   @override
-  Set<Column> get primaryKey => {date};
+  Set<Column> get primaryKey => {date, nameKey};
 }

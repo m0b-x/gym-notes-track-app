@@ -27,6 +27,34 @@
   "@eventAllDay": {
     "description": "Label for an all-day calendar event"
   },
+  "eventAllDayHint": "Event spans the entire day",
+  "@eventAllDayHint": {
+    "description": "Subtitle hint under the All day toggle in the event editor"
+  },
+  "eventTimeSection": "Time",
+  "@eventTimeSection": {
+    "description": "Section label for time-of-day controls in the event editor"
+  },
+  "eventStartTime": "Start time",
+  "@eventStartTime": {
+    "description": "Label for the event start-time picker"
+  },
+  "eventEndTime": "End time",
+  "@eventEndTime": {
+    "description": "Label for the event end-time picker when set"
+  },
+  "eventEndTimeNone": "No end time",
+  "@eventEndTimeNone": {
+    "description": "Title shown when an event has no end time set"
+  },
+  "eventEndTimeHint": "Tap to add an end time",
+  "@eventEndTimeHint": {
+    "description": "Hint shown beneath the end-time picker when no end is set"
+  },
+  "eventCrossesMidnight": "Ends next day",
+  "@eventCrossesMidnight": {
+    "description": "Hint shown when the chosen end time crosses midnight"
+  },
   "calendarFormatMonth": "Month",
   "@calendarFormatMonth": {
     "description": "Calendar format option for month view"
@@ -138,6 +166,38 @@
   "publicHolidayNewYearsEve": "New Year's Eve",
   "@publicHolidayNewYearsEve": {
     "description": "Public holiday name shown in the calendar day summary"
+  },
+  "publicHolidayUnificationDay": "Union of the Romanian Principalities Day",
+  "@publicHolidayUnificationDay": {
+    "description": "Romanian public holiday on January 24"
+  },
+  "publicHolidayChildrensDay": "Children's Day",
+  "@publicHolidayChildrensDay": {
+    "description": "Public holiday on June 1"
+  },
+  "publicHolidayStAndrewDay": "Saint Andrew's Day",
+  "@publicHolidayStAndrewDay": {
+    "description": "Public holiday on November 30"
+  },
+  "publicHolidayNationalDayRomania": "Romanian National Day",
+  "@publicHolidayNationalDayRomania": {
+    "description": "Romanian public holiday on December 1"
+  },
+  "holidayProfileTitle": "Holiday set",
+  "@holidayProfileTitle": {
+    "description": "Settings tile title for the holiday profile selector"
+  },
+  "holidayProfileGeneric": "Christian (Western)",
+  "@holidayProfileGeneric": {
+    "description": "Holiday profile name for the default Catholic-leaning Christian set"
+  },
+  "holidayProfileRomania": "Romania",
+  "@holidayProfileRomania": {
+    "description": "Holiday profile name for Romanian national + Orthodox Christian holidays"
+  },
+  "holidayProfileNone": "None",
+  "@holidayProfileNone": {
+    "description": "Holiday profile name for the empty set"
   },
   "eventCategoryGym": "Gym",
   "@eventCategoryGym": {

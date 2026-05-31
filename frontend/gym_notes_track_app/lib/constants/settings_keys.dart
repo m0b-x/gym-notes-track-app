@@ -51,6 +51,7 @@ class SettingsKeys {
 
   // Calendar settings
   static const String calendarMaxDayBars = 'calendar_max_day_bars';
+  static const String holidayProfile = 'holiday_profile';
 
   // Note position (prefix for per-note storage)
   static const String notePositionPrefix = 'note_position_';

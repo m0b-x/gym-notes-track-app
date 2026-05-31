@@ -4449,6 +4449,18 @@ class $PublicHolidaysTableTable extends PublicHolidaysTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _profileMeta = const VerificationMeta(
+    'profile',
+  );
+  @override
+  late final GeneratedColumn<String> profile = GeneratedColumn<String>(
+    'profile',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('generic'),
+  );
   static const VerificationMeta _customLabelMeta = const VerificationMeta(
     'customLabel',
   );
@@ -4461,7 +4473,7 @@ class $PublicHolidaysTableTable extends PublicHolidaysTable
     requiredDuringInsert: false,
   );
   @override
-  List<GeneratedColumn> get $columns => [date, nameKey, customLabel];
+  List<GeneratedColumn> get $columns => [date, nameKey, profile, customLabel];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -4490,6 +4502,12 @@ class $PublicHolidaysTableTable extends PublicHolidaysTable
     } else if (isInserting) {
       context.missing(_nameKeyMeta);
     }
+    if (data.containsKey('profile')) {
+      context.handle(
+        _profileMeta,
+        profile.isAcceptableOrUnknown(data['profile']!, _profileMeta),
+      );
+    }
     if (data.containsKey('custom_label')) {
       context.handle(
         _customLabelMeta,
@@ -4503,7 +4521,7 @@ class $PublicHolidaysTableTable extends PublicHolidaysTable
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {date};
+  Set<GeneratedColumn> get $primaryKey => {date, nameKey};
   @override
   PublicHolidayRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -4515,6 +4533,10 @@ class $PublicHolidaysTableTable extends PublicHolidaysTable
       nameKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}name_key'],
+      )!,
+      profile: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile'],
       )!,
       customLabel: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -4531,13 +4553,20 @@ class $PublicHolidaysTableTable extends PublicHolidaysTable
 
 class PublicHolidayRow extends DataClass
     implements Insertable<PublicHolidayRow> {
-  /// UTC date-only (year, month, day) — the primary key.
+  /// UTC date-only (year, month, day).
   final DateTime date;
   final String nameKey;
+
+  /// Owning `HolidayProfile.name` for built-in rows, or the sentinel
+  /// `custom` for user-added rows. Defaulted in SQL so legacy rows from
+  /// schema versions ≤ 12 (which had no profile concept) cleanly back-fill
+  /// to the historical Catholic-leaning seed set.
+  final String profile;
   final String? customLabel;
   const PublicHolidayRow({
     required this.date,
     required this.nameKey,
+    required this.profile,
     this.customLabel,
   });
   @override
@@ -4545,6 +4574,7 @@ class PublicHolidayRow extends DataClass
     final map = <String, Expression>{};
     map['date'] = Variable<DateTime>(date);
     map['name_key'] = Variable<String>(nameKey);
+    map['profile'] = Variable<String>(profile);
     if (!nullToAbsent || customLabel != null) {
       map['custom_label'] = Variable<String>(customLabel);
     }
@@ -4555,6 +4585,7 @@ class PublicHolidayRow extends DataClass
     return PublicHolidaysTableCompanion(
       date: Value(date),
       nameKey: Value(nameKey),
+      profile: Value(profile),
       customLabel: customLabel == null && nullToAbsent
           ? const Value.absent()
           : Value(customLabel),
@@ -4569,6 +4600,7 @@ class PublicHolidayRow extends DataClass
     return PublicHolidayRow(
       date: serializer.fromJson<DateTime>(json['date']),
       nameKey: serializer.fromJson<String>(json['nameKey']),
+      profile: serializer.fromJson<String>(json['profile']),
       customLabel: serializer.fromJson<String?>(json['customLabel']),
     );
   }
@@ -4578,6 +4610,7 @@ class PublicHolidayRow extends DataClass
     return <String, dynamic>{
       'date': serializer.toJson<DateTime>(date),
       'nameKey': serializer.toJson<String>(nameKey),
+      'profile': serializer.toJson<String>(profile),
       'customLabel': serializer.toJson<String?>(customLabel),
     };
   }
@@ -4585,16 +4618,19 @@ class PublicHolidayRow extends DataClass
   PublicHolidayRow copyWith({
     DateTime? date,
     String? nameKey,
+    String? profile,
     Value<String?> customLabel = const Value.absent(),
   }) => PublicHolidayRow(
     date: date ?? this.date,
     nameKey: nameKey ?? this.nameKey,
+    profile: profile ?? this.profile,
     customLabel: customLabel.present ? customLabel.value : this.customLabel,
   );
   PublicHolidayRow copyWithCompanion(PublicHolidaysTableCompanion data) {
     return PublicHolidayRow(
       date: data.date.present ? data.date.value : this.date,
       nameKey: data.nameKey.present ? data.nameKey.value : this.nameKey,
+      profile: data.profile.present ? data.profile.value : this.profile,
       customLabel: data.customLabel.present
           ? data.customLabel.value
           : this.customLabel,
@@ -4606,36 +4642,41 @@ class PublicHolidayRow extends DataClass
     return (StringBuffer('PublicHolidayRow(')
           ..write('date: $date, ')
           ..write('nameKey: $nameKey, ')
+          ..write('profile: $profile, ')
           ..write('customLabel: $customLabel')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(date, nameKey, customLabel);
+  int get hashCode => Object.hash(date, nameKey, profile, customLabel);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is PublicHolidayRow &&
           other.date == this.date &&
           other.nameKey == this.nameKey &&
+          other.profile == this.profile &&
           other.customLabel == this.customLabel);
 }
 
 class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
   final Value<DateTime> date;
   final Value<String> nameKey;
+  final Value<String> profile;
   final Value<String?> customLabel;
   final Value<int> rowid;
   const PublicHolidaysTableCompanion({
     this.date = const Value.absent(),
     this.nameKey = const Value.absent(),
+    this.profile = const Value.absent(),
     this.customLabel = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PublicHolidaysTableCompanion.insert({
     required DateTime date,
     required String nameKey,
+    this.profile = const Value.absent(),
     this.customLabel = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : date = Value(date),
@@ -4643,12 +4684,14 @@ class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
   static Insertable<PublicHolidayRow> custom({
     Expression<DateTime>? date,
     Expression<String>? nameKey,
+    Expression<String>? profile,
     Expression<String>? customLabel,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (date != null) 'date': date,
       if (nameKey != null) 'name_key': nameKey,
+      if (profile != null) 'profile': profile,
       if (customLabel != null) 'custom_label': customLabel,
       if (rowid != null) 'rowid': rowid,
     });
@@ -4657,12 +4700,14 @@ class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
   PublicHolidaysTableCompanion copyWith({
     Value<DateTime>? date,
     Value<String>? nameKey,
+    Value<String>? profile,
     Value<String?>? customLabel,
     Value<int>? rowid,
   }) {
     return PublicHolidaysTableCompanion(
       date: date ?? this.date,
       nameKey: nameKey ?? this.nameKey,
+      profile: profile ?? this.profile,
       customLabel: customLabel ?? this.customLabel,
       rowid: rowid ?? this.rowid,
     );
@@ -4676,6 +4721,9 @@ class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
     }
     if (nameKey.present) {
       map['name_key'] = Variable<String>(nameKey.value);
+    }
+    if (profile.present) {
+      map['profile'] = Variable<String>(profile.value);
     }
     if (customLabel.present) {
       map['custom_label'] = Variable<String>(customLabel.value);
@@ -4691,6 +4739,7 @@ class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
     return (StringBuffer('PublicHolidaysTableCompanion(')
           ..write('date: $date, ')
           ..write('nameKey: $nameKey, ')
+          ..write('profile: $profile, ')
           ..write('customLabel: $customLabel, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -6938,6 +6987,7 @@ typedef $$PublicHolidaysTableTableCreateCompanionBuilder =
     PublicHolidaysTableCompanion Function({
       required DateTime date,
       required String nameKey,
+      Value<String> profile,
       Value<String?> customLabel,
       Value<int> rowid,
     });
@@ -6945,6 +6995,7 @@ typedef $$PublicHolidaysTableTableUpdateCompanionBuilder =
     PublicHolidaysTableCompanion Function({
       Value<DateTime> date,
       Value<String> nameKey,
+      Value<String> profile,
       Value<String?> customLabel,
       Value<int> rowid,
     });
@@ -6965,6 +7016,11 @@ class $$PublicHolidaysTableTableFilterComposer
 
   ColumnFilters<String> get nameKey => $composableBuilder(
     column: $table.nameKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get profile => $composableBuilder(
+    column: $table.profile,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6993,6 +7049,11 @@ class $$PublicHolidaysTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get profile => $composableBuilder(
+    column: $table.profile,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get customLabel => $composableBuilder(
     column: $table.customLabel,
     builder: (column) => ColumnOrderings(column),
@@ -7013,6 +7074,9 @@ class $$PublicHolidaysTableTableAnnotationComposer
 
   GeneratedColumn<String> get nameKey =>
       $composableBuilder(column: $table.nameKey, builder: (column) => column);
+
+  GeneratedColumn<String> get profile =>
+      $composableBuilder(column: $table.profile, builder: (column) => column);
 
   GeneratedColumn<String> get customLabel => $composableBuilder(
     column: $table.customLabel,
@@ -7065,11 +7129,13 @@ class $$PublicHolidaysTableTableTableManager
               ({
                 Value<DateTime> date = const Value.absent(),
                 Value<String> nameKey = const Value.absent(),
+                Value<String> profile = const Value.absent(),
                 Value<String?> customLabel = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PublicHolidaysTableCompanion(
                 date: date,
                 nameKey: nameKey,
+                profile: profile,
                 customLabel: customLabel,
                 rowid: rowid,
               ),
@@ -7077,11 +7143,13 @@ class $$PublicHolidaysTableTableTableManager
               ({
                 required DateTime date,
                 required String nameKey,
+                Value<String> profile = const Value.absent(),
                 Value<String?> customLabel = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PublicHolidaysTableCompanion.insert(
                 date: date,
                 nameKey: nameKey,
+                profile: profile,
                 customLabel: customLabel,
                 rowid: rowid,
               ),

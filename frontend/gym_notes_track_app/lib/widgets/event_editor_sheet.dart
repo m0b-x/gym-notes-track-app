@@ -7,6 +7,7 @@ import '../constants/calendar_icons.dart';
 import '../l10n/app_localizations.dart';
 import '../models/calendar_event.dart';
 import '../models/recurrence_rule.dart';
+import '../services/event_time_formatter.dart';
 import '../services/recurrence_formatter.dart';
 import 'category_picker_sheet.dart';
 import 'icon_picker_sheet.dart';
@@ -77,6 +78,14 @@ class EventEditorSheet extends StatefulWidget {
 }
 
 class _EventEditorSheetState extends State<EventEditorSheet> {
+  /// Default start-of-day for newly enabled timed events. 9:00 is a
+  /// neutral choice that suits a gym-planner; user can edit immediately.
+  static const int _defaultStartMinute = 9 * 60;
+
+  /// Default duration the first time a user enables an end time on a new
+  /// timed event (60 minutes — a typical session).
+  static const int _defaultDurationMinutes = 60;
+
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   late CalendarEventCategory _category;
@@ -86,6 +95,18 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
   late _RepeatMode _mode;
   late _RecurrenceKind _kind;
   late Set<int> _weekdays;
+
+  /// Time-of-day state. The trio is the editor's working copy of the
+  /// model's [EventTime]; it's serialized back into one on save.
+  ///
+  /// - `_isAllDay = true`  → [_startMinute] / [_durationMinutes] are
+  ///   ignored (kept around so toggling back doesn't lose the previous
+  ///   pick).
+  /// - `_isAllDay = false` → [_startMinute] is the start;
+  ///   [_durationMinutes] is null (no end) or positive.
+  late bool _isAllDay;
+  late int _startMinute;
+  int? _durationMinutes;
 
   bool get _isEditing => widget.initialEvent != null;
 
@@ -101,6 +122,10 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     _iconKey = initial?.iconKey;
     _date = _normalize(initial?.startDate ?? widget.defaultDate);
     _endDate = initial?.endDate == null ? null : _normalize(initial!.endDate!);
+    final initialTime = initial?.time;
+    _isAllDay = initialTime == null;
+    _startMinute = initialTime?.startMinute ?? _defaultStartMinute;
+    _durationMinutes = initialTime?.durationMinutes;
     _initRecurrenceFrom(initial?.rule ?? const OneTimeRecurrence());
   }
 
@@ -236,6 +261,61 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     setState(() => _endDate = _normalize(picked));
   }
 
+  Future<void> _pickStartTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: _startMinute ~/ 60,
+        minute: _startMinute % 60,
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      final newStart = picked.hour * 60 + picked.minute;
+      // Preserve the visible duration: if a duration is set, keep the
+      // *length* (so "1 hour" stays "1 hour"). This is what every native
+      // calendar app does when you drag the start time.
+      _startMinute = newStart;
+    });
+  }
+
+  Future<void> _pickEndTime() async {
+    // Initialize the picker on the current end time, or one hour after
+    // start if no end is set yet.
+    final currentEnd = _durationMinutes == null
+        ? null
+        : _startMinute + _durationMinutes!;
+    final initial = currentEnd ?? (_startMinute + _defaultDurationMinutes);
+    final clamped = initial % EventTime.minutesPerDay;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: clamped ~/ 60, minute: clamped % 60),
+    );
+    if (picked == null || !mounted) return;
+    final endMinute = picked.hour * 60 + picked.minute;
+    setState(() {
+      // If user picks an end ≤ start, treat it as next-day (cross-midnight).
+      // This is the only sane interpretation when the picker has no day
+      // concept; the model and formatter both handle it.
+      var duration = endMinute - _startMinute;
+      if (duration <= 0) duration += EventTime.minutesPerDay;
+      _durationMinutes = duration;
+    });
+  }
+
+  void _clearEndTime() {
+    setState(() => _durationMinutes = null);
+  }
+
+  void _setAllDay(bool value) {
+    setState(() {
+      _isAllDay = value;
+      // Toggling on: keep _startMinute / _durationMinutes around so a
+      // mistaken toggle is reversible. Toggling off: nothing to do — the
+      // existing values become live again.
+    });
+  }
+
   Future<void> _pickIcon() async {
     final picked = await IconPickerSheet.show(
       context,
@@ -268,6 +348,12 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     final base = widget.initialEvent;
     // One-time events ignore endDate — their start date is their end.
     final effectiveEnd = _mode == _RepeatMode.recurring ? _endDate : null;
+    final effectiveTime = _isAllDay
+        ? null
+        : EventTime(
+            startMinute: _startMinute,
+            durationMinutes: _durationMinutes,
+          );
     final event = base == null
         ? CalendarEvent(
             id: const Uuid().v4(),
@@ -276,6 +362,7 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
             startDate: _date,
             rule: _buildRule(),
             endDate: effectiveEnd,
+            time: effectiveTime,
             description: effectiveDescription,
             iconKey: _iconKey,
           )
@@ -285,9 +372,11 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
             startDate: _date,
             rule: _buildRule(),
             endDate: effectiveEnd,
+            time: effectiveTime,
             description: effectiveDescription,
             iconKey: _iconKey,
             clearEndDate: effectiveEnd == null,
+            clearTime: effectiveTime == null,
             clearDescription: effectiveDescription == null,
             clearIconKey: _iconKey == null,
           );
@@ -440,6 +529,60 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
                         : null,
                     onTap: _pickDate,
                   ),
+                  _SectionLabel(text: l10n.eventTimeSection),
+                  Card(
+                    margin: EdgeInsets.zero,
+                    child: SwitchListTile(
+                      value: _isAllDay,
+                      onChanged: _setAllDay,
+                      secondary: const CircleAvatar(
+                        child: Icon(Icons.schedule_rounded),
+                      ),
+                      title: Text(l10n.eventAllDay),
+                      subtitle: Text(l10n.eventAllDayHint),
+                    ),
+                  ),
+                  if (!_isAllDay) ...[
+                    const SizedBox(height: 8),
+                    _PickerTile(
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.play_arrow_rounded),
+                      ),
+                      title: EventTimeFormatter.formatMinute(
+                        _startMinute,
+                        context,
+                      ),
+                      subtitle: l10n.eventStartTime,
+                      onTap: _pickStartTime,
+                    ),
+                    const SizedBox(height: 8),
+                    _PickerTile(
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.stop_rounded),
+                      ),
+                      title: _durationMinutes == null
+                          ? l10n.eventEndTimeNone
+                          : EventTimeFormatter.formatMinute(
+                              (_startMinute + _durationMinutes!) %
+                                  EventTime.minutesPerDay,
+                              context,
+                            ),
+                      subtitle: _durationMinutes == null
+                          ? l10n.eventEndTimeHint
+                          : (_startMinute + _durationMinutes! >=
+                                    EventTime.minutesPerDay
+                                ? l10n.eventCrossesMidnight
+                                : l10n.eventEndTime),
+                      trailing: _durationMinutes == null
+                          ? const Icon(Icons.chevron_right_rounded)
+                          : IconButton(
+                              tooltip: l10n.resetToDefault,
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: _clearEndTime,
+                            ),
+                      onTap: _pickEndTime,
+                    ),
+                  ],
                   _SectionLabel(text: l10n.repeatMode),
                   Center(
                     child: SegmentedButton<_RepeatMode>(

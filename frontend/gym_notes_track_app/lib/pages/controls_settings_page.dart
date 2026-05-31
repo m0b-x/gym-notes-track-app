@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
+import '../constants/public_holidays.dart';
 import '../constants/settings_keys.dart';
 import '../widgets/app_dialogs.dart';
+import '../services/public_holiday_service.dart';
 import '../services/settings_service.dart';
 import '../utils/custom_snackbar.dart';
 import '../widgets/app_drawer.dart';
@@ -45,6 +47,8 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
 
   // Calendar settings
   int _calendarMaxDayBars = 3;
+  PublicHolidayService? _holidayService;
+  HolidayProfile _holidayProfile = HolidayProfile.generic;
 
   @override
   void initState() {
@@ -72,6 +76,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     final showPreviewScrollbar = await settings.getShowPreviewScrollbar();
     final previewLinesPerChunk = await settings.getPreviewLinesPerChunk();
     final calendarMaxDayBars = await settings.getCalendarMaxDayBars();
+    final holidayService = await PublicHolidayService.getInstance();
 
     setState(() {
       _settings = settings;
@@ -92,6 +97,8 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showPreviewScrollbar = showPreviewScrollbar;
       _previewLinesPerChunk = previewLinesPerChunk;
       _calendarMaxDayBars = calendarMaxDayBars;
+      _holidayService = holidayService;
+      _holidayProfile = holidayService.profile;
       _isLoading = false;
     });
   }
@@ -426,6 +433,53 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
                           setState(() => _calendarMaxDayBars = value.round());
                           await _settings?.setCalendarMaxDayBars(value.round());
                         },
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: Icon(
+                          Icons.public_rounded,
+                          color: colorScheme.primary,
+                        ),
+                        title: Text(l10n.holidayProfileTitle),
+                        subtitle: Text(
+                          PublicHolidays.profileNameOf(_holidayProfile, l10n),
+                        ),
+                        trailing: DropdownButton<HolidayProfile>(
+                          value: _holidayProfile,
+                          underline: const SizedBox.shrink(),
+                          onChanged: (next) async {
+                            if (next == null || next == _holidayProfile) {
+                              return;
+                            }
+                            _onHapticFeedback();
+                            // Optimistic UI update — the service mutation is
+                            // transactional so a failure leaves the cache in
+                            // a consistent state and we can resync from it.
+                            setState(() => _holidayProfile = next);
+                            try {
+                              await _holidayService?.setProfile(next);
+                            } catch (e) {
+                              if (!context.mounted) return;
+                              setState(
+                                () => _holidayProfile =
+                                    _holidayService?.profile ?? next,
+                              );
+                              CustomSnackbar.showError(
+                                context,
+                                'Failed to switch holiday profile: $e',
+                              );
+                            }
+                          },
+                          items: [
+                            for (final profile in HolidayProfile.values)
+                              DropdownMenuItem(
+                                value: profile,
+                                child: Text(
+                                  PublicHolidays.profileNameOf(profile, l10n),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ],
                   ),

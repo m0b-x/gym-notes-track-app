@@ -30,6 +30,27 @@ class AppLocalizationsDe extends AppLocalizations {
   String get eventAllDay => 'Ganztägig';
 
   @override
+  String get eventAllDayHint => 'Ereignis dauert den ganzen Tag';
+
+  @override
+  String get eventTimeSection => 'Uhrzeit';
+
+  @override
+  String get eventStartTime => 'Startzeit';
+
+  @override
+  String get eventEndTime => 'Endzeit';
+
+  @override
+  String get eventEndTimeNone => 'Keine Endzeit';
+
+  @override
+  String get eventEndTimeHint => 'Tippe, um eine Endzeit hinzuzufügen';
+
+  @override
+  String get eventCrossesMidnight => 'Endet am nächsten Tag';
+
+  @override
   String get calendarFormatMonth => 'Monat';
 
   @override
@@ -112,6 +133,31 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get publicHolidayNewYearsEve => 'Silvester';
+
+  @override
+  String get publicHolidayUnificationDay =>
+      'Tag der Vereinigung der Rumänischen Fürstentümer';
+
+  @override
+  String get publicHolidayChildrensDay => 'Kindertag';
+
+  @override
+  String get publicHolidayStAndrewDay => 'Andreastag';
+
+  @override
+  String get publicHolidayNationalDayRomania => 'Rumänischer Nationalfeiertag';
+
+  @override
+  String get holidayProfileTitle => 'Feiertage';
+
+  @override
+  String get holidayProfileGeneric => 'Christlich (West)';
+
+  @override
+  String get holidayProfileRomania => 'Rumänien';
+
+  @override
+  String get holidayProfileNone => 'Keine';
 
   @override
   String get eventCategoryGym => 'Training';

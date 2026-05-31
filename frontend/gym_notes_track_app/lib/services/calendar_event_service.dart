@@ -176,12 +176,28 @@ class CalendarEventService {
       title: row.title,
       category: _categoryFromName(row.category),
       startDate: _dateOnlyUtc(row.startDate),
-      allDay: row.allDay,
       iconKey: row.iconKey,
       endDate: row.endDate == null ? null : _dateOnlyUtc(row.endDate!),
+      time: _decodeTime(row.startMinute, row.durationMinutes),
       description: row.description,
       rule: _decodeRule(row.ruleKind, row.rulePayload),
     );
+  }
+
+  /// Reconstructs an [EventTime] from the persisted columns. The stored
+  /// `all_day` boolean is intentionally ignored — [CalendarEvent.allDay]
+  /// is derived from the presence of [EventTime] so we can never end up
+  /// with an inconsistent pair on read.
+  static EventTime? _decodeTime(int? startMinute, int? durationMinutes) {
+    if (startMinute == null) return null;
+    if (startMinute < EventTime.minStartMinute ||
+        startMinute >= EventTime.minutesPerDay) {
+      return null;
+    }
+    final duration = (durationMinutes != null && durationMinutes > 0)
+        ? durationMinutes
+        : null;
+    return EventTime(startMinute: startMinute, durationMinutes: duration);
   }
 
   /// Drift returns `DateTime` in local time when reading an int-epoch
@@ -200,19 +216,23 @@ class CalendarEventService {
     CalendarEvent event, {
     required DateTime updatedAt,
   }) {
+    final time = event.time;
     return CalendarEventsCompanion(
       id: Value(event.id),
       title: Value(event.title),
       category: Value(event.category.name),
       startDate: Value(event.startDate),
+      // `all_day` is a denormalized mirror of `time == null`, kept around
+      // so SQL filters like `WHERE all_day = 0` stay cheap. Never read
+      // back as truth — see [_decodeTime].
       allDay: Value(event.allDay),
       iconKey: Value(event.iconKey),
       ruleKind: Value(_ruleKind(event.rule)),
       rulePayload: Value(_rulePayload(event.rule)),
       endDate: Value(event.endDate),
+      startMinute: Value(time?.startMinute),
+      durationMinutes: Value(time?.durationMinutes),
       description: Value(event.description),
-      // start_minute / duration_minutes are reserved for future
-      // time-of-day events; application code never writes them yet.
       createdAt: Value(updatedAt),
       updatedAt: Value(updatedAt),
     );
