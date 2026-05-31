@@ -520,6 +520,36 @@ abstract class AppLocalizations {
   /// **'Pick at least one weekday'**
   String get weeklyDaysHint;
 
+  /// Section label for the optional recurrence end-date picker
+  ///
+  /// In en, this message translates to:
+  /// **'Ends on'**
+  String get eventUntilLabel;
+
+  /// Placeholder shown when no recurrence end date is set
+  ///
+  /// In en, this message translates to:
+  /// **'Never ends'**
+  String get eventUntilNone;
+
+  /// Subtitle hint for the recurrence end-date picker when empty
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to set an end date'**
+  String get eventUntilHint;
+
+  /// Label for the optional multiline description / notes field on an event
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get eventDescription;
+
+  /// Hint text for the optional event description field
+  ///
+  /// In en, this message translates to:
+  /// **'Add notes (focus, technique, intensity…)'**
+  String get eventDescriptionHint;
+
   /// Icon picker group: strength training
   ///
   /// In en, this message translates to:

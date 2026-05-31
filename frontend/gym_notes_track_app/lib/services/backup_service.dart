@@ -6,8 +6,10 @@ import 'package:share_plus/share_plus.dart';
 import '../database/database.dart';
 import '../database/database_lifecycle.dart';
 import '../constants/json_keys.dart';
+import 'calendar_event_service.dart';
 import 'counter_service.dart';
 import 'markdown_bar_service.dart';
+import 'public_holiday_service.dart';
 
 class BackupService {
   static BackupService? _instance;
@@ -75,9 +77,11 @@ class BackupService {
     final noteBarAssignments = await _exportNoteBarAssignments();
 
     final counterData = await GetIt.I<CounterService>().exportData();
+    final calendarEvents = await GetIt.I<CalendarEventService>().exportData();
+    final publicHolidays = await GetIt.I<PublicHolidayService>().exportData();
 
     return {
-      'version': 2,
+      'version': 3,
       'exportedAt': DateTime.now().toIso8601String(),
       'folders': foldersData,
       'notes': notesWithContent,
@@ -87,6 +91,8 @@ class BackupService {
       'activeBar': activeBar,
       'noteBarAssignments': noteBarAssignments,
       'counterData': counterData,
+      'calendarEvents': calendarEvents,
+      'publicHolidays': publicHolidays,
     };
   }
 
@@ -272,6 +278,17 @@ class BackupService {
       final counterData = data['counterData'] as Map<String, dynamic>?;
       if (counterData != null) {
         await GetIt.I<CounterService>().importData(counterData);
+      }
+
+      // Calendar events & public holidays (v3+ backups). Missing keys
+      // simply leave existing data in place — older backups stay valid.
+      final calendarEvents = data['calendarEvents'] as List?;
+      if (calendarEvents != null) {
+        await GetIt.I<CalendarEventService>().importData(calendarEvents);
+      }
+      final publicHolidays = data['publicHolidays'] as List?;
+      if (publicHolidays != null) {
+        await GetIt.I<PublicHolidayService>().importData(publicHolidays);
       }
 
       return ImportResult(

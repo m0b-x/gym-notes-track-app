@@ -3689,6 +3689,50 @@ class $CalendarEventsTable extends CalendarEvents
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startMinuteMeta = const VerificationMeta(
+    'startMinute',
+  );
+  @override
+  late final GeneratedColumn<int> startMinute = GeneratedColumn<int>(
+    'start_minute',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _durationMinutesMeta = const VerificationMeta(
+    'durationMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> durationMinutes = GeneratedColumn<int>(
+    'duration_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -3721,6 +3765,10 @@ class $CalendarEventsTable extends CalendarEvents
     iconKey,
     ruleKind,
     rulePayload,
+    endDate,
+    startMinute,
+    durationMinutes,
+    description,
     createdAt,
     updatedAt,
   ];
@@ -3794,6 +3842,39 @@ class $CalendarEventsTable extends CalendarEvents
         ),
       );
     }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
+    if (data.containsKey('start_minute')) {
+      context.handle(
+        _startMinuteMeta,
+        startMinute.isAcceptableOrUnknown(
+          data['start_minute']!,
+          _startMinuteMeta,
+        ),
+      );
+    }
+    if (data.containsKey('duration_minutes')) {
+      context.handle(
+        _durationMinutesMeta,
+        durationMinutes.isAcceptableOrUnknown(
+          data['duration_minutes']!,
+          _durationMinutesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -3851,6 +3932,22 @@ class $CalendarEventsTable extends CalendarEvents
         DriftSqlType.string,
         data['${effectivePrefix}rule_payload'],
       ),
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}end_date'],
+      ),
+      startMinute: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_minute'],
+      ),
+      durationMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}duration_minutes'],
+      ),
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -3878,6 +3975,10 @@ class CalendarEventRow extends DataClass
   final String? iconKey;
   final String ruleKind;
   final String? rulePayload;
+  final DateTime? endDate;
+  final int? startMinute;
+  final int? durationMinutes;
+  final String? description;
   final DateTime createdAt;
   final DateTime updatedAt;
   const CalendarEventRow({
@@ -3889,6 +3990,10 @@ class CalendarEventRow extends DataClass
     this.iconKey,
     required this.ruleKind,
     this.rulePayload,
+    this.endDate,
+    this.startMinute,
+    this.durationMinutes,
+    this.description,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -3906,6 +4011,18 @@ class CalendarEventRow extends DataClass
     map['rule_kind'] = Variable<String>(ruleKind);
     if (!nullToAbsent || rulePayload != null) {
       map['rule_payload'] = Variable<String>(rulePayload);
+    }
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
+    if (!nullToAbsent || startMinute != null) {
+      map['start_minute'] = Variable<int>(startMinute);
+    }
+    if (!nullToAbsent || durationMinutes != null) {
+      map['duration_minutes'] = Variable<int>(durationMinutes);
+    }
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -3926,6 +4043,18 @@ class CalendarEventRow extends DataClass
       rulePayload: rulePayload == null && nullToAbsent
           ? const Value.absent()
           : Value(rulePayload),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      startMinute: startMinute == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startMinute),
+      durationMinutes: durationMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(durationMinutes),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -3945,6 +4074,10 @@ class CalendarEventRow extends DataClass
       iconKey: serializer.fromJson<String?>(json['iconKey']),
       ruleKind: serializer.fromJson<String>(json['ruleKind']),
       rulePayload: serializer.fromJson<String?>(json['rulePayload']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      startMinute: serializer.fromJson<int?>(json['startMinute']),
+      durationMinutes: serializer.fromJson<int?>(json['durationMinutes']),
+      description: serializer.fromJson<String?>(json['description']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -3961,6 +4094,10 @@ class CalendarEventRow extends DataClass
       'iconKey': serializer.toJson<String?>(iconKey),
       'ruleKind': serializer.toJson<String>(ruleKind),
       'rulePayload': serializer.toJson<String?>(rulePayload),
+      'endDate': serializer.toJson<DateTime?>(endDate),
+      'startMinute': serializer.toJson<int?>(startMinute),
+      'durationMinutes': serializer.toJson<int?>(durationMinutes),
+      'description': serializer.toJson<String?>(description),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -3975,6 +4112,10 @@ class CalendarEventRow extends DataClass
     Value<String?> iconKey = const Value.absent(),
     String? ruleKind,
     Value<String?> rulePayload = const Value.absent(),
+    Value<DateTime?> endDate = const Value.absent(),
+    Value<int?> startMinute = const Value.absent(),
+    Value<int?> durationMinutes = const Value.absent(),
+    Value<String?> description = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => CalendarEventRow(
@@ -3986,6 +4127,12 @@ class CalendarEventRow extends DataClass
     iconKey: iconKey.present ? iconKey.value : this.iconKey,
     ruleKind: ruleKind ?? this.ruleKind,
     rulePayload: rulePayload.present ? rulePayload.value : this.rulePayload,
+    endDate: endDate.present ? endDate.value : this.endDate,
+    startMinute: startMinute.present ? startMinute.value : this.startMinute,
+    durationMinutes: durationMinutes.present
+        ? durationMinutes.value
+        : this.durationMinutes,
+    description: description.present ? description.value : this.description,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -4001,6 +4148,16 @@ class CalendarEventRow extends DataClass
       rulePayload: data.rulePayload.present
           ? data.rulePayload.value
           : this.rulePayload,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      startMinute: data.startMinute.present
+          ? data.startMinute.value
+          : this.startMinute,
+      durationMinutes: data.durationMinutes.present
+          ? data.durationMinutes.value
+          : this.durationMinutes,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -4017,6 +4174,10 @@ class CalendarEventRow extends DataClass
           ..write('iconKey: $iconKey, ')
           ..write('ruleKind: $ruleKind, ')
           ..write('rulePayload: $rulePayload, ')
+          ..write('endDate: $endDate, ')
+          ..write('startMinute: $startMinute, ')
+          ..write('durationMinutes: $durationMinutes, ')
+          ..write('description: $description, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4033,6 +4194,10 @@ class CalendarEventRow extends DataClass
     iconKey,
     ruleKind,
     rulePayload,
+    endDate,
+    startMinute,
+    durationMinutes,
+    description,
     createdAt,
     updatedAt,
   );
@@ -4048,6 +4213,10 @@ class CalendarEventRow extends DataClass
           other.iconKey == this.iconKey &&
           other.ruleKind == this.ruleKind &&
           other.rulePayload == this.rulePayload &&
+          other.endDate == this.endDate &&
+          other.startMinute == this.startMinute &&
+          other.durationMinutes == this.durationMinutes &&
+          other.description == this.description &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -4061,6 +4230,10 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
   final Value<String?> iconKey;
   final Value<String> ruleKind;
   final Value<String?> rulePayload;
+  final Value<DateTime?> endDate;
+  final Value<int?> startMinute;
+  final Value<int?> durationMinutes;
+  final Value<String?> description;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -4073,6 +4246,10 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     this.iconKey = const Value.absent(),
     this.ruleKind = const Value.absent(),
     this.rulePayload = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.startMinute = const Value.absent(),
+    this.durationMinutes = const Value.absent(),
+    this.description = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -4086,6 +4263,10 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     this.iconKey = const Value.absent(),
     required String ruleKind,
     this.rulePayload = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.startMinute = const Value.absent(),
+    this.durationMinutes = const Value.absent(),
+    this.description = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -4105,6 +4286,10 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     Expression<String>? iconKey,
     Expression<String>? ruleKind,
     Expression<String>? rulePayload,
+    Expression<DateTime>? endDate,
+    Expression<int>? startMinute,
+    Expression<int>? durationMinutes,
+    Expression<String>? description,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -4118,6 +4303,10 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
       if (iconKey != null) 'icon_key': iconKey,
       if (ruleKind != null) 'rule_kind': ruleKind,
       if (rulePayload != null) 'rule_payload': rulePayload,
+      if (endDate != null) 'end_date': endDate,
+      if (startMinute != null) 'start_minute': startMinute,
+      if (durationMinutes != null) 'duration_minutes': durationMinutes,
+      if (description != null) 'description': description,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -4133,6 +4322,10 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     Value<String?>? iconKey,
     Value<String>? ruleKind,
     Value<String?>? rulePayload,
+    Value<DateTime?>? endDate,
+    Value<int?>? startMinute,
+    Value<int?>? durationMinutes,
+    Value<String?>? description,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -4146,6 +4339,10 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
       iconKey: iconKey ?? this.iconKey,
       ruleKind: ruleKind ?? this.ruleKind,
       rulePayload: rulePayload ?? this.rulePayload,
+      endDate: endDate ?? this.endDate,
+      startMinute: startMinute ?? this.startMinute,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      description: description ?? this.description,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -4179,6 +4376,18 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     if (rulePayload.present) {
       map['rule_payload'] = Variable<String>(rulePayload.value);
     }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (startMinute.present) {
+      map['start_minute'] = Variable<int>(startMinute.value);
+    }
+    if (durationMinutes.present) {
+      map['duration_minutes'] = Variable<int>(durationMinutes.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -4202,6 +4411,10 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
           ..write('iconKey: $iconKey, ')
           ..write('ruleKind: $ruleKind, ')
           ..write('rulePayload: $rulePayload, ')
+          ..write('endDate: $endDate, ')
+          ..write('startMinute: $startMinute, ')
+          ..write('durationMinutes: $durationMinutes, ')
+          ..write('description: $description, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -6346,6 +6559,10 @@ typedef $$CalendarEventsTableCreateCompanionBuilder =
       Value<String?> iconKey,
       required String ruleKind,
       Value<String?> rulePayload,
+      Value<DateTime?> endDate,
+      Value<int?> startMinute,
+      Value<int?> durationMinutes,
+      Value<String?> description,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -6360,6 +6577,10 @@ typedef $$CalendarEventsTableUpdateCompanionBuilder =
       Value<String?> iconKey,
       Value<String> ruleKind,
       Value<String?> rulePayload,
+      Value<DateTime?> endDate,
+      Value<int?> startMinute,
+      Value<int?> durationMinutes,
+      Value<String?> description,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -6411,6 +6632,26 @@ class $$CalendarEventsTableFilterComposer
 
   ColumnFilters<String> get rulePayload => $composableBuilder(
     column: $table.rulePayload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startMinute => $composableBuilder(
+    column: $table.startMinute,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get durationMinutes => $composableBuilder(
+    column: $table.durationMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6474,6 +6715,26 @@ class $$CalendarEventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startMinute => $composableBuilder(
+    column: $table.startMinute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get durationMinutes => $composableBuilder(
+    column: $table.durationMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -6517,6 +6778,24 @@ class $$CalendarEventsTableAnnotationComposer
 
   GeneratedColumn<String> get rulePayload => $composableBuilder(
     column: $table.rulePayload,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<int> get startMinute => $composableBuilder(
+    column: $table.startMinute,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get durationMinutes => $composableBuilder(
+    column: $table.durationMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
     builder: (column) => column,
   );
 
@@ -6572,6 +6851,10 @@ class $$CalendarEventsTableTableManager
                 Value<String?> iconKey = const Value.absent(),
                 Value<String> ruleKind = const Value.absent(),
                 Value<String?> rulePayload = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<int?> startMinute = const Value.absent(),
+                Value<int?> durationMinutes = const Value.absent(),
+                Value<String?> description = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -6584,6 +6867,10 @@ class $$CalendarEventsTableTableManager
                 iconKey: iconKey,
                 ruleKind: ruleKind,
                 rulePayload: rulePayload,
+                endDate: endDate,
+                startMinute: startMinute,
+                durationMinutes: durationMinutes,
+                description: description,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -6598,6 +6885,10 @@ class $$CalendarEventsTableTableManager
                 Value<String?> iconKey = const Value.absent(),
                 required String ruleKind,
                 Value<String?> rulePayload = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<int?> startMinute = const Value.absent(),
+                Value<int?> durationMinutes = const Value.absent(),
+                Value<String?> description = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -6610,6 +6901,10 @@ class $$CalendarEventsTableTableManager
                 iconKey: iconKey,
                 ruleKind: ruleKind,
                 rulePayload: rulePayload,
+                endDate: endDate,
+                startMinute: startMinute,
+                durationMinutes: durationMinutes,
+                description: description,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

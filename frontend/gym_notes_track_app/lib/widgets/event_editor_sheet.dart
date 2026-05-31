@@ -78,9 +78,11 @@ class EventEditorSheet extends StatefulWidget {
 
 class _EventEditorSheetState extends State<EventEditorSheet> {
   late final TextEditingController _titleController;
+  late final TextEditingController _descriptionController;
   late CalendarEventCategory _category;
   String? _iconKey;
   late DateTime _date;
+  DateTime? _endDate;
   late _RepeatMode _mode;
   late _RecurrenceKind _kind;
   late Set<int> _weekdays;
@@ -92,9 +94,13 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     super.initState();
     final initial = widget.initialEvent;
     _titleController = TextEditingController(text: initial?.title ?? '');
+    _descriptionController = TextEditingController(
+      text: initial?.description ?? '',
+    );
     _category = initial?.category ?? CalendarEventCategory.gym;
     _iconKey = initial?.iconKey;
     _date = _normalize(initial?.startDate ?? widget.defaultDate);
+    _endDate = initial?.endDate == null ? null : _normalize(initial!.endDate!);
     _initRecurrenceFrom(initial?.rule ?? const OneTimeRecurrence());
   }
 
@@ -133,6 +139,7 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
   @override
   void dispose() {
     _titleController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -209,7 +216,24 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
         _weekdays = {next.weekday};
       }
       _date = next;
+      // If the recurrence end is now before the new start, drop it rather
+      // than silently producing an event that never occurs.
+      if (_endDate != null && _endDate!.isBefore(next)) {
+        _endDate = null;
+      }
     });
+  }
+
+  Future<void> _pickEndDate() async {
+    final initial = _endDate ?? _date;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial.isBefore(_date) ? _date : initial,
+      firstDate: _date,
+      lastDate: DateTime(_date.year + 20),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _endDate = _normalize(picked));
   }
 
   Future<void> _pickIcon() async {
@@ -239,7 +263,11 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
   void _onSave() {
     if (!_canSave) return;
     final title = _titleController.text.trim();
+    final description = _descriptionController.text.trim();
+    final effectiveDescription = description.isEmpty ? null : description;
     final base = widget.initialEvent;
+    // One-time events ignore endDate — their start date is their end.
+    final effectiveEnd = _mode == _RepeatMode.recurring ? _endDate : null;
     final event = base == null
         ? CalendarEvent(
             id: const Uuid().v4(),
@@ -247,6 +275,8 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
             category: _category,
             startDate: _date,
             rule: _buildRule(),
+            endDate: effectiveEnd,
+            description: effectiveDescription,
             iconKey: _iconKey,
           )
         : base.copyWith(
@@ -254,7 +284,11 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
             category: _category,
             startDate: _date,
             rule: _buildRule(),
+            endDate: effectiveEnd,
+            description: effectiveDescription,
             iconKey: _iconKey,
+            clearEndDate: effectiveEnd == null,
+            clearDescription: effectiveDescription == null,
             clearIconKey: _iconKey == null,
           );
     Navigator.of(context).pop(EventEditorSaved(event));
@@ -346,6 +380,20 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
                       border: const OutlineInputBorder(),
                     ),
                     onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _descriptionController,
+                    maxLength: 500,
+                    minLines: 2,
+                    maxLines: 5,
+                    textInputAction: TextInputAction.newline,
+                    keyboardType: TextInputType.multiline,
+                    decoration: InputDecoration(
+                      labelText: l10n.eventDescription,
+                      hintText: l10n.eventDescriptionHint,
+                      border: const OutlineInputBorder(),
+                    ),
                   ),
                   _SectionLabel(text: l10n.eventType),
                   _PickerTile(
@@ -453,6 +501,24 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
                           ),
                         ),
                     ],
+                    _SectionLabel(text: l10n.eventUntilLabel),
+                    _PickerTile(
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.event_busy_rounded),
+                      ),
+                      title: _endDate == null
+                          ? l10n.eventUntilNone
+                          : DateFormat.yMMMMEEEEd(localeName).format(_endDate!),
+                      subtitle: _endDate == null ? l10n.eventUntilHint : null,
+                      trailing: _endDate == null
+                          ? const Icon(Icons.chevron_right_rounded)
+                          : IconButton(
+                              tooltip: l10n.resetToDefault,
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: () => setState(() => _endDate = null),
+                            ),
+                      onTap: _pickEndDate,
+                    ),
                   ],
                   if (_isEditing) ...[
                     const SizedBox(height: 24),

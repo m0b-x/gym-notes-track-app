@@ -55,6 +55,16 @@ class DatabaseMigrations {
       toVersion: DatabaseSchema.v10CalendarTables,
       migrate: _migrateV9ToV10,
     ),
+    Migration(
+      fromVersion: DatabaseSchema.v10CalendarTables,
+      toVersion: DatabaseSchema.v11CalendarEndDateAndTimeOfDay,
+      migrate: _migrateV10ToV11,
+    ),
+    Migration(
+      fromVersion: DatabaseSchema.v11CalendarEndDateAndTimeOfDay,
+      toVersion: DatabaseSchema.v12CalendarDescription,
+      migrate: _migrateV11ToV12,
+    ),
   ];
 
   Future<void> runMigrations(Migrator m, int from, int to) async {
@@ -294,5 +304,58 @@ class DatabaseMigrations {
       ')',
     );
     await DatabaseIndexes(_db).createCalendarIndexes();
+  }
+
+  /// v10→v11: Extend `calendar_events` with three nullable columns.
+  ///
+  /// - `end_date INTEGER` (nullable) is an inclusive upper bound for
+  ///   recurring rules. `NULL` keeps the historical "recurs forever"
+  ///   behaviour, so existing rows remain semantically unchanged.
+  /// - `start_minute INTEGER` (nullable, 0–1439) and `duration_minutes
+  ///   INTEGER` (nullable) are reserved placeholders for future
+  ///   time-of-day events. No production code writes them yet.
+  ///
+  /// All three are `ALTER TABLE ADD COLUMN`, which is cheap on SQLite and
+  /// does not rewrite existing rows. Idempotency is achieved by querying
+  /// `PRAGMA table_info` before each add so re-running the migration on a
+  /// partially-upgraded DB cannot fail.
+  Future<void> _migrateV10ToV11(Migrator m, GeneratedDatabase db) async {
+    final existing = <String>{
+      for (final row
+          in await _db.customSelect('PRAGMA table_info(calendar_events)').get())
+        row.read<String>('name'),
+    };
+    if (!existing.contains('end_date')) {
+      await _db.customStatement(
+        'ALTER TABLE calendar_events ADD COLUMN end_date INTEGER',
+      );
+    }
+    if (!existing.contains('start_minute')) {
+      await _db.customStatement(
+        'ALTER TABLE calendar_events ADD COLUMN start_minute INTEGER',
+      );
+    }
+    if (!existing.contains('duration_minutes')) {
+      await _db.customStatement(
+        'ALTER TABLE calendar_events ADD COLUMN duration_minutes INTEGER',
+      );
+    }
+  }
+
+  /// v11→v12: Add a free-form `description` column to `calendar_events`
+  /// for longer-form per-event notes ("focus on hamstrings", etc.).
+  /// Nullable so existing rows are unchanged. Idempotent via
+  /// `PRAGMA table_info` so re-runs on a partially-upgraded DB are safe.
+  Future<void> _migrateV11ToV12(Migrator m, GeneratedDatabase db) async {
+    final existing = <String>{
+      for (final row
+          in await _db.customSelect('PRAGMA table_info(calendar_events)').get())
+        row.read<String>('name'),
+    };
+    if (!existing.contains('description')) {
+      await _db.customStatement(
+        'ALTER TABLE calendar_events ADD COLUMN description TEXT',
+      );
+    }
   }
 }

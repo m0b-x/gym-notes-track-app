@@ -223,6 +223,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get weeklyDaysHint => 'Pick at least one weekday';
 
   @override
+  String get eventUntilLabel => 'Ends on';
+
+  @override
+  String get eventUntilNone => 'Never ends';
+
+  @override
+  String get eventUntilHint => 'Tap to set an end date';
+
+  @override
+  String get eventDescription => 'Description';
+
+  @override
+  String get eventDescriptionHint => 'Add notes (focus, technique, intensity…)';
+
+  @override
   String get iconGroupStrength => 'Strength';
 
   @override

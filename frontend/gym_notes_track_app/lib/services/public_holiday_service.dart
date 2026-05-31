@@ -49,7 +49,10 @@ class PublicHolidayService {
     PublicHolidays.updateCache(const {});
   }
 
-  Map<DateTime, PublicHolidayInfo> get cache => _cache;
+  /// Unmodifiable view over the in-memory cache. Callers must never mutate
+  /// the returned map — use [addCustom] / [removeOn] to change persisted
+  /// holiday data and let the service republish the cache.
+  Map<DateTime, PublicHolidayInfo> get cache => Map.unmodifiable(_cache);
 
   Future<void> _load() async {
     final rows = await _dao.getAll();
@@ -181,6 +184,52 @@ class PublicHolidayService {
   Future<void> removeOn(DateTime date) async {
     final key = DateTime.utc(date.year, date.month, date.day);
     await _dao.deleteOn(key);
+    await _load();
+  }
+
+  // ── Backup export / import ────────────────────────────────────────────
+
+  /// Snapshot of every holiday row (both built-in and user-custom) for
+  /// inclusion in a full-app backup. User edits to the built-in set
+  /// (deletions for a given year, custom additions) round-trip exactly
+  /// because we mirror the row shape verbatim.
+  Future<List<Map<String, dynamic>>> exportData() async {
+    final rows = await _dao.getAll();
+    return [
+      for (final row in rows)
+        {
+          'dateMs': row.date.millisecondsSinceEpoch,
+          'nameKey': row.nameKey,
+          'customLabel': row.customLabel,
+        },
+    ];
+  }
+
+  /// Replaces every persisted holiday with the contents of [data]. The
+  /// next startup will re-seed any built-in rows that are still missing
+  /// (idempotent), so a backup taken before a new built-in was added
+  /// will not block the seeder from filling it in.
+  Future<void> importData(List<dynamic> data) async {
+    await _dao.deleteAll();
+    for (final raw in data) {
+      if (raw is! Map) continue;
+      final map = raw.cast<String, dynamic>();
+      final dateMs = map['dateMs'];
+      final nameKey = map['nameKey'] as String?;
+      if (dateMs is! int || nameKey == null) continue;
+      final date = _dateOnlyUtc(
+        DateTime.fromMillisecondsSinceEpoch(dateMs, isUtc: true),
+      );
+      try {
+        await _dao.insertIfMissing(
+          date: date,
+          nameKey: nameKey,
+          customLabel: map['customLabel'] as String?,
+        );
+      } catch (e) {
+        debugPrint('[PublicHolidayService] Import row error: $e');
+      }
+    }
     await _load();
   }
 }

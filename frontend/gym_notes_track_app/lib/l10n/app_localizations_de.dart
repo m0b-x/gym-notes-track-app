@@ -223,6 +223,22 @@ class AppLocalizationsDe extends AppLocalizations {
   String get weeklyDaysHint => 'Wähle mindestens einen Wochentag';
 
   @override
+  String get eventUntilLabel => 'Endet am';
+
+  @override
+  String get eventUntilNone => 'Endet nie';
+
+  @override
+  String get eventUntilHint => 'Tippe, um ein Enddatum festzulegen';
+
+  @override
+  String get eventDescription => 'Beschreibung';
+
+  @override
+  String get eventDescriptionHint =>
+      'Notizen hinzufügen (Fokus, Technik, Intensität…)';
+
+  @override
   String get iconGroupStrength => 'Kraft';
 
   @override

@@ -51,7 +51,14 @@ class CalendarEventService {
   }
 
   Future<void> upsert(CalendarEvent event) async {
-    final normalized = event.copyWith(startDate: _dateOnlyUtc(event.startDate));
+    // Normalize both bounds to date-only UTC so equality and ordering are
+    // calendar-day stable across timezones.
+    final normalizedEnd = event.endDate == null
+        ? event
+        : event.copyWith(endDate: _dateOnlyUtc(event.endDate!));
+    final normalized = normalizedEnd.copyWith(
+      startDate: _dateOnlyUtc(event.startDate),
+    );
     final now = DateTime.now();
     await _dao.upsert(_eventToCompanion(normalized, updatedAt: now));
     _cache = List.unmodifiable([
@@ -66,6 +73,101 @@ class CalendarEventService {
     _cache = List.unmodifiable(_cache.where((e) => e.id != id));
   }
 
+  // ── Backup export / import ────────────────────────────────────────────
+
+  /// Snapshot of every event row for inclusion in a full-app backup.
+  /// Each entry mirrors the on-disk row shape so the import path can
+  /// round-trip without re-deriving any value.
+  Future<List<Map<String, dynamic>>> exportData() async {
+    final rows = await _dao.getAll();
+    return [
+      for (final row in rows)
+        {
+          'id': row.id,
+          'title': row.title,
+          'category': row.category,
+          'startDateMs': row.startDate.millisecondsSinceEpoch,
+          'allDay': row.allDay,
+          'iconKey': row.iconKey,
+          'ruleKind': row.ruleKind,
+          'rulePayload': row.rulePayload,
+          'endDateMs': row.endDate?.millisecondsSinceEpoch,
+          'startMinute': row.startMinute,
+          'durationMinutes': row.durationMinutes,
+          'description': row.description,
+          'createdAtMs': row.createdAt.millisecondsSinceEpoch,
+          'updatedAtMs': row.updatedAt.millisecondsSinceEpoch,
+        },
+    ];
+  }
+
+  /// Replaces every persisted event with the contents of [data] (the list
+  /// produced by [exportData]). Tolerates missing/malformed entries: bad
+  /// rows are skipped, the rest still imports.
+  Future<void> importData(List<dynamic> data) async {
+    await _dao.deleteAll();
+    for (final raw in data) {
+      if (raw is! Map) continue;
+      final map = raw.cast<String, dynamic>();
+      try {
+        final id = map['id'] as String?;
+        final title = map['title'] as String?;
+        final category = map['category'] as String?;
+        final startMs = map['startDateMs'];
+        final ruleKind = map['ruleKind'] as String?;
+        if (id == null ||
+            title == null ||
+            category == null ||
+            startMs is! int ||
+            ruleKind == null) {
+          continue;
+        }
+        final createdMs = map['createdAtMs'] is int
+            ? map['createdAtMs'] as int
+            : startMs;
+        final updatedMs = map['updatedAtMs'] is int
+            ? map['updatedAtMs'] as int
+            : createdMs;
+        final endMs = map['endDateMs'];
+        await _dao.upsert(
+          CalendarEventsCompanion(
+            id: Value(id),
+            title: Value(title),
+            category: Value(category),
+            startDate: Value(
+              DateTime.fromMillisecondsSinceEpoch(startMs, isUtc: true),
+            ),
+            allDay: Value(map['allDay'] as bool? ?? true),
+            iconKey: Value(map['iconKey'] as String?),
+            ruleKind: Value(ruleKind),
+            rulePayload: Value(map['rulePayload'] as String?),
+            endDate: endMs is int
+                ? Value(DateTime.fromMillisecondsSinceEpoch(endMs, isUtc: true))
+                : const Value.absent(),
+            startMinute: map['startMinute'] is int
+                ? Value(map['startMinute'] as int)
+                : const Value.absent(),
+            durationMinutes: map['durationMinutes'] is int
+                ? Value(map['durationMinutes'] as int)
+                : const Value.absent(),
+            description: map['description'] is String
+                ? Value(map['description'] as String)
+                : const Value.absent(),
+            createdAt: Value(
+              DateTime.fromMillisecondsSinceEpoch(createdMs, isUtc: true),
+            ),
+            updatedAt: Value(
+              DateTime.fromMillisecondsSinceEpoch(updatedMs, isUtc: true),
+            ),
+          ),
+        );
+      } catch (e) {
+        debugPrint('[CalendarEventService] Import row error: $e');
+      }
+    }
+    await _load();
+  }
+
   // ── Row ↔ Domain mapping ──────────────────────────────────────────────
 
   CalendarEvent _rowToEvent(CalendarEventRow row) {
@@ -76,6 +178,8 @@ class CalendarEventService {
       startDate: _dateOnlyUtc(row.startDate),
       allDay: row.allDay,
       iconKey: row.iconKey,
+      endDate: row.endDate == null ? null : _dateOnlyUtc(row.endDate!),
+      description: row.description,
       rule: _decodeRule(row.ruleKind, row.rulePayload),
     );
   }
@@ -105,6 +209,10 @@ class CalendarEventService {
       iconKey: Value(event.iconKey),
       ruleKind: Value(_ruleKind(event.rule)),
       rulePayload: Value(_rulePayload(event.rule)),
+      endDate: Value(event.endDate),
+      description: Value(event.description),
+      // start_minute / duration_minutes are reserved for future
+      // time-of-day events; application code never writes them yet.
       createdAt: Value(updatedAt),
       updatedAt: Value(updatedAt),
     );

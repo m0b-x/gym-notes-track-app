@@ -223,6 +223,22 @@ class AppLocalizationsRo extends AppLocalizations {
   String get weeklyDaysHint => 'Selectează cel puțin o zi';
 
   @override
+  String get eventUntilLabel => 'Se termină pe';
+
+  @override
+  String get eventUntilNone => 'Nu se termină niciodată';
+
+  @override
+  String get eventUntilHint => 'Atinge pentru a seta o dată de final';
+
+  @override
+  String get eventDescription => 'Descriere';
+
+  @override
+  String get eventDescriptionHint =>
+      'Adaugă note (focus, tehnică, intensitate…)';
+
+  @override
   String get iconGroupStrength => 'Forță';
 
   @override

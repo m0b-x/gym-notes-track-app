@@ -291,6 +291,26 @@
   "@weeklyDaysHint": {
     "description": "Validation hint shown when the user clears all weekday selections"
   },
+  "eventUntilLabel": "Ends on",
+  "@eventUntilLabel": {
+    "description": "Section label for the optional recurrence end-date picker"
+  },
+  "eventUntilNone": "Never ends",
+  "@eventUntilNone": {
+    "description": "Placeholder shown when no recurrence end date is set"
+  },
+  "eventUntilHint": "Tap to set an end date",
+  "@eventUntilHint": {
+    "description": "Subtitle hint for the recurrence end-date picker when empty"
+  },
+  "eventDescription": "Description",
+  "@eventDescription": {
+    "description": "Label for the optional multiline description / notes field on an event"
+  },
+  "eventDescriptionHint": "Add notes (focus, technique, intensity…)",
+  "@eventDescriptionHint": {
+    "description": "Hint text for the optional event description field"
+  },
   "iconGroupStrength": "Strength",
   "@iconGroupStrength": { "description": "Icon picker group: strength training" },
   "iconGroupCardio": "Cardio",
