@@ -592,11 +592,77 @@ abstract class AppLocalizations {
   /// **'Public holidays only'**
   String get recurrenceHolidaysOnly;
 
-  /// Recurrence label shown in summaries for weekly events with explicit weekdays
+  /// Recurrence summary for daily events, honoring the interval
   ///
   /// In en, this message translates to:
-  /// **'Weekly · {days}'**
-  String recurrenceWeeklyOn(String days);
+  /// **'{count, plural, =1{Daily} other{Every {count} days}}'**
+  String recurrenceEveryDays(int count);
+
+  /// Recurrence summary for weekly events without explicit weekdays, honoring the interval
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Weekly} other{Every {count} weeks}}'**
+  String recurrenceEveryWeeks(int count);
+
+  /// Recurrence summary for weekly events with explicit weekdays, honoring the interval
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Weekly · {days}} other{Every {count} weeks · {days}}}'**
+  String recurrenceEveryWeeksOn(int count, String days);
+
+  /// Recurrence summary for monthly events, honoring the interval
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Monthly} other{Every {count} months}}'**
+  String recurrenceEveryMonths(int count);
+
+  /// Recurrence summary for yearly events, honoring the interval
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Yearly} other{Every {count} years}}'**
+  String recurrenceEveryYears(int count);
+
+  /// Section label above the recurrence interval stepper
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat every'**
+  String get recurrenceIntervalLabel;
+
+  /// Tooltip for the button that decreases the recurrence interval
+  ///
+  /// In en, this message translates to:
+  /// **'Less frequent'**
+  String get recurrenceIntervalDecrement;
+
+  /// Tooltip for the button that increases the recurrence interval
+  ///
+  /// In en, this message translates to:
+  /// **'More frequent'**
+  String get recurrenceIntervalIncrement;
+
+  /// Unit shown next to the interval stepper for daily recurrence
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{day} other{days}}'**
+  String recurrenceUnitDays(int count);
+
+  /// Unit shown next to the interval stepper for weekly recurrence
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{week} other{weeks}}'**
+  String recurrenceUnitWeeks(int count);
+
+  /// Unit shown next to the interval stepper for monthly recurrence
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{month} other{months}}'**
+  String recurrenceUnitMonths(int count);
+
+  /// Unit shown next to the interval stepper for yearly recurrence
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{year} other{years}}'**
+  String recurrenceUnitYears(int count);
 
   /// Section label for the per-weekday chips in the editor
   ///
@@ -639,6 +705,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add notes (focus, technique, intensity…)'**
   String get eventDescriptionHint;
+
+  /// Section label for the optional workout note linked to a calendar event
+  ///
+  /// In en, this message translates to:
+  /// **'Linked note'**
+  String get eventLinkedNote;
+
+  /// Picker tile title shown when no note is linked to the event yet
+  ///
+  /// In en, this message translates to:
+  /// **'Link a workout note'**
+  String get eventLinkNoteHint;
+
+  /// Shown when the note linked to an event has been deleted
+  ///
+  /// In en, this message translates to:
+  /// **'Linked note no longer exists'**
+  String get eventLinkedNoteMissing;
+
+  /// Tooltip for the button that opens the note linked to an event
+  ///
+  /// In en, this message translates to:
+  /// **'Open linked note'**
+  String get eventOpenLinkedNote;
+
+  /// Tooltip for the button that unlinks the note from an event
+  ///
+  /// In en, this message translates to:
+  /// **'Remove link'**
+  String get eventRemoveNoteLink;
 
   /// Icon picker group: strength training
   ///

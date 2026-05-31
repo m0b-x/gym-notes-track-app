@@ -3733,6 +3733,15 @@ class $CalendarEventsTable extends CalendarEvents
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _noteIdMeta = const VerificationMeta('noteId');
+  @override
+  late final GeneratedColumn<String> noteId = GeneratedColumn<String>(
+    'note_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -3769,6 +3778,7 @@ class $CalendarEventsTable extends CalendarEvents
     startMinute,
     durationMinutes,
     description,
+    noteId,
     createdAt,
     updatedAt,
   ];
@@ -3875,6 +3885,12 @@ class $CalendarEventsTable extends CalendarEvents
         ),
       );
     }
+    if (data.containsKey('note_id')) {
+      context.handle(
+        _noteIdMeta,
+        noteId.isAcceptableOrUnknown(data['note_id']!, _noteIdMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -3948,6 +3964,10 @@ class $CalendarEventsTable extends CalendarEvents
         DriftSqlType.string,
         data['${effectivePrefix}description'],
       ),
+      noteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note_id'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -3979,6 +3999,7 @@ class CalendarEventRow extends DataClass
   final int? startMinute;
   final int? durationMinutes;
   final String? description;
+  final String? noteId;
   final DateTime createdAt;
   final DateTime updatedAt;
   const CalendarEventRow({
@@ -3994,6 +4015,7 @@ class CalendarEventRow extends DataClass
     this.startMinute,
     this.durationMinutes,
     this.description,
+    this.noteId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -4023,6 +4045,9 @@ class CalendarEventRow extends DataClass
     }
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
+    }
+    if (!nullToAbsent || noteId != null) {
+      map['note_id'] = Variable<String>(noteId);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -4055,6 +4080,9 @@ class CalendarEventRow extends DataClass
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
+      noteId: noteId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(noteId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -4078,6 +4106,7 @@ class CalendarEventRow extends DataClass
       startMinute: serializer.fromJson<int?>(json['startMinute']),
       durationMinutes: serializer.fromJson<int?>(json['durationMinutes']),
       description: serializer.fromJson<String?>(json['description']),
+      noteId: serializer.fromJson<String?>(json['noteId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -4098,6 +4127,7 @@ class CalendarEventRow extends DataClass
       'startMinute': serializer.toJson<int?>(startMinute),
       'durationMinutes': serializer.toJson<int?>(durationMinutes),
       'description': serializer.toJson<String?>(description),
+      'noteId': serializer.toJson<String?>(noteId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -4116,6 +4146,7 @@ class CalendarEventRow extends DataClass
     Value<int?> startMinute = const Value.absent(),
     Value<int?> durationMinutes = const Value.absent(),
     Value<String?> description = const Value.absent(),
+    Value<String?> noteId = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => CalendarEventRow(
@@ -4133,6 +4164,7 @@ class CalendarEventRow extends DataClass
         ? durationMinutes.value
         : this.durationMinutes,
     description: description.present ? description.value : this.description,
+    noteId: noteId.present ? noteId.value : this.noteId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -4158,6 +4190,7 @@ class CalendarEventRow extends DataClass
       description: data.description.present
           ? data.description.value
           : this.description,
+      noteId: data.noteId.present ? data.noteId.value : this.noteId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -4178,6 +4211,7 @@ class CalendarEventRow extends DataClass
           ..write('startMinute: $startMinute, ')
           ..write('durationMinutes: $durationMinutes, ')
           ..write('description: $description, ')
+          ..write('noteId: $noteId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4198,6 +4232,7 @@ class CalendarEventRow extends DataClass
     startMinute,
     durationMinutes,
     description,
+    noteId,
     createdAt,
     updatedAt,
   );
@@ -4217,6 +4252,7 @@ class CalendarEventRow extends DataClass
           other.startMinute == this.startMinute &&
           other.durationMinutes == this.durationMinutes &&
           other.description == this.description &&
+          other.noteId == this.noteId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -4234,6 +4270,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
   final Value<int?> startMinute;
   final Value<int?> durationMinutes;
   final Value<String?> description;
+  final Value<String?> noteId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -4250,6 +4287,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     this.startMinute = const Value.absent(),
     this.durationMinutes = const Value.absent(),
     this.description = const Value.absent(),
+    this.noteId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -4267,6 +4305,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     this.startMinute = const Value.absent(),
     this.durationMinutes = const Value.absent(),
     this.description = const Value.absent(),
+    this.noteId = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -4290,6 +4329,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     Expression<int>? startMinute,
     Expression<int>? durationMinutes,
     Expression<String>? description,
+    Expression<String>? noteId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -4307,6 +4347,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
       if (startMinute != null) 'start_minute': startMinute,
       if (durationMinutes != null) 'duration_minutes': durationMinutes,
       if (description != null) 'description': description,
+      if (noteId != null) 'note_id': noteId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -4326,6 +4367,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     Value<int?>? startMinute,
     Value<int?>? durationMinutes,
     Value<String?>? description,
+    Value<String?>? noteId,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -4343,6 +4385,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
       startMinute: startMinute ?? this.startMinute,
       durationMinutes: durationMinutes ?? this.durationMinutes,
       description: description ?? this.description,
+      noteId: noteId ?? this.noteId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -4388,6 +4431,9 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     if (description.present) {
       map['description'] = Variable<String>(description.value);
     }
+    if (noteId.present) {
+      map['note_id'] = Variable<String>(noteId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -4415,6 +4461,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
           ..write('startMinute: $startMinute, ')
           ..write('durationMinutes: $durationMinutes, ')
           ..write('description: $description, ')
+          ..write('noteId: $noteId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -6612,6 +6659,7 @@ typedef $$CalendarEventsTableCreateCompanionBuilder =
       Value<int?> startMinute,
       Value<int?> durationMinutes,
       Value<String?> description,
+      Value<String?> noteId,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -6630,6 +6678,7 @@ typedef $$CalendarEventsTableUpdateCompanionBuilder =
       Value<int?> startMinute,
       Value<int?> durationMinutes,
       Value<String?> description,
+      Value<String?> noteId,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -6701,6 +6750,11 @@ class $$CalendarEventsTableFilterComposer
 
   ColumnFilters<String> get description => $composableBuilder(
     column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get noteId => $composableBuilder(
+    column: $table.noteId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6784,6 +6838,11 @@ class $$CalendarEventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get noteId => $composableBuilder(
+    column: $table.noteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -6848,6 +6907,9 @@ class $$CalendarEventsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get noteId =>
+      $composableBuilder(column: $table.noteId, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -6904,6 +6966,7 @@ class $$CalendarEventsTableTableManager
                 Value<int?> startMinute = const Value.absent(),
                 Value<int?> durationMinutes = const Value.absent(),
                 Value<String?> description = const Value.absent(),
+                Value<String?> noteId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -6920,6 +6983,7 @@ class $$CalendarEventsTableTableManager
                 startMinute: startMinute,
                 durationMinutes: durationMinutes,
                 description: description,
+                noteId: noteId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -6938,6 +7002,7 @@ class $$CalendarEventsTableTableManager
                 Value<int?> startMinute = const Value.absent(),
                 Value<int?> durationMinutes = const Value.absent(),
                 Value<String?> description = const Value.absent(),
+                Value<String?> noteId = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -6954,6 +7019,7 @@ class $$CalendarEventsTableTableManager
                 startMinute: startMinute,
                 durationMinutes: durationMinutes,
                 description: description,
+                noteId: noteId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

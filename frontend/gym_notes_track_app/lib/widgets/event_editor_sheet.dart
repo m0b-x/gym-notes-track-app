@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
@@ -7,10 +8,12 @@ import '../constants/calendar_icons.dart';
 import '../l10n/app_localizations.dart';
 import '../models/calendar_event.dart';
 import '../models/recurrence_rule.dart';
+import '../repositories/note_repository.dart';
 import '../services/event_time_formatter.dart';
 import '../services/recurrence_formatter.dart';
 import 'category_picker_sheet.dart';
 import 'icon_picker_sheet.dart';
+import 'note_picker_dialog.dart';
 
 /// Result returned by [EventEditorSheet.show]. `null` means cancelled.
 sealed class EventEditorResult {
@@ -86,6 +89,10 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
   /// timed event (60 minutes — a typical session).
   static const int _defaultDurationMinutes = 60;
 
+  /// Upper bound for the recurrence interval ("every N …"). 99 keeps the
+  /// stepper compact while comfortably covering any realistic training split.
+  static const int _maxInterval = 99;
+
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
   late CalendarEventCategory _category;
@@ -95,6 +102,11 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
   late _RepeatMode _mode;
   late _RecurrenceKind _kind;
   late Set<int> _weekdays;
+
+  /// Recurrence interval ("every N …"). Always ≥ 1; only meaningful for the
+  /// periodic kinds (daily/weekly/monthly/yearly). Carried across kind
+  /// switches so toggling daily↔weekly keeps the chosen number.
+  int _interval = 1;
 
   /// Time-of-day state. The trio is the editor's working copy of the
   /// model's [EventTime]; it's serialized back into one on save.
@@ -107,6 +119,14 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
   late bool _isAllDay;
   late int _startMinute;
   int? _durationMinutes;
+
+  /// Linked workout note state. [_noteId] is the only value persisted onto
+  /// the event; [_noteTitle] is a display cache resolved on open / pick and
+  /// [_noteMissing] is set when the previously-linked note no longer exists
+  /// (deleted) so the tile can surface that instead of a blank title.
+  String? _noteId;
+  String? _noteTitle;
+  bool _noteMissing = false;
 
   bool get _isEditing => widget.initialEvent != null;
 
@@ -126,29 +146,36 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     _isAllDay = initialTime == null;
     _startMinute = initialTime?.startMinute ?? _defaultStartMinute;
     _durationMinutes = initialTime?.durationMinutes;
+    _noteId = initial?.noteId;
     _initRecurrenceFrom(initial?.rule ?? const OneTimeRecurrence());
+    if (_noteId != null) _loadLinkedNoteTitle();
   }
 
   void _initRecurrenceFrom(RecurrenceRule rule) {
     // Sensible default weekday set anchored to the event start date.
     _weekdays = {_date.weekday};
+    _interval = 1;
     switch (rule) {
       case OneTimeRecurrence():
         _mode = _RepeatMode.oneTime;
         _kind = _RecurrenceKind.daily;
-      case DailyRecurrence():
+      case DailyRecurrence(:final interval):
         _mode = _RepeatMode.recurring;
         _kind = _RecurrenceKind.daily;
-      case WeeklyRecurrence(:final weekdays):
+        _interval = interval;
+      case WeeklyRecurrence(:final weekdays, :final interval):
         _mode = _RepeatMode.recurring;
         _kind = _RecurrenceKind.weekly;
         _weekdays = weekdays.isEmpty ? {_date.weekday} : Set.of(weekdays);
-      case MonthlyRecurrence():
+        _interval = interval;
+      case MonthlyRecurrence(:final interval):
         _mode = _RepeatMode.recurring;
         _kind = _RecurrenceKind.monthly;
-      case YearlyRecurrence():
+        _interval = interval;
+      case YearlyRecurrence(:final interval):
         _mode = _RepeatMode.recurring;
         _kind = _RecurrenceKind.yearly;
+        _interval = interval;
       case WorkdaysRecurrence():
         _mode = _RepeatMode.recurring;
         _kind = _RecurrenceKind.workdays;
@@ -175,15 +202,40 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
   RecurrenceRule _buildRule() {
     if (_mode == _RepeatMode.oneTime) return const OneTimeRecurrence();
     return switch (_kind) {
-      _RecurrenceKind.daily => const DailyRecurrence(),
+      _RecurrenceKind.daily => DailyRecurrence(interval: _interval),
       _RecurrenceKind.weekly => WeeklyRecurrence(
         weekdays: Set.unmodifiable(_weekdays),
+        interval: _interval,
       ),
-      _RecurrenceKind.monthly => const MonthlyRecurrence(),
-      _RecurrenceKind.yearly => const YearlyRecurrence(),
+      _RecurrenceKind.monthly => MonthlyRecurrence(interval: _interval),
+      _RecurrenceKind.yearly => YearlyRecurrence(interval: _interval),
       _RecurrenceKind.workdays => const WorkdaysRecurrence(),
       _RecurrenceKind.weekends => const WeekendsRecurrence(),
       _RecurrenceKind.holidays => const PublicHolidaysOnlyRecurrence(),
+    };
+  }
+
+  /// Whether the currently selected frequency supports an "every N" interval.
+  /// Workdays / weekends / holidays are fixed cadences, so they don't.
+  static bool _kindSupportsInterval(_RecurrenceKind kind) {
+    return switch (kind) {
+      _RecurrenceKind.daily ||
+      _RecurrenceKind.weekly ||
+      _RecurrenceKind.monthly ||
+      _RecurrenceKind.yearly => true,
+      _RecurrenceKind.workdays ||
+      _RecurrenceKind.weekends ||
+      _RecurrenceKind.holidays => false,
+    };
+  }
+
+  String _intervalUnitLabel(AppLocalizations l10n, _RecurrenceKind kind) {
+    return switch (kind) {
+      _RecurrenceKind.daily => l10n.recurrenceUnitDays(_interval),
+      _RecurrenceKind.weekly => l10n.recurrenceUnitWeeks(_interval),
+      _RecurrenceKind.monthly => l10n.recurrenceUnitMonths(_interval),
+      _RecurrenceKind.yearly => l10n.recurrenceUnitYears(_interval),
+      _ => '',
     };
   }
 
@@ -332,6 +384,49 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     setState(() => _category = picked);
   }
 
+  /// Resolve the display title for the currently linked note. If the note
+  /// no longer exists — hard-deleted or soft-deleted — flag it so the tile
+  /// shows a "missing" state instead of a blank label. The stale id is kept
+  /// until the user explicitly removes or replaces the link.
+  ///
+  /// Uses [NoteRepository.getNotesByIds] rather than `getNoteById` because
+  /// only the former filters out soft-deleted notes (the app deletes notes
+  /// soft), so a deleted note correctly reads as missing here.
+  Future<void> _loadLinkedNoteTitle() async {
+    final id = _noteId;
+    if (id == null) return;
+    final notes = await GetIt.I<NoteRepository>().getNotesByIds([id]);
+    if (!mounted) return;
+    final note = notes.isEmpty ? null : notes.first;
+    setState(() {
+      if (note == null) {
+        _noteMissing = true;
+        _noteTitle = null;
+      } else {
+        _noteMissing = false;
+        _noteTitle = note.title;
+      }
+    });
+  }
+
+  Future<void> _pickNote() async {
+    final picked = await showNotePickerDialog(context);
+    if (picked == null || !mounted) return;
+    setState(() {
+      _noteId = picked.id;
+      _noteTitle = picked.title;
+      _noteMissing = false;
+    });
+  }
+
+  void _clearNote() {
+    setState(() {
+      _noteId = null;
+      _noteTitle = null;
+      _noteMissing = false;
+    });
+  }
+
   void _toggleWeekday(int weekday) {
     setState(() {
       final next = Set<int>.of(_weekdays);
@@ -364,6 +459,7 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
             endDate: effectiveEnd,
             time: effectiveTime,
             description: effectiveDescription,
+            noteId: _noteId,
             iconKey: _iconKey,
           )
         : base.copyWith(
@@ -374,10 +470,12 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
             endDate: effectiveEnd,
             time: effectiveTime,
             description: effectiveDescription,
+            noteId: _noteId,
             iconKey: _iconKey,
             clearEndDate: effectiveEnd == null,
             clearTime: effectiveTime == null,
             clearDescription: effectiveDescription == null,
+            clearNoteId: _noteId == null,
             clearIconKey: _iconKey == null,
           );
     Navigator.of(context).pop(EventEditorSaved(event));
@@ -518,6 +616,40 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
                           ),
                     onTap: _pickIcon,
                   ),
+                  _SectionLabel(text: l10n.eventLinkedNote),
+                  _PickerTile(
+                    leading: CircleAvatar(
+                      backgroundColor: _noteMissing
+                          ? theme.colorScheme.errorContainer
+                          : null,
+                      foregroundColor: _noteMissing
+                          ? theme.colorScheme.onErrorContainer
+                          : null,
+                      child: Icon(
+                        _noteId == null
+                            ? Icons.note_add_outlined
+                            : (_noteMissing
+                                  ? Icons.warning_amber_rounded
+                                  : Icons.sticky_note_2_outlined),
+                      ),
+                    ),
+                    title: _noteId == null
+                        ? l10n.eventLinkNoteHint
+                        : (_noteMissing
+                              ? l10n.eventLinkedNoteMissing
+                              : ((_noteTitle == null || _noteTitle!.isEmpty)
+                                    ? l10n.untitledNote
+                                    : _noteTitle!)),
+                    subtitle: _noteId == null ? null : l10n.selectNote,
+                    trailing: _noteId == null
+                        ? const Icon(Icons.chevron_right_rounded)
+                        : IconButton(
+                            tooltip: l10n.eventRemoveNoteLink,
+                            icon: const Icon(Icons.link_off_rounded),
+                            onPressed: _clearNote,
+                          ),
+                    onTap: _pickNote,
+                  ),
                   _SectionLabel(text: l10n.eventDate),
                   _PickerTile(
                     leading: const CircleAvatar(
@@ -617,6 +749,18 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
                           ),
                       ],
                     ),
+                    if (_kindSupportsInterval(_kind)) ...[
+                      _SectionLabel(text: l10n.recurrenceIntervalLabel),
+                      _IntervalStepper(
+                        value: _interval,
+                        unitLabel: _intervalUnitLabel(l10n, _kind),
+                        min: 1,
+                        max: _maxInterval,
+                        decrementTooltip: l10n.recurrenceIntervalDecrement,
+                        incrementTooltip: l10n.recurrenceIntervalIncrement,
+                        onChanged: (v) => setState(() => _interval = v),
+                      ),
+                    ],
                     if (_kind == _RecurrenceKind.weekly) ...[
                       _SectionLabel(text: l10n.weekdays),
                       Wrap(
@@ -700,6 +844,68 @@ class _SectionLabel extends StatelessWidget {
         text,
         style: theme.textTheme.labelLarge?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact "− N +" stepper for the recurrence interval, with the unit label
+/// ("weeks", "months", …) next to the value so the row reads as a sentence
+/// ("Repeat every  −  2  +  weeks"). Buttons disable at [min] / [max].
+class _IntervalStepper extends StatelessWidget {
+  final int value;
+  final int min;
+  final int max;
+  final String unitLabel;
+  final String decrementTooltip;
+  final String incrementTooltip;
+  final ValueChanged<int> onChanged;
+
+  const _IntervalStepper({
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.unitLabel,
+    required this.decrementTooltip,
+    required this.incrementTooltip,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final canDecrement = value > min;
+    final canIncrement = value < max;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(
+          children: [
+            IconButton.filledTonal(
+              tooltip: decrementTooltip,
+              icon: const Icon(Icons.remove_rounded),
+              onPressed: canDecrement ? () => onChanged(value - 1) : null,
+            ),
+            SizedBox(
+              width: 40,
+              child: Text(
+                '$value',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleLarge,
+              ),
+            ),
+            IconButton.filledTonal(
+              tooltip: incrementTooltip,
+              icon: const Icon(Icons.add_rounded),
+              onPressed: canIncrement ? () => onChanged(value + 1) : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(unitLabel, style: theme.textTheme.bodyLarge),
+            ),
+          ],
         ),
       ),
     );

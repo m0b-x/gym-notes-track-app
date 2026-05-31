@@ -258,8 +258,111 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recurrenceHolidaysOnly => 'Public holidays only';
 
   @override
-  String recurrenceWeeklyOn(String days) {
-    return 'Weekly · $days';
+  String recurrenceEveryDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Every $count days',
+      one: 'Daily',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceEveryWeeks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Every $count weeks',
+      one: 'Weekly',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceEveryWeeksOn(int count, String days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Every $count weeks · $days',
+      one: 'Weekly · $days',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceEveryMonths(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Every $count months',
+      one: 'Monthly',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceEveryYears(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Every $count years',
+      one: 'Yearly',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get recurrenceIntervalLabel => 'Repeat every';
+
+  @override
+  String get recurrenceIntervalDecrement => 'Less frequent';
+
+  @override
+  String get recurrenceIntervalIncrement => 'More frequent';
+
+  @override
+  String recurrenceUnitDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'days',
+      one: 'day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceUnitWeeks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'weeks',
+      one: 'week',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceUnitMonths(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'months',
+      one: 'month',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceUnitYears(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'years',
+      one: 'year',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -282,6 +385,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get eventDescriptionHint => 'Add notes (focus, technique, intensity…)';
+
+  @override
+  String get eventLinkedNote => 'Linked note';
+
+  @override
+  String get eventLinkNoteHint => 'Link a workout note';
+
+  @override
+  String get eventLinkedNoteMissing => 'Linked note no longer exists';
+
+  @override
+  String get eventOpenLinkedNote => 'Open linked note';
+
+  @override
+  String get eventRemoveNoteLink => 'Remove link';
 
   @override
   String get iconGroupStrength => 'Strength';

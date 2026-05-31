@@ -14,7 +14,16 @@ class DaySummaryPanel extends StatelessWidget {
   /// Non-event entries (weekend, holiday) are non-interactive.
   final ValueChanged<CalendarEvent>? onEventTap;
 
-  const DaySummaryPanel({super.key, required this.entries, this.onEventTap});
+  /// Called when the user taps the "open linked note" affordance on an
+  /// event that has a linked note (`event.noteId != null`).
+  final ValueChanged<CalendarEvent>? onOpenNote;
+
+  const DaySummaryPanel({
+    super.key,
+    required this.entries,
+    this.onEventTap,
+    this.onOpenNote,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +59,7 @@ class DaySummaryPanel extends StatelessWidget {
       itemBuilder: (context, index) {
         final entry = entries[index];
         final event = entry.event;
+        final hasLinkedNote = event?.noteId != null;
         return Card(
           child: ListTile(
             leading: Icon(entry.icon, color: entry.color),
@@ -57,7 +67,19 @@ class DaySummaryPanel extends StatelessWidget {
             subtitle: entry.subtitle == null ? null : Text(entry.subtitle!),
             trailing: event == null
                 ? null
-                : const Icon(Icons.chevron_right_rounded),
+                : (hasLinkedNote && onOpenNote != null
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: l10n.eventOpenLinkedNote,
+                              icon: const Icon(Icons.sticky_note_2_outlined),
+                              onPressed: () => onOpenNote!(event),
+                            ),
+                            const Icon(Icons.chevron_right_rounded),
+                          ],
+                        )
+                      : const Icon(Icons.chevron_right_rounded)),
             onTap: event == null || onEventTap == null
                 ? null
                 : () => onEventTap!(event),

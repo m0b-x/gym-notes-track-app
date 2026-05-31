@@ -333,14 +333,80 @@
   "@recurrenceHolidaysOnly": {
     "description": "Recurrence option: only on public holidays"
   },
-  "recurrenceWeeklyOn": "Weekly · {days}",
-  "@recurrenceWeeklyOn": {
-    "description": "Recurrence label shown in summaries for weekly events with explicit weekdays",
+  "recurrenceEveryDays": "{count, plural, =1{Daily} other{Every {count} days}}",
+  "@recurrenceEveryDays": {
+    "description": "Recurrence summary for daily events, honoring the interval",
     "placeholders": {
-      "days": {
-        "type": "String",
-        "example": "Mon, Wed, Fri"
-      }
+      "count": { "type": "int", "example": "2" }
+    }
+  },
+  "recurrenceEveryWeeks": "{count, plural, =1{Weekly} other{Every {count} weeks}}",
+  "@recurrenceEveryWeeks": {
+    "description": "Recurrence summary for weekly events without explicit weekdays, honoring the interval",
+    "placeholders": {
+      "count": { "type": "int", "example": "2" }
+    }
+  },
+  "recurrenceEveryWeeksOn": "{count, plural, =1{Weekly · {days}} other{Every {count} weeks · {days}}}",
+  "@recurrenceEveryWeeksOn": {
+    "description": "Recurrence summary for weekly events with explicit weekdays, honoring the interval",
+    "placeholders": {
+      "count": { "type": "int", "example": "2" },
+      "days": { "type": "String", "example": "Mon, Wed, Fri" }
+    }
+  },
+  "recurrenceEveryMonths": "{count, plural, =1{Monthly} other{Every {count} months}}",
+  "@recurrenceEveryMonths": {
+    "description": "Recurrence summary for monthly events, honoring the interval",
+    "placeholders": {
+      "count": { "type": "int", "example": "2" }
+    }
+  },
+  "recurrenceEveryYears": "{count, plural, =1{Yearly} other{Every {count} years}}",
+  "@recurrenceEveryYears": {
+    "description": "Recurrence summary for yearly events, honoring the interval",
+    "placeholders": {
+      "count": { "type": "int", "example": "2" }
+    }
+  },
+  "recurrenceIntervalLabel": "Repeat every",
+  "@recurrenceIntervalLabel": {
+    "description": "Section label above the recurrence interval stepper"
+  },
+  "recurrenceIntervalDecrement": "Less frequent",
+  "@recurrenceIntervalDecrement": {
+    "description": "Tooltip for the button that decreases the recurrence interval"
+  },
+  "recurrenceIntervalIncrement": "More frequent",
+  "@recurrenceIntervalIncrement": {
+    "description": "Tooltip for the button that increases the recurrence interval"
+  },
+  "recurrenceUnitDays": "{count, plural, =1{day} other{days}}",
+  "@recurrenceUnitDays": {
+    "description": "Unit shown next to the interval stepper for daily recurrence",
+    "placeholders": {
+      "count": { "type": "int", "example": "2" }
+    }
+  },
+  "recurrenceUnitWeeks": "{count, plural, =1{week} other{weeks}}",
+  "@recurrenceUnitWeeks": {
+    "description": "Unit shown next to the interval stepper for weekly recurrence",
+    "placeholders": {
+      "count": { "type": "int", "example": "2" }
+    }
+  },
+  "recurrenceUnitMonths": "{count, plural, =1{month} other{months}}",
+  "@recurrenceUnitMonths": {
+    "description": "Unit shown next to the interval stepper for monthly recurrence",
+    "placeholders": {
+      "count": { "type": "int", "example": "2" }
+    }
+  },
+  "recurrenceUnitYears": "{count, plural, =1{year} other{years}}",
+  "@recurrenceUnitYears": {
+    "description": "Unit shown next to the interval stepper for yearly recurrence",
+    "placeholders": {
+      "count": { "type": "int", "example": "2" }
     }
   },
   "weekdays": "Weekdays",
@@ -370,6 +436,26 @@
   "eventDescriptionHint": "Add notes (focus, technique, intensity…)",
   "@eventDescriptionHint": {
     "description": "Hint text for the optional event description field"
+  },
+  "eventLinkedNote": "Linked note",
+  "@eventLinkedNote": {
+    "description": "Section label for the optional workout note linked to a calendar event"
+  },
+  "eventLinkNoteHint": "Link a workout note",
+  "@eventLinkNoteHint": {
+    "description": "Picker tile title shown when no note is linked to the event yet"
+  },
+  "eventLinkedNoteMissing": "Linked note no longer exists",
+  "@eventLinkedNoteMissing": {
+    "description": "Shown when the note linked to an event has been deleted"
+  },
+  "eventOpenLinkedNote": "Open linked note",
+  "@eventOpenLinkedNote": {
+    "description": "Tooltip for the button that opens the note linked to an event"
+  },
+  "eventRemoveNoteLink": "Remove link",
+  "@eventRemoveNoteLink": {
+    "description": "Tooltip for the button that unlinks the note from an event"
   },
   "iconGroupStrength": "Strength",
   "@iconGroupStrength": { "description": "Icon picker group: strength training" },

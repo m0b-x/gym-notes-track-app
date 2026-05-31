@@ -1,10 +1,16 @@
 # Calendar & Events — Feature Reference
 
 A deep, implementation-aware description of the calendar/events subsystem in
-`gym_notes_track_app` as of schema **v11**. This document focuses on the
+`gym_notes_track_app` as of schema **v14**. This document focuses on the
 **events** feature plus the **public-holiday** subsystem it depends on.
 Everything below is grounded in the actual code paths in
 [lib/](../lib/) — file references are linked.
+
+> Schema lineage relevant to this subsystem: **v10** created the calendar
+> tables; **v11** added the Until bound + time-of-day columns; **v12** added
+> `description`; **v13** added holiday profiles; **v14** added the optional
+> event ↔ note link (`note_id`). The recurrence **interval** ("every N …")
+> shipped without a migration — it rides inside the existing `rule_payload`.
 
 ---
 
@@ -40,10 +46,13 @@ immutable; mutation is done through `copyWith`.
 | `title`         | `String`                   | User-entered, ≤ 120 chars (UI-enforced). Trimmed on save.                                          |
 | `category`      | `CalendarEventCategory`    | Closed enum (gym, cardio, rest, holiday, competition, measurement, other). Drives default colors. |
 | `startDate`     | `DateTime` (date-only UTC) | Anchors recurrence math. For one-time events this *is* the event date.                             |
-| `allDay`        | `bool`                     | Reserved at `true` until time-of-day events ship (see §10).                                        |
-| `rule`          | `RecurrenceRule`           | Sealed hierarchy — see §4.                                                                         |
+| `rule`          | `RecurrenceRule`           | Sealed hierarchy — see §3.                                                                         |
 | `endDate`       | `DateTime?` (date-only UTC) | Optional inclusive upper bound for recurring rules. `null` = "no end".                            |
+| `time`          | `EventTime?`               | Optional time-of-day annotation (start minute + optional duration). `null` = all-day.             |
+| `description`   | `String?`                  | **v12**. Free-form notes, ≤ 500 chars (UI-enforced). `null`/empty = none. Stored verbatim.        |
+| `noteId`        | `String?`                  | **v14**. Optional link to a workout note (`notes.id`). Folder resolved at navigation time.        |
 | `iconKey`       | `String?`                  | Key into `CalendarIcons.palette`. `null` = use category default.                                  |
+| `allDay`        | `bool` (derived)           | Computed as `time == null`. The persisted `all_day` column mirrors this on write only.            |
 
 `CalendarEvent.occursOn(day)` is the central query. It:
 
@@ -76,24 +85,42 @@ date-only UTC.
 | Rule                          | Semantics                                                              |
 | ----------------------------- | ---------------------------------------------------------------------- |
 | `OneTimeRecurrence`           | Occurs iff `target == start`.                                          |
-| `DailyRecurrence`             | Occurs iff `target >= start`.                                          |
-| `WeeklyRecurrence(weekdays)`  | Occurs iff `target >= start && weekdays.contains(target.weekday)`.    |
-| `MonthlyRecurrence`           | Occurs iff `target.day == start.day` (clamped — Feb 30 → no occurrence). |
-| `YearlyRecurrence`            | Occurs iff `target.month == start.month && target.day == start.day` (Feb 29 in non-leap years → skip). |
+| `DailyRecurrence(interval)`   | Occurs iff `target >= start && (target - start).inDays % interval == 0`. |
+| `WeeklyRecurrence(weekdays, interval)` | Occurs iff `target >= start`, `weekdays.contains(target.weekday)`, and `(weekIndex(target) - weekIndex(start)) % interval == 0`. |
+| `MonthlyRecurrence(interval)` | Occurs iff `target.day == start.day` and the whole-month delta is a multiple of `interval` (clamped — Feb 30 → no occurrence). |
+| `YearlyRecurrence(interval)`  | Occurs iff `target.month == start.month && target.day == start.day` and `(target.year - start.year) % interval == 0` (Feb 29 in non-leap years → skip). |
 | `WorkdaysRecurrence`          | Occurs iff `target >= start`, weekday is Mon–Fri, and **not** a public holiday. |
 | `WeekendsRecurrence`          | Occurs iff `target >= start` and weekday is Sat/Sun.                    |
 | `PublicHolidaysOnlyRecurrence`| Occurs iff `target >= start` and `PublicHolidays.isHoliday(target)`.    |
 
+**Interval ("every N …").** `Daily`, `Weekly`, `Monthly`, and `Yearly` carry
+an `interval` field (default `1`, asserted `>= 1`). `interval == 1`
+short-circuits to the original behaviour. Weekly interval phase is counted on
+a **fixed Monday-aligned grid** (epoch `2000-01-03`, an ISO Monday) rather
+than from each event's start, so an A/B "every 2 weeks" split stays
+phase-consistent regardless of the anchor's weekday. The fixed cadences
+(`Workdays`, `Weekends`, `PublicHolidaysOnly`) have no interval. All math is
+O(1) modular arithmetic on date-only UTC values — no DST hazard, no
+allocation on the per-day render path.
+
 ### 3.1 Persistence shape
 
-Rules serialize as `(ruleKind: String, rulePayload: String?)`. Only `Weekly`
-uses payload (`{"weekdays":[1,3,5]}`). All other rules persist with a `null`
-payload. New rule kinds add a string constant to `CalendarEventService`'s
-`_kXxx` set and a case to `_decodeRule` / `_ruleKind`.
+Rules serialize as `(ruleKind: String, rulePayload: String?)`. The payload is
+a small JSON object that is **only written when it carries something**:
+
+- `weekdays` — populated by `Weekly` (e.g. `{"weekdays":[1,3,5]}`).
+- `interval` — written by any periodic rule **only when `> 1`** (e.g.
+  `{"interval":2}`, or `{"weekdays":[1,4],"interval":2}` for an A/B split).
+
+Decoding is defensive: a missing/`<1`/malformed `interval` falls back to `1`,
+and legacy payloads (which never carried it) decode unchanged. New rule kinds
+add a string constant to `CalendarEventService`'s `_kXxx` set and a case to
+`_decodeRule` / `_ruleKind`.
 
 The split-column representation (kind + JSON payload) is deliberately more
 forgiving than a single JSON blob: corrupt payloads still let the rule kind
-through, and adding a new kind is a no-migration change.
+through, and adding a new kind — or a new payload field like `interval` — is a
+no-migration change.
 
 ### 3.2 Until / `endDate` bound
 
@@ -166,7 +193,7 @@ missing. Outside the window the fixed-date fallback re-introduces it.
 
 ## 5. Persistence layer
 
-### 5.1 Schema (v11)
+### 5.1 Schema (v14)
 
 #### [`CalendarEvents`](../lib/database/tables/calendar_events_table.dart)
 
@@ -176,13 +203,15 @@ missing. Outside the window the fixed-date fallback re-introduces it.
 | `title`             | TEXT     | NN   | ≤ 120 chars enforced in UI.                                          |
 | `category`          | TEXT     | NN   | Stores enum `name`, decoded with fallback to `other`.                |
 | `start_date`        | INTEGER  | NN   | Epoch ms. Date-only UTC by convention.                               |
-| `all_day`           | INTEGER  | NN   | Boolean. Default 1.                                                  |
+| `all_day`           | INTEGER  | NN   | Boolean. Write-time mirror of `time == null`; ignored on read.       |
 | `icon_key`          | TEXT     | YES  | Optional icon override.                                              |
 | `rule_kind`         | TEXT     | NN   | `oneTime` / `daily` / `weekly` / `monthly` / `yearly` / `workdays` / `weekends` / `holidaysOnly`. |
-| `rule_payload`      | TEXT     | YES  | JSON; only weekly populates it.                                      |
+| `rule_payload`      | TEXT     | YES  | JSON; carries `weekdays` (weekly) and/or `interval` (when > 1).      |
 | `end_date`          | INTEGER  | YES  | **v11**. Inclusive Until bound (epoch ms).                           |
-| `start_minute`      | INTEGER  | YES  | **v11**, reserved. Future time-of-day support.                       |
-| `duration_minutes`  | INTEGER  | YES  | **v11**, reserved. Future time-of-day support.                       |
+| `start_minute`      | INTEGER  | YES  | **v11**. Time-of-day start (minutes since local midnight).           |
+| `duration_minutes`  | INTEGER  | YES  | **v11**. Optional event duration in minutes.                         |
+| `description`       | TEXT     | YES  | **v12**. Free-form notes, ≤ 500 chars.                               |
+| `note_id`           | TEXT     | YES  | **v14**. Optional link to a workout note (`notes.id`).               |
 | `created_at`        | INTEGER  | NN   | Epoch ms (UTC).                                                      |
 | `updated_at`        | INTEGER  | NN   | Epoch ms (UTC).                                                      |
 
@@ -205,13 +234,22 @@ Calendar-relevant steps:
 
 - **v9 → v10**: Creates `calendar_events` and `public_holidays` with raw
   `CREATE TABLE` and adds the calendar indexes.
-- **v10 → v11**: Adds the three nullable columns
+- **v10 → v11**: Adds three nullable columns
   (`end_date`, `start_minute`, `duration_minutes`) via `ALTER TABLE … ADD
   COLUMN`. Idempotent: introspects `PRAGMA table_info(calendar_events)` and
   skips any column already present.
+- **v11 → v12**: Adds the nullable `description` column (same idempotent
+  `PRAGMA table_info` guard).
+- **v12 → v13**: Holiday-profile support (rebuilds `public_holidays`); not a
+  `calendar_events` change.
+- **v13 → v14**: Adds the nullable `note_id` column (same idempotent guard).
+  `NULL` preserves the historical "no linked note" semantics, so existing
+  rows are unchanged.
 
 Fresh installs use `m.createAll()` from the live Drift declaration, which
-already includes the v11 columns — no migration runs.
+already includes every column above — no migration runs. The recurrence
+`interval` needed **no migration**: it is encoded inside the existing
+`rule_payload` JSON.
 
 ### 5.3 [`CalendarEventDao`](../lib/database/daos/calendar_event_dao.dart)
 
@@ -376,13 +414,25 @@ All user-visible strings live in the three ARB files
 Calendar-relevant key families:
 
 - `eventCategory*` — category labels.
-- `recurrence*` — rule kind labels and the formatted weekday list.
+- `recurrence*` — rule kind labels, the formatted weekday list, the
+  interval-aware summaries (`recurrenceEveryDays/Weeks/Months/Years`,
+  `recurrenceEveryWeeksOn`) and the stepper strings
+  (`recurrenceIntervalLabel`, `recurrenceUnit*`, `recurrenceInterval{In,De}crement`).
 - `publicHoliday*` — named built-in holidays.
 - `eventTitle`, `eventType`, `eventDate`, `repeatMode`, `repeatOnce`,
   `repeatRecurring`, `frequency`, `weekdays`, `weeklyDaysHint`, `startsOn`,
   `pickCategory`, `pickIcon`, `iconLabel`, `iconCustom`, `iconDefault`,
   `resetToDefault`.
-- **v11 additions** — `eventUntilLabel`, `eventUntilNone`, `eventUntilHint`.
+- **v11 additions** — `eventUntilLabel`, `eventUntilNone`, `eventUntilHint`,
+  plus the time-of-day strings (`eventAllDay`, `eventStartTime`,
+  `eventEndTime*`, `eventCrossesMidnight`).
+- **v12 additions** — `eventDescription`, `eventDescriptionHint`.
+- **v14 additions** — `eventLinkedNote`, `eventLinkNoteHint`,
+  `eventLinkedNoteMissing`, `eventOpenLinkedNote`, `eventRemoveNoteLink`.
+
+The interval summaries use ICU `plural` so the `=1` form collapses to the
+plain label ("Weekly") while `other` reads "Every N weeks"; Romanian adds the
+`few` form. Plural placeholders must stay intact across all three ARBs.
 
 After editing ARBs, re-run `flutter gen-l10n` to refresh
 `AppLocalizations`.
@@ -391,30 +441,24 @@ After editing ARBs, re-run `flutter gen-l10n` to refresh
 
 ## 10. Reserved / forward-compat surfaces
 
-### 10.1 `start_minute` / `duration_minutes`
+### 10.1 `start_minute` / `duration_minutes` (shipped)
 
-Reserved in schema v11 to allow time-of-day events without another
-migration. Today:
+Reserved in schema v11 and **now in active use**. The time-of-day path:
 
-- Drift table declares them.
-- DAO writes `Value.absent()` so they default to `NULL`.
-- Backup round-trips them (so a future binary that emits non-null values
-  doesn't lose them in a v3 backup).
-- No application code, no UI surface, no model fields.
-
-When time-of-day is implemented:
-
-1. Add `startMinute` / `durationMinutes` to `CalendarEvent`.
-2. Wire them through `_eventToCompanion` and `_rowToEvent`.
-3. Add a time picker section to the editor sheet (only when
-   `allDay == false`).
-4. Surface them in tile rendering and in the day list.
-5. No new migration needed — the columns already exist.
+- [`EventTime`](../lib/models/calendar_event.dart) value object holds
+  `startMinute` (minutes since local midnight, `[0, 1440)`) and an optional
+  `durationMinutes` (`>= 1`; may exceed the remaining day to cross midnight).
+- `CalendarEvent.time` is the single source of truth; `allDay` is derived as
+  `time == null` and `all_day` is a write-time mirror used only for SQL.
+- `_eventToCompanion` / `_rowToEvent` round-trip `start_minute` /
+  `duration_minutes`; backup carries them too.
+- The editor sheet shows a start/end time section whenever "All-day" is off.
 
 ### 10.2 `allDay`
 
-Currently always `true`. It exists as a column from v10 because
-time-of-day support was anticipated.
+Derived, not stored as the source of truth: `time == null`. The `all_day`
+column (present since v10) is kept in sync on write purely so future SQL
+filters can use it without decoding `time`.
 
 ---
 
@@ -422,16 +466,14 @@ time-of-day support was anticipated.
 
 | Limitation                                                         | Impact   | Mitigation                                                                             |
 | ------------------------------------------------------------------ | -------- | -------------------------------------------------------------------------------------- |
-| Time-of-day events not implemented                                 | Medium   | Reserved columns; ship when product asks.                                             |
-| No interval > 1 (e.g., "every 2 weeks")                            | Medium   | `RecurrenceRule` subtypes would need an `interval` field plus modular arithmetic.     |
 | No skip-this-occurrence (exceptions)                                | Medium   | Would need an `event_exceptions(event_id, date)` table; checked in `occursOn`.        |
 | No "mark done" / completion log                                    | Medium   | Would need a `completions(event_id, date)` table; surfaces as a check on the day card. |
-| No event ↔ note link                                               | High for this app | Would need a nullable `note_id` column on `calendar_events`.                          |
+| Linked note opens read-through only                                 | Low      | The link is one-way (event → note); a note does not list events that reference it.     |
 | Built-in holiday deletions do not survive backup restore           | Low      | Would need a `suppressed` tombstone column.                                            |
 | No country/region selector for built-in holidays                   | Low      | Today's seed is implicitly Western-Christian.                                         |
 | Movable feasts have no out-of-window fallback                      | Low      | Acceptable; users only see seeded window.                                              |
 | No reminders / notifications                                       | Medium   | Requires platform plugin work; intentionally deferred.                                |
-| Recurrence math has no automated test coverage                     | Medium   | Add tests before introducing intervals or exceptions.                                  |
+| Recurrence math has no automated test coverage                     | Medium   | Pure, deterministic logic; high-value target for unit tests (interval phase, Feb-29, day-31 skips). |
 
 ---
 

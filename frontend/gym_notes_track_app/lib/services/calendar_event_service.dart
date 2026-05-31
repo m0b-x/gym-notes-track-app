@@ -95,6 +95,7 @@ class CalendarEventService {
           'startMinute': row.startMinute,
           'durationMinutes': row.durationMinutes,
           'description': row.description,
+          'noteId': row.noteId,
           'createdAtMs': row.createdAt.millisecondsSinceEpoch,
           'updatedAtMs': row.updatedAt.millisecondsSinceEpoch,
         },
@@ -153,6 +154,9 @@ class CalendarEventService {
             description: map['description'] is String
                 ? Value(map['description'] as String)
                 : const Value.absent(),
+            noteId: map['noteId'] is String
+                ? Value(map['noteId'] as String)
+                : const Value.absent(),
             createdAt: Value(
               DateTime.fromMillisecondsSinceEpoch(createdMs, isUtc: true),
             ),
@@ -180,6 +184,7 @@ class CalendarEventService {
       endDate: row.endDate == null ? null : _dateOnlyUtc(row.endDate!),
       time: _decodeTime(row.startMinute, row.durationMinutes),
       description: row.description,
+      noteId: row.noteId,
       rule: _decodeRule(row.ruleKind, row.rulePayload),
     );
   }
@@ -233,6 +238,7 @@ class CalendarEventService {
       startMinute: Value(time?.startMinute),
       durationMinutes: Value(time?.durationMinutes),
       description: Value(event.description),
+      noteId: Value(event.noteId),
       createdAt: Value(updatedAt),
       updatedAt: Value(updatedAt),
     );
@@ -270,17 +276,44 @@ class CalendarEventService {
   }
 
   String? _rulePayload(RecurrenceRule rule) {
+    final map = <String, Object>{};
     if (rule is WeeklyRecurrence) {
       final days = rule.weekdays.toList()..sort();
-      return jsonEncode({'weekdays': days});
+      map['weekdays'] = days;
     }
-    return null;
+    final interval = _intervalOf(rule);
+    if (interval > 1) map['interval'] = interval;
+    return map.isEmpty ? null : jsonEncode(map);
+  }
+
+  int _intervalOf(RecurrenceRule rule) => switch (rule) {
+    DailyRecurrence(:final interval) => interval,
+    WeeklyRecurrence(:final interval) => interval,
+    MonthlyRecurrence(:final interval) => interval,
+    YearlyRecurrence(:final interval) => interval,
+    _ => 1,
+  };
+
+  /// Reads the optional `interval` from a rule payload, defaulting to 1 for
+  /// legacy payloads (which never carried it) or any malformed value.
+  int _decodeInterval(String? payload) {
+    if (payload == null || payload.isEmpty) return 1;
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is Map && decoded['interval'] is int) {
+        final value = decoded['interval'] as int;
+        if (value >= 1) return value;
+      }
+    } catch (e) {
+      debugPrint('[CalendarEventService] Bad interval payload: $e');
+    }
+    return 1;
   }
 
   RecurrenceRule _decodeRule(String kind, String? payload) {
     switch (kind) {
       case _kDaily:
-        return const DailyRecurrence();
+        return DailyRecurrence(interval: _decodeInterval(payload));
       case _kWeekly:
         final days = <int>{};
         if (payload != null && payload.isNotEmpty) {
@@ -295,11 +328,14 @@ class CalendarEventService {
             debugPrint('[CalendarEventService] Bad weekly payload: $e');
           }
         }
-        return WeeklyRecurrence(weekdays: days);
+        return WeeklyRecurrence(
+          weekdays: days,
+          interval: _decodeInterval(payload),
+        );
       case _kMonthly:
-        return const MonthlyRecurrence();
+        return MonthlyRecurrence(interval: _decodeInterval(payload));
       case _kYearly:
-        return const YearlyRecurrence();
+        return YearlyRecurrence(interval: _decodeInterval(payload));
       case _kWorkdays:
         return const WorkdaysRecurrence();
       case _kWeekends:

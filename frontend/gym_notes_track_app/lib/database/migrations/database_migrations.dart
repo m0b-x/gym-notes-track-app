@@ -70,6 +70,11 @@ class DatabaseMigrations {
       toVersion: DatabaseSchema.v13HolidayProfiles,
       migrate: _migrateV12ToV13,
     ),
+    Migration(
+      fromVersion: DatabaseSchema.v13HolidayProfiles,
+      toVersion: DatabaseSchema.v14CalendarEventNoteLink,
+      migrate: _migrateV13ToV14,
+    ),
   ];
 
   Future<void> runMigrations(Migrator m, int from, int to) async {
@@ -413,6 +418,25 @@ class DatabaseMigrations {
       );
     } finally {
       await _db.customStatement('PRAGMA foreign_keys = ON');
+    }
+  }
+
+  /// v13→v14: Add a nullable `note_id` column to `calendar_events` so an
+  /// event can link to a workout note (`notes.id`). `NULL` keeps the
+  /// historical "no linked note" behaviour, so existing rows are
+  /// semantically unchanged. The folder is resolved from the note at
+  /// navigation time, so no foreign key / index is added here. Idempotent
+  /// via `PRAGMA table_info` so a partial-upgrade re-run cannot fail.
+  Future<void> _migrateV13ToV14(Migrator m, GeneratedDatabase db) async {
+    final existing = <String>{
+      for (final row
+          in await _db.customSelect('PRAGMA table_info(calendar_events)').get())
+        row.read<String>('name'),
+    };
+    if (!existing.contains('note_id')) {
+      await _db.customStatement(
+        'ALTER TABLE calendar_events ADD COLUMN note_id TEXT',
+      );
     }
   }
 }

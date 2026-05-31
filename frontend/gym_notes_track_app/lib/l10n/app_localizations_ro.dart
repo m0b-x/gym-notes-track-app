@@ -257,8 +257,120 @@ class AppLocalizationsRo extends AppLocalizations {
   String get recurrenceHolidaysOnly => 'Doar sărbători legale';
 
   @override
-  String recurrenceWeeklyOn(String days) {
-    return 'Săptămânal · $days';
+  String recurrenceEveryDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'La fiecare $count de zile',
+      few: 'La fiecare $count zile',
+      one: 'Zilnic',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceEveryWeeks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'La fiecare $count de săptămâni',
+      few: 'La fiecare $count săptămâni',
+      one: 'Săptămânal',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceEveryWeeksOn(int count, String days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'La fiecare $count de săptămâni · $days',
+      few: 'La fiecare $count săptămâni · $days',
+      one: 'Săptămânal · $days',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceEveryMonths(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'La fiecare $count de luni',
+      few: 'La fiecare $count luni',
+      one: 'Lunar',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceEveryYears(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'La fiecare $count de ani',
+      few: 'La fiecare $count ani',
+      one: 'Anual',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get recurrenceIntervalLabel => 'Repetă la fiecare';
+
+  @override
+  String get recurrenceIntervalDecrement => 'Mai rar';
+
+  @override
+  String get recurrenceIntervalIncrement => 'Mai des';
+
+  @override
+  String recurrenceUnitDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'de zile',
+      few: 'zile',
+      one: 'zi',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceUnitWeeks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'de săptămâni',
+      few: 'săptămâni',
+      one: 'săptămână',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceUnitMonths(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'de luni',
+      few: 'luni',
+      one: 'lună',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceUnitYears(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'de ani',
+      few: 'ani',
+      one: 'an',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -282,6 +394,21 @@ class AppLocalizationsRo extends AppLocalizations {
   @override
   String get eventDescriptionHint =>
       'Adaugă note (focus, tehnică, intensitate…)';
+
+  @override
+  String get eventLinkedNote => 'Notă asociată';
+
+  @override
+  String get eventLinkNoteHint => 'Asociază o notă de antrenament';
+
+  @override
+  String get eventLinkedNoteMissing => 'Nota asociată nu mai există';
+
+  @override
+  String get eventOpenLinkedNote => 'Deschide nota asociată';
+
+  @override
+  String get eventRemoveNoteLink => 'Elimină asocierea';
 
   @override
   String get iconGroupStrength => 'Forță';

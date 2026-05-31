@@ -58,7 +58,7 @@ Before writing code, confirm:
    - **re_editor package**: preserve the 2-slot `asString` cache, bounded LRU paragraph cache, binary-search paragraph/chunk lookups, 50 ms highlight debounce, and `cloneShallowDirty()` contract. Any new mutation path on `CodeLines` must call `cloneShallowDirty()`.
 9. Does the change affect the calendar/events feature?
    - Preserve the current drawer route: `AppDrawer` closes the drawer, then calls `AppNavigator.toCalendar(context)`, and `toCalendar` must remain a normal `push` so the previous page stays on the navigation stack.
-   - Custom calendar events are persisted via `CalendarEventService` → `CalendarEventDao` → `calendar_events` Drift table (schema v13: v10 introduced the table, v11 added `end_date` + reserved time-of-day columns, v12 added `description`, v13 reworked `public_holidays`). `CalendarBloc` is constructed via DI with the service and reloads its cache on `LoadCalendarEvents`. Public holidays live in the `public_holidays` table seeded by `PublicHolidayService` with add-if-not-exists semantics over a six-year forward window, scoped to the current `HolidayProfile` (`generic`, `romania`, `none`).
+   - Custom calendar events are persisted via `CalendarEventService` → `CalendarEventDao` → `calendar_events` Drift table (schema v14: v10 introduced the table, v11 added `end_date` + time-of-day columns, v12 added `description`, v13 reworked `public_holidays`, v14 added the optional `note_id` event↔note link). The recurrence **interval** ("every N …") shipped with no migration — it is encoded inside the existing `rule_payload` JSON. `CalendarBloc` is constructed via DI with the service and reloads its cache on `LoadCalendarEvents`. Public holidays live in the `public_holidays` table seeded by `PublicHolidayService` with add-if-not-exists semantics over a six-year forward window, scoped to the current `HolidayProfile` (`generic`, `romania`, `none`).
    - `TableCalendar.eventLoader` must stay a pure O(1) lookup through `CalendarBloc.eventsForDay`; do not dispatch events, call services, or perform recurrence expansion from `eventLoader`.
    - Persisted events require a Drift table/migration, DAO, repository, service, backup export/import, and `dart run build_runner build --delete-conflicting-outputs` before analysis.
    - User-visible calendar strings must be added to all three ARB files and regenerated with `flutter gen-l10n`.
@@ -78,34 +78,36 @@ Before writing code, confirm:
 
 `table_calendar: ^3.2.0` is installed and `main.dart` initializes locale date formatting with `initializeDateFormatting()`. The calendar is reachable from the drawer (entry after Counter management). `AppDrawer` closes the drawer first, then calls `AppNavigator.toCalendar(context)`, which **must remain a normal `push`** so the previous page stays on the stack.
 
-### Status (persisted as of schema v13)
+### Status (persisted as of schema v14)
 
-Custom events and public holidays survive hot restart and are included in backup/restore. `CalendarBloc` depends on `CalendarEventService` (singleton, in-memory cache backed by the `calendar_events` table). Public holidays are seeded into the `public_holidays` table by `PublicHolidayService` on every startup using insert-if-not-exists scoped to the active `HolidayProfile`, then mirrored into the static cache consumed by `PublicHolidays.isHoliday` / `PublicHolidays.holidayOn`. `BackupService` round-trips both `calendar_events` and `public_holidays` (including the v13 `profile` column).
+Custom events and public holidays survive hot restart and are included in backup/restore. `CalendarBloc` depends on `CalendarEventService` (singleton, in-memory cache backed by the `calendar_events` table). Public holidays are seeded into the `public_holidays` table by `PublicHolidayService` on every startup using insert-if-not-exists scoped to the active `HolidayProfile`, then mirrored into the static cache consumed by `PublicHolidays.isHoliday` / `PublicHolidays.holidayOn`. `BackupService` round-trips both `calendar_events` and `public_holidays` (including the v13 `profile` column and the v14 `note_id`).
 
 Migration timeline:
 - **v10**: `calendar_events` + `public_holidays` introduced.
-- **v11**: `calendar_events.end_date` (nullable inclusive upper bound for recurrences) plus reserved `start_minute` / `duration_minutes` columns for future timed events.
-- **v12**: `calendar_events.description` (nullable rich-text body).
+- **v11**: `calendar_events.end_date` (nullable inclusive upper bound for recurrences) plus `start_minute` / `duration_minutes` columns for timed events.
+- **v12**: `calendar_events.description` (nullable free-form body).
 - **v13**: `public_holidays` rebuilt with composite PK `(date, name_key)` and a `profile` column (`generic` | `romania` | `custom`). Migration is an idempotent SQLite table-rebuild guarded by `PRAGMA table_info('public_holidays')`.
+- **v14**: `calendar_events.note_id` (nullable link to `notes.id`). Idempotent `ALTER TABLE … ADD COLUMN` guarded by `PRAGMA table_info('calendar_events')`. `NULL` = no linked note.
+- **(no migration)**: recurrence `interval` lives inside `rule_payload` JSON; only written when `> 1`, decoded with a safe fallback to `1`.
 
 ### Files and their roles
 
 - [lib/pages/calendar_page.dart](lib/pages/calendar_page.dart) — host page. Owns `TableCalendar` + day-bars + day-summary panel. Format toggle (month / two-week / week) with localized labels. FAB opens the event editor for the selected day. Long-press on a summary entry edits the event. Pull-to-refresh dispatches `CalendarRefreshed`.
 - [lib/bloc/calendar/calendar_bloc.dart](lib/bloc/calendar/calendar_bloc.dart) — app-level `CalendarBloc` registered in the root `MultiBlocProvider`. Sealed events: `CalendarSelectedDayChanged`, `CalendarFocusedDayChanged`, `CalendarFormatChanged`, `CalendarEventUpserted`, `CalendarEventDeleted`, `CalendarRefreshed`. Sealed states with `Equatable`. Public API: `state.eventsForDay(day)` — pure O(1) lookup used by `TableCalendar.eventLoader` (no event dispatch, no service calls, no recurrence expansion from `eventLoader`).
-- [lib/models/calendar_event.dart](lib/models/calendar_event.dart) — value object: `id, title, description?, category (CalendarEventCategory enum), startDate, time (EventTime?), rule (RecurrenceRule), iconKey (String?)`. `allDay` is **derived** as `time == null` — the persisted `all_day` column is written from this on save and ignored on read. `copyWith` accepts `clearIconKey: bool`, `clearTime: bool`, `clearDescription: bool` for explicit nulling. `occursOn(day)` normalizes both dates to UTC date-only and delegates to `rule.occursOn`, also enforcing the optional `endDate` upper bound on the rule.
+- [lib/models/calendar_event.dart](lib/models/calendar_event.dart) — value object: `id, title, description?, category (CalendarEventCategory enum), startDate, endDate?, time (EventTime?), rule (RecurrenceRule), noteId (String?), iconKey (String?)`. `allDay` is **derived** as `time == null` — the persisted `all_day` column is written from this on save and ignored on read. `noteId` is an optional link to a workout note (`notes.id`); only the id is stored and the folder is resolved at navigation time. `copyWith` accepts `clearIconKey`, `clearTime`, `clearDescription`, `clearEndDate`, `clearNoteId` (all `bool`) for explicit nulling. `occursOn(day)` normalizes both dates to UTC date-only and delegates to `rule.occursOn`, also enforcing the optional `endDate` upper bound on the rule.
 - [lib/models/event_time.dart](lib/models/event_time.dart) (lives inside `calendar_event.dart`) — `EventTime { startMinute (0..1439), durationMinutes? (>0) }`. `endMinute` may exceed `1440` to model events that cross midnight; presentation/clipping is the caller's responsibility.
-- [lib/models/recurrence_rule.dart](lib/models/recurrence_rule.dart) — sealed `RecurrenceRule extends Equatable` with `bool occursOn(DateTime day, DateTime start)`. Subclasses (all `final class`):
+- [lib/models/recurrence_rule.dart](lib/models/recurrence_rule.dart) — sealed `RecurrenceRule extends Equatable` with `bool occursOn(DateTime day, DateTime start)`. The four periodic rules carry an `interval` field (default `1`, asserted `>= 1`); `interval == 1` short-circuits to the original behaviour. Subclasses (all `final class`):
   - `OneTimeRecurrence` — single occurrence on `start`.
-  - `DailyRecurrence` — every day on/after `start`.
-  - `WeeklyRecurrence({Set<int> weekdays})` — 1=Mon..7=Sun. Defensive: empty set → false. `props => [weekdays.toList()..sort()]` for correct Equatable comparison.
-  - `MonthlyRecurrence` — `day.day == start.day`; naturally skips months that lack the start day.
-  - `YearlyRecurrence` — same month+day; naturally skips Feb 29 in non-leap years.
+  - `DailyRecurrence({int interval})` — every `interval` days on/after `start` (`(day - start).inDays % interval == 0`).
+  - `WeeklyRecurrence({Set<int> weekdays, int interval})` — 1=Mon..7=Sun. Defensive: empty set → false. With `interval > 1`, only matching weeks fire, counted on a **fixed Monday-aligned grid** (`_weekEpoch = 2000-01-03`) so A/B splits stay phase-stable regardless of the anchor's weekday. `props` includes `weekdays` + `interval`.
+  - `MonthlyRecurrence({int interval})` — `day.day == start.day` and whole-month delta `% interval == 0`; naturally skips months that lack the start day.
+  - `YearlyRecurrence({int interval})` — same month+day and `(day.year - start.year) % interval == 0`; naturally skips Feb 29 in non-leap years.
   - `WorkdaysRecurrence` — Mon–Fri AND `!PublicHolidays.isHoliday(day)`.
   - `WeekendsRecurrence` — Sat–Sun.
   - `PublicHolidaysOnlyRecurrence` — `PublicHolidays.isHoliday(day)` only.
-  - Every rule guards `if (day.isBefore(start)) return false` first.
+  - Every rule guards `if (day.isBefore(start)) return false` first. The fixed cadences (workdays/weekends/holidays) have no interval.
 - [lib/services/event_time_formatter.dart](lib/services/event_time_formatter.dart) — pure helper. `EventTimeFormatter.formatRange(time, l10n, localeName)` produces a localized `HH:mm – HH:mm` (or `HH:mm`) string; respects 24h/12h locale conventions via `intl`. Use everywhere a timed event is rendered (day summary, editor preview, week view).
-- [lib/services/recurrence_formatter.dart](lib/services/recurrence_formatter.dart) — pure helper. `format(rule, l10n, localeName)` does a sealed switch and returns a localized string (e.g. `Weekly · Mon, Wed, Fri`, `Public holidays only`). `weekdayShort(weekday, localeName)` uses 2024-01-01 (Monday) as the anchor + `DateFormat.E(localeName)`; never add a 7×3 ARB matrix for weekday names. `formatWeekdays(Set<int>, localeName)` sorts then comma-joins.
+- [lib/services/recurrence_formatter.dart](lib/services/recurrence_formatter.dart) — pure helper. `format(rule, l10n, localeName)` does a sealed switch and returns a localized, **interval-aware** string (e.g. `Weekly · Mon, Wed, Fri`, `Every 2 weeks · Mon, Thu`, `Public holidays only`) via the ICU-plural `recurrenceEvery*` keys. `weekdayShort(weekday, localeName)` uses 2024-01-01 (Monday) as the anchor + `DateFormat.E(localeName)`; never add a 7×3 ARB matrix for weekday names. `formatWeekdays(Set<int>, localeName)` sorts then comma-joins.
 - [lib/constants/calendar_colors.dart](lib/constants/calendar_colors.dart) — `CalendarColors.forCategory(CalendarEventCategory)` returns the canonical tint color per category. Used everywhere (chips, day bars, tile leading, icon picker tint).
 - [lib/constants/calendar_icons.dart](lib/constants/calendar_icons.dart) — **~60 icons** grouped into 10 `IconGroupId`s: `strength, cardio, sports, recovery, body, measurement, achievements, travel, time, generic`. API:
   - `CalendarIcons.forKey(String?) → IconData?` — explicit override lookup.
@@ -134,7 +136,11 @@ The editor is a `FractionallySizedBox(heightFactor: 0.92)` bottom sheet built as
    - `_SectionLabel(eventDate)` + `_PickerTile` opening `showDatePicker` (±20 years). Subtitle says "Starts on this date" when recurring.
    - `_SectionLabel(repeatMode)` + centered `SegmentedButton<_RepeatMode>` with `oneTime` / `recurring` options (`looks_one_rounded` / `repeat_rounded` icons).
    - If recurring: `_SectionLabel(frequency)` + `Wrap` of 7 `ChoiceChip`s over `_RecurrenceKind.values` (daily, weekly, monthly, yearly, workdays, weekends, holidays).
+   - If recurring AND the kind supports an interval (daily/weekly/monthly/yearly): a `_IntervalStepper` (− / N / +) with a localized unit label (`recurrenceUnit*`), clamped to `1.._maxInterval` (99). `_kindSupportsInterval` / `_intervalUnitLabel` gate it; fixed cadences (workdays/weekends/holidays) hide it.
    - If recurring AND weekly: `_SectionLabel(weekdays)` + `Wrap` of 7 `FilterChip`s using `RecurrenceFormatter.weekdayShort(w, localeName)`. If the set becomes empty, show `weeklyDaysHint` in `error` color and `_canSave` disables Save.
+   - Optional **time-of-day** section: an "All-day" switch; when off, start/end time `_PickerTile`s backed by `EventTime` (end may cross midnight).
+   - Optional **description** `TextField` (`maxLength: 500`).
+   - **Linked-note** `_PickerTile`: opens `NotePickerDialog` to attach a workout note; trailing reset clears it. The current title is resolved via `NoteRepository.getNotesByIds([id])` so soft-deleted notes resolve to empty (never a ghost title).
    - If editing: trailing `TextButton.icon(delete)` in error color **inside the scrollable body** (not in a bottom action bar). Tapping shows an `AlertDialog` using `deleteEventConfirm(title)`.
 
 Private widgets in the editor file:
@@ -157,18 +163,25 @@ State + behavior rules to preserve:
 ### Recurrence semantics (must stay consistent)
 
 - **One time**: only on `start`.
-- **Daily**: every day on/after `start`.
-- **Weekly**: any day whose `weekday` is in the user-selected set. Empty set → no occurrences (UI prevents saving).
-- **Monthly**: same day-of-month; short months are silently skipped (Jan 31 → no Feb 31 occurrence).
-- **Yearly**: same month and day; Feb 29 events only fire in leap years.
+- **Daily**: every `interval` days on/after `start` (default every day).
+- **Weekly**: any day whose `weekday` is in the user-selected set; with `interval > 1` only every Nth week (fixed Monday-aligned grid) fires. Empty set → no occurrences (UI prevents saving).
+- **Monthly**: same day-of-month, every `interval` months; short months are silently skipped (Jan 31 → no Feb 31 occurrence).
+- **Yearly**: same month and day, every `interval` years; Feb 29 events only fire in leap years.
 - **Workdays**: Mon–Fri AND not a public holiday. This is *semantic* "working day" — do not relax it to "Mon–Fri inclusive of holidays".
 - **Weekends**: Sat–Sun only.
 - **Public holidays only**: uses `PublicHolidays.isHoliday(day)`. Does not require the day to match `start` in any other way.
+- **Interval** applies only to daily/weekly/monthly/yearly. All occurrence math is O(1) modular arithmetic on date-only UTC values — keep it that way; no per-day allocation, no DST-sensitive `DateTime` math.
 
 ### l10n keys owned by this feature
 
 Calendar / event editor / pickers:
-`addEvent, editEvent, deleteEvent, deleteEventConfirm, eventTitle, eventType, eventDate, eventAllDay, save, cancel, delete, recurrence, recurrenceDaily, recurrenceWeekly, recurrenceMonthly, recurrenceYearly, recurrenceWorkdays, recurrenceWeekends, recurrenceHolidaysOnly, recurrenceWeeklyOn ({days}), repeatMode, repeatOnce, repeatRecurring, frequency, weekdays, weeklyDaysHint, startsOn, iconLabel, iconDefault, iconCustom, pickIcon, pickCategory, resetToDefault`
+`addEvent, editEvent, deleteEvent, deleteEventConfirm, eventTitle, eventType, eventDate, eventAllDay, eventAllDayHint, eventStartTime, eventEndTime, eventEndTimeNone, eventEndTimeHint, eventTimeSection, eventCrossesMidnight, eventDescription, eventDescriptionHint, eventUntilLabel, eventUntilNone, eventUntilHint, save, cancel, delete, recurrence, recurrenceDaily, recurrenceWeekly, recurrenceMonthly, recurrenceYearly, recurrenceWorkdays, recurrenceWeekends, recurrenceHolidaysOnly, repeatMode, repeatOnce, repeatRecurring, frequency, weekdays, weeklyDaysHint, startsOn, iconLabel, iconDefault, iconCustom, pickIcon, pickCategory, resetToDefault`
+
+Recurrence interval (ICU `plural`, `{count}`; Romanian also needs the `few` form):
+`recurrenceEveryDays, recurrenceEveryWeeks, recurrenceEveryWeeksOn ({count},{days}), recurrenceEveryMonths, recurrenceEveryYears, recurrenceIntervalLabel, recurrenceIntervalIncrement, recurrenceIntervalDecrement, recurrenceUnitDays, recurrenceUnitWeeks, recurrenceUnitMonths, recurrenceUnitYears`
+
+Linked note (v14):
+`eventLinkedNote, eventLinkNoteHint, eventLinkedNoteMissing, eventOpenLinkedNote, eventRemoveNoteLink`
 
 Category labels (one per `CalendarEventCategory`):
 `eventCategoryGym, eventCategoryCardio, eventCategoryRest, eventCategoryHoliday, eventCategoryCompetition, eventCategoryMeasurement, eventCategoryOther`
@@ -176,15 +189,15 @@ Category labels (one per `CalendarEventCategory`):
 Icon group labels (one per `IconGroupId`):
 `iconGroupStrength, iconGroupCardio, iconGroupSports, iconGroupRecovery, iconGroupBody, iconGroupMeasurement, iconGroupAchievements, iconGroupTravel, iconGroupTime, iconGroupGeneric`
 
-`recurrenceWeeklyOn` is a placeholder string — keep the `{days}` metadata in `app_en.arb`.
+`recurrenceWeeklyOn` was removed in v14 — the interval-aware `recurrenceEvery*` keys replace it. Keep the `{count}` / `{days}` plural metadata intact across all three ARBs.
 
-### Persistence layout (schema v13)
+### Persistence layout (schema v14)
 
-- `lib/database/tables/calendar_events_table.dart` — `CalendarEvents`: `id (PK), title, description? (v12), category (enum.name), startDate (date-only UTC), endDate? (v11, inclusive upper bound for recurring rules), allDay, startMinute? / durationMinutes? (v11; written + read as of v12, sourced from `EventTime`), iconKey?, ruleKind, rulePayload? (JSON), createdAt, updatedAt`.
+- `lib/database/tables/calendar_events_table.dart` — `CalendarEvents`: `id (PK), title, description? (v12), category (enum.name), startDate (date-only UTC), endDate? (v11, inclusive upper bound for recurring rules), allDay, startMinute? / durationMinutes? (v11; sourced from `EventTime`), noteId? (v14, link to notes.id), iconKey?, ruleKind, rulePayload? (JSON: `weekdays` and/or `interval` when > 1), createdAt, updatedAt`.
 - `lib/database/tables/public_holidays_table.dart` — `PublicHolidaysTable` (table name `public_holidays`): composite PK `(date, name_key)` plus `customLabel?` and `profile` (default `'generic'`). Built-in rows carry `nameKey == PublicHoliday.name` and `profile ∈ {generic, romania}`; user-added rows use `nameKey == kCustomPublicHolidayKey` (`'custom'`) and `profile == kCustomHolidayProfileKey` (`'custom'`). Switching profiles deletes only rows matching the previous profile — customs are preserved by virtue of carrying their own profile tag.
 - `lib/database/daos/calendar_event_dao.dart` — `getAll`, `upsert(CalendarEventsCompanion)`, `deleteById`, `deleteAll`.
 - `lib/database/daos/public_holiday_dao.dart` — `getAll`, `insertIfMissing({date, nameKey, profile, customLabel?}) → bool` (uses `InsertMode.insertOrIgnore`), `deleteOn(date)`, `deleteProfile(profile)`, `deleteAll`.
-- `lib/services/calendar_event_service.dart` — singleton (`getInstance()` pattern). Owns row↔domain mapping including sealed-`RecurrenceRule` JSON serialization (`{kind, weekdays?}`) and `EventTime`/`endDate` round-trips. Exposes synchronous `events` getter used by `CalendarBloc`.
+- `lib/services/calendar_event_service.dart` — singleton (`getInstance()` pattern). Owns row↔domain mapping including sealed-`RecurrenceRule` JSON serialization (`{kind, weekdays?, interval?}` — `interval` only written when `> 1`, decoded with a clamped fallback to `1`) and `EventTime` / `endDate` / `noteId` round-trips. Exposes synchronous `events` getter used by `CalendarBloc`.
 - `lib/services/public_holiday_service.dart` — singleton. Reads the active `HolidayProfile` from settings on `getInstance()`, then seeds defaults for the current year + 5 forward years. `setProfile(next)` is transactional: `deleteProfile(prev) → write setting → seed(next)` inside `_db.transaction`, then `_load()` after commit so the static cache only republishes a coherent state. Per-profile seed builders (`_genericSeeds`, `_romaniaSeeds`) are pure static functions; `none` returns `const []`. Movable Christian feasts use Meeus Anonymous Gregorian for Catholic Easter and Meeus Julian + dynamic Julian→Gregorian offset (`_julianToGregorianOffset`, constant 13 across 1900–2099, formula extends symbolically beyond) for Orthodox Easter. **Verified** against published Orthodox Easter dates 2023–2030.
 - DI registration in `lib/core/di/injection.dart`: both services are awaited in `_registerServices`; `CalendarBloc` is a factory taking `service: getIt<CalendarEventService>()`. `main.dart` uses `getIt<CalendarBloc>()..add(const LoadCalendarEvents())`.
 - Backup: `BackupService` exports both tables. Public-holiday rows include `profile`; old backups missing the field are imported as `'generic'` (matches the v12→v13 back-fill rule).
@@ -244,6 +257,8 @@ Services currently following this contract: `CounterService`, `CalendarEventServ
 - Category selection is a `_PickerTile` → `CategoryPickerSheet`, never a chip `Wrap`. Recurrence frequency stays as chips (the choice space is small and benefits from at-a-glance comparison).
 - When adding a date picker anywhere in calendar code, use `DateTime.utc(y, m, d)` for normalization to match `CalendarEvent.occursOn`.
 - When mutating `public_holidays`, never bypass `PublicHolidayService` — the static `PublicHolidays._cache` is rebuilt only by `_load()`, so direct DAO writes will desync the sync facade until the next app start.
+- Resolve a linked note (`event.noteId`) via `NoteRepository.getNotesByIds([id])`, **not** `getNoteById` — the former filters `is_deleted`, so a soft-deleted note yields an empty list and you show `eventLinkedNoteMissing` instead of opening a ghost. `getNoteById` is cache-based and does not filter deletes.
+- Keep the recurrence `interval` in `rule_payload` JSON (write only when `> 1`, decode with a clamped fallback to `1`). Do not add a dedicated `interval` column — it intentionally needs no migration.
 
 ## 4. Validation Commands (PowerShell On Windows)
 

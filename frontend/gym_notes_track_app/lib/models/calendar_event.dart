@@ -98,6 +98,13 @@ class CalendarEvent extends Equatable {
   /// no description. Stored verbatim — no markdown rendering today.
   final String? description;
 
+  /// Optional link to a workout note (`notes.id`). `null` means the event
+  /// has no linked note. Only the id is stored; the note's folder is
+  /// resolved at navigation time so the link keeps working if the note is
+  /// moved. Opening the note uses the standard editor, so it works whether
+  /// the note is viewed in code-editing or markdown-preview mode.
+  final String? noteId;
+
   /// Optional explicit icon override (a key into `CalendarIcons.palette`).
   /// When `null`, the icon falls back to the category default.
   final String? iconKey;
@@ -111,6 +118,7 @@ class CalendarEvent extends Equatable {
     this.endDate,
     this.time,
     this.description,
+    this.noteId,
     this.iconKey,
   });
 
@@ -128,10 +136,12 @@ class CalendarEvent extends Equatable {
     DateTime? endDate,
     EventTime? time,
     String? description,
+    String? noteId,
     String? iconKey,
     bool clearEndDate = false,
     bool clearTime = false,
     bool clearDescription = false,
+    bool clearNoteId = false,
     bool clearIconKey = false,
   }) {
     return CalendarEvent(
@@ -143,6 +153,7 @@ class CalendarEvent extends Equatable {
       endDate: clearEndDate ? null : (endDate ?? this.endDate),
       time: clearTime ? null : (time ?? this.time),
       description: clearDescription ? null : (description ?? this.description),
+      noteId: clearNoteId ? null : (noteId ?? this.noteId),
       iconKey: clearIconKey ? null : (iconKey ?? this.iconKey),
     );
   }
@@ -174,6 +185,7 @@ class CalendarEvent extends Equatable {
     endDate,
     time,
     description,
+    noteId,
     iconKey,
   ];
 }

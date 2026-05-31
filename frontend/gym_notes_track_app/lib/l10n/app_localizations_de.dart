@@ -258,8 +258,111 @@ class AppLocalizationsDe extends AppLocalizations {
   String get recurrenceHolidaysOnly => 'Nur an Feiertagen';
 
   @override
-  String recurrenceWeeklyOn(String days) {
-    return 'Wöchentlich · $days';
+  String recurrenceEveryDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Alle $count Tage',
+      one: 'Täglich',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceEveryWeeks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Alle $count Wochen',
+      one: 'Wöchentlich',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceEveryWeeksOn(int count, String days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Alle $count Wochen · $days',
+      one: 'Wöchentlich · $days',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceEveryMonths(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Alle $count Monate',
+      one: 'Monatlich',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceEveryYears(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Alle $count Jahre',
+      one: 'Jährlich',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get recurrenceIntervalLabel => 'Wiederholen alle';
+
+  @override
+  String get recurrenceIntervalDecrement => 'Seltener';
+
+  @override
+  String get recurrenceIntervalIncrement => 'Häufiger';
+
+  @override
+  String recurrenceUnitDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Tage',
+      one: 'Tag',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceUnitWeeks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Wochen',
+      one: 'Woche',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceUnitMonths(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Monate',
+      one: 'Monat',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String recurrenceUnitYears(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Jahre',
+      one: 'Jahr',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -283,6 +386,21 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get eventDescriptionHint =>
       'Notizen hinzufügen (Fokus, Technik, Intensität…)';
+
+  @override
+  String get eventLinkedNote => 'Verknüpfte Notiz';
+
+  @override
+  String get eventLinkNoteHint => 'Trainingsnotiz verknüpfen';
+
+  @override
+  String get eventLinkedNoteMissing => 'Verknüpfte Notiz existiert nicht mehr';
+
+  @override
+  String get eventOpenLinkedNote => 'Verknüpfte Notiz öffnen';
+
+  @override
+  String get eventRemoveNoteLink => 'Verknüpfung entfernen';
 
   @override
   String get iconGroupStrength => 'Kraft';

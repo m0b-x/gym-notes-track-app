@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -7,9 +8,12 @@ import '../bloc/calendar/calendar_bloc.dart';
 import '../constants/settings_keys.dart';
 import '../l10n/app_localizations.dart';
 import '../models/calendar_event.dart';
+import '../repositories/note_repository.dart';
+import '../services/app_navigator.dart';
 import '../services/day_bars_resolver.dart';
 import '../services/day_summary_resolver.dart';
 import '../services/settings_service.dart';
+import '../utils/custom_snackbar.dart';
 import '../widgets/calendar_day_bars.dart';
 import '../widgets/calendar_filter_sheet.dart';
 import '../widgets/day_summary_panel.dart';
@@ -100,6 +104,7 @@ class _CalendarViewState extends State<_CalendarView> {
                   entries: entries,
                   onEventTap: (event) =>
                       _openEditorSheet(context, initialEvent: event),
+                  onOpenNote: (event) => _openLinkedNote(context, event),
                 ),
               ),
             ],
@@ -143,6 +148,35 @@ class _CalendarViewState extends State<_CalendarView> {
       case EventEditorDeleted(:final id):
         bloc.add(DeleteCalendarEvent(eventId: id));
     }
+  }
+
+  /// Open the workout note linked to [event]. The folder is resolved from
+  /// the note at tap time (not stored on the event), so the link survives
+  /// the note being moved. The note opens in the standard editor, which
+  /// restores its own persisted view (code-editing or markdown preview).
+  ///
+  /// Uses [NoteRepository.getNotesByIds] (not `getNoteById`) because only it
+  /// filters out soft-deleted notes, so a deleted linked note reads as
+  /// missing and surfaces a non-blocking error instead of opening a ghost.
+  Future<void> _openLinkedNote(
+    BuildContext context,
+    CalendarEvent event,
+  ) async {
+    final noteId = event.noteId;
+    if (noteId == null) return;
+    final l10n = AppLocalizations.of(context)!;
+    final notes = await GetIt.I<NoteRepository>().getNotesByIds([noteId]);
+    if (!context.mounted) return;
+    final note = notes.isEmpty ? null : notes.first;
+    if (note == null) {
+      CustomSnackbar.showError(context, l10n.eventLinkedNoteMissing);
+      return;
+    }
+    AppNavigator.toNoteEditor(
+      context,
+      folderId: note.folderId,
+      noteId: note.id,
+    );
   }
 
   Future<void> _openFilterSheet(

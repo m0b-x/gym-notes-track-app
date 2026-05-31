@@ -12,6 +12,11 @@ import 'package:drift/drift.dart';
 /// for future time-of-day events. They are currently never written by
 /// application code; they exist so we can introduce timed events without
 /// another migration.
+///
+/// [noteId] (added in schema v14) is an optional link to a workout note
+/// (`notes.id`). `null` means the event has no linked note. The folder is
+/// resolved from the note at navigation time, so only the id is stored —
+/// the link survives the note being moved between folders.
 @DataClassName('CalendarEventRow')
 class CalendarEvents extends Table {
   TextColumn get id => text()();
@@ -26,6 +31,7 @@ class CalendarEvents extends Table {
   IntColumn get startMinute => integer().nullable()();
   IntColumn get durationMinutes => integer().nullable()();
   TextColumn get description => text().nullable()();
+  TextColumn get noteId => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
