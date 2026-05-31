@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
-import '../constants/public_holidays.dart';
-import '../constants/settings_keys.dart';
 import '../widgets/app_dialogs.dart';
-import '../services/public_holiday_service.dart';
 import '../services/settings_service.dart';
 import '../utils/custom_snackbar.dart';
 import '../widgets/app_drawer.dart';
@@ -45,11 +42,6 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
   // Preview performance settings
   int _previewLinesPerChunk = 10;
 
-  // Calendar settings
-  int _calendarMaxDayBars = 3;
-  PublicHolidayService? _holidayService;
-  HolidayProfile _holidayProfile = HolidayProfile.generic;
-
   @override
   void initState() {
     super.initState();
@@ -75,8 +67,6 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     final scrollCursorOnKeyboard = await settings.getScrollCursorOnKeyboard();
     final showPreviewScrollbar = await settings.getShowPreviewScrollbar();
     final previewLinesPerChunk = await settings.getPreviewLinesPerChunk();
-    final calendarMaxDayBars = await settings.getCalendarMaxDayBars();
-    final holidayService = await PublicHolidayService.getInstance();
 
     setState(() {
       _settings = settings;
@@ -96,9 +86,6 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _scrollCursorOnKeyboard = scrollCursorOnKeyboard;
       _showPreviewScrollbar = showPreviewScrollbar;
       _previewLinesPerChunk = previewLinesPerChunk;
-      _calendarMaxDayBars = calendarMaxDayBars;
-      _holidayService = holidayService;
-      _holidayProfile = holidayService.profile;
       _isLoading = false;
     });
   }
@@ -226,6 +213,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
                           min: 1,
                           max: 30,
                           divisions: 29,
+                          labelBuilder: (v) => '${v}s',
                           onChanged: (value) async {
                             _onHapticFeedback();
                             setState(() => _autoSaveInterval = value.round());
@@ -410,81 +398,9 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
 
                   const SizedBox(height: 16),
 
-                  // Calendar section
-                  _buildSectionCard(
-                    context: context,
-                    colorScheme: colorScheme,
-                    icon: Icons.calendar_month_rounded,
-                    title: l10n.calendarSection,
-                    children: [
-                      _buildSliderTile(
-                        context: context,
-                        colorScheme: colorScheme,
-                        title: l10n.calendarMaxDayBars,
-                        subtitle: l10n.calendarMaxDayBarsDesc(
-                          _calendarMaxDayBars,
-                        ),
-                        value: _calendarMaxDayBars.toDouble(),
-                        min: 1,
-                        max: 6,
-                        divisions: 5,
-                        onChanged: (value) async {
-                          _onHapticFeedback();
-                          setState(() => _calendarMaxDayBars = value.round());
-                          await _settings?.setCalendarMaxDayBars(value.round());
-                        },
-                      ),
-                      const Divider(height: 1),
-                      ListTile(
-                        leading: Icon(
-                          Icons.public_rounded,
-                          color: colorScheme.primary,
-                        ),
-                        title: Text(l10n.holidayProfileTitle),
-                        subtitle: Text(
-                          PublicHolidays.profileNameOf(_holidayProfile, l10n),
-                        ),
-                        trailing: DropdownButton<HolidayProfile>(
-                          value: _holidayProfile,
-                          underline: const SizedBox.shrink(),
-                          onChanged: (next) async {
-                            if (next == null || next == _holidayProfile) {
-                              return;
-                            }
-                            _onHapticFeedback();
-                            // Optimistic UI update — the service mutation is
-                            // transactional so a failure leaves the cache in
-                            // a consistent state and we can resync from it.
-                            setState(() => _holidayProfile = next);
-                            try {
-                              await _holidayService?.setProfile(next);
-                            } catch (e) {
-                              if (!context.mounted) return;
-                              setState(
-                                () => _holidayProfile =
-                                    _holidayService?.profile ?? next,
-                              );
-                              CustomSnackbar.showError(
-                                context,
-                                'Failed to switch holiday profile: $e',
-                              );
-                            }
-                          },
-                          items: [
-                            for (final profile in HolidayProfile.values)
-                              DropdownMenuItem(
-                                value: profile,
-                                child: Text(
-                                  PublicHolidays.profileNameOf(profile, l10n),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
+                  // Calendar options live on the dedicated Calendar settings
+                  // page, reachable from the calendar's app bar.
+                  const SizedBox(height: 16),
 
                   // Reset button
                   Center(
@@ -581,6 +497,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     required double max,
     required int divisions,
     required ValueChanged<double> onChanged,
+    String Function(int)? labelBuilder,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -601,7 +518,9 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
             min: min,
             max: max,
             divisions: divisions,
-            label: '${value.round()}s',
+            label: labelBuilder != null
+                ? labelBuilder(value.round())
+                : '${value.round()}',
             onChanged: onChanged,
           ),
         ],
@@ -637,9 +556,6 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     await _settings?.setShowCursorLine(false);
     await _settings?.setAutoBreakLongLines(true);
     await _settings?.setPreviewWhenKeyboardHidden(false);
-    await _settings?.setCalendarMaxDayBars(
-      SettingsKeys.defaultCalendarMaxDayBars,
-    );
 
     setState(() {
       _folderSwipeEnabled = true;
@@ -655,7 +571,6 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showCursorLine = false;
       _autoBreakLongLines = true;
       _previewWhenKeyboardHidden = false;
-      _calendarMaxDayBars = SettingsKeys.defaultCalendarMaxDayBars;
     });
 
     if (!mounted) return;

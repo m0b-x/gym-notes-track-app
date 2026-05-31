@@ -162,6 +162,10 @@ class PublicHolidayService {
     return switch (profile) {
       HolidayProfile.generic => _genericSeeds(year),
       HolidayProfile.romania => _romaniaSeeds(year),
+      HolidayProfile.unitedStates => _unitedStatesSeeds(year),
+      HolidayProfile.unitedKingdom => _unitedKingdomSeeds(year),
+      HolidayProfile.germany => _germanySeeds(year),
+      HolidayProfile.europe => _europeSeeds(year),
       HolidayProfile.none => const [],
     };
   }
@@ -246,7 +250,168 @@ class PublicHolidayService {
     );
   }
 
-  /// Anonymous Gregorian algorithm (Meeus/Jones/Butcher) — returns Easter
+  /// United States federal holidays. Movable days are computed Mondays /
+  /// Thursdays; fixed civil days fall on their calendar date (observance
+  /// shifting to the nearest weekday is intentionally not modelled).
+  static Iterable<_HolidaySeed> _unitedStatesSeeds(int year) sync* {
+    yield _HolidaySeed(DateTime.utc(year, 1, 1), PublicHoliday.newYear);
+    yield _HolidaySeed(
+      _nthWeekdayOfMonth(year, 1, DateTime.monday, 3),
+      PublicHoliday.martinLutherKingDay,
+    );
+    yield _HolidaySeed(
+      _nthWeekdayOfMonth(year, 2, DateTime.monday, 3),
+      PublicHoliday.presidentsDay,
+    );
+    yield _HolidaySeed(
+      _lastWeekdayOfMonth(year, 5, DateTime.monday),
+      PublicHoliday.memorialDay,
+    );
+    yield _HolidaySeed(DateTime.utc(year, 6, 19), PublicHoliday.juneteenth);
+    yield _HolidaySeed(
+      DateTime.utc(year, 7, 4),
+      PublicHoliday.independenceDay,
+    );
+    yield _HolidaySeed(
+      _nthWeekdayOfMonth(year, 9, DateTime.monday, 1),
+      PublicHoliday.laborDayUnitedStates,
+    );
+    yield _HolidaySeed(
+      _nthWeekdayOfMonth(year, 10, DateTime.monday, 2),
+      PublicHoliday.columbusDay,
+    );
+    yield _HolidaySeed(DateTime.utc(year, 11, 11), PublicHoliday.veteransDay);
+    yield _HolidaySeed(
+      _nthWeekdayOfMonth(year, 11, DateTime.thursday, 4),
+      PublicHoliday.thanksgiving,
+    );
+    yield _HolidaySeed(DateTime.utc(year, 12, 25), PublicHoliday.christmasDay);
+  }
+
+  /// United Kingdom (England & Wales) bank holidays. Easter-derived days
+  /// use the Gregorian computus; the three named bank holidays fall on
+  /// fixed Mondays.
+  static Iterable<_HolidaySeed> _unitedKingdomSeeds(int year) sync* {
+    final easter = _easterSundayGregorian(year);
+    yield _HolidaySeed(DateTime.utc(year, 1, 1), PublicHoliday.newYear);
+    yield _HolidaySeed(
+      easter.subtract(const Duration(days: 2)),
+      PublicHoliday.goodFriday,
+    );
+    yield _HolidaySeed(
+      easter.add(const Duration(days: 1)),
+      PublicHoliday.easterMonday,
+    );
+    yield _HolidaySeed(
+      _nthWeekdayOfMonth(year, 5, DateTime.monday, 1),
+      PublicHoliday.earlyMayBankHoliday,
+    );
+    yield _HolidaySeed(
+      _lastWeekdayOfMonth(year, 5, DateTime.monday),
+      PublicHoliday.springBankHoliday,
+    );
+    yield _HolidaySeed(
+      _lastWeekdayOfMonth(year, 8, DateTime.monday),
+      PublicHoliday.summerBankHoliday,
+    );
+    yield _HolidaySeed(DateTime.utc(year, 12, 25), PublicHoliday.christmasDay);
+    yield _HolidaySeed(
+      DateTime.utc(year, 12, 26),
+      PublicHoliday.secondChristmasDay,
+    );
+  }
+
+  /// German nationwide federal public holidays (those observed in every
+  /// federal state). State-specific feasts (e.g. Epiphany, Corpus Christi,
+  /// Reformation Day, All Saints) are intentionally excluded.
+  static Iterable<_HolidaySeed> _germanySeeds(int year) sync* {
+    final easter = _easterSundayGregorian(year);
+    yield _HolidaySeed(DateTime.utc(year, 1, 1), PublicHoliday.newYear);
+    yield _HolidaySeed(
+      easter.subtract(const Duration(days: 2)),
+      PublicHoliday.goodFriday,
+    );
+    yield _HolidaySeed(
+      easter.add(const Duration(days: 1)),
+      PublicHoliday.easterMonday,
+    );
+    yield _HolidaySeed(DateTime.utc(year, 5, 1), PublicHoliday.labourDay);
+    yield _HolidaySeed(
+      easter.add(const Duration(days: 39)),
+      PublicHoliday.ascension,
+    );
+    yield _HolidaySeed(
+      easter.add(const Duration(days: 50)),
+      PublicHoliday.whitMonday,
+    );
+    yield _HolidaySeed(DateTime.utc(year, 10, 3), PublicHoliday.germanUnityDay);
+    yield _HolidaySeed(DateTime.utc(year, 12, 25), PublicHoliday.christmasDay);
+    yield _HolidaySeed(
+      DateTime.utc(year, 12, 26),
+      PublicHoliday.secondChristmasDay,
+    );
+  }
+
+  /// Pan-European combined set: the most widely shared Christian feasts and
+  /// civil holidays observed across European countries, plus Europe Day
+  /// (9 May). Easter-derived days use the Gregorian computus.
+  static Iterable<_HolidaySeed> _europeSeeds(int year) sync* {
+    final easter = _easterSundayGregorian(year);
+    yield _HolidaySeed(DateTime.utc(year, 1, 1), PublicHoliday.newYear);
+    yield _HolidaySeed(DateTime.utc(year, 1, 6), PublicHoliday.epiphany);
+    yield _HolidaySeed(
+      easter.subtract(const Duration(days: 2)),
+      PublicHoliday.goodFriday,
+    );
+    yield _HolidaySeed(easter, PublicHoliday.easterSunday);
+    yield _HolidaySeed(
+      easter.add(const Duration(days: 1)),
+      PublicHoliday.easterMonday,
+    );
+    yield _HolidaySeed(DateTime.utc(year, 5, 1), PublicHoliday.labourDay);
+    yield _HolidaySeed(DateTime.utc(year, 5, 9), PublicHoliday.europeDay);
+    yield _HolidaySeed(
+      easter.add(const Duration(days: 39)),
+      PublicHoliday.ascension,
+    );
+    yield _HolidaySeed(
+      easter.add(const Duration(days: 49)),
+      PublicHoliday.pentecost,
+    );
+    yield _HolidaySeed(
+      easter.add(const Duration(days: 50)),
+      PublicHoliday.whitMonday,
+    );
+    yield _HolidaySeed(DateTime.utc(year, 8, 15), PublicHoliday.assumption);
+    yield _HolidaySeed(DateTime.utc(year, 11, 1), PublicHoliday.allSaints);
+    yield _HolidaySeed(DateTime.utc(year, 12, 24), PublicHoliday.christmasEve);
+    yield _HolidaySeed(DateTime.utc(year, 12, 25), PublicHoliday.christmasDay);
+    yield _HolidaySeed(
+      DateTime.utc(year, 12, 26),
+      PublicHoliday.secondChristmasDay,
+    );
+    yield _HolidaySeed(DateTime.utc(year, 12, 31), PublicHoliday.newYearsEve);
+  }
+
+  /// Date of the [n]-th [weekday] (1 = Mon … 7 = Sun, per [DateTime]) in
+  /// [month] of [year]. `n` is 1-based (e.g. 3 = third Monday).
+  static DateTime _nthWeekdayOfMonth(
+    int year,
+    int month,
+    int weekday,
+    int n,
+  ) {
+    final first = DateTime.utc(year, month, 1);
+    final offset = (weekday - first.weekday + 7) % 7;
+    return DateTime.utc(year, month, 1 + offset + (n - 1) * 7);
+  }
+
+  /// Date of the last [weekday] (per [DateTime]) in [month] of [year].
+  static DateTime _lastWeekdayOfMonth(int year, int month, int weekday) {
+    final last = DateTime.utc(year, month + 1, 0); // day 0 = last of `month`
+    final offset = (last.weekday - weekday + 7) % 7;
+    return last.subtract(Duration(days: offset));
+  }
   /// Sunday in the Gregorian calendar for [year] as a date-only UTC
   /// `DateTime`.
   static DateTime _easterSundayGregorian(int year) {

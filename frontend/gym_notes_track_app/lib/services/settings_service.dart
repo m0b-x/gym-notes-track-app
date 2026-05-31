@@ -260,6 +260,43 @@ class SettingsService {
     await _setInt(SettingsKeys.calendarMaxDayBars, value);
   }
 
+  // ── Last navigation location ─────────────────────────────────────────
+  // Remembers the folder (and optionally the note inside it) the user was
+  // viewing, so the app can reopen that location on the next cold launch.
+
+  Future<String?> getLastFolderId() async {
+    return _db.userSettingsDao.getValue(SettingsKeys.lastFolderId);
+  }
+
+  Future<String?> getLastFolderTitle() async {
+    return _db.userSettingsDao.getValue(SettingsKeys.lastFolderTitle);
+  }
+
+  Future<String?> getLastNoteId() async {
+    return _db.userSettingsDao.getValue(SettingsKeys.lastNoteId);
+  }
+
+  /// Records the folder the user just opened. Clears any remembered note,
+  /// since entering a folder means we are no longer inside a note.
+  Future<void> saveLastFolder(String folderId, String title) async {
+    await _db.userSettingsDao.setValue(SettingsKeys.lastFolderId, folderId);
+    await _db.userSettingsDao.setValue(SettingsKeys.lastFolderTitle, title);
+    await _db.userSettingsDao.deleteValue(SettingsKeys.lastNoteId);
+  }
+
+  /// Records the note the user just opened. The enclosing folder is already
+  /// stored by the preceding [saveLastFolder] call.
+  Future<void> saveLastNote(String noteId) async {
+    await _db.userSettingsDao.setValue(SettingsKeys.lastNoteId, noteId);
+  }
+
+  /// Forgets the remembered location (e.g. when the target no longer exists).
+  Future<void> clearLastLocation() async {
+    await _db.userSettingsDao.deleteValue(SettingsKeys.lastFolderId);
+    await _db.userSettingsDao.deleteValue(SettingsKeys.lastFolderTitle);
+    await _db.userSettingsDao.deleteValue(SettingsKeys.lastNoteId);
+  }
+
   // Toolbar settings - Shortcut/utility ratio
   Future<double> getToolbarShortcutRatio() async {
     final value = await _db.userSettingsDao.getValue(

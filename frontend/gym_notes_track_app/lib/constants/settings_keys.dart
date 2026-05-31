@@ -53,6 +53,11 @@ class SettingsKeys {
   static const String calendarMaxDayBars = 'calendar_max_day_bars';
   static const String holidayProfile = 'holiday_profile';
 
+  // Last navigation location (restored on next app launch)
+  static const String lastFolderId = 'last_folder_id';
+  static const String lastFolderTitle = 'last_folder_title';
+  static const String lastNoteId = 'last_note_id';
+
   // Note position (prefix for per-note storage)
   static const String notePositionPrefix = 'note_position_';
 

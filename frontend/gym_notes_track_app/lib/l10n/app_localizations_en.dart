@@ -148,6 +148,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get publicHolidayNationalDayRomania => 'Romanian National Day';
 
   @override
+  String get publicHolidayMartinLutherKingDay => 'Martin Luther King Jr. Day';
+
+  @override
+  String get publicHolidayPresidentsDay => 'Presidents\' Day';
+
+  @override
+  String get publicHolidayMemorialDay => 'Memorial Day';
+
+  @override
+  String get publicHolidayJuneteenth => 'Juneteenth';
+
+  @override
+  String get publicHolidayIndependenceDay => 'Independence Day';
+
+  @override
+  String get publicHolidayLaborDayUnitedStates => 'Labor Day';
+
+  @override
+  String get publicHolidayColumbusDay => 'Columbus Day';
+
+  @override
+  String get publicHolidayVeteransDay => 'Veterans Day';
+
+  @override
+  String get publicHolidayThanksgiving => 'Thanksgiving';
+
+  @override
+  String get publicHolidayEarlyMayBankHoliday => 'Early May Bank Holiday';
+
+  @override
+  String get publicHolidaySpringBankHoliday => 'Spring Bank Holiday';
+
+  @override
+  String get publicHolidaySummerBankHoliday => 'Summer Bank Holiday';
+
+  @override
+  String get publicHolidayGermanUnityDay => 'German Unity Day';
+
+  @override
+  String get publicHolidayEuropeDay => 'Europe Day';
+
+  @override
   String get holidayProfileTitle => 'Holiday set';
 
   @override
@@ -155,6 +197,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get holidayProfileRomania => 'Romania';
+
+  @override
+  String get holidayProfileUnitedStates => 'United States';
+
+  @override
+  String get holidayProfileUnitedKingdom => 'United Kingdom';
+
+  @override
+  String get holidayProfileGermany => 'Germany';
+
+  @override
+  String get holidayProfileEurope => 'Europe (combined)';
 
   @override
   String get holidayProfileNone => 'None';
@@ -1496,6 +1550,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get calendarSection => 'Calendar';
+
+  @override
+  String get calendarSettings => 'Calendar';
 
   @override
   String get calendarMaxDayBars => 'Maximum bars per day';

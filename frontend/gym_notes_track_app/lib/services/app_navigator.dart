@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
+import 'dart:async';
 import '../models/counter.dart';
 import '../models/custom_markdown_shortcut.dart';
 import '../models/note_metadata.dart';
+import '../repositories/note_repository.dart';
+import '../services/folder_storage_service.dart';
+import '../services/settings_service.dart';
 import '../pages/controls_settings_page.dart';
 import '../pages/calendar_page.dart';
+import '../pages/calendar_settings_page.dart';
 import '../pages/counter_management_page.dart';
 import '../pages/counter_per_note_page.dart';
 import '../pages/database_settings_page.dart';
@@ -84,6 +90,7 @@ abstract final class AppNavigator {
     required String folderId,
     required String title,
   }) {
+    _rememberFolder(folderId, title);
     return push(
       context,
       OptimizedFolderContentPage(folderId: folderId, title: title),
@@ -96,6 +103,7 @@ abstract final class AppNavigator {
     String? noteId,
     NoteMetadata? metadata,
   }) {
+    if (noteId != null) _rememberNote(noteId);
     return push(
       context,
       OptimizedNoteEditorPage(
@@ -112,6 +120,7 @@ abstract final class AppNavigator {
     required String noteId,
     NoteMetadata? metadata,
   }) {
+    _rememberNote(noteId);
     return pushNoAnimation(
       context,
       OptimizedNoteEditorPage(
@@ -155,6 +164,10 @@ abstract final class AppNavigator {
     return push(context, const CalendarPage());
   }
 
+  static Future<void> toCalendarSettings(BuildContext context) {
+    return push(context, const CalendarSettingsPage());
+  }
+
   static Future<void> toCounterPerNote(
     BuildContext context, {
     required Counter counter,
@@ -179,5 +192,58 @@ abstract final class AppNavigator {
 
   static Future<void> toNoteBarAssignment(BuildContext context) {
     return push(context, const NoteBarAssignmentPage());
+  }
+
+  // --- Last-location persistence & restore ---
+
+  static void _rememberFolder(String folderId, String title) {
+    unawaited(
+      SettingsService.getInstance().then(
+        (s) => s.saveLastFolder(folderId, title),
+      ),
+    );
+  }
+
+  static void _rememberNote(String noteId) {
+    unawaited(
+      SettingsService.getInstance().then((s) => s.saveLastNote(noteId)),
+    );
+  }
+
+  /// Reopens the folder (and note) the user was last viewing, pushed onto the
+  /// root navigator so the back button still returns to the home screen.
+  ///
+  /// Validates that the targets still exist; if the folder is gone the stored
+  /// location is cleared and nothing is restored. Safe to call once after the
+  /// root page is mounted.
+  static Future<void> restoreLastLocation() async {
+    final settings = await SettingsService.getInstance();
+    final folderId = await settings.getLastFolderId();
+    if (folderId == null || folderId.isEmpty) return;
+
+    final folder = await GetIt.I<FolderStorageService>().getFolderById(
+      folderId,
+    );
+    if (folder == null) {
+      await settings.clearLastLocation();
+      return;
+    }
+
+    await rootPush(
+      OptimizedFolderContentPage(folderId: folder.id, title: folder.name),
+    );
+
+    final noteId = await settings.getLastNoteId();
+    if (noteId == null || noteId.isEmpty) return;
+
+    final notes = await GetIt.I<NoteRepository>().getNotesByIds([noteId]);
+    if (notes.isEmpty) {
+      await settings.saveLastFolder(folder.id, folder.name);
+      return;
+    }
+
+    await rootPush(
+      OptimizedNoteEditorPage(folderId: folder.id, noteId: noteId),
+    );
   }
 }

@@ -84,6 +84,21 @@ class _AppDrawerState extends State<AppDrawer> {
               children: [
                 const SizedBox(height: 8),
 
+                // Calendar is a feature, not a setting: keep it first and
+                // visually separated from the settings list below.
+                _buildMenuItem(
+                  context: context,
+                  icon: Icons.calendar_month_rounded,
+                  title: AppLocalizations.of(context)!.calendar,
+                  subtitle: AppLocalizations.of(context)!.calendarDesc,
+                  onTap: () {
+                    AppNavigator.pop(context);
+                    AppNavigator.toCalendar(context);
+                  },
+                ),
+
+                const Divider(indent: 16, endIndent: 16),
+
                 // Database settings
                 _buildMenuItem(
                   context: context,
@@ -156,17 +171,6 @@ class _AppDrawerState extends State<AppDrawer> {
                         Scaffold.of(context).openDrawer();
                       }
                     });
-                  },
-                ),
-
-                _buildMenuItem(
-                  context: context,
-                  icon: Icons.calendar_month_rounded,
-                  title: AppLocalizations.of(context)!.calendar,
-                  subtitle: AppLocalizations.of(context)!.calendarDesc,
-                  onTap: () {
-                    AppNavigator.pop(context);
-                    AppNavigator.toCalendar(context);
                   },
                 ),
 

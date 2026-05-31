@@ -79,6 +79,11 @@ class _CalendarViewState extends State<_CalendarView> {
               );
             },
           ),
+          IconButton(
+            tooltip: l10n.calendarSettings,
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => _openSettings(context),
+          ),
         ],
       ),
       body: BlocBuilder<CalendarBloc, CalendarPageState>(
@@ -194,6 +199,16 @@ class _CalendarViewState extends State<_CalendarView> {
       bloc.add(ChangeCalendarFormat(format: result.format));
     }
     bloc.add(ChangeVisibleCategories(categories: result.visibleCategories));
+  }
+
+  Future<void> _openSettings(BuildContext context) async {
+    final bloc = context.read<CalendarBloc>();
+    await AppNavigator.toCalendarSettings(context);
+    // Reload calendar-affecting settings (max day bars) and reload events so
+    // holiday recurrences re-render if the holiday profile changed in settings.
+    await _loadSettings();
+    if (!mounted) return;
+    bloc.add(const LoadCalendarEvents());
   }
 }
 

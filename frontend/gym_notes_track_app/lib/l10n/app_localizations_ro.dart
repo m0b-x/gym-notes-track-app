@@ -147,6 +147,50 @@ class AppLocalizationsRo extends AppLocalizations {
   String get publicHolidayNationalDayRomania => 'Ziua Națională a României';
 
   @override
+  String get publicHolidayMartinLutherKingDay => 'Ziua Martin Luther King Jr.';
+
+  @override
+  String get publicHolidayPresidentsDay => 'Ziua Președinților';
+
+  @override
+  String get publicHolidayMemorialDay => 'Memorial Day';
+
+  @override
+  String get publicHolidayJuneteenth => 'Juneteenth';
+
+  @override
+  String get publicHolidayIndependenceDay => 'Ziua Independenței';
+
+  @override
+  String get publicHolidayLaborDayUnitedStates => 'Labor Day';
+
+  @override
+  String get publicHolidayColumbusDay => 'Ziua lui Columb';
+
+  @override
+  String get publicHolidayVeteransDay => 'Ziua Veteranilor';
+
+  @override
+  String get publicHolidayThanksgiving => 'Ziua Recunoștinței';
+
+  @override
+  String get publicHolidayEarlyMayBankHoliday =>
+      'Sărbătoare bancară de la începutul lunii mai';
+
+  @override
+  String get publicHolidaySpringBankHoliday =>
+      'Sărbătoare bancară de primăvară';
+
+  @override
+  String get publicHolidaySummerBankHoliday => 'Sărbătoare bancară de vară';
+
+  @override
+  String get publicHolidayGermanUnityDay => 'Ziua Unității Germane';
+
+  @override
+  String get publicHolidayEuropeDay => 'Ziua Europei';
+
+  @override
   String get holidayProfileTitle => 'Set sărbători';
 
   @override
@@ -154,6 +198,18 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get holidayProfileRomania => 'România';
+
+  @override
+  String get holidayProfileUnitedStates => 'Statele Unite';
+
+  @override
+  String get holidayProfileUnitedKingdom => 'Regatul Unit';
+
+  @override
+  String get holidayProfileGermany => 'Germania';
+
+  @override
+  String get holidayProfileEurope => 'Europa (combinat)';
 
   @override
   String get holidayProfileNone => 'Niciunul';
@@ -1512,6 +1568,9 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get calendarSection => 'Calendar';
+
+  @override
+  String get calendarSettings => 'Calendar';
 
   @override
   String get calendarMaxDayBars => 'Numărul maxim de bare pe zi';

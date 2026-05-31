@@ -21,6 +21,19 @@ enum HolidayProfile {
   /// Romanian national + Orthodox Christian set (Orthodox Easter dates).
   romania,
 
+  /// United States federal holidays (movable Mondays/Thursdays included).
+  unitedStates,
+
+  /// United Kingdom (England & Wales) bank holidays.
+  unitedKingdom,
+
+  /// German nationwide federal public holidays.
+  germany,
+
+  /// Pan-European combined set: the most widely shared Christian and civil
+  /// holidays across Europe, plus Europe Day.
+  europe,
+
   /// Empty set: no built-in holidays. Users can still add customs.
   none,
 }
@@ -74,6 +87,52 @@ enum PublicHoliday {
 
   /// 1 December — Romanian National Day.
   nationalDayRomania,
+
+  // ── United States ──────────────────────────────────────────────────
+  /// 3rd Monday of January — Martin Luther King Jr. Day.
+  martinLutherKingDay,
+
+  /// 3rd Monday of February — Presidents' Day (Washington's Birthday).
+  presidentsDay,
+
+  /// Last Monday of May — Memorial Day.
+  memorialDay,
+
+  /// 19 June — Juneteenth National Independence Day.
+  juneteenth,
+
+  /// 4 July — Independence Day.
+  independenceDay,
+
+  /// 1st Monday of September — Labor Day (US).
+  laborDayUnitedStates,
+
+  /// 2nd Monday of October — Columbus Day.
+  columbusDay,
+
+  /// 11 November — Veterans Day.
+  veteransDay,
+
+  /// 4th Thursday of November — Thanksgiving.
+  thanksgiving,
+
+  // ── United Kingdom ─────────────────────────────────────────────────
+  /// 1st Monday of May — Early May Bank Holiday.
+  earlyMayBankHoliday,
+
+  /// Last Monday of May — Spring Bank Holiday.
+  springBankHoliday,
+
+  /// Last Monday of August — Summer Bank Holiday.
+  summerBankHoliday,
+
+  // ── Germany ────────────────────────────────────────────────────────
+  /// 3 October — German Unity Day.
+  germanUnityDay,
+
+  // ── Europe ─────────────────────────────────────────────────────────
+  /// 9 May — Europe Day (Schuman Day).
+  europeDay,
 }
 
 /// Sentinel `name_key` used in the `public_holidays` table for user-added
@@ -170,6 +229,23 @@ abstract final class PublicHolidays {
       PublicHoliday.childrensDay => l10n.publicHolidayChildrensDay,
       PublicHoliday.stAndrewDay => l10n.publicHolidayStAndrewDay,
       PublicHoliday.nationalDayRomania => l10n.publicHolidayNationalDayRomania,
+      PublicHoliday.martinLutherKingDay =>
+        l10n.publicHolidayMartinLutherKingDay,
+      PublicHoliday.presidentsDay => l10n.publicHolidayPresidentsDay,
+      PublicHoliday.memorialDay => l10n.publicHolidayMemorialDay,
+      PublicHoliday.juneteenth => l10n.publicHolidayJuneteenth,
+      PublicHoliday.independenceDay => l10n.publicHolidayIndependenceDay,
+      PublicHoliday.laborDayUnitedStates =>
+        l10n.publicHolidayLaborDayUnitedStates,
+      PublicHoliday.columbusDay => l10n.publicHolidayColumbusDay,
+      PublicHoliday.veteransDay => l10n.publicHolidayVeteransDay,
+      PublicHoliday.thanksgiving => l10n.publicHolidayThanksgiving,
+      PublicHoliday.earlyMayBankHoliday =>
+        l10n.publicHolidayEarlyMayBankHoliday,
+      PublicHoliday.springBankHoliday => l10n.publicHolidaySpringBankHoliday,
+      PublicHoliday.summerBankHoliday => l10n.publicHolidaySummerBankHoliday,
+      PublicHoliday.germanUnityDay => l10n.publicHolidayGermanUnityDay,
+      PublicHoliday.europeDay => l10n.publicHolidayEuropeDay,
     };
   }
 
@@ -178,6 +254,10 @@ abstract final class PublicHolidays {
     return switch (profile) {
       HolidayProfile.generic => l10n.holidayProfileGeneric,
       HolidayProfile.romania => l10n.holidayProfileRomania,
+      HolidayProfile.unitedStates => l10n.holidayProfileUnitedStates,
+      HolidayProfile.unitedKingdom => l10n.holidayProfileUnitedKingdom,
+      HolidayProfile.germany => l10n.holidayProfileGermany,
+      HolidayProfile.europe => l10n.holidayProfileEurope,
       HolidayProfile.none => l10n.holidayProfileNone,
     };
   }

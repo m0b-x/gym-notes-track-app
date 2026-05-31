@@ -148,6 +148,48 @@ class AppLocalizationsDe extends AppLocalizations {
   String get publicHolidayNationalDayRomania => 'Rumänischer Nationalfeiertag';
 
   @override
+  String get publicHolidayMartinLutherKingDay => 'Martin-Luther-King-Tag';
+
+  @override
+  String get publicHolidayPresidentsDay => 'Presidents’ Day';
+
+  @override
+  String get publicHolidayMemorialDay => 'Memorial Day';
+
+  @override
+  String get publicHolidayJuneteenth => 'Juneteenth';
+
+  @override
+  String get publicHolidayIndependenceDay => 'Unabhängigkeitstag';
+
+  @override
+  String get publicHolidayLaborDayUnitedStates => 'Labor Day';
+
+  @override
+  String get publicHolidayColumbusDay => 'Kolumbus-Tag';
+
+  @override
+  String get publicHolidayVeteransDay => 'Veterans Day';
+
+  @override
+  String get publicHolidayThanksgiving => 'Thanksgiving';
+
+  @override
+  String get publicHolidayEarlyMayBankHoliday => 'Early May Bank Holiday';
+
+  @override
+  String get publicHolidaySpringBankHoliday => 'Spring Bank Holiday';
+
+  @override
+  String get publicHolidaySummerBankHoliday => 'Summer Bank Holiday';
+
+  @override
+  String get publicHolidayGermanUnityDay => 'Tag der Deutschen Einheit';
+
+  @override
+  String get publicHolidayEuropeDay => 'Europatag';
+
+  @override
   String get holidayProfileTitle => 'Feiertage';
 
   @override
@@ -155,6 +197,18 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get holidayProfileRomania => 'Rumänien';
+
+  @override
+  String get holidayProfileUnitedStates => 'Vereinigte Staaten';
+
+  @override
+  String get holidayProfileUnitedKingdom => 'Vereinigtes Königreich';
+
+  @override
+  String get holidayProfileGermany => 'Deutschland';
+
+  @override
+  String get holidayProfileEurope => 'Europa (kombiniert)';
 
   @override
   String get holidayProfileNone => 'Keine';
@@ -1506,6 +1560,9 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get calendarSection => 'Kalender';
+
+  @override
+  String get calendarSettings => 'Kalender';
 
   @override
   String get calendarMaxDayBars => 'Maximale Balken pro Tag';

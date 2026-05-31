@@ -183,6 +183,62 @@
   "@publicHolidayNationalDayRomania": {
     "description": "Romanian public holiday on December 1"
   },
+  "publicHolidayMartinLutherKingDay": "Martin Luther King Jr. Day",
+  "@publicHolidayMartinLutherKingDay": {
+    "description": "US public holiday on the third Monday of January"
+  },
+  "publicHolidayPresidentsDay": "Presidents' Day",
+  "@publicHolidayPresidentsDay": {
+    "description": "US public holiday on the third Monday of February"
+  },
+  "publicHolidayMemorialDay": "Memorial Day",
+  "@publicHolidayMemorialDay": {
+    "description": "US public holiday on the last Monday of May"
+  },
+  "publicHolidayJuneteenth": "Juneteenth",
+  "@publicHolidayJuneteenth": {
+    "description": "US public holiday on June 19"
+  },
+  "publicHolidayIndependenceDay": "Independence Day",
+  "@publicHolidayIndependenceDay": {
+    "description": "US public holiday on July 4"
+  },
+  "publicHolidayLaborDayUnitedStates": "Labor Day",
+  "@publicHolidayLaborDayUnitedStates": {
+    "description": "US public holiday on the first Monday of September"
+  },
+  "publicHolidayColumbusDay": "Columbus Day",
+  "@publicHolidayColumbusDay": {
+    "description": "US public holiday on the second Monday of October"
+  },
+  "publicHolidayVeteransDay": "Veterans Day",
+  "@publicHolidayVeteransDay": {
+    "description": "US public holiday on November 11"
+  },
+  "publicHolidayThanksgiving": "Thanksgiving",
+  "@publicHolidayThanksgiving": {
+    "description": "US public holiday on the fourth Thursday of November"
+  },
+  "publicHolidayEarlyMayBankHoliday": "Early May Bank Holiday",
+  "@publicHolidayEarlyMayBankHoliday": {
+    "description": "UK bank holiday on the first Monday of May"
+  },
+  "publicHolidaySpringBankHoliday": "Spring Bank Holiday",
+  "@publicHolidaySpringBankHoliday": {
+    "description": "UK bank holiday on the last Monday of May"
+  },
+  "publicHolidaySummerBankHoliday": "Summer Bank Holiday",
+  "@publicHolidaySummerBankHoliday": {
+    "description": "UK bank holiday on the last Monday of August"
+  },
+  "publicHolidayGermanUnityDay": "German Unity Day",
+  "@publicHolidayGermanUnityDay": {
+    "description": "German public holiday on October 3"
+  },
+  "publicHolidayEuropeDay": "Europe Day",
+  "@publicHolidayEuropeDay": {
+    "description": "Europe Day on May 9"
+  },
   "holidayProfileTitle": "Holiday set",
   "@holidayProfileTitle": {
     "description": "Settings tile title for the holiday profile selector"
@@ -194,6 +250,22 @@
   "holidayProfileRomania": "Romania",
   "@holidayProfileRomania": {
     "description": "Holiday profile name for Romanian national + Orthodox Christian holidays"
+  },
+  "holidayProfileUnitedStates": "United States",
+  "@holidayProfileUnitedStates": {
+    "description": "Holiday profile name for US federal holidays"
+  },
+  "holidayProfileUnitedKingdom": "United Kingdom",
+  "@holidayProfileUnitedKingdom": {
+    "description": "Holiday profile name for UK bank holidays"
+  },
+  "holidayProfileGermany": "Germany",
+  "@holidayProfileGermany": {
+    "description": "Holiday profile name for German federal holidays"
+  },
+  "holidayProfileEurope": "Europe (combined)",
+  "@holidayProfileEurope": {
+    "description": "Holiday profile name for the combined pan-European set"
   },
   "holidayProfileNone": "None",
   "@holidayProfileNone": {
@@ -1924,6 +1996,10 @@
   "calendarSection": "Calendar",
   "@calendarSection": {
     "description": "Calendar settings section title"
+  },
+  "calendarSettings": "Calendar",
+  "@calendarSettings": {
+    "description": "Title of the calendar settings page and tooltip for its entry point"
   },
   "calendarMaxDayBars": "Maximum bars per day",
   "@calendarMaxDayBars": {

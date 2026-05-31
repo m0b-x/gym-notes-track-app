@@ -376,6 +376,90 @@ abstract class AppLocalizations {
   /// **'Romanian National Day'**
   String get publicHolidayNationalDayRomania;
 
+  /// US public holiday on the third Monday of January
+  ///
+  /// In en, this message translates to:
+  /// **'Martin Luther King Jr. Day'**
+  String get publicHolidayMartinLutherKingDay;
+
+  /// US public holiday on the third Monday of February
+  ///
+  /// In en, this message translates to:
+  /// **'Presidents\' Day'**
+  String get publicHolidayPresidentsDay;
+
+  /// US public holiday on the last Monday of May
+  ///
+  /// In en, this message translates to:
+  /// **'Memorial Day'**
+  String get publicHolidayMemorialDay;
+
+  /// US public holiday on June 19
+  ///
+  /// In en, this message translates to:
+  /// **'Juneteenth'**
+  String get publicHolidayJuneteenth;
+
+  /// US public holiday on July 4
+  ///
+  /// In en, this message translates to:
+  /// **'Independence Day'**
+  String get publicHolidayIndependenceDay;
+
+  /// US public holiday on the first Monday of September
+  ///
+  /// In en, this message translates to:
+  /// **'Labor Day'**
+  String get publicHolidayLaborDayUnitedStates;
+
+  /// US public holiday on the second Monday of October
+  ///
+  /// In en, this message translates to:
+  /// **'Columbus Day'**
+  String get publicHolidayColumbusDay;
+
+  /// US public holiday on November 11
+  ///
+  /// In en, this message translates to:
+  /// **'Veterans Day'**
+  String get publicHolidayVeteransDay;
+
+  /// US public holiday on the fourth Thursday of November
+  ///
+  /// In en, this message translates to:
+  /// **'Thanksgiving'**
+  String get publicHolidayThanksgiving;
+
+  /// UK bank holiday on the first Monday of May
+  ///
+  /// In en, this message translates to:
+  /// **'Early May Bank Holiday'**
+  String get publicHolidayEarlyMayBankHoliday;
+
+  /// UK bank holiday on the last Monday of May
+  ///
+  /// In en, this message translates to:
+  /// **'Spring Bank Holiday'**
+  String get publicHolidaySpringBankHoliday;
+
+  /// UK bank holiday on the last Monday of August
+  ///
+  /// In en, this message translates to:
+  /// **'Summer Bank Holiday'**
+  String get publicHolidaySummerBankHoliday;
+
+  /// German public holiday on October 3
+  ///
+  /// In en, this message translates to:
+  /// **'German Unity Day'**
+  String get publicHolidayGermanUnityDay;
+
+  /// Europe Day on May 9
+  ///
+  /// In en, this message translates to:
+  /// **'Europe Day'**
+  String get publicHolidayEuropeDay;
+
   /// Settings tile title for the holiday profile selector
   ///
   /// In en, this message translates to:
@@ -393,6 +477,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Romania'**
   String get holidayProfileRomania;
+
+  /// Holiday profile name for US federal holidays
+  ///
+  /// In en, this message translates to:
+  /// **'United States'**
+  String get holidayProfileUnitedStates;
+
+  /// Holiday profile name for UK bank holidays
+  ///
+  /// In en, this message translates to:
+  /// **'United Kingdom'**
+  String get holidayProfileUnitedKingdom;
+
+  /// Holiday profile name for German federal holidays
+  ///
+  /// In en, this message translates to:
+  /// **'Germany'**
+  String get holidayProfileGermany;
+
+  /// Holiday profile name for the combined pan-European set
+  ///
+  /// In en, this message translates to:
+  /// **'Europe (combined)'**
+  String get holidayProfileEurope;
 
   /// Holiday profile name for the empty set
   ///
@@ -2763,6 +2871,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Calendar'**
   String get calendarSection;
+
+  /// Title of the calendar settings page and tooltip for its entry point
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar'**
+  String get calendarSettings;
 
   /// Label for the calendar max-day-bars slider
   ///

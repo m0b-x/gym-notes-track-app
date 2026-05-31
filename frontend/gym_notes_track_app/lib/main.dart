@@ -51,6 +51,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool? _showOnboarding;
+  bool _didRestoreLocation = false;
 
   @override
   void initState() {
@@ -79,6 +80,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final completed = await settings.isOnboardingCompleted();
     if (mounted) {
       setState(() => _showOnboarding = !completed);
+    }
+    // Reopen the last-viewed folder/note exactly once on cold launch, but
+    // only for returning users (skip while onboarding is still showing).
+    if (completed && !_didRestoreLocation) {
+      _didRestoreLocation = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        AppNavigator.restoreLastLocation();
+      });
     }
   }
 
