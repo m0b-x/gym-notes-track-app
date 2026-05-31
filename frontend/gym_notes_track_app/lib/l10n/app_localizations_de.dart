@@ -208,7 +208,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get holidayProfileGermany => 'Deutschland';
 
   @override
-  String get holidayProfileEurope => 'Europa (kombiniert)';
+  String get holidayProfileEurope => 'Europa';
 
   @override
   String get holidayProfileNone => 'Keine';

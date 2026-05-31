@@ -99,7 +99,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get publicHolidayChristmasDay => 'Christmas Day';
 
   @override
-  String get publicHolidaySecondChristmasDay => 'Boxing Day';
+  String get publicHolidaySecondChristmasDay => 'Second Day of Christmas';
 
   @override
   String get publicHolidayEpiphany => 'Epiphany';
@@ -208,7 +208,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get holidayProfileGermany => 'Germany';
 
   @override
-  String get holidayProfileEurope => 'Europe (combined)';
+  String get holidayProfileEurope => 'Europe';
 
   @override
   String get holidayProfileNone => 'None';

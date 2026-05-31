@@ -119,6 +119,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         builder: (context, settingsState) {
           return MaterialApp(
             navigatorKey: AppNavigator.navigatorKey,
+            navigatorObservers: [AppNavigator.routeObserver],
             title: 'Gym Notes',
             debugShowCheckedModeBanner: false,
             localizationsDelegates: const [

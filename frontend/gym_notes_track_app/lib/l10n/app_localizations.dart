@@ -283,7 +283,7 @@ abstract class AppLocalizations {
   /// Public holiday name shown in the calendar day summary
   ///
   /// In en, this message translates to:
-  /// **'Boxing Day'**
+  /// **'Second Day of Christmas'**
   String get publicHolidaySecondChristmasDay;
 
   /// Public holiday name shown in the calendar day summary
@@ -499,7 +499,7 @@ abstract class AppLocalizations {
   /// Holiday profile name for the combined pan-European set
   ///
   /// In en, this message translates to:
-  /// **'Europe (combined)'**
+  /// **'Europe'**
   String get holidayProfileEurope;
 
   /// Holiday profile name for the empty set

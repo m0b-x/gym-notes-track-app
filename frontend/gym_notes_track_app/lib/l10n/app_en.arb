@@ -119,7 +119,7 @@
   "@publicHolidayChristmasDay": {
     "description": "Public holiday name shown in the calendar day summary"
   },
-  "publicHolidaySecondChristmasDay": "Boxing Day",
+  "publicHolidaySecondChristmasDay": "Second Day of Christmas",
   "@publicHolidaySecondChristmasDay": {
     "description": "Public holiday name shown in the calendar day summary"
   },
@@ -263,7 +263,7 @@
   "@holidayProfileGermany": {
     "description": "Holiday profile name for German federal holidays"
   },
-  "holidayProfileEurope": "Europe (combined)",
+  "holidayProfileEurope": "Europe",
   "@holidayProfileEurope": {
     "description": "Holiday profile name for the combined pan-European set"
   },

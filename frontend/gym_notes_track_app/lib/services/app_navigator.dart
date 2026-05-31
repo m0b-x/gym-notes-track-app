@@ -26,6 +26,12 @@ enum SettingsResult { openDrawer }
 abstract final class AppNavigator {
   static final navigatorKey = GlobalKey<NavigatorState>();
 
+  /// Observes route push/pop so pages can react to becoming visible again
+  /// (e.g. the root folder page clears the restored location when the user
+  /// navigates back to it). Registered on the root `MaterialApp`.
+  static final RouteObserver<PageRoute<dynamic>> routeObserver =
+      RouteObserver<PageRoute<dynamic>>();
+
   static NavigatorState get _navigator => navigatorKey.currentState!;
 
   static Future<T?> push<T>(BuildContext context, Widget page) {

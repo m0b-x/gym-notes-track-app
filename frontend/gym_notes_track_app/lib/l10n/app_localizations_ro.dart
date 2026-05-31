@@ -209,7 +209,7 @@ class AppLocalizationsRo extends AppLocalizations {
   String get holidayProfileGermany => 'Germania';
 
   @override
-  String get holidayProfileEurope => 'Europa (combinat)';
+  String get holidayProfileEurope => 'Europa';
 
   @override
   String get holidayProfileNone => 'Niciunul';

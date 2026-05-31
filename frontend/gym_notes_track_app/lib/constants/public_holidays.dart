@@ -8,31 +8,35 @@ import '../l10n/app_localizations.dart';
 /// (via `setProfile`) wipes the previous profile's seeded rows and
 /// re-seeds, while user-added custom rows always survive.
 ///
+/// Declared in the order they appear in the settings dropdown (the display
+/// names are alphabetical, with `none` pinned last as the "off" option).
+///
 /// To add a new profile:
 ///   1. Add a value here.
 ///   2. Add a builder branch in `PublicHolidayService._buildSeeds`.
 ///   3. Localize its display name in `PublicHolidays.profileNameOf`
 ///      and add the matching ARB key (`holidayProfile<EnumName>`).
 enum HolidayProfile {
-  /// Catholic-leaning Christian set with Gregorian Easter. Historical
-  /// default — matches what the app shipped before profiles existed.
+  /// Western (Catholic-leaning) Christian set with Gregorian Easter.
+  /// Historical default — matches what the app shipped before profiles
+  /// existed, so it must stay the fallback in [PublicHolidays.profileFromName].
   generic,
-
-  /// Romanian national + Orthodox Christian set (Orthodox Easter dates).
-  romania,
-
-  /// United States federal holidays (movable Mondays/Thursdays included).
-  unitedStates,
-
-  /// United Kingdom (England & Wales) bank holidays.
-  unitedKingdom,
-
-  /// German nationwide federal public holidays.
-  germany,
 
   /// Pan-European combined set: the most widely shared Christian and civil
   /// holidays across Europe, plus Europe Day.
   europe,
+
+  /// German nationwide federal public holidays.
+  germany,
+
+  /// Romanian national + Orthodox Christian set (Orthodox Easter dates).
+  romania,
+
+  /// United Kingdom (England & Wales) bank holidays.
+  unitedKingdom,
+
+  /// United States federal holidays (movable Mondays/Thursdays included).
+  unitedStates,
 
   /// Empty set: no built-in holidays. Users can still add customs.
   none,
@@ -253,11 +257,11 @@ abstract final class PublicHolidays {
   static String profileNameOf(HolidayProfile profile, AppLocalizations l10n) {
     return switch (profile) {
       HolidayProfile.generic => l10n.holidayProfileGeneric,
-      HolidayProfile.romania => l10n.holidayProfileRomania,
-      HolidayProfile.unitedStates => l10n.holidayProfileUnitedStates,
-      HolidayProfile.unitedKingdom => l10n.holidayProfileUnitedKingdom,
-      HolidayProfile.germany => l10n.holidayProfileGermany,
       HolidayProfile.europe => l10n.holidayProfileEurope,
+      HolidayProfile.germany => l10n.holidayProfileGermany,
+      HolidayProfile.romania => l10n.holidayProfileRomania,
+      HolidayProfile.unitedKingdom => l10n.holidayProfileUnitedKingdom,
+      HolidayProfile.unitedStates => l10n.holidayProfileUnitedStates,
       HolidayProfile.none => l10n.holidayProfileNone,
     };
   }

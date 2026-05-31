@@ -161,11 +161,11 @@ class PublicHolidayService {
   static Iterable<_HolidaySeed> _buildSeeds(HolidayProfile profile, int year) {
     return switch (profile) {
       HolidayProfile.generic => _genericSeeds(year),
-      HolidayProfile.romania => _romaniaSeeds(year),
-      HolidayProfile.unitedStates => _unitedStatesSeeds(year),
-      HolidayProfile.unitedKingdom => _unitedKingdomSeeds(year),
-      HolidayProfile.germany => _germanySeeds(year),
       HolidayProfile.europe => _europeSeeds(year),
+      HolidayProfile.germany => _germanySeeds(year),
+      HolidayProfile.romania => _romaniaSeeds(year),
+      HolidayProfile.unitedKingdom => _unitedKingdomSeeds(year),
+      HolidayProfile.unitedStates => _unitedStatesSeeds(year),
       HolidayProfile.none => const [],
     };
   }
