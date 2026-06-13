@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../constants/public_holidays.dart';
 import '../constants/settings_keys.dart';
 import '../l10n/app_localizations.dart';
+import '../services/app_navigator.dart';
 import '../services/public_holiday_service.dart';
 import '../services/settings_service.dart';
 import '../utils/custom_snackbar.dart';
@@ -141,6 +142,25 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
                             ),
                         ],
                       ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildSectionCard(
+                  context: context,
+                  colorScheme: colorScheme,
+                  icon: Icons.category_rounded,
+                  title: l10n.calendarCategories,
+                  children: [
+                    ListTile(
+                      leading: Icon(
+                        Icons.palette_outlined,
+                        color: colorScheme.primary,
+                      ),
+                      title: Text(l10n.calendarCategories),
+                      subtitle: Text(l10n.calendarCategoriesDesc),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => AppNavigator.toCalendarCategories(context),
                     ),
                   ],
                 ),

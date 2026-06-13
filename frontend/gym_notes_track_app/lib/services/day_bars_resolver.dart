@@ -1,3 +1,4 @@
+import '../constants/calendar_categories.dart';
 import '../constants/calendar_colors.dart';
 import '../constants/public_holidays.dart';
 import '../l10n/app_localizations.dart';
@@ -64,32 +65,21 @@ class EventCategoryDayBarProvider implements DayBarProvider {
   @override
   Iterable<DayBar> barsFor(DateTime day, List<CalendarEvent> events) {
     if (events.isEmpty) return const [];
-    final seen = <CalendarEventCategory>{};
+    final seen = <String>{};
     final bars = <DayBar>[];
     for (final event in events) {
-      if (!seen.add(event.category)) continue;
+      if (!seen.add(event.categoryId)) continue;
+      final category = CalendarCategories.resolve(event.categoryId);
       bars.add(
         DayBar(
-          key: 'event:${event.category.name}',
-          color: CalendarColors.forCategory(event.category),
-          priority: event.category.index, // 0..N → all above contextual bars
-          semanticLabel: _labelFor(event.category),
+          key: 'event:${event.categoryId}',
+          color: category.color,
+          priority: category.sortOrder, // categories sort above contextual bars
+          semanticLabel: CalendarCategories.labelOf(category, l10n),
         ),
       );
     }
     return bars;
-  }
-
-  String _labelFor(CalendarEventCategory category) {
-    return switch (category) {
-      CalendarEventCategory.gym => l10n.eventCategoryGym,
-      CalendarEventCategory.cardio => l10n.eventCategoryCardio,
-      CalendarEventCategory.rest => l10n.eventCategoryRest,
-      CalendarEventCategory.holiday => l10n.eventCategoryHoliday,
-      CalendarEventCategory.competition => l10n.eventCategoryCompetition,
-      CalendarEventCategory.measurement => l10n.eventCategoryMeasurement,
-      CalendarEventCategory.other => l10n.eventCategoryOther,
-    };
   }
 }
 

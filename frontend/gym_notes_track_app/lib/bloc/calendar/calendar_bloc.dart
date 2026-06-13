@@ -12,6 +12,15 @@ export 'calendar_state.dart';
 class CalendarBloc extends Bloc<CalendarPageEvent, CalendarPageState> {
   final CalendarEventService _service;
 
+  /// Memoizes recurrence expansion per calendar day. The first lookup for a
+  /// day runs the O(N) scan over the event list; the result is cached so
+  /// subsequent rebuilds (day selection, focus/format changes — none of
+  /// which alter the result) are O(1) map lookups. Invalidated only when the
+  /// event set or the visible-category filter changes. Bounded so a long
+  /// month-paging session cannot grow it without limit.
+  final Map<DateTime, List<CalendarEvent>> _dayCache = {};
+  static const int _maxDayCacheEntries = 512;
+
   CalendarBloc({required CalendarEventService service})
     : _service = service,
       super(const CalendarPageInitial()) {
@@ -19,24 +28,39 @@ class CalendarBloc extends Bloc<CalendarPageEvent, CalendarPageState> {
     on<SelectCalendarDay>(_onSelectDay);
     on<ChangeFocusedDay>(_onChangeFocusedDay);
     on<ChangeCalendarFormat>(_onChangeFormat);
-    on<ChangeVisibleCategories>(_onChangeVisibleCategories);
+    on<ChangeHiddenCategories>(_onChangeHiddenCategories);
     on<CreateCalendarEvent>(_onCreateEvent);
     on<UpdateCalendarEvent>(_onUpdateEvent);
     on<DeleteCalendarEvent>(_onDeleteEvent);
   }
 
-  /// O(N) lookup over the in-memory cache populated by
-  /// [CalendarEventService]. Stays synchronous so `TableCalendar.eventLoader`
-  /// can call it directly.
+  /// Amortized O(1) lookup over the in-memory cache populated by
+  /// [CalendarEventService]. The first call for a given day expands the
+  /// recurrence rules once (O(N) over the event list) and memoizes the
+  /// result in [_dayCache]; later rebuilds reuse it. Stays synchronous so
+  /// `TableCalendar.eventLoader` can call it directly during build.
   List<CalendarEvent> eventsForDay(DateTime day) {
     final current = state;
     if (current is! CalendarPageLoaded) return const [];
-    return current.allEvents
-        .where(
-          (e) =>
-              current.visibleCategories.contains(e.category) && e.occursOn(day),
-        )
-        .toList();
+    final key = DateTime.utc(day.year, day.month, day.day);
+    final cached = _dayCache[key];
+    if (cached != null) return cached;
+    final result = List<CalendarEvent>.unmodifiable([
+      for (final e in current.allEvents)
+        if (!current.hiddenCategoryIds.contains(e.categoryId) &&
+            e.occursOn(key))
+          e,
+    ]);
+    if (_dayCache.length >= _maxDayCacheEntries) _dayCache.clear();
+    _dayCache[key] = result;
+    return result;
+  }
+
+  /// Drops every memoized day so the next [eventsForDay] recomputes against
+  /// the current event set / category filter. Called from the handlers that
+  /// actually change those inputs — never from day/focus/format changes.
+  void _invalidateDayCache() {
+    if (_dayCache.isNotEmpty) _dayCache.clear();
   }
 
   Future<void> _onLoad(
@@ -49,6 +73,7 @@ class CalendarBloc extends Bloc<CalendarPageEvent, CalendarPageState> {
     } catch (e) {
       debugPrint('[CalendarBloc] Load error: $e');
     }
+    _invalidateDayCache();
     emit(
       CalendarPageLoaded(
         allEvents: List.unmodifiable(_service.events),
@@ -89,18 +114,19 @@ class CalendarBloc extends Bloc<CalendarPageEvent, CalendarPageState> {
     emit(current.copyWith(format: event.format));
   }
 
-  void _onChangeVisibleCategories(
-    ChangeVisibleCategories event,
+  void _onChangeHiddenCategories(
+    ChangeHiddenCategories event,
     Emitter<CalendarPageState> emit,
   ) {
     final current = state;
     if (current is! CalendarPageLoaded) return;
-    final next = Set<CalendarEventCategory>.unmodifiable(event.categories);
-    if (next.length == current.visibleCategories.length &&
-        next.containsAll(current.visibleCategories)) {
+    final next = Set<String>.unmodifiable(event.hiddenCategoryIds);
+    if (next.length == current.hiddenCategoryIds.length &&
+        next.containsAll(current.hiddenCategoryIds)) {
       return;
     }
-    emit(current.copyWith(visibleCategories: next));
+    _invalidateDayCache();
+    emit(current.copyWith(hiddenCategoryIds: next));
   }
 
   Future<void> _onCreateEvent(
@@ -118,6 +144,7 @@ class CalendarBloc extends Bloc<CalendarPageEvent, CalendarPageState> {
       debugPrint('[CalendarBloc] Create error: $e');
       return;
     }
+    _invalidateDayCache();
     emit(
       current.copyWith(
         allEvents: List.unmodifiable(_service.events),
@@ -142,6 +169,7 @@ class CalendarBloc extends Bloc<CalendarPageEvent, CalendarPageState> {
       debugPrint('[CalendarBloc] Update error: $e');
       return;
     }
+    _invalidateDayCache();
     emit(current.copyWith(allEvents: List.unmodifiable(_service.events)));
   }
 
@@ -159,6 +187,7 @@ class CalendarBloc extends Bloc<CalendarPageEvent, CalendarPageState> {
       debugPrint('[CalendarBloc] Delete error: $e');
       return;
     }
+    _invalidateDayCache();
     emit(current.copyWith(allEvents: List.unmodifiable(_service.events)));
   }
 

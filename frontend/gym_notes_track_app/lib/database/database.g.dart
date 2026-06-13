@@ -4794,6 +4794,522 @@ class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
   }
 }
 
+class $CalendarCategoriesTable extends CalendarCategories
+    with TableInfo<$CalendarCategoriesTable, CalendarCategoryRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CalendarCategoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _colorValueMeta = const VerificationMeta(
+    'colorValue',
+  );
+  @override
+  late final GeneratedColumn<int> colorValue = GeneratedColumn<int>(
+    'color_value',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _iconKeyMeta = const VerificationMeta(
+    'iconKey',
+  );
+  @override
+  late final GeneratedColumn<String> iconKey = GeneratedColumn<String>(
+    'icon_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _isBuiltInMeta = const VerificationMeta(
+    'isBuiltIn',
+  );
+  @override
+  late final GeneratedColumn<bool> isBuiltIn = GeneratedColumn<bool>(
+    'is_built_in',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_built_in" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    colorValue,
+    iconKey,
+    sortOrder,
+    isBuiltIn,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'calendar_categories';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<CalendarCategoryRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('color_value')) {
+      context.handle(
+        _colorValueMeta,
+        colorValue.isAcceptableOrUnknown(data['color_value']!, _colorValueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_colorValueMeta);
+    }
+    if (data.containsKey('icon_key')) {
+      context.handle(
+        _iconKeyMeta,
+        iconKey.isAcceptableOrUnknown(data['icon_key']!, _iconKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_iconKeyMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('is_built_in')) {
+      context.handle(
+        _isBuiltInMeta,
+        isBuiltIn.isAcceptableOrUnknown(data['is_built_in']!, _isBuiltInMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  CalendarCategoryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CalendarCategoryRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      colorValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color_value'],
+      )!,
+      iconKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_key'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      isBuiltIn: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_built_in'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $CalendarCategoriesTable createAlias(String alias) {
+    return $CalendarCategoriesTable(attachedDatabase, alias);
+  }
+}
+
+class CalendarCategoryRow extends DataClass
+    implements Insertable<CalendarCategoryRow> {
+  final String id;
+  final String name;
+
+  /// 32-bit ARGB color value.
+  final int colorValue;
+
+  /// Key into the `CalendarIcons` palette.
+  final String iconKey;
+  final int sortOrder;
+  final bool isBuiltIn;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const CalendarCategoryRow({
+    required this.id,
+    required this.name,
+    required this.colorValue,
+    required this.iconKey,
+    required this.sortOrder,
+    required this.isBuiltIn,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['color_value'] = Variable<int>(colorValue);
+    map['icon_key'] = Variable<String>(iconKey);
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['is_built_in'] = Variable<bool>(isBuiltIn);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  CalendarCategoriesCompanion toCompanion(bool nullToAbsent) {
+    return CalendarCategoriesCompanion(
+      id: Value(id),
+      name: Value(name),
+      colorValue: Value(colorValue),
+      iconKey: Value(iconKey),
+      sortOrder: Value(sortOrder),
+      isBuiltIn: Value(isBuiltIn),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory CalendarCategoryRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CalendarCategoryRow(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      colorValue: serializer.fromJson<int>(json['colorValue']),
+      iconKey: serializer.fromJson<String>(json['iconKey']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      isBuiltIn: serializer.fromJson<bool>(json['isBuiltIn']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'colorValue': serializer.toJson<int>(colorValue),
+      'iconKey': serializer.toJson<String>(iconKey),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'isBuiltIn': serializer.toJson<bool>(isBuiltIn),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  CalendarCategoryRow copyWith({
+    String? id,
+    String? name,
+    int? colorValue,
+    String? iconKey,
+    int? sortOrder,
+    bool? isBuiltIn,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => CalendarCategoryRow(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    colorValue: colorValue ?? this.colorValue,
+    iconKey: iconKey ?? this.iconKey,
+    sortOrder: sortOrder ?? this.sortOrder,
+    isBuiltIn: isBuiltIn ?? this.isBuiltIn,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  CalendarCategoryRow copyWithCompanion(CalendarCategoriesCompanion data) {
+    return CalendarCategoryRow(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      colorValue: data.colorValue.present
+          ? data.colorValue.value
+          : this.colorValue,
+      iconKey: data.iconKey.present ? data.iconKey.value : this.iconKey,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      isBuiltIn: data.isBuiltIn.present ? data.isBuiltIn.value : this.isBuiltIn,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CalendarCategoryRow(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('colorValue: $colorValue, ')
+          ..write('iconKey: $iconKey, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('isBuiltIn: $isBuiltIn, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    colorValue,
+    iconKey,
+    sortOrder,
+    isBuiltIn,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CalendarCategoryRow &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.colorValue == this.colorValue &&
+          other.iconKey == this.iconKey &&
+          other.sortOrder == this.sortOrder &&
+          other.isBuiltIn == this.isBuiltIn &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class CalendarCategoriesCompanion extends UpdateCompanion<CalendarCategoryRow> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<int> colorValue;
+  final Value<String> iconKey;
+  final Value<int> sortOrder;
+  final Value<bool> isBuiltIn;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const CalendarCategoriesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.colorValue = const Value.absent(),
+    this.iconKey = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.isBuiltIn = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CalendarCategoriesCompanion.insert({
+    required String id,
+    required String name,
+    required int colorValue,
+    required String iconKey,
+    this.sortOrder = const Value.absent(),
+    this.isBuiltIn = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       colorValue = Value(colorValue),
+       iconKey = Value(iconKey),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<CalendarCategoryRow> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<int>? colorValue,
+    Expression<String>? iconKey,
+    Expression<int>? sortOrder,
+    Expression<bool>? isBuiltIn,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (colorValue != null) 'color_value': colorValue,
+      if (iconKey != null) 'icon_key': iconKey,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (isBuiltIn != null) 'is_built_in': isBuiltIn,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CalendarCategoriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<int>? colorValue,
+    Value<String>? iconKey,
+    Value<int>? sortOrder,
+    Value<bool>? isBuiltIn,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return CalendarCategoriesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      colorValue: colorValue ?? this.colorValue,
+      iconKey: iconKey ?? this.iconKey,
+      sortOrder: sortOrder ?? this.sortOrder,
+      isBuiltIn: isBuiltIn ?? this.isBuiltIn,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (colorValue.present) {
+      map['color_value'] = Variable<int>(colorValue.value);
+    }
+    if (iconKey.present) {
+      map['icon_key'] = Variable<String>(iconKey.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (isBuiltIn.present) {
+      map['is_built_in'] = Variable<bool>(isBuiltIn.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CalendarCategoriesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('colorValue: $colorValue, ')
+          ..write('iconKey: $iconKey, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('isBuiltIn: $isBuiltIn, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4807,6 +5323,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CalendarEventsTable calendarEvents = $CalendarEventsTable(this);
   late final $PublicHolidaysTableTable publicHolidaysTable =
       $PublicHolidaysTableTable(this);
+  late final $CalendarCategoriesTable calendarCategories =
+      $CalendarCategoriesTable(this);
   late final FolderDao folderDao = FolderDao(this as AppDatabase);
   late final NoteDao noteDao = NoteDao(this as AppDatabase);
   late final ContentChunkDao contentChunkDao = ContentChunkDao(
@@ -4823,6 +5341,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final PublicHolidayDao publicHolidayDao = PublicHolidayDao(
     this as AppDatabase,
   );
+  late final CalendarCategoryDao calendarCategoryDao = CalendarCategoryDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4837,6 +5358,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     counterValues,
     calendarEvents,
     publicHolidaysTable,
+    calendarCategories,
   ];
 }
 
@@ -7248,6 +7770,278 @@ typedef $$PublicHolidaysTableTableProcessedTableManager =
       PublicHolidayRow,
       PrefetchHooks Function()
     >;
+typedef $$CalendarCategoriesTableCreateCompanionBuilder =
+    CalendarCategoriesCompanion Function({
+      required String id,
+      required String name,
+      required int colorValue,
+      required String iconKey,
+      Value<int> sortOrder,
+      Value<bool> isBuiltIn,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$CalendarCategoriesTableUpdateCompanionBuilder =
+    CalendarCategoriesCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<int> colorValue,
+      Value<String> iconKey,
+      Value<int> sortOrder,
+      Value<bool> isBuiltIn,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$CalendarCategoriesTableFilterComposer
+    extends Composer<_$AppDatabase, $CalendarCategoriesTable> {
+  $$CalendarCategoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iconKey => $composableBuilder(
+    column: $table.iconKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isBuiltIn => $composableBuilder(
+    column: $table.isBuiltIn,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$CalendarCategoriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $CalendarCategoriesTable> {
+  $$CalendarCategoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get iconKey => $composableBuilder(
+    column: $table.iconKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isBuiltIn => $composableBuilder(
+    column: $table.isBuiltIn,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$CalendarCategoriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $CalendarCategoriesTable> {
+  $$CalendarCategoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get iconKey =>
+      $composableBuilder(column: $table.iconKey, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<bool> get isBuiltIn =>
+      $composableBuilder(column: $table.isBuiltIn, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$CalendarCategoriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $CalendarCategoriesTable,
+          CalendarCategoryRow,
+          $$CalendarCategoriesTableFilterComposer,
+          $$CalendarCategoriesTableOrderingComposer,
+          $$CalendarCategoriesTableAnnotationComposer,
+          $$CalendarCategoriesTableCreateCompanionBuilder,
+          $$CalendarCategoriesTableUpdateCompanionBuilder,
+          (
+            CalendarCategoryRow,
+            BaseReferences<
+              _$AppDatabase,
+              $CalendarCategoriesTable,
+              CalendarCategoryRow
+            >,
+          ),
+          CalendarCategoryRow,
+          PrefetchHooks Function()
+        > {
+  $$CalendarCategoriesTableTableManager(
+    _$AppDatabase db,
+    $CalendarCategoriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CalendarCategoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CalendarCategoriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CalendarCategoriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> colorValue = const Value.absent(),
+                Value<String> iconKey = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> isBuiltIn = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => CalendarCategoriesCompanion(
+                id: id,
+                name: name,
+                colorValue: colorValue,
+                iconKey: iconKey,
+                sortOrder: sortOrder,
+                isBuiltIn: isBuiltIn,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required int colorValue,
+                required String iconKey,
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> isBuiltIn = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => CalendarCategoriesCompanion.insert(
+                id: id,
+                name: name,
+                colorValue: colorValue,
+                iconKey: iconKey,
+                sortOrder: sortOrder,
+                isBuiltIn: isBuiltIn,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$CalendarCategoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $CalendarCategoriesTable,
+      CalendarCategoryRow,
+      $$CalendarCategoriesTableFilterComposer,
+      $$CalendarCategoriesTableOrderingComposer,
+      $$CalendarCategoriesTableAnnotationComposer,
+      $$CalendarCategoriesTableCreateCompanionBuilder,
+      $$CalendarCategoriesTableUpdateCompanionBuilder,
+      (
+        CalendarCategoryRow,
+        BaseReferences<
+          _$AppDatabase,
+          $CalendarCategoriesTable,
+          CalendarCategoryRow
+        >,
+      ),
+      CalendarCategoryRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -7270,4 +8064,6 @@ class $AppDatabaseManager {
       $$CalendarEventsTableTableManager(_db, _db.calendarEvents);
   $$PublicHolidaysTableTableTableManager get publicHolidaysTable =>
       $$PublicHolidaysTableTableTableManager(_db, _db.publicHolidaysTable);
+  $$CalendarCategoriesTableTableManager get calendarCategories =>
+      $$CalendarCategoriesTableTableManager(_db, _db.calendarCategories);
 }

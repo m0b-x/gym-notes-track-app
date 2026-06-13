@@ -232,7 +232,49 @@ class AppLocalizationsDe extends AppLocalizations {
   String get eventCategoryMeasurement => 'Messung';
 
   @override
+  String get eventCategoryMobility => 'Mobilität';
+
+  @override
+  String get eventCategoryBirthday => 'Geburtstag';
+
+  @override
   String get eventCategoryOther => 'Sonstiges';
+
+  @override
+  String get calendarCategories => 'Kategorien';
+
+  @override
+  String get calendarCategoriesDesc =>
+      'Ereigniskategorien erstellen und anpassen';
+
+  @override
+  String get createCategory => 'Kategorie erstellen';
+
+  @override
+  String get editCategory => 'Kategorie bearbeiten';
+
+  @override
+  String get categoryName => 'Name';
+
+  @override
+  String get categoryNameHint => 'z. B. Dehnen';
+
+  @override
+  String get categoryColor => 'Farbe';
+
+  @override
+  String get categoryDefault => 'Integrierte Kategorie';
+
+  @override
+  String get deleteCategory => 'Kategorie löschen';
+
+  @override
+  String deleteCategoryConfirm(String name) {
+    return '„$name“ löschen? Ereignisse damit werden zu „Sonstiges“ verschoben.';
+  }
+
+  @override
+  String get categoryDeleted => 'Kategorie gelöscht';
 
   @override
   String get eventType => 'Typ';

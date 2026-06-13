@@ -233,7 +233,49 @@ class AppLocalizationsRo extends AppLocalizations {
   String get eventCategoryMeasurement => 'Măsurare';
 
   @override
+  String get eventCategoryMobility => 'Mobilitate';
+
+  @override
+  String get eventCategoryBirthday => 'Zi de naștere';
+
+  @override
   String get eventCategoryOther => 'Altele';
+
+  @override
+  String get calendarCategories => 'Categorii';
+
+  @override
+  String get calendarCategoriesDesc =>
+      'Creează și personalizează categoriile de evenimente';
+
+  @override
+  String get createCategory => 'Creează categorie';
+
+  @override
+  String get editCategory => 'Editează categoria';
+
+  @override
+  String get categoryName => 'Nume';
+
+  @override
+  String get categoryNameHint => 'ex. Stretching';
+
+  @override
+  String get categoryColor => 'Culoare';
+
+  @override
+  String get categoryDefault => 'Categorie integrată';
+
+  @override
+  String get deleteCategory => 'Șterge categoria';
+
+  @override
+  String deleteCategoryConfirm(String name) {
+    return 'Ștergi „$name”? Evenimentele care o folosesc vor trece la „Altele”.';
+  }
+
+  @override
+  String get categoryDeleted => 'Categorie ștearsă';
 
   @override
   String get eventType => 'Tip';

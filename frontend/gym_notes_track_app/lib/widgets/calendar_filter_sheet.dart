@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
-import '../constants/calendar_colors.dart';
+import '../constants/calendar_categories.dart';
 import '../constants/calendar_icons.dart';
 import '../l10n/app_localizations.dart';
-import '../models/calendar_event.dart';
 
 /// Result returned by [CalendarFilterSheet] when the user applies a change.
 class CalendarFilterResult {
   final CalendarFormat format;
-  final Set<CalendarEventCategory> visibleCategories;
+  final Set<String> hiddenCategoryIds;
 
   const CalendarFilterResult({
     required this.format,
-    required this.visibleCategories,
+    required this.hiddenCategoryIds,
   });
 }
 
@@ -21,18 +20,18 @@ class CalendarFilterResult {
 /// two weeks / week) and choose which event categories should appear.
 class CalendarFilterSheet extends StatefulWidget {
   final CalendarFormat initialFormat;
-  final Set<CalendarEventCategory> initialCategories;
+  final Set<String> initialHiddenIds;
 
   const CalendarFilterSheet({
     super.key,
     required this.initialFormat,
-    required this.initialCategories,
+    required this.initialHiddenIds,
   });
 
   static Future<CalendarFilterResult?> show(
     BuildContext context, {
     required CalendarFormat format,
-    required Set<CalendarEventCategory> categories,
+    required Set<String> hiddenCategoryIds,
   }) {
     return showModalBottomSheet<CalendarFilterResult>(
       context: context,
@@ -43,7 +42,7 @@ class CalendarFilterSheet extends StatefulWidget {
         heightFactor: 0.75,
         child: CalendarFilterSheet(
           initialFormat: format,
-          initialCategories: categories,
+          initialHiddenIds: hiddenCategoryIds,
         ),
       ),
     );
@@ -55,25 +54,13 @@ class CalendarFilterSheet extends StatefulWidget {
 
 class _CalendarFilterSheetState extends State<CalendarFilterSheet> {
   late CalendarFormat _format;
-  late Set<CalendarEventCategory> _categories;
+  late Set<String> _hidden;
 
   @override
   void initState() {
     super.initState();
     _format = widget.initialFormat;
-    _categories = {...widget.initialCategories};
-  }
-
-  String _categoryLabel(AppLocalizations l10n, CalendarEventCategory c) {
-    return switch (c) {
-      CalendarEventCategory.gym => l10n.eventCategoryGym,
-      CalendarEventCategory.cardio => l10n.eventCategoryCardio,
-      CalendarEventCategory.rest => l10n.eventCategoryRest,
-      CalendarEventCategory.holiday => l10n.eventCategoryHoliday,
-      CalendarEventCategory.competition => l10n.eventCategoryCompetition,
-      CalendarEventCategory.measurement => l10n.eventCategoryMeasurement,
-      CalendarEventCategory.other => l10n.eventCategoryOther,
-    };
+    _hidden = {...widget.initialHiddenIds};
   }
 
   String _formatLabel(AppLocalizations l10n, CalendarFormat f) {
@@ -84,29 +71,31 @@ class _CalendarFilterSheetState extends State<CalendarFilterSheet> {
     };
   }
 
-  void _toggleCategory(CalendarEventCategory c, bool selected) {
+  void _toggleCategory(String id, bool visible) {
     setState(() {
-      if (selected) {
-        _categories.add(c);
+      if (visible) {
+        _hidden.remove(id);
       } else {
-        _categories.remove(c);
+        _hidden.add(id);
       }
     });
   }
 
   void _selectAll() {
-    setState(() => _categories = CalendarEventCategory.values.toSet());
+    setState(() => _hidden = <String>{});
   }
 
   void _clearAll() {
-    setState(() => _categories = <CalendarEventCategory>{});
+    setState(
+      () => _hidden = {for (final c in CalendarCategories.all) c.id},
+    );
   }
 
   void _apply() {
     Navigator.of(context).pop(
       CalendarFilterResult(
         format: _format,
-        visibleCategories: Set.unmodifiable(_categories),
+        hiddenCategoryIds: Set.unmodifiable(_hidden),
       ),
     );
   }
@@ -115,8 +104,7 @@ class _CalendarFilterSheetState extends State<CalendarFilterSheet> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final allSelected =
-        _categories.length == CalendarEventCategory.values.length;
+    final allSelected = _hidden.isEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -170,18 +158,20 @@ class _CalendarFilterSheetState extends State<CalendarFilterSheet> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final c in CalendarEventCategory.values)
+                  for (final c in CalendarCategories.all)
                     FilterChip(
                       avatar: CircleAvatar(
-                        backgroundColor: CalendarColors.forCategory(
-                          c,
-                        ).withValues(alpha: 0.18),
-                        foregroundColor: CalendarColors.forCategory(c),
-                        child: Icon(CalendarIcons.forCategory(c), size: 16),
+                        backgroundColor: c.color.withValues(alpha: 0.18),
+                        foregroundColor: c.color,
+                        child: Icon(
+                          CalendarIcons.forKey(c.iconKey) ??
+                              Icons.event_rounded,
+                          size: 16,
+                        ),
                       ),
-                      label: Text(_categoryLabel(l10n, c)),
-                      selected: _categories.contains(c),
-                      onSelected: (sel) => _toggleCategory(c, sel),
+                      label: Text(CalendarCategories.labelOf(c, l10n)),
+                      selected: !_hidden.contains(c.id),
+                      onSelected: (sel) => _toggleCategory(c.id, sel),
                     ),
                 ],
               ),

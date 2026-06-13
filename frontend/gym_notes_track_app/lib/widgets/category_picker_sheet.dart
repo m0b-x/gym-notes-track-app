@@ -1,48 +1,46 @@
 import 'package:flutter/material.dart';
 
-import '../constants/calendar_colors.dart';
+import '../constants/calendar_categories.dart';
 import '../constants/calendar_icons.dart';
 import '../l10n/app_localizations.dart';
-import '../models/calendar_event.dart';
+import 'category_editor_sheet.dart';
 
-/// Bottom-sheet selector for an event [CalendarEventCategory].
+/// Bottom-sheet selector for an event category. Returns the selected
+/// category **id** (`String`), or `null` if dismissed. Lists the live,
+/// data-driven category set and offers an inline "create category" entry so
+/// users can add a category without leaving the event editor.
 class CategoryPickerSheet extends StatelessWidget {
-  final CalendarEventCategory selected;
+  final String selectedId;
 
-  const CategoryPickerSheet({super.key, required this.selected});
+  const CategoryPickerSheet({super.key, required this.selectedId});
 
-  static Future<CalendarEventCategory?> show(
+  static Future<String?> show(
     BuildContext context, {
-    required CalendarEventCategory selected,
+    required String selectedId,
   }) {
-    return showModalBottomSheet<CalendarEventCategory>(
+    return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
       builder: (_) => FractionallySizedBox(
         heightFactor: 0.7,
-        child: CategoryPickerSheet(selected: selected),
+        child: CategoryPickerSheet(selectedId: selectedId),
       ),
     );
   }
 
-  String _label(AppLocalizations l10n, CalendarEventCategory c) {
-    return switch (c) {
-      CalendarEventCategory.gym => l10n.eventCategoryGym,
-      CalendarEventCategory.cardio => l10n.eventCategoryCardio,
-      CalendarEventCategory.rest => l10n.eventCategoryRest,
-      CalendarEventCategory.holiday => l10n.eventCategoryHoliday,
-      CalendarEventCategory.competition => l10n.eventCategoryCompetition,
-      CalendarEventCategory.measurement => l10n.eventCategoryMeasurement,
-      CalendarEventCategory.other => l10n.eventCategoryOther,
-    };
+  Future<void> _createCategory(BuildContext context) async {
+    final created = await CategoryEditorSheet.show(context);
+    if (created == null || !context.mounted) return;
+    Navigator.of(context).pop(created.id);
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final categories = CalendarCategories.all;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -58,18 +56,31 @@ class CategoryPickerSheet extends StatelessWidget {
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            itemCount: CalendarEventCategory.values.length,
+            itemCount: categories.length + 1,
             itemBuilder: (context, index) {
-              final c = CalendarEventCategory.values[index];
-              final color = CalendarColors.forCategory(c);
-              final isSelected = c == selected;
+              if (index == categories.length) {
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    foregroundColor: theme.colorScheme.onPrimaryContainer,
+                    child: const Icon(Icons.add_rounded),
+                  ),
+                  title: Text(l10n.createCategory),
+                  onTap: () => _createCategory(context),
+                );
+              }
+              final category = categories[index];
+              final isSelected = category.id == selectedId;
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: color.withValues(alpha: 0.18),
-                  foregroundColor: color,
-                  child: Icon(CalendarIcons.forCategory(c)),
+                  backgroundColor: category.color.withValues(alpha: 0.18),
+                  foregroundColor: category.color,
+                  child: Icon(
+                    CalendarIcons.forKey(category.iconKey) ??
+                        Icons.event_rounded,
+                  ),
                 ),
-                title: Text(_label(l10n, c)),
+                title: Text(CalendarCategories.labelOf(category, l10n)),
                 trailing: isSelected
                     ? Icon(
                         Icons.check_rounded,
@@ -77,7 +88,7 @@ class CategoryPickerSheet extends StatelessWidget {
                       )
                     : null,
                 selected: isSelected,
-                onTap: () => Navigator.of(context).pop(c),
+                onTap: () => Navigator.of(context).pop(category.id),
               );
             },
           ),

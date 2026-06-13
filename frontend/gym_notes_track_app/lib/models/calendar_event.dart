@@ -9,8 +9,21 @@ enum CalendarEventCategory {
   holiday,
   competition,
   measurement,
+  mobility,
+  birthday,
   other,
 }
+
+/// Stable id of the default built-in category assigned to brand-new events
+/// and used as the reassignment target when a custom category is deleted.
+const String kDefaultCategoryId = 'gym';
+
+/// Stable id of the catch-all built-in category.
+const String kFallbackCategoryId = 'other';
+
+/// Stable id of the built-in birthday category. Selecting it in the editor
+/// defaults a brand-new (still one-time) event to a yearly recurrence.
+const String kBirthdayCategoryId = 'birthday';
 
 /// Time-of-day annotation for a [CalendarEvent].
 ///
@@ -76,7 +89,13 @@ class EventTime extends Equatable {
 class CalendarEvent extends Equatable {
   final String id;
   final String title;
-  final CalendarEventCategory category;
+
+  /// Id of the owning [CalendarCategory] (persisted in `calendar_categories`).
+  /// For built-in categories this is a stable name like `'gym'`; for custom
+  /// categories it is a UUID. An unknown id resolves to a fallback category
+  /// at render time, so deleting a category never corrupts its events.
+  final String categoryId;
+
   final DateTime startDate;
   final RecurrenceRule rule;
 
@@ -112,7 +131,7 @@ class CalendarEvent extends Equatable {
   const CalendarEvent({
     required this.id,
     required this.title,
-    required this.category,
+    required this.categoryId,
     required this.startDate,
     this.rule = const OneTimeRecurrence(),
     this.endDate,
@@ -130,7 +149,7 @@ class CalendarEvent extends Equatable {
   CalendarEvent copyWith({
     String? id,
     String? title,
-    CalendarEventCategory? category,
+    String? categoryId,
     DateTime? startDate,
     RecurrenceRule? rule,
     DateTime? endDate,
@@ -147,7 +166,7 @@ class CalendarEvent extends Equatable {
     return CalendarEvent(
       id: id ?? this.id,
       title: title ?? this.title,
-      category: category ?? this.category,
+      categoryId: categoryId ?? this.categoryId,
       startDate: startDate ?? this.startDate,
       rule: rule ?? this.rule,
       endDate: clearEndDate ? null : (endDate ?? this.endDate),
@@ -179,7 +198,7 @@ class CalendarEvent extends Equatable {
   List<Object?> get props => [
     id,
     title,
-    category,
+    categoryId,
     startDate,
     rule,
     endDate,

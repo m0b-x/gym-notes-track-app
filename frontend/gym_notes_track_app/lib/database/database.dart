@@ -15,6 +15,7 @@ import 'tables/counters_table.dart';
 import 'tables/counter_values_table.dart';
 import 'tables/calendar_events_table.dart';
 import 'tables/public_holidays_table.dart';
+import 'tables/calendar_categories_table.dart';
 import 'daos/folder_dao.dart';
 import 'daos/note_dao.dart';
 import 'daos/content_chunk_dao.dart';
@@ -23,6 +24,7 @@ import 'daos/user_settings_dao.dart';
 import 'daos/counter_dao.dart';
 import 'daos/calendar_event_dao.dart';
 import 'daos/public_holiday_dao.dart';
+import 'daos/calendar_category_dao.dart';
 import 'crdt/hlc.dart';
 import 'database_lifecycle.dart';
 import 'loading_interceptor.dart';
@@ -41,6 +43,7 @@ part 'database.g.dart';
     CounterValues,
     CalendarEvents,
     PublicHolidaysTable,
+    CalendarCategories,
   ],
   daos: [
     FolderDao,
@@ -51,6 +54,7 @@ part 'database.g.dart';
     CounterDao,
     CalendarEventDao,
     PublicHolidayDao,
+    CalendarCategoryDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {

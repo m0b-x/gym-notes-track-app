@@ -63,9 +63,7 @@ class _CalendarViewState extends State<_CalendarView> {
             builder: (context, state) {
               final loaded = state is CalendarPageLoaded ? state : null;
               final hasFilter =
-                  loaded != null &&
-                  loaded.visibleCategories.length !=
-                      CalendarEventCategory.values.length;
+                  loaded != null && loaded.hiddenCategoryIds.isNotEmpty;
               return IconButton(
                 tooltip: l10n.filterCalendar,
                 icon: Icon(
@@ -98,7 +96,7 @@ class _CalendarViewState extends State<_CalendarView> {
           final summaryResolver = DaySummaryResolver.defaults(l10n);
           final entries = summaryResolver.resolve(
             loaded.selectedDay,
-            loaded.selectedEvents,
+            context.read<CalendarBloc>().eventsForDay(loaded.selectedDay),
           );
           return Column(
             children: [
@@ -191,14 +189,16 @@ class _CalendarViewState extends State<_CalendarView> {
     final result = await CalendarFilterSheet.show(
       context,
       format: state.format,
-      categories: state.visibleCategories,
+      hiddenCategoryIds: state.hiddenCategoryIds,
     );
     if (result == null || !context.mounted) return;
     final bloc = context.read<CalendarBloc>();
     if (result.format != state.format) {
       bloc.add(ChangeCalendarFormat(format: result.format));
     }
-    bloc.add(ChangeVisibleCategories(categories: result.visibleCategories));
+    bloc.add(
+      ChangeHiddenCategories(hiddenCategoryIds: result.hiddenCategoryIds),
+    );
   }
 
   Future<void> _openSettings(BuildContext context) async {

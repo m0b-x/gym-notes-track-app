@@ -7,6 +7,7 @@ import '../database/database.dart';
 import '../database/database_lifecycle.dart';
 import '../constants/json_keys.dart';
 import 'calendar_event_service.dart';
+import 'category_service.dart';
 import 'counter_service.dart';
 import 'markdown_bar_service.dart';
 import 'public_holiday_service.dart';
@@ -77,11 +78,12 @@ class BackupService {
     final noteBarAssignments = await _exportNoteBarAssignments();
 
     final counterData = await GetIt.I<CounterService>().exportData();
+    final calendarCategories = await GetIt.I<CategoryService>().exportData();
     final calendarEvents = await GetIt.I<CalendarEventService>().exportData();
     final publicHolidays = await GetIt.I<PublicHolidayService>().exportData();
 
     return {
-      'version': 3,
+      'version': 4,
       'exportedAt': DateTime.now().toIso8601String(),
       'folders': foldersData,
       'notes': notesWithContent,
@@ -91,6 +93,7 @@ class BackupService {
       'activeBar': activeBar,
       'noteBarAssignments': noteBarAssignments,
       'counterData': counterData,
+      'calendarCategories': calendarCategories,
       'calendarEvents': calendarEvents,
       'publicHolidays': publicHolidays,
     };
@@ -280,8 +283,14 @@ class BackupService {
         await GetIt.I<CounterService>().importData(counterData);
       }
 
-      // Calendar events & public holidays (v3+ backups). Missing keys
-      // simply leave existing data in place — older backups stay valid.
+      // Calendar categories, events & public holidays (v3/v4+ backups).
+      // Missing keys simply leave existing data in place — older backups
+      // stay valid. Categories import first so events (which reference a
+      // category id) and rendering resolve against the restored set.
+      final calendarCategories = data['calendarCategories'] as List?;
+      if (calendarCategories != null) {
+        await GetIt.I<CategoryService>().importData(calendarCategories);
+      }
       final calendarEvents = data['calendarEvents'] as List?;
       if (calendarEvents != null) {
         await GetIt.I<CalendarEventService>().importData(calendarEvents);

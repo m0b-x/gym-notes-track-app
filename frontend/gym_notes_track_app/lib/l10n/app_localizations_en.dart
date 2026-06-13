@@ -232,7 +232,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eventCategoryMeasurement => 'Measurement';
 
   @override
+  String get eventCategoryMobility => 'Mobility';
+
+  @override
+  String get eventCategoryBirthday => 'Birthday';
+
+  @override
   String get eventCategoryOther => 'Other';
+
+  @override
+  String get calendarCategories => 'Categories';
+
+  @override
+  String get calendarCategoriesDesc => 'Create and customize event categories';
+
+  @override
+  String get createCategory => 'Create category';
+
+  @override
+  String get editCategory => 'Edit category';
+
+  @override
+  String get categoryName => 'Name';
+
+  @override
+  String get categoryNameHint => 'e.g. Stretching';
+
+  @override
+  String get categoryColor => 'Color';
+
+  @override
+  String get categoryDefault => 'Built-in category';
+
+  @override
+  String get deleteCategory => 'Delete category';
+
+  @override
+  String deleteCategoryConfirm(String name) {
+    return 'Delete \"$name\"? Events using it will move to Other.';
+  }
+
+  @override
+  String get categoryDeleted => 'Category deleted';
 
   @override
   String get eventType => 'Type';

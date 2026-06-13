@@ -23,41 +23,34 @@ final class CalendarPageLoaded extends CalendarPageState {
   final DateTime focusedDay;
   final DateTime selectedDay;
   final CalendarFormat format;
-  final Set<CalendarEventCategory> visibleCategories;
 
-  CalendarPageLoaded({
+  /// Ids of categories the user has hidden from the calendar. Empty means
+  /// "show everything". Stored as a hidden set (rather than a visible set) so
+  /// newly created categories are visible by default and deleting a category
+  /// leaves at most a harmless stale id behind.
+  final Set<String> hiddenCategoryIds;
+
+  const CalendarPageLoaded({
     required this.allEvents,
     required this.focusedDay,
     required this.selectedDay,
     this.format = CalendarFormat.month,
-    Set<CalendarEventCategory>? visibleCategories,
-  }) : visibleCategories =
-           visibleCategories ?? CalendarEventCategory.values.toSet();
-
-  /// Events whose recurrence rule produces an occurrence on [selectedDay]
-  /// AND whose category is currently included in [visibleCategories].
-  List<CalendarEvent> get selectedEvents {
-    return allEvents
-        .where(
-          (e) =>
-              visibleCategories.contains(e.category) && e.occursOn(selectedDay),
-        )
-        .toList();
-  }
+    this.hiddenCategoryIds = const {},
+  });
 
   CalendarPageLoaded copyWith({
     List<CalendarEvent>? allEvents,
     DateTime? focusedDay,
     DateTime? selectedDay,
     CalendarFormat? format,
-    Set<CalendarEventCategory>? visibleCategories,
+    Set<String>? hiddenCategoryIds,
   }) {
     return CalendarPageLoaded(
       allEvents: allEvents ?? this.allEvents,
       focusedDay: focusedDay ?? this.focusedDay,
       selectedDay: selectedDay ?? this.selectedDay,
       format: format ?? this.format,
-      visibleCategories: visibleCategories ?? this.visibleCategories,
+      hiddenCategoryIds: hiddenCategoryIds ?? this.hiddenCategoryIds,
     );
   }
 
@@ -67,7 +60,7 @@ final class CalendarPageLoaded extends CalendarPageState {
     focusedDay,
     selectedDay,
     format,
-    visibleCategories,
+    hiddenCategoryIds,
   ];
 }
 

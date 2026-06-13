@@ -75,6 +75,11 @@ class DatabaseMigrations {
       toVersion: DatabaseSchema.v14CalendarEventNoteLink,
       migrate: _migrateV13ToV14,
     ),
+    Migration(
+      fromVersion: DatabaseSchema.v14CalendarEventNoteLink,
+      toVersion: DatabaseSchema.v15CalendarCategories,
+      migrate: _migrateV14ToV15,
+    ),
   ];
 
   Future<void> runMigrations(Migrator m, int from, int to) async {
@@ -438,5 +443,31 @@ class DatabaseMigrations {
         'ALTER TABLE calendar_events ADD COLUMN note_id TEXT',
       );
     }
+  }
+
+  /// v14→v15: User-creatable event categories.
+  ///
+  /// Creates the `calendar_categories` table. Built-in categories are NOT
+  /// seeded here — `CategoryService` seeds them on every launch with
+  /// insert-if-missing semantics (stable ids equal to the historical
+  /// `CalendarEventCategory` enum names). Because existing events already
+  /// store those names in `calendar_events.category`, they link to the
+  /// seeded built-ins with no data migration. Idempotent via
+  /// `CREATE TABLE IF NOT EXISTS`; the column shape mirrors Drift's generated
+  /// DDL so fresh installs (via `createAll`) and upgrades agree.
+  Future<void> _migrateV14ToV15(Migrator m, GeneratedDatabase db) async {
+    await _db.customStatement(
+      'CREATE TABLE IF NOT EXISTS calendar_categories ('
+      '  id TEXT NOT NULL, '
+      '  name TEXT NOT NULL, '
+      '  color_value INTEGER NOT NULL, '
+      '  icon_key TEXT NOT NULL, '
+      '  sort_order INTEGER NOT NULL DEFAULT 0, '
+      '  is_built_in INTEGER NOT NULL DEFAULT 0 CHECK (is_built_in IN (0, 1)), '
+      '  created_at INTEGER NOT NULL, '
+      '  updated_at INTEGER NOT NULL, '
+      '  PRIMARY KEY (id)'
+      ')',
+    );
   }
 }

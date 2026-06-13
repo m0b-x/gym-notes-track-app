@@ -9,8 +9,10 @@ Everything below is grounded in the actual code paths in
 > Schema lineage relevant to this subsystem: **v10** created the calendar
 > tables; **v11** added the Until bound + time-of-day columns; **v12** added
 > `description`; **v13** added holiday profiles; **v14** added the optional
-> event ↔ note link (`note_id`). The recurrence **interval** ("every N …")
-> shipped without a migration — it rides inside the existing `rule_payload`.
+> event ↔ note link (`note_id`); **v15** added the data-driven
+> `calendar_categories` table (user-creatable categories). The recurrence
+> **interval** ("every N …") shipped without a migration — it rides inside the
+> existing `rule_payload`.
 
 ---
 
@@ -44,7 +46,7 @@ immutable; mutation is done through `copyWith`.
 | --------------- | -------------------------- | -------------------------------------------------------------------------------------------------- |
 | `id`            | `String`                   | UUID v4, generated client-side. Stable across edits.                                               |
 | `title`         | `String`                   | User-entered, ≤ 120 chars (UI-enforced). Trimmed on save.                                          |
-| `category`      | `CalendarEventCategory`    | Closed enum (gym, cardio, rest, holiday, competition, measurement, other). Drives default colors. |
+| `categoryId`    | `String`                   | Id of a `CalendarCategory` (built-in enum-name like `gym`, or a custom UUID). Resolved to color/icon/label at render time; an unknown id falls back to `other`. |
 | `startDate`     | `DateTime` (date-only UTC) | Anchors recurrence math. For one-time events this *is* the event date.                             |
 | `rule`          | `RecurrenceRule`           | Sealed hierarchy — see §3.                                                                         |
 | `endDate`       | `DateTime?` (date-only UTC) | Optional inclusive upper bound for recurring rules. `null` = "no end".                            |
@@ -62,17 +64,38 @@ immutable; mutation is done through `copyWith`.
    the rule shape).
 3. Otherwise delegates to `rule.occursOn(target, start)`.
 
-### 2.2 [`CalendarEventCategory`](../lib/models/calendar_event.dart)
+### 2.2 Categories (data-driven since v15)
 
-Closed enum. Each value maps to:
+`CalendarEvent.categoryId` is a `String` referencing a row in the
+`calendar_categories` table. Categories are **user-creatable**: built-ins are
+seeded with stable ids equal to the historical `CalendarEventCategory` enum
+names (`'gym'`, `'cardio'`, …) — which is exactly what `calendar_events.category`
+already stored — so the migration needs **no event-data rewrite**. Each
+category carries:
 
-- A localized label (`l10n.eventCategoryGym`, etc.).
-- A default color (see [`CalendarColors`](../lib/constants/calendar_colors.dart)).
-- A default icon (see [`CalendarIcons`](../lib/constants/calendar_icons.dart)).
+- A label — built-ins resolve a localized label by id
+  (`CalendarCategories.labelOf` → `l10n.eventCategory*`); custom categories show
+  their stored `name` verbatim.
+- A color (`color_value`, 32-bit ARGB int) and an icon (`icon_key` into
+  `CalendarIcons`).
 
-The category is a hard-coded vocabulary — adding one is a 4-touch change
-(enum + l10n × 3 ARBs + colors + icons). Intentional: keeps the calendar
-visually coherent.
+The `CalendarEventCategory` enum survives only as the **built-in seed catalog**
+and the source of localized built-in labels. Runtime lookups go through the
+synchronous `CalendarCategories` facade (`byId`/`resolve`/`all`/`labelOf`/
+`iconFor`), mirroring the `PublicHolidays` cache so render paths stay O(1) with
+no `await`. An unknown id resolves to a fallback (`other`) so deleting a custom
+category never corrupts its events; `CategoryService.deleteCategory` also
+reassigns those events to `other` in a transaction. Built-ins cannot be
+deleted. CRUD lives in `CategoryService`; the UI is `CategoryEditorSheet`
+(name + icon + color) and `CalendarCategoriesPage`, plus an inline "Create
+category" entry in `CategoryPickerSheet`. The calendar filter is a hidden-id
+set (`CalendarPageLoaded.hiddenCategoryIds`), so new categories are visible by
+default.
+
+One built-in carries editor behavior: selecting **Birthday**
+(`kBirthdayCategoryId`, a cake-iconed yearly category) on a still-one-time
+event pre-fills a `YearlyRecurrence` so birthdays repeat every year with no
+extra taps. It never overrides a recurrence the user already configured.
 
 ---
 
@@ -264,7 +287,9 @@ switches DBs). Responsibilities:
 
 - **Load on init** — pulls all rows once into `List<CalendarEvent> _cache`.
 - **Synchronous reads** — `events` getter returns the unmodifiable cache so
-  `CalendarBloc.eventsForDay` runs O(N) per day with no async hops.
+  `CalendarBloc.eventsForDay` can expand recurrences with no async hops. The
+  bloc additionally **memoizes** the per-day result (see §6.1), so each
+  distinct day is scanned at most once per event-set / filter generation.
 - **Mutations** — `upsert` and `deleteById` go through the DAO and then
   patch the in-memory cache so the calendar UI sees the change instantly.
 - **Date-only normalization** — `startDate` and `endDate` are forced through
@@ -296,8 +321,19 @@ Companion singleton:
 Backed by `table_calendar 3.2.0`. Tile rendering consults
 `PublicHolidays.holidayOn` for holiday badges and
 `CalendarBloc.eventsForDay(day)` to draw event chips.
-`CalendarBloc.eventsForDay` is synchronous — it iterates the cached event
-list and calls `event.occursOn(day)`.
+`CalendarBloc.eventsForDay` is synchronous and **memoized**: the first call
+for a day iterates the cached event list and calls `event.occursOn(day)`,
+then stores the result in a bounded per-day map (`_dayCache`, cap 512
+entries — cleared wholesale on overflow). The cache is invalidated **only**
+by the handlers that change the inputs to the expansion —
+`LoadCalendarEvents`, `CreateCalendarEvent`, `UpdateCalendarEvent`,
+`DeleteCalendarEvent`, and `ChangeHiddenCategories`. Day-selection, focus,
+and format changes deliberately keep the cache warm, so the common case
+(tapping around a month, toggling month/2-week/week) is an O(1) map lookup
+per cell instead of an O(N) recurrence scan. The same cached path also feeds
+the bottom day-summary panel, so there is a single recurrence-expansion code
+path (the old uncached `CalendarPageLoaded.selectedEvents` getter was
+removed).
 
 ### 6.2 Day list
 
@@ -340,7 +376,13 @@ The app-global backup is owned by
 [`BackupService`](../lib/services/backup_service.dart). It serializes every
 persisted store into a single JSON document with a `version` number.
 
-**Backup version 3** (introduced when calendar parity was added) includes:
+**Backup version 4** (introduced when user-creatable categories were added)
+adds a `calendarCategories` array alongside the existing `calendarEvents` and
+`publicHolidays`. Categories are imported **before** events on restore so each
+event's `categoryId` resolves. A v3 (or earlier) backup imports cleanly — the
+missing `calendarCategories` key just leaves the seeded built-ins in place.
+
+**Backup version 3** includes:
 
 ```jsonc
 {
@@ -399,8 +441,10 @@ older binary simply ignores the unknown keys.
 - The in-memory caches (`CalendarEventService._cache`,
   `PublicHolidays._cache`) are mutated only on the UI isolate after a write
   resolves, so there is no read/write race.
-- `CalendarBloc.eventsForDay` is synchronous and called from build methods,
-  which is safe because the cache is `List.unmodifiable(...)`.
+- `CalendarBloc.eventsForDay` is synchronous and called from build methods.
+  It writes into `_dayCache` during build, which is safe: Dart is
+  single-threaded so a build and a bloc event handler never interleave, and
+  the cached lists are `List.unmodifiable(...)`.
 
 ---
 
@@ -482,6 +526,11 @@ filters can use it without decoding `time`.
 | Concern                  | Path                                                                              |
 | ------------------------ | --------------------------------------------------------------------------------- |
 | Domain model             | [lib/models/calendar_event.dart](../lib/models/calendar_event.dart)               |
+| Category model           | [lib/models/calendar_category.dart](../lib/models/calendar_category.dart)         |
+| Category cache facade     | [lib/constants/calendar_categories.dart](../lib/constants/calendar_categories.dart) |
+| Category service          | [lib/services/category_service.dart](../lib/services/category_service.dart)        |
+| Category table / DAO       | [lib/database/tables/calendar_categories_table.dart](../lib/database/tables/calendar_categories_table.dart), [lib/database/daos/calendar_category_dao.dart](../lib/database/daos/calendar_category_dao.dart) |
+| Category UI                | [lib/widgets/category_editor_sheet.dart](../lib/widgets/category_editor_sheet.dart), [lib/pages/calendar_categories_page.dart](../lib/pages/calendar_categories_page.dart), [lib/widgets/category_picker_sheet.dart](../lib/widgets/category_picker_sheet.dart) |
 | Recurrence rules         | [lib/models/recurrence_rule.dart](../lib/models/recurrence_rule.dart)             |
 | Holiday enum + facade    | [lib/constants/public_holidays.dart](../lib/constants/public_holidays.dart)       |
 | Drift table (events)     | [lib/database/tables/calendar_events_table.dart](../lib/database/tables/calendar_events_table.dart) |

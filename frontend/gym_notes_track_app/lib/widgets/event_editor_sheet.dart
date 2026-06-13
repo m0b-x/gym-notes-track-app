@@ -3,7 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
-import '../constants/calendar_colors.dart';
+import '../constants/calendar_categories.dart';
 import '../constants/calendar_icons.dart';
 import '../l10n/app_localizations.dart';
 import '../models/calendar_event.dart';
@@ -64,7 +64,6 @@ class EventEditorSheet extends StatefulWidget {
     return showModalBottomSheet<EventEditorResult>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
       showDragHandle: true,
       builder: (_) => FractionallySizedBox(
         heightFactor: 0.92,
@@ -95,7 +94,7 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
 
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
-  late CalendarEventCategory _category;
+  late String _categoryId;
   String? _iconKey;
   late DateTime _date;
   DateTime? _endDate;
@@ -138,7 +137,7 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     _descriptionController = TextEditingController(
       text: initial?.description ?? '',
     );
-    _category = initial?.category ?? CalendarEventCategory.gym;
+    _categoryId = initial?.categoryId ?? kDefaultCategoryId;
     _iconKey = initial?.iconKey;
     _date = _normalize(initial?.startDate ?? widget.defaultDate);
     _endDate = initial?.endDate == null ? null : _normalize(initial!.endDate!);
@@ -247,18 +246,6 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
       return false;
     }
     return true;
-  }
-
-  String _categoryLabel(AppLocalizations l10n, CalendarEventCategory c) {
-    return switch (c) {
-      CalendarEventCategory.gym => l10n.eventCategoryGym,
-      CalendarEventCategory.cardio => l10n.eventCategoryCardio,
-      CalendarEventCategory.rest => l10n.eventCategoryRest,
-      CalendarEventCategory.holiday => l10n.eventCategoryHoliday,
-      CalendarEventCategory.competition => l10n.eventCategoryCompetition,
-      CalendarEventCategory.measurement => l10n.eventCategoryMeasurement,
-      CalendarEventCategory.other => l10n.eventCategoryOther,
-    };
   }
 
   String _kindLabel(AppLocalizations l10n, _RecurrenceKind k) {
@@ -371,7 +358,7 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
   Future<void> _pickIcon() async {
     final picked = await IconPickerSheet.show(
       context,
-      tint: CalendarColors.forCategory(_category),
+      tint: CalendarCategories.resolve(_categoryId).color,
       initialKey: _iconKey,
     );
     if (picked == null || !mounted) return;
@@ -379,9 +366,22 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
   }
 
   Future<void> _pickCategory() async {
-    final picked = await CategoryPickerSheet.show(context, selected: _category);
+    final picked = await CategoryPickerSheet.show(
+      context,
+      selectedId: _categoryId,
+    );
     if (picked == null || !mounted) return;
-    setState(() => _category = picked);
+    setState(() {
+      _categoryId = picked;
+      // Birthdays are inherently yearly. When the user tags a brand-new,
+      // still-one-time event as a birthday, pre-fill a yearly recurrence so it
+      // repeats every year with no extra taps. A recurrence the user already
+      // configured is left untouched.
+      if (picked == kBirthdayCategoryId && _mode == _RepeatMode.oneTime) {
+        _mode = _RepeatMode.recurring;
+        _kind = _RecurrenceKind.yearly;
+      }
+    });
   }
 
   /// Resolve the display title for the currently linked note. If the note
@@ -453,7 +453,7 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
         ? CalendarEvent(
             id: const Uuid().v4(),
             title: title,
-            category: _category,
+            categoryId: _categoryId,
             startDate: _date,
             rule: _buildRule(),
             endDate: effectiveEnd,
@@ -464,7 +464,7 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
           )
         : base.copyWith(
             title: title,
-            category: _category,
+            categoryId: _categoryId,
             startDate: _date,
             rule: _buildRule(),
             endDate: effectiveEnd,
@@ -515,11 +515,14 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final localeName = l10n.localeName;
-    final categoryColor = CalendarColors.forCategory(_category);
+    final category = CalendarCategories.resolve(_categoryId);
+    final categoryColor = category.color;
     final viewInsets = MediaQuery.viewInsetsOf(context).bottom;
+    final viewPadding = MediaQuery.viewPaddingOf(context).bottom;
+    final bottomClearance = viewInsets > viewPadding ? viewInsets : viewPadding;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: viewInsets),
+      padding: EdgeInsets.only(bottom: bottomClearance),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -587,9 +590,12 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
                     leading: CircleAvatar(
                       backgroundColor: categoryColor.withValues(alpha: 0.18),
                       foregroundColor: categoryColor,
-                      child: Icon(CalendarIcons.forCategory(_category)),
+                      child: Icon(
+                        CalendarIcons.forKey(category.iconKey) ??
+                            Icons.event_rounded,
+                      ),
                     ),
-                    title: _categoryLabel(l10n, _category),
+                    title: CalendarCategories.labelOf(category, l10n),
                     subtitle: l10n.pickCategory,
                     onTap: _pickCategory,
                   ),
@@ -600,7 +606,8 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
                       foregroundColor: categoryColor,
                       child: Icon(
                         CalendarIcons.forKey(_iconKey) ??
-                            CalendarIcons.forCategory(_category),
+                            CalendarIcons.forKey(category.iconKey) ??
+                            Icons.event_rounded,
                       ),
                     ),
                     title: _iconKey == null
@@ -902,9 +909,7 @@ class _IntervalStepper extends StatelessWidget {
               onPressed: canIncrement ? () => onChanged(value + 1) : null,
             ),
             const SizedBox(width: 12),
-            Expanded(
-              child: Text(unitLabel, style: theme.textTheme.bodyLarge),
-            ),
+            Expanded(child: Text(unitLabel, style: theme.textTheme.bodyLarge)),
           ],
         ),
       ),

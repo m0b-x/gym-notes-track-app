@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../constants/calendar_categories.dart';
 import '../constants/calendar_colors.dart';
-import '../constants/calendar_icons.dart';
 import '../constants/public_holidays.dart';
 import '../l10n/app_localizations.dart';
 import '../models/calendar_event.dart';
@@ -90,11 +90,11 @@ class EventSummaryProvider implements DaySummaryProvider {
     return events.map(
       (event) => DaySummaryEntry(
         key: 'event:${event.id}',
-        icon: CalendarIcons.resolve(event),
-        color: CalendarColors.forCategory(event.category),
+        icon: CalendarCategories.iconFor(event),
+        color: CalendarCategories.resolve(event.categoryId).color,
         title: event.title,
         subtitle: _subtitleFor(event),
-        priority: event.category.index,
+        priority: CalendarCategories.resolve(event.categoryId).sortOrder,
         event: event,
       ),
     );

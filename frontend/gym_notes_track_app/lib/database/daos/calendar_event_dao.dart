@@ -37,6 +37,19 @@ class CalendarEventDao extends DatabaseAccessor<AppDatabase>
     return (delete(calendarEvents)..where((e) => e.id.equals(id))).go();
   }
 
+  /// Reassigns every event currently in category [fromId] to [toId]. Used
+  /// when a custom category is deleted so its events fall back to a surviving
+  /// category instead of dangling. Returns the number of rows updated.
+  Future<int> reassignCategory(String fromId, String toId) {
+    return (update(calendarEvents)..where((e) => e.category.equals(fromId)))
+        .write(
+          CalendarEventsCompanion(
+            category: Value(toId),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+  }
+
   Future<void> deleteAll() {
     return delete(calendarEvents).go();
   }

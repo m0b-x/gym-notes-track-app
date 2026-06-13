@@ -178,7 +178,7 @@ class CalendarEventService {
     return CalendarEvent(
       id: row.id,
       title: row.title,
-      category: _categoryFromName(row.category),
+      categoryId: row.category,
       startDate: _dateOnlyUtc(row.startDate),
       iconKey: row.iconKey,
       endDate: row.endDate == null ? null : _dateOnlyUtc(row.endDate!),
@@ -225,7 +225,7 @@ class CalendarEventService {
     return CalendarEventsCompanion(
       id: Value(event.id),
       title: Value(event.title),
-      category: Value(event.category.name),
+      category: Value(event.categoryId),
       startDate: Value(event.startDate),
       // `all_day` is a denormalized mirror of `time == null`, kept around
       // so SQL filters like `WHERE all_day = 0` stay cheap. Never read
@@ -242,13 +242,6 @@ class CalendarEventService {
       createdAt: Value(updatedAt),
       updatedAt: Value(updatedAt),
     );
-  }
-
-  CalendarEventCategory _categoryFromName(String name) {
-    for (final value in CalendarEventCategory.values) {
-      if (value.name == name) return value;
-    }
-    return CalendarEventCategory.other;
   }
 
   // ── Recurrence serialization ──────────────────────────────────────────

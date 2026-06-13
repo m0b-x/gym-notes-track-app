@@ -295,9 +295,66 @@
   "@eventCategoryMeasurement": {
     "description": "Calendar event category: body measurement"
   },
+  "eventCategoryMobility": "Mobility",
+  "@eventCategoryMobility": {
+    "description": "Calendar event category: mobility/stretching/yoga session"
+  },
+  "eventCategoryBirthday": "Birthday",
+  "@eventCategoryBirthday": {
+    "description": "Calendar event category: birthday (defaults to a yearly recurrence)"
+  },
   "eventCategoryOther": "Other",
   "@eventCategoryOther": {
     "description": "Calendar event category: other"
+  },
+  "calendarCategories": "Categories",
+  "@calendarCategories": {
+    "description": "Title of the event categories management page and its settings entry"
+  },
+  "calendarCategoriesDesc": "Create and customize event categories",
+  "@calendarCategoriesDesc": {
+    "description": "Subtitle for the manage-categories entry on calendar settings"
+  },
+  "createCategory": "Create category",
+  "@createCategory": {
+    "description": "Action to create a new event category"
+  },
+  "editCategory": "Edit category",
+  "@editCategory": {
+    "description": "Title of the category editor when editing"
+  },
+  "categoryName": "Name",
+  "@categoryName": {
+    "description": "Label for the category name field"
+  },
+  "categoryNameHint": "e.g. Stretching",
+  "@categoryNameHint": {
+    "description": "Hint for the category name field"
+  },
+  "categoryColor": "Color",
+  "@categoryColor": {
+    "description": "Label for the category color picker"
+  },
+  "categoryDefault": "Built-in category",
+  "@categoryDefault": {
+    "description": "Badge shown on built-in categories that cannot be deleted"
+  },
+  "deleteCategory": "Delete category",
+  "@deleteCategory": {
+    "description": "Action/title for deleting a custom event category"
+  },
+  "deleteCategoryConfirm": "Delete \"{name}\"? Events using it will move to Other.",
+  "@deleteCategoryConfirm": {
+    "description": "Confirmation message when deleting a custom event category",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "categoryDeleted": "Category deleted",
+  "@categoryDeleted": {
+    "description": "Snackbar shown after a custom category is deleted"
   },
   "eventType": "Type",
   "@eventType": {

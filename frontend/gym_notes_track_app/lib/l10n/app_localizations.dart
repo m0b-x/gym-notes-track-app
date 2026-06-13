@@ -544,11 +544,89 @@ abstract class AppLocalizations {
   /// **'Measurement'**
   String get eventCategoryMeasurement;
 
+  /// Calendar event category: mobility/stretching/yoga session
+  ///
+  /// In en, this message translates to:
+  /// **'Mobility'**
+  String get eventCategoryMobility;
+
+  /// Calendar event category: birthday (defaults to a yearly recurrence)
+  ///
+  /// In en, this message translates to:
+  /// **'Birthday'**
+  String get eventCategoryBirthday;
+
   /// Calendar event category: other
   ///
   /// In en, this message translates to:
   /// **'Other'**
   String get eventCategoryOther;
+
+  /// Title of the event categories management page and its settings entry
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get calendarCategories;
+
+  /// Subtitle for the manage-categories entry on calendar settings
+  ///
+  /// In en, this message translates to:
+  /// **'Create and customize event categories'**
+  String get calendarCategoriesDesc;
+
+  /// Action to create a new event category
+  ///
+  /// In en, this message translates to:
+  /// **'Create category'**
+  String get createCategory;
+
+  /// Title of the category editor when editing
+  ///
+  /// In en, this message translates to:
+  /// **'Edit category'**
+  String get editCategory;
+
+  /// Label for the category name field
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get categoryName;
+
+  /// Hint for the category name field
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Stretching'**
+  String get categoryNameHint;
+
+  /// Label for the category color picker
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get categoryColor;
+
+  /// Badge shown on built-in categories that cannot be deleted
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in category'**
+  String get categoryDefault;
+
+  /// Action/title for deleting a custom event category
+  ///
+  /// In en, this message translates to:
+  /// **'Delete category'**
+  String get deleteCategory;
+
+  /// Confirmation message when deleting a custom event category
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"? Events using it will move to Other.'**
+  String deleteCategoryConfirm(String name);
+
+  /// Snackbar shown after a custom category is deleted
+  ///
+  /// In en, this message translates to:
+  /// **'Category deleted'**
+  String get categoryDeleted;
 
   /// Section label in the calendar event editor for selecting the category
   ///

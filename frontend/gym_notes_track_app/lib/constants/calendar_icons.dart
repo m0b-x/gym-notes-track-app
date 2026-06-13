@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../models/calendar_event.dart';
-
 /// Identifier for an icon group rendered as a section in the icon picker.
 /// Add a value here, append it to [CalendarIcons.groups] and add a label
 /// case in `IconPickerSheet` to introduce a new section.
@@ -89,6 +87,7 @@ abstract final class CalendarIcons {
     'flag': Icons.flag_rounded,
     'star': Icons.star_rounded,
     'celebration': Icons.celebration_rounded,
+    'cake': Icons.cake_rounded,
     // Travel
     'flight_takeoff': Icons.flight_takeoff_rounded,
     'beach_access': Icons.beach_access_rounded,
@@ -172,6 +171,7 @@ abstract final class CalendarIcons {
       'flag',
       'star',
       'celebration',
+      'cake',
     ]),
     IconGroup(IconGroupId.travel, [
       'flight_takeoff',
@@ -202,24 +202,5 @@ abstract final class CalendarIcons {
   static IconData? forKey(String? key) {
     if (key == null) return null;
     return _byKey[key];
-  }
-
-  /// Default icon used when an event has no explicit [iconKey].
-  static IconData forCategory(CalendarEventCategory category) {
-    return switch (category) {
-      CalendarEventCategory.gym => Icons.fitness_center_rounded,
-      CalendarEventCategory.cardio => Icons.directions_run_rounded,
-      CalendarEventCategory.rest => Icons.bedtime_rounded,
-      CalendarEventCategory.holiday => Icons.flight_takeoff_rounded,
-      CalendarEventCategory.competition => Icons.emoji_events_rounded,
-      CalendarEventCategory.measurement => Icons.straighten_rounded,
-      CalendarEventCategory.other => Icons.event_rounded,
-    };
-  }
-
-  /// Resolves an event's icon: the explicit override if set & known, else
-  /// the category default.
-  static IconData resolve(CalendarEvent event) {
-    return forKey(event.iconKey) ?? forCategory(event.category);
   }
 }
