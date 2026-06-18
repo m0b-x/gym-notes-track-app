@@ -6,10 +6,10 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../constants/app_spacing.dart';
 import '../constants/markdown_constants.dart';
 import '../models/dev_options.dart';
+import '../models/checkbox_toggle_info.dart';
 import '../services/markdown_render_service.dart';
 import '../utils/line_based_markdown_builder.dart';
 import 'double_tap_line_detector.dart';
-import 'full_markdown_view.dart';
 
 typedef LinkTapCallback = void Function(String url);
 

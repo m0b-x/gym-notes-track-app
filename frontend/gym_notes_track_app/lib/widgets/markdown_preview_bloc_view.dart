@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/markdown_preview/markdown_preview_bloc.dart';
+import '../models/checkbox_toggle_info.dart';
 import '../models/dev_options.dart';
 import '../utils/line_based_markdown_builder.dart';
 import 'double_tap_line_detector.dart';
-import 'full_markdown_view.dart' show CheckboxToggleInfo;
 import 'source_mapped_markdown_view.dart';
 
 /// Bloc-driven wrapper around [SourceMappedMarkdownView].

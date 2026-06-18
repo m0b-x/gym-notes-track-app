@@ -33,7 +33,7 @@ import '../widgets/markdown_bar.dart';
 import '../widgets/markdown_preview_bloc_view.dart';
 import '../widgets/note_export_dialog.dart';
 import '../widgets/modern_editor_wrapper.dart';
-import '../widgets/full_markdown_view.dart';
+import '../models/checkbox_toggle_info.dart';
 import '../widgets/source_mapped_markdown_view.dart';
 import '../widgets/note_search_bar.dart';
 import '../widgets/app_drawer.dart';

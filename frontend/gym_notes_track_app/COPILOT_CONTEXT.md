@@ -32,7 +32,7 @@ When changing the app, optimize for fast workout-session use:
 - State management: `flutter_bloc` with `Equatable` states/events.
 - Persistence: Drift SQLite, `sqlite3_flutter_libs`, `path_provider`, `shared_preferences`.
 - DI: `get_it` via `lib/core/di/injection.dart`.
-- Editor/markdown: local `packages/re_editor`, `flutter_markdown_plus`, `markdown`.
+- Editor/markdown: local `packages/re_editor` with a custom line-based markdown renderer (`lib/utils/line_based_markdown_builder.dart`).
 - Search/debounce: `stream_transform`, FTS5, isolate-backed indexing utilities.
 - Sharing/import: `share_plus`, `file_picker`.
 - External links: `url_launcher` (markdown preview hyperlinks open via `LaunchMode.externalApplication`; only `http`, `https`, `mailto`, `tel` schemes are accepted).
