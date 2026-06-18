@@ -2,12 +2,18 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../constants/markdown_constants.dart';
+import 'ghost_text.dart';
 import 'markdown_chunker.dart';
 import 'markdown_line_height_calculator.dart';
 import 'markdown_link_patterns.dart';
 
 typedef LinkTapCallback = void Function(String url);
 typedef CheckboxTapCallback = void Function(int start, int end, bool isChecked);
+
+/// Invoked when a ghost-text run is engaged in the preview. [start] and
+/// [end] are absolute source offsets covering the whole `{{ … }}` run
+/// (markers included) so the caller can delete it and navigate.
+typedef GhostTapCallback = void Function(int start, int end);
 
 /// Trailing characters trimmed from bare autolinks (GFM-style) so a
 /// sentence like `see https://example.com.` doesn't include the period.
@@ -34,6 +40,9 @@ class LineMarkdownStyle {
   final Color highlightColor;
   final Color currentHighlightColor;
 
+  /// Colour for ghost-text placeholders (`{{ … }}`), rendered dimmed.
+  final Color ghostColor;
+
   const LineMarkdownStyle({
     required this.baseFontSize,
     required this.textColor,
@@ -42,18 +51,21 @@ class LineMarkdownStyle {
     required this.blockquoteColor,
     required this.highlightColor,
     required this.currentHighlightColor,
+    required this.ghostColor,
   });
 
   factory LineMarkdownStyle.fromTheme(ThemeData theme, double fontSize) {
     final isDark = theme.brightness == Brightness.dark;
+    final base = theme.textTheme.bodyLarge?.color ?? Colors.black;
     return LineMarkdownStyle(
       baseFontSize: fontSize,
-      textColor: theme.textTheme.bodyLarge?.color ?? Colors.black,
+      textColor: base,
       primaryColor: theme.colorScheme.primary,
       codeBackground: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
       blockquoteColor: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
       highlightColor: theme.colorScheme.primaryContainer,
       currentHighlightColor: theme.colorScheme.primary.withValues(alpha: 0.5),
+      ghostColor: base.withValues(alpha: 0.45),
     );
   }
 }
@@ -70,6 +82,7 @@ class LineBasedMarkdownBuilder {
   final LineMarkdownStyle style;
   final LinkTapCallback? onLinkTap;
   final CheckboxTapCallback? onCheckboxTap;
+  final GhostTapCallback? onGhostTap;
   final List<TextRange>? searchHighlights;
   final int? currentHighlightIndex;
 
@@ -120,6 +133,7 @@ class LineBasedMarkdownBuilder {
     required this.style,
     this.onLinkTap,
     this.onCheckboxTap,
+    this.onGhostTap,
     this.searchHighlights,
     this.currentHighlightIndex,
     this.linesPerChunk = 10,
@@ -1127,6 +1141,21 @@ class LineBasedMarkdownBuilder {
         continue;
       }
 
+      // Ghost text: {{ inner }} — dimmed placeholder, markers hidden.
+      // Detected before other inline syntax so `{{` is never mistaken
+      // for prose. Renders even without a tap handler (e.g. dialog
+      // previews); the tap recognizer is attached only when engageable.
+      if (c == _kOpenBrace) {
+        final ghost = GhostText.matchAt(text, i);
+        if (ghost != null) {
+          flushRun(i);
+          children.add(_buildGhostSpan(text, ghost, baseStyle, contentStart));
+          i = ghost.end;
+          runStart = i;
+          continue;
+        }
+      }
+
       // Inline code span: `code` / ``co`de`` — literal, no nesting.
       if (c == _kBacktick) {
         final fence = _countRun(text, i, _kBacktick);
@@ -1437,8 +1466,38 @@ class LineBasedMarkdownBuilder {
   static const int _kTilde = 0x7E; // ~
   static const int _kOpenBracket = 0x5B; // [
   static const int _kOpenParen = 0x28; // (
+  static const int _kOpenBrace = 0x7B; // {
   static const int _kLowerH = 0x68; // h
   static const int _kLowerW = 0x77; // w
+
+  /// Builds the dimmed span for a ghost run. The `{{` / `}}` markers are
+  /// hidden; only the inner text renders, tinted with [style.ghostColor]
+  /// on top of [baseStyle] so it inherits the surrounding context
+  /// (heading size, list style, etc.). Search highlighting still applies
+  /// to the inner text via its true source offset. When [onGhostTap] is
+  /// set, a cached tap recognizer is attached to every leaf so a tap
+  /// anywhere on the placeholder engages it.
+  InlineSpan _buildGhostSpan(
+    String text,
+    GhostMatch ghost,
+    TextStyle baseStyle,
+    int contentStart,
+  ) {
+    final inner = text.substring(ghost.innerStart, ghost.innerEnd);
+    final ghostStyle = baseStyle.copyWith(color: style.ghostColor);
+    final span = _applyHighlighting(
+      inner,
+      ghostStyle,
+      contentStart + ghost.innerStart,
+    );
+    if (onGhostTap == null) return span;
+    final absStart = contentStart + ghost.start;
+    final absEnd = contentStart + ghost.end;
+    final cacheKey = 'ghost:$absStart:$absEnd';
+    final recognizer = _linkRecognizers[cacheKey] ??= TapGestureRecognizer()
+      ..onTap = () => onGhostTap!(absStart, absEnd);
+    return _attachRecognizer(span, recognizer);
+  }
 
   /// Apply search highlighting to text.
   TextSpan _applyHighlighting(

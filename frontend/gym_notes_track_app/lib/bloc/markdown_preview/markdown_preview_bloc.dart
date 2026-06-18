@@ -58,6 +58,7 @@ class MarkdownPreviewBloc
   /// owning widget; the bloc itself is widget-free.
   LinkTapCallback? _onLinkTap;
   CheckboxTapCallback? _onCheckboxTap;
+  GhostTapCallback? _onGhostTap;
 
   /// Optional pull-style content source. When set, callers can
   /// dispatch [PreviewContentRefreshRequested] (and bump the dirty
@@ -147,9 +148,11 @@ class MarkdownPreviewBloc
   void bindCallbacks({
     LinkTapCallback? onLinkTap,
     CheckboxTapCallback? onCheckboxTap,
+    GhostTapCallback? onGhostTap,
   }) {
     _onLinkTap = onLinkTap;
     _onCheckboxTap = onCheckboxTap;
+    _onGhostTap = onGhostTap;
   }
 
   /// Binds a pull-style content source. Subsequent
@@ -315,6 +318,7 @@ class MarkdownPreviewBloc
       currentHighlightIndex: next.currentHighlightIndex,
       onLinkTap: _onLinkTap,
       onCheckboxTap: _onCheckboxTap,
+      onGhostTap: _onGhostTap,
     );
 
     if (rebuilt) {

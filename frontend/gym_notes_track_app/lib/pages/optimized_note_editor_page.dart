@@ -46,6 +46,7 @@ import '../utils/re_editor_search_controller.dart';
 import '../utils/text_history_observer.dart';
 import '../utils/text_position_utils.dart';
 import '../utils/markdown_list_utils.dart';
+import '../utils/ghost_text.dart';
 import '../utils/paste_line_breaker.dart';
 import '../controllers/preview_scroll_controller.dart';
 import '../controllers/shortcut_applier.dart';
@@ -188,7 +189,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _titleController = TextEditingController(
       text: widget.metadata?.title ?? '',
     );
-    _contentController = CodeLineEditingController();
+    _contentController = CodeLineEditingController(
+      spanBuilder: _buildGhostEditorSpan,
+    );
     _historyObserver = TextHistoryObserver(_contentController);
     _previousTextLength = 0;
     _contentFocusNode = FocusNode();
@@ -1043,6 +1046,42 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     }
   }
 
+  /// Engages a ghost-text placeholder tapped in the preview: deletes the
+  /// whole `{{ … }}` run from the note, switches to the editor, and
+  /// drops the caret where the placeholder was so the user can type
+  /// their real value. [start]/[end] are absolute source offsets.
+  /// Engages a ghost-text placeholder tapped in the preview: switches to
+  /// the editor and selects the whole `{{ … }}` run (highlighted) so the
+  /// user can type to replace it or tap away to keep it. [start]/[end]
+  /// are absolute source offsets. No text is mutated, so leaving without
+  /// typing simply preserves the placeholder.
+  void _handleGhostTap(int start, int end) {
+    final text = _contentController.text;
+    if (start < 0 || end > text.length || start >= end) return;
+
+    final startLine = TextPositionUtils.getLineFromOffset(text, start);
+    final startCol = TextPositionUtils.getColumnFromOffset(text, start);
+    final endLine = TextPositionUtils.getLineFromOffset(text, end);
+    final endCol = TextPositionUtils.getColumnFromOffset(text, end);
+
+    // Leave preview and select the run so it reads as an active field.
+    setState(() => _isPreviewMode = false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _contentController.selection = CodeLineSelection(
+        baseIndex: startLine,
+        baseOffset: startCol,
+        extentIndex: endLine,
+        extentOffset: endCol,
+      );
+      _editorScrollController.makeCenterIfInvisible(
+        CodeLinePosition(index: startLine, offset: startCol),
+      );
+      _contentFocusNode.requestFocus();
+    });
+    _saveCurrentPosition();
+  }
+
   void _scrollToOffsetInPreview(int charOffset) {
     // Use the PreviewScrollController which delegates to the
     // SourceMappedMarkdownView's native scroll method.
@@ -1609,6 +1648,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       onCheckboxToggle: _handleCheckboxToggle,
       onTapLink: _handleLinkTap,
       onDoubleTapLine: _handleDoubleTapLine,
+      onGhostTap: _handleGhostTap,
       // Forward scroll progress to the preview controller so the
       // interactive scrollbar (which listens on the same controller)
       // keeps tracking position. The bloc already mirrors progress
@@ -1832,7 +1872,44 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _onTextChanged();
   }
 
+  /// Wraps the current editor selection as ghost text (`{{ … }}`). With
+  /// no selection, inserts an empty `{{  }}` and parks the caret between
+  /// the markers so the user can type the placeholder.
+  void _insertGhostText() {
+    final controller = _contentController;
+    final selected = controller.selectedText;
+    if (selected.isEmpty) {
+      final caret = controller.selection;
+      final line = caret.baseIndex;
+      final col = caret.baseOffset;
+      controller.runRevocableOp(() {
+        controller.replaceSelection(GhostText.wrap(''));
+        // '{{  }}' → drop the caret between the two spaces (col + 3).
+        controller.selection = CodeLineSelection.collapsed(
+          index: line,
+          offset: col + GhostText.open.length + 1,
+        );
+      });
+    } else {
+      controller.runRevocableOp(() {
+        controller.replaceSelection(GhostText.wrap(selected));
+      });
+    }
+    _onTextChanged();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _contentController.makeCursorVisible();
+    });
+  }
+
   void _handleShortcut(CustomMarkdownShortcut shortcut) {
+    // Ghost text has bespoke insert behavior (on an empty selection the
+    // caret lands inside the placeholder), so it bypasses the generic
+    // applier — mirroring how the header shortcut has its own handling.
+    if (shortcut.id == 'default_ghost') {
+      _insertGhostText();
+      return;
+    }
+
     // Store length before applying the shortcut to calculate inserted range
     final beforeLength = _contentController.textLength;
 
@@ -1956,4 +2033,77 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       });
     }
   }
+}
+
+/// re_editor [CodeLineSpanBuilder] that renders `{{ … }}` ghost-text
+/// runs as dimmed inner text with the markers visually concealed.
+///
+/// The marker characters are kept in the line (re_editor maps caret /
+/// selection offsets through the rendered span, so removing them would
+/// desync the model) but are painted transparent and collapsed to a
+/// near-zero width, so only the grey inner text shows. A whitespace-only
+/// placeholder gets an underline so the empty slot stays findable.
+/// Lines without the opening marker short-circuit so the common path
+/// stays allocation-free.
+TextSpan _buildGhostEditorSpan({
+  required BuildContext context,
+  required int index,
+  required CodeLine codeLine,
+  required TextSpan textSpan,
+  required TextStyle style,
+}) {
+  final text = codeLine.text;
+  if (!GhostText.mightContain(text)) return textSpan;
+  final ghosts = GhostText.findGhosts(text);
+  if (ghosts.isEmpty) return textSpan;
+
+  final baseColor =
+      style.color ??
+      Theme.of(context).textTheme.bodyLarge?.color ??
+      Colors.grey;
+  final ghostColor = baseColor.withValues(alpha: 0.45);
+  final ghostStyle = style.copyWith(color: ghostColor);
+  // Markers stay in the model (offset integrity) but are painted
+  // transparent and collapsed to ~0 width so they read as invisible.
+  final concealStyle = style.copyWith(
+    color: const Color(0x00000000),
+    fontSize: 0.01,
+  );
+
+  final children = <TextSpan>[];
+  int pos = 0;
+  for (final g in ghosts) {
+    if (g.start > pos) {
+      children.add(TextSpan(text: text.substring(pos, g.start), style: style));
+    }
+    // Opening `{{` — concealed.
+    children.add(
+      TextSpan(
+        text: text.substring(g.start, g.innerStart),
+        style: concealStyle,
+      ),
+    );
+    // Inner text — dimmed; underline when blank so the slot stays visible.
+    final inner = text.substring(g.innerStart, g.innerEnd);
+    children.add(
+      TextSpan(
+        text: inner,
+        style: inner.trim().isEmpty
+            ? ghostStyle.copyWith(
+                decoration: TextDecoration.underline,
+                decorationColor: ghostColor,
+              )
+            : ghostStyle,
+      ),
+    );
+    // Closing `}}` — concealed.
+    children.add(
+      TextSpan(text: text.substring(g.innerEnd, g.end), style: concealStyle),
+    );
+    pos = g.end;
+  }
+  if (pos < text.length) {
+    children.add(TextSpan(text: text.substring(pos), style: style));
+  }
+  return TextSpan(style: style, children: children);
 }

@@ -40,8 +40,7 @@ class MarkdownBlock {
   });
 
   /// Whether [lineIndex] falls within this block.
-  bool contains(int lineIndex) =>
-      lineIndex >= startLine && lineIndex < endLine;
+  bool contains(int lineIndex) => lineIndex >= startLine && lineIndex < endLine;
 }
 
 /// The result of a chunk-layout pass: the sparse multi-line [blocks]

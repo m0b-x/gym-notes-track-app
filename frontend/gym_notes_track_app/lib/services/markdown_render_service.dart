@@ -66,6 +66,7 @@ class MarkdownRenderService {
     int? currentHighlightIndex,
     LinkTapCallback? onLinkTap,
     CheckboxTapCallback? onCheckboxTap,
+    GhostTapCallback? onGhostTap,
   }) {
     final needsRebuild =
         _builder == null ||
@@ -99,6 +100,7 @@ class MarkdownRenderService {
       style: style,
       onLinkTap: onLinkTap,
       onCheckboxTap: onCheckboxTap,
+      onGhostTap: onGhostTap,
       searchHighlights: searchHighlights,
       currentHighlightIndex: currentHighlightIndex,
       linesPerChunk: adaptiveChunkSize,

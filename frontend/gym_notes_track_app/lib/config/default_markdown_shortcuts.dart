@@ -158,5 +158,14 @@ class DefaultMarkdownShortcuts {
       isDefault: true,
       insertType: 'date',
     ),
+    CustomMarkdownShortcut(
+      id: 'default_ghost',
+      label: 'Ghost Text',
+      iconCodePoint: Icons.data_object.codePoint,
+      iconFontFamily: 'MaterialIcons',
+      beforeText: '{{ ',
+      afterText: ' }}',
+      isDefault: true,
+    ),
   ];
 }

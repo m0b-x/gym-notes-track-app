@@ -28,6 +28,11 @@ class MarkdownBarService extends ChangeNotifier {
   static const String _activeProfileKey = 'active_markdown_bar';
   static const String _noteBarPrefix = 'note_bar_';
 
+  /// One-time guard so the ghost-text default shortcut is appended to
+  /// pre-existing profiles only once (and not resurrected after the user
+  /// removes it).
+  static const String _ghostSeedKey = 'ghost_shortcut_seeded';
+
   /// In-memory cache of all profiles.
   List<MarkdownBarProfile> _profiles = [];
 
@@ -249,6 +254,42 @@ class MarkdownBarService extends ChangeNotifier {
     await _db.userSettingsDao.deleteValue('markdown_shortcuts');
   }
 
+  /// One-time reconciliation that appends the ghost-text default shortcut
+  /// (`default_ghost`) to every profile that predates it. Guarded by
+  /// [_ghostSeedKey] so it runs exactly once — a user who later deletes
+  /// the shortcut won't have it return on the next launch. New installs
+  /// already include it via [DefaultMarkdownShortcuts], so the append is
+  /// a no-op there and only the flag is written.
+  Future<void> _seedGhostShortcutIfNeeded() async {
+    final done = await _db.userSettingsDao.getValue(_ghostSeedKey);
+    if (done == 'true') return;
+
+    CustomMarkdownShortcut? ghost;
+    for (final s in DefaultMarkdownShortcuts.shortcuts) {
+      if (s.id == 'default_ghost') {
+        ghost = s;
+        break;
+      }
+    }
+
+    if (ghost != null) {
+      bool changed = false;
+      for (int i = 0; i < _profiles.length; i++) {
+        final profile = _profiles[i];
+        if (!profile.shortcuts.any((s) => s.id == 'default_ghost')) {
+          _profiles[i] = profile.copyWith(
+            shortcuts: [...profile.shortcuts, ghost],
+            updatedAt: DateTime.now(),
+          );
+          changed = true;
+        }
+      }
+      if (changed) await _persist();
+    }
+
+    await _db.userSettingsDao.setValue(_ghostSeedKey, 'true');
+  }
+
   // ---------------------------------------------------------------------------
   // Internal persistence
   // ---------------------------------------------------------------------------
@@ -290,6 +331,10 @@ class MarkdownBarService extends ChangeNotifier {
 
     // Attempt one-time legacy migration
     await migrateFromLegacy();
+
+    // One-time: add the ghost-text default shortcut to profiles created
+    // before it shipped (runs after legacy migration so it isn't wiped).
+    await _seedGhostShortcutIfNeeded();
   }
 
   Future<void> _persist() async {

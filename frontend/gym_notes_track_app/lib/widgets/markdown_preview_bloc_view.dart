@@ -42,6 +42,11 @@ class MarkdownPreviewBlocView extends StatefulWidget {
   final void Function(String url)? onTapLink;
   final DoubleTapLineCallback? onDoubleTapLine;
 
+  /// Invoked when a ghost-text placeholder is tapped in the preview.
+  /// Carries the absolute source range of the whole `{{ … }}` run so
+  /// the page can delete it and navigate to the editor.
+  final void Function(int start, int end)? onGhostTap;
+
   /// Forwarded **after** the bloc has been notified so callers that
   /// rely on the legacy callback (e.g. `PreviewScrollController`)
   /// keep working without going through the bloc state.
@@ -63,6 +68,7 @@ class MarkdownPreviewBlocView extends StatefulWidget {
     this.onCheckboxToggle,
     this.onTapLink,
     this.onDoubleTapLine,
+    this.onGhostTap,
     this.onScrollProgress,
     this.viewKey,
   });
@@ -136,7 +142,8 @@ class _MarkdownPreviewBlocViewState extends State<MarkdownPreviewBlocView> {
       _maybeDispatchTheme();
     }
     if (oldWidget.onTapLink != widget.onTapLink ||
-        oldWidget.onCheckboxToggle != widget.onCheckboxToggle) {
+        oldWidget.onCheckboxToggle != widget.onCheckboxToggle ||
+        oldWidget.onGhostTap != widget.onGhostTap) {
       _bindCallbacks();
     }
   }
@@ -162,6 +169,7 @@ class _MarkdownPreviewBlocViewState extends State<MarkdownPreviewBlocView> {
                 ),
               );
             },
+      onGhostTap: widget.onGhostTap,
     );
   }
 

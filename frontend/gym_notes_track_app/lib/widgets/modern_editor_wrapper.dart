@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:re_editor/re_editor.dart';
 
@@ -5,6 +7,7 @@ import '../constants/app_constants.dart';
 import '../constants/app_spacing.dart';
 import '../constants/font_constants.dart';
 import '../constants/markdown_constants.dart';
+import '../utils/ghost_text.dart';
 import '../utils/re_editor_search_controller.dart';
 import 'editor_chunk_overlay.dart';
 import 'scroll_progress_indicator.dart';
@@ -57,6 +60,19 @@ class ModernEditorWrapper extends StatefulWidget {
 class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
   late final SelectionToolbarController _toolbarController;
 
+  /// Armed by a pointer-up over the editor and consumed by the next
+  /// caret change, so only a *tap* (not arrow-key navigation, which
+  /// fires no pointer event) can engage a ghost. Auto-expires so a
+  /// stale tap can't trigger a much-later keyboard caret move.
+  bool _pendingGhostTapCheck = false;
+  Timer? _ghostTapExpiry;
+
+  /// Reentrancy guard while we programmatically set the selection to
+  /// activate a ghost.
+  bool _activatingGhost = false;
+
+  static const Duration _ghostTapWindow = Duration(milliseconds: 350);
+
   @override
   void initState() {
     super.initState();
@@ -68,9 +84,58 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
 
   @override
   void dispose() {
+    _ghostTapExpiry?.cancel();
     widget.searchController.clearFindController();
     widget.controller.removeListener(_onControllerChanged);
     super.dispose();
+  }
+
+  /// Arms the ghost-tap check. Called from a [Listener] wrapping the
+  /// editor, so it fires on every pointer release over the text area.
+  void _onEditorPointerUp(PointerUpEvent event) {
+    _pendingGhostTapCheck = true;
+    _ghostTapExpiry?.cancel();
+    _ghostTapExpiry = Timer(_ghostTapWindow, () {
+      _pendingGhostTapCheck = false;
+    });
+  }
+
+  /// When a tap lands the caret strictly inside a ghost run, select the
+  /// whole `{{ … }}` run so it reads as an active "fill-in" field — the
+  /// native selection highlight is the "you tapped it" signal. Typing
+  /// replaces the run (markers included); tapping away simply collapses
+  /// the selection, leaving the placeholder intact, so nothing is ever
+  /// lost. The selection is set in a microtask so we never reenter the
+  /// controller from within its own notification.
+  void _maybeActivateTappedGhost() {
+    if (!_pendingGhostTapCheck || _activatingGhost) return;
+    final controller = widget.controller;
+    final selection = controller.selection;
+    if (!selection.isCollapsed) return;
+    final lineIndex = selection.baseIndex;
+    final lines = controller.codeLines;
+    if (lineIndex < 0 || lineIndex >= lines.length) return;
+    final lineText = lines[lineIndex].text;
+    if (!GhostText.mightContain(lineText)) return;
+    final ghost = GhostText.ghostAtOffset(lineText, selection.baseOffset);
+    if (ghost == null) return;
+
+    _pendingGhostTapCheck = false;
+    _ghostTapExpiry?.cancel();
+    _activatingGhost = true;
+    scheduleMicrotask(() {
+      if (!mounted) {
+        _activatingGhost = false;
+        return;
+      }
+      controller.selection = CodeLineSelection(
+        baseIndex: lineIndex,
+        baseOffset: ghost.start,
+        extentIndex: lineIndex,
+        extentOffset: ghost.end,
+      );
+      _activatingGhost = false;
+    });
   }
 
   Widget _buildSelectionToolbar({
@@ -127,6 +192,7 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
 
   void _onControllerChanged() {
     widget.onTextChanged();
+    _maybeActivateTappedGhost();
   }
 
   @override
@@ -138,12 +204,15 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
 
     return Stack(
       children: [
-        Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
+        Listener(
+          onPointerUp: _onEditorPointerUp,
+          child: Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: _buildCodeEditor(context),
           ),
-          child: _buildCodeEditor(context),
         ),
         // Chunk debug overlay - positioned behind scrollbar but above editor
         if (showDebugOverlay)
