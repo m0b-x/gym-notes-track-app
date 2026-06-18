@@ -324,6 +324,9 @@ class _CodeInputController extends ChangeNotifier
   @override
   void insertContent(KeyboardInsertedContent content) {}
 
+  @override
+  bool onFocusReceived() => false;
+
   void ensureInput() {
     if (_focusNode.hasFocus) {
       if (!_readOnly) {
