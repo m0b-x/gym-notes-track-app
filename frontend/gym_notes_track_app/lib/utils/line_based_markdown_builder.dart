@@ -6,6 +6,7 @@ import 'ghost_text.dart';
 import 'markdown_chunker.dart';
 import 'markdown_line_height_calculator.dart';
 import 'markdown_link_patterns.dart';
+import 'markdown_list_syntax.dart';
 
 typedef LinkTapCallback = void Function(String url);
 typedef CheckboxTapCallback = void Function(int start, int end, bool isChecked);
@@ -475,7 +476,12 @@ class LineBasedMarkdownBuilder {
 
   /// Build a TextSpan for a single line with inline markdown formatting.
   TextSpan buildLine(String line, int lineIndex, [int? chunkIndex]) {
-    final lineStart = lineIndex < _lineOffsets.length - 1
+    // [_lineOffsets] holds one start offset per line. The final line of a
+    // document with no trailing newline is still a valid index here, so
+    // the guard is `< length` (mirroring [lineEnd]'s `+ 1 < length`); an
+    // earlier `< length - 1` dropped the last line's offset to 0, which
+    // corrupted search-highlight and tap offsets on that line.
+    final lineStart = lineIndex < _lineOffsets.length
         ? _lineOffsets[lineIndex]
         : 0;
     final lineEnd = lineIndex + 1 < _lineOffsets.length
@@ -549,49 +555,39 @@ class LineBasedMarkdownBuilder {
       }
     }
 
-    // Checkbox list item
-    final checkboxMatch = _MarkdownPatterns.checkbox.firstMatch(line);
-    if (checkboxMatch != null) {
-      // Content offset: indent + "- [x] " = indent + 6
-      final contentOffset = lineStart + indent + 6;
-      return _buildCheckboxLine(
-        checkboxMatch.group(3) ?? '',
-        checkboxMatch.group(2)?.toLowerCase() == 'x',
-        indent,
-        lineStart,
-        contentOffset,
-        lineEnd,
-        lineIndex,
-      );
-    }
-
-    // Unordered list item
-    if (trimmed.startsWith('- ') ||
-        trimmed.startsWith('* ') ||
-        trimmed.startsWith('+ ')) {
-      final contentOffset = lineStart + indent + 2; // prefix is 2 chars: "- "
-      return _buildListItem(
-        trimmed.substring(2),
-        indent,
-        contentOffset,
-        lineEnd,
-        false,
-      );
-    }
-
-    // Ordered list item
-    final orderedMatch = _MarkdownPatterns.orderedList.firstMatch(trimmed);
-    if (orderedMatch != null) {
-      final number = orderedMatch.group(1) ?? '1';
-      final contentOffset =
-          lineStart + indent + number.length + 2; // "N. " where N is the number
-      return _buildOrderedListItem(
-        orderedMatch.group(2) ?? '',
-        number,
-        indent,
-        contentOffset,
-        lineEnd,
-      );
+    // List items (bullet / ordered / task) via the shared syntax so the
+    // preview and the editor agree on exactly what is a list. Offsets are
+    // line-relative, so add [lineStart] for absolute source positions.
+    final listItem = MarkdownListSyntax.parse(line);
+    if (listItem != null) {
+      switch (listItem.kind) {
+        case MarkdownListKind.task:
+          return _buildCheckboxLine(
+            listItem.content,
+            listItem.checked,
+            listItem.level,
+            lineStart + listItem.bracketStart,
+            lineStart + listItem.contentStart,
+            lineEnd,
+            lineIndex,
+          );
+        case MarkdownListKind.bullet:
+          return _buildListItem(
+            listItem.content,
+            listItem.level,
+            lineStart + listItem.contentStart,
+            lineEnd,
+          );
+        case MarkdownListKind.ordered:
+          return _buildOrderedListItem(
+            listItem.content,
+            listItem.marker,
+            listItem.delimiter,
+            listItem.level,
+            lineStart + listItem.contentStart,
+            lineEnd,
+          );
+      }
     }
 
     // Blockquote
@@ -651,13 +647,12 @@ class LineBasedMarkdownBuilder {
   TextSpan _buildCheckboxLine(
     String text,
     bool isChecked,
-    int indent,
-    int lineStart,
+    int level,
+    int bracketStart,
     int contentStart,
     int lineEnd,
     int lineIndex,
   ) {
-    final indentStr = '  ' * (indent ~/ 2);
     final checkboxChar = isChecked ? '☒' : '☐';
 
     final baseStyle = TextStyle(
@@ -673,10 +668,8 @@ class LineBasedMarkdownBuilder {
           )
         : baseStyle;
 
-    // Find checkbox bracket position in source
-    final bracketStart =
-        lineStart + indent + 2; // "- [" = 3 chars, but index starts at 2
-    final bracketEnd = bracketStart + 3; // "[x]" or "[ ]"
+    // The bracket span "[x]" / "[ ]" is always 3 source chars wide.
+    final bracketEnd = bracketStart + 3;
 
     // Cache checkbox recognizer by line index to prevent memory leaks
     TapGestureRecognizer? checkboxRecognizer;
@@ -694,30 +687,33 @@ class LineBasedMarkdownBuilder {
       lineEnd,
     );
 
-    // Use WidgetSpan to create hanging indent for wrapped lines
+    // WidgetSpan gives a hanging indent so wrapped lines align under the
+    // content; nesting is a left padding proportional to [level].
     return TextSpan(
       children: [
-        if (indentStr.isNotEmpty) TextSpan(text: indentStr, style: baseStyle),
         WidgetSpan(
           alignment: PlaceholderAlignment.top,
-          child: DefaultTextStyle(
-            style: baseStyle,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                GestureDetector(
-                  onTap: checkboxRecognizer?.onTap,
-                  child: Text(
-                    '$checkboxChar ',
-                    style: baseStyle.copyWith(
-                      color: isChecked
-                          ? style.primaryColor
-                          : style.textColor.withValues(alpha: 0.7),
+          child: Padding(
+            padding: EdgeInsets.only(left: _listIndent(level)),
+            child: DefaultTextStyle(
+              style: baseStyle,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onTap: checkboxRecognizer?.onTap,
+                    child: Text(
+                      '$checkboxChar ',
+                      style: baseStyle.copyWith(
+                        color: isChecked
+                            ? style.primaryColor
+                            : style.textColor.withValues(alpha: 0.7),
+                      ),
                     ),
                   ),
-                ),
-                Expanded(child: Text.rich(contentSpan, style: contentStyle)),
-              ],
+                  Expanded(child: Text.rich(contentSpan, style: contentStyle)),
+                ],
+              ),
             ),
           ),
         ),
@@ -727,13 +723,11 @@ class LineBasedMarkdownBuilder {
 
   TextSpan _buildListItem(
     String text,
-    int indent,
+    int level,
     int contentStart,
     int lineEnd,
-    bool ordered,
   ) {
-    final indentStr = '  ' * (indent ~/ 2);
-    final bullet = (indent ~/ 2) == 0 ? '•' : ((indent ~/ 2) == 1 ? '◦' : '▪');
+    final bullet = _bulletForLevel(level);
 
     final baseStyle = TextStyle(
       fontSize: style.baseFontSize,
@@ -748,26 +742,27 @@ class LineBasedMarkdownBuilder {
       lineEnd,
     );
 
-    // Use WidgetSpan to create hanging indent for wrapped lines
     return TextSpan(
       children: [
-        if (indentStr.isNotEmpty) TextSpan(text: indentStr, style: baseStyle),
         WidgetSpan(
           alignment: PlaceholderAlignment.top,
-          child: DefaultTextStyle(
-            style: baseStyle,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$bullet ',
-                  style: baseStyle.copyWith(
-                    color: style.primaryColor,
-                    fontWeight: FontWeight.bold,
+          child: Padding(
+            padding: EdgeInsets.only(left: _listIndent(level)),
+            child: DefaultTextStyle(
+              style: baseStyle,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$bullet ',
+                    style: baseStyle.copyWith(
+                      color: style.primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                Expanded(child: Text.rich(contentSpan, style: baseStyle)),
-              ],
+                  Expanded(child: Text.rich(contentSpan, style: baseStyle)),
+                ],
+              ),
             ),
           ),
         ),
@@ -778,12 +773,11 @@ class LineBasedMarkdownBuilder {
   TextSpan _buildOrderedListItem(
     String text,
     String number,
-    int indent,
+    String delimiter,
+    int level,
     int contentStart,
     int lineEnd,
   ) {
-    final indentStr = '  ' * (indent ~/ 2);
-
     final baseStyle = TextStyle(
       fontSize: style.baseFontSize,
       height: MarkdownConstants.lineHeight,
@@ -797,31 +791,50 @@ class LineBasedMarkdownBuilder {
       lineEnd,
     );
 
-    // Use WidgetSpan to create hanging indent for wrapped lines
     return TextSpan(
       children: [
-        if (indentStr.isNotEmpty) TextSpan(text: indentStr, style: baseStyle),
         WidgetSpan(
           alignment: PlaceholderAlignment.top,
-          child: DefaultTextStyle(
-            style: baseStyle,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$number. ',
-                  style: baseStyle.copyWith(
-                    color: style.primaryColor,
-                    fontWeight: FontWeight.bold,
+          child: Padding(
+            padding: EdgeInsets.only(left: _listIndent(level)),
+            child: DefaultTextStyle(
+              style: baseStyle,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$number$delimiter ',
+                    style: baseStyle.copyWith(
+                      color: style.primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                Expanded(child: Text.rich(contentSpan, style: baseStyle)),
-              ],
+                  Expanded(child: Text.rich(contentSpan, style: baseStyle)),
+                ],
+              ),
             ),
           ),
         ),
       ],
     );
+  }
+
+  /// Visual left-indent (in logical pixels) for a list item at the given
+  /// nesting [level]. One em per level keeps nesting readable at any font
+  /// size; this is decorative only and never affects source offsets.
+  double _listIndent(int level) => level * style.baseFontSize;
+
+  /// The bullet glyph for an unordered item at [level], cycling
+  /// `•` → `◦` → `▪` so nesting depth is visually distinguishable.
+  String _bulletForLevel(int level) {
+    switch (level % 3) {
+      case 0:
+        return '•';
+      case 1:
+        return '◦';
+      default:
+        return '▪';
+    }
   }
 
   TextSpan _buildBlockquote(String text, int contentStart, int lineEnd) {
@@ -1620,8 +1633,6 @@ class _InlineAutoLink {
 
 /// Pre-compiled regex patterns for inline markdown (compiled once, reused)
 class _MarkdownPatterns {
-  static final checkbox = RegExp(r'^(\s*)-\s*\[([xX\s])\]\s*(.*)$');
-  static final orderedList = RegExp(r'^(\d+)\.\s+(.*)$');
   static final horizontalRule = RegExp(r'^[-*_]{3,}\s*$');
 
   /// Image pattern: ![alt text](url)

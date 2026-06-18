@@ -8,6 +8,7 @@ import '../constants/app_spacing.dart';
 import '../constants/font_constants.dart';
 import '../constants/markdown_constants.dart';
 import '../utils/ghost_text.dart';
+import '../utils/markdown_list_utils.dart';
 import '../utils/re_editor_search_controller.dart';
 import 'editor_chunk_overlay.dart';
 import 'scroll_progress_indicator.dart';
@@ -195,6 +196,93 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
     _maybeActivateTappedGhost();
   }
 
+  /// Overrides re_editor's Tab / Shift-Tab so that, when the caret sits on
+  /// a single list item, the whole item is indented / outdented at its
+  /// start (the markdown-editor convention) instead of inserting spaces
+  /// at the caret. Multi-line selections and non-list lines fall through
+  /// to re_editor's default indent behavior.
+  late final Map<Type, Action<Intent>> _shortcutOverrides = {
+    CodeShortcutIndentIntent: CallbackAction<CodeShortcutIndentIntent>(
+      onInvoke: (intent) {
+        _onListIndent(outdent: false);
+        return null;
+      },
+    ),
+    CodeShortcutOutdentIntent: CallbackAction<CodeShortcutOutdentIntent>(
+      onInvoke: (intent) {
+        _onListIndent(outdent: true);
+        return null;
+      },
+    ),
+  };
+
+  void _onListIndent({required bool outdent}) {
+    if (_tryListIndent(outdent: outdent)) return;
+    // Not a list line — preserve re_editor's default behavior.
+    if (outdent) {
+      widget.controller.applyOutdent();
+    } else {
+      widget.controller.applyIndent();
+    }
+  }
+
+  /// Indents (or outdents) the current single list line by one [
+  /// MarkdownListUtils.indentUnit]. Returns `true` when it handled the
+  /// keystroke (the caret was on a list item), `false` to fall back.
+  bool _tryListIndent({required bool outdent}) {
+    final controller = widget.controller;
+    final selection = controller.selection;
+    if (!selection.isSameLine) return false;
+    final lineIndex = selection.extentIndex;
+    final lines = controller.codeLines;
+    if (lineIndex < 0 || lineIndex >= lines.length) return false;
+    final lineText = lines[lineIndex].text;
+    if (!MarkdownListUtils.isListLine(lineText)) return false;
+
+    const unit = '  '; // MarkdownListUtils.indentUnit spaces
+    final String newText;
+    final int delta;
+    if (outdent) {
+      if (lineText.startsWith(unit)) {
+        newText = lineText.substring(2);
+        delta = -2;
+      } else if (lineText.startsWith(' ') || lineText.startsWith('\t')) {
+        newText = lineText.substring(1);
+        delta = -1;
+      } else {
+        // Already at column 0 — consume the key but do nothing.
+        return true;
+      }
+    } else {
+      newText = '$unit$lineText';
+      delta = 2;
+    }
+
+    // Keep the caret on the same content character (never at offset 0,
+    // which would make the page's Enter-continuation logic misfire).
+    final baseOffset = (selection.baseOffset + delta).clamp(0, newText.length);
+    final extentOffset = (selection.extentOffset + delta).clamp(
+      0,
+      newText.length,
+    );
+
+    controller.runRevocableOp(() {
+      controller.value = CodeLineEditingValue(
+        codeLines: CodeLines.of([
+          for (int i = 0; i < lines.length; i++)
+            if (i == lineIndex) CodeLine(newText) else lines[i],
+        ]),
+        selection: CodeLineSelection(
+          baseIndex: lineIndex,
+          baseOffset: baseOffset,
+          extentIndex: lineIndex,
+          extentOffset: extentOffset,
+        ),
+      );
+    });
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -281,6 +369,9 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
         readOnly: false,
         autofocus: false,
         chunkAnalyzer: const NonCodeChunkAnalyzer(),
+        // List-aware Tab / Shift-Tab: indent/outdent the whole list item
+        // when the caret is on one; otherwise re_editor's default applies.
+        shortcutOverrideActions: _shortcutOverrides,
         // Add small right padding for visible scrollbar (6-12px width)
         // Add bottom safe area to account for phone navigation bar
         padding: EdgeInsets.only(

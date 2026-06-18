@@ -1195,7 +1195,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       final prevLineIndex = currentLineIndex - 1;
       final prevLine = _contentController.codeLines[prevLineIndex].text;
 
-      if (MarkdownListUtils.isEmptyListItem(prevLine.trim())) {
+      if (MarkdownListUtils.isEmptyListItem(prevLine)) {
         // Remove the empty list item line — merge with the Enter undo node
         // by setting value directly (bypasses runRevocableOp).
         // Need full text here for replaceRange (rare path: Enter on empty list item).
