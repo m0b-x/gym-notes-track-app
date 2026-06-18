@@ -799,20 +799,25 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     // we can scroll the editor to the same logical position.
     //
     // Caveat: when entering preview we already scrolled to the cursor's
-    // chunk, so a `currentLineIndex` that floors to the same chunk as
-    // the saved selection means the user *didn't* meaningfully scroll —
-    // in that case the saved selection is the truer target. Otherwise
-    // (the user paged through the preview) we honor the new reading
-    // location and also move the caret so subsequent typing happens at
-    // a visible position.
+    // chunk, so a `currentLineIndex` that maps to the same chunk as the
+    // saved selection means the user *didn't* meaningfully scroll — in
+    // that case the saved selection is the truer target. Otherwise (the
+    // user paged through the preview) we honor the new reading location
+    // and also move the caret so subsequent typing happens at a visible
+    // position.
+    //
+    // Chunks are block-aligned (variable line counts), so we compare the
+    // preview's top line against the *chunk-start line* of the saved
+    // cursor via the render service rather than assuming uniform chunks.
     final previewTopLine = _previewViewKey.currentState?.currentLineIndex;
-    final linesPerChunk = _previewBloc.renderService.linesPerChunk;
     final savedBaseIndex = _savedEditorSelection?.baseIndex;
+    final savedChunkStart = savedBaseIndex != null
+        ? _previewBloc.renderService.chunkStartLineForLine(savedBaseIndex)
+        : null;
     final userMovedPreview =
         previewTopLine != null &&
-        linesPerChunk > 0 &&
-        savedBaseIndex != null &&
-        (savedBaseIndex ~/ linesPerChunk) * linesPerChunk != previewTopLine;
+        savedChunkStart != null &&
+        savedChunkStart != previewTopLine;
 
     // Just flip the mode
     setState(() {

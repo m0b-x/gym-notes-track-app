@@ -289,18 +289,20 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
       return false;
     }
 
-    // Calculate chunk index from line index
-    final chunkIndex = lineIndex ~/ _builder!.linesPerChunk;
+    // Calculate chunk index from line index (block-aligned chunks have
+    // variable line counts, so this is a binary search, not division).
+    final chunkIndex = _builder!.chunkIndexForLine(lineIndex);
     if (chunkIndex < 0 || chunkIndex >= _builder!.chunkCount) {
       return false;
     }
 
     // Calculate alignment - position within chunk
-    final lineInChunk = lineIndex % _builder!.linesPerChunk;
-    final alignment = (lineInChunk / _builder!.linesPerChunk * 0.3).clamp(
-      0.1,
-      0.4,
-    );
+    final chunkStart = _builder!.chunkStartLine(chunkIndex);
+    final chunkLines = _builder!.chunkLineCount(chunkIndex);
+    final lineInChunk = lineIndex - chunkStart;
+    final alignment = chunkLines > 0
+        ? (lineInChunk / chunkLines * 0.3).clamp(0.1, 0.4)
+        : 0.1;
 
     if (animate) {
       _itemScrollController.scrollTo(
@@ -323,7 +325,7 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
     if (positions.isEmpty) return 0;
 
     final firstVisible = positions.reduce((a, b) => a.index < b.index ? a : b);
-    return firstVisible.index * _builder!.linesPerChunk;
+    return _builder!.chunkStartLine(firstVisible.index);
   }
 
   /// Get the total number of chunks
@@ -471,8 +473,8 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
           // Wrap with double-tap detector if callback is provided
           if (widget.onDoubleTapLine != null) {
             chunkWidget = DoubleTapLineDetector(
-              chunkIndex: index,
-              linesPerChunk: _builder!.linesPerChunk,
+              chunkStartLine: _builder!.chunkStartLine(index),
+              chunkLineCount: _builder!.chunkLineCount(index),
               totalLines: _builder!.lineCount,
               fontSize: widget.fontSize,
               onDoubleTapLine: widget.onDoubleTapLine!,

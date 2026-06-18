@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:re_editor/re_editor.dart';
 
+import '../utils/markdown_chunker.dart';
+
 /// Overlay that draws chunk indicators on top of the code editor.
 /// Uses the same debug settings as the preview mode for consistency.
 /// Only renders visible chunks for performance.
@@ -46,11 +48,21 @@ class EditorChunkOverlay extends StatefulWidget {
 }
 
 class _EditorChunkOverlayState extends State<EditorChunkOverlay> {
+  /// Block-aligned chunk start lines, computed via the shared
+  /// [MarkdownChunker] so they match the preview's chunk boundaries
+  /// exactly. Recomputed only on content / config change — never on
+  /// scroll — so scrolling stays a cheap repaint.
+  List<int> _chunkStartLines = const [0];
+
+  /// Line count the cached [_chunkStartLines] was built from.
+  int _layoutLineCount = 0;
+
   @override
   void initState() {
     super.initState();
     widget.scrollController.verticalScroller.addListener(_onScroll);
     widget.editingController.addListener(_onContentChanged);
+    _recomputeLayout();
   }
 
   @override
@@ -71,6 +83,11 @@ class _EditorChunkOverlayState extends State<EditorChunkOverlay> {
       oldWidget.editingController.removeListener(_onContentChanged);
       widget.editingController.addListener(_onContentChanged);
     }
+    // Lines-per-chunk (or the controller) changing alters boundaries.
+    if (oldWidget.linesPerChunk != widget.linesPerChunk ||
+        oldWidget.editingController != widget.editingController) {
+      _recomputeLayout();
+    }
   }
 
   void _onScroll() {
@@ -80,9 +97,29 @@ class _EditorChunkOverlayState extends State<EditorChunkOverlay> {
   }
 
   void _onContentChanged() {
-    if (mounted) {
-      setState(() {});
-    }
+    if (!mounted) return;
+    // Debug overlay only: skip the O(n) fence scan when nothing is drawn.
+    if (!widget.showColors && !widget.showBorders) return;
+    setState(_recomputeLayout);
+  }
+
+  /// Rebuilds the cached chunk layout from the editor's current lines
+  /// using the shared chunker (adaptive sizing + fence-aware block
+  /// alignment), so the overlay mirrors the preview's chunks.
+  void _recomputeLayout() {
+    final lines = widget.editingController.codeLines;
+    final lineCount = lines.length;
+    final adaptive = MarkdownChunker.adaptiveChunkSize(
+      lineCount,
+      widget.linesPerChunk,
+    );
+    final layout = MarkdownChunker.computeLayout(
+      lineCount: lineCount,
+      chunkSize: adaptive,
+      lineAt: (i) => i < lines.length ? lines[i].text : '',
+    );
+    _chunkStartLines = layout.chunkStartLines;
+    _layoutLineCount = lineCount;
   }
 
   @override
@@ -103,8 +140,8 @@ class _EditorChunkOverlayState extends State<EditorChunkOverlay> {
           painter: _ChunkOverlayPainter(
             scrollOffset: scrollOffset,
             viewportHeight: constraints.maxHeight,
-            lineCount: widget.editingController.lineCount,
-            linesPerChunk: widget.linesPerChunk,
+            lineCount: _layoutLineCount,
+            chunkStartLines: _chunkStartLines,
             lineHeight: widget.fontSize * widget.lineHeight,
             showColors: widget.showColors,
             showBorders: widget.showBorders,
@@ -122,7 +159,11 @@ class _ChunkOverlayPainter extends CustomPainter {
   final double scrollOffset;
   final double viewportHeight;
   final int lineCount;
-  final int linesPerChunk;
+
+  /// Block-aligned chunk start lines (chunk `i` spans
+  /// `[chunkStartLines[i], chunkStartLines[i + 1])`, the last ending at
+  /// [lineCount]). Matches the preview's boundaries.
+  final List<int> chunkStartLines;
   final double lineHeight;
   final bool showColors;
   final bool showBorders;
@@ -163,7 +204,7 @@ class _ChunkOverlayPainter extends CustomPainter {
     required this.scrollOffset,
     required this.viewportHeight,
     required this.lineCount,
-    required this.linesPerChunk,
+    required this.chunkStartLines,
     required this.lineHeight,
     required this.showColors,
     required this.showBorders,
@@ -172,9 +213,9 @@ class _ChunkOverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (lineCount == 0) return;
+    if (lineCount == 0 || chunkStartLines.isEmpty) return;
 
-    final chunkCount = (lineCount / linesPerChunk).ceil();
+    final chunkCount = chunkStartLines.length;
 
     // Calculate visible range (with some buffer for smooth scrolling)
     final visibleStart = scrollOffset - lineHeight * 2;
@@ -182,11 +223,10 @@ class _ChunkOverlayPainter extends CustomPainter {
 
     // Only draw visible chunks
     for (int chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
-      final chunkStartLine = chunkIndex * linesPerChunk;
-      final chunkEndLine = ((chunkIndex + 1) * linesPerChunk).clamp(
-        0,
-        lineCount,
-      );
+      final chunkStartLine = chunkStartLines[chunkIndex];
+      final chunkEndLine = chunkIndex + 1 < chunkCount
+          ? chunkStartLines[chunkIndex + 1]
+          : lineCount;
       final linesInChunk = chunkEndLine - chunkStartLine;
 
       // Calculate chunk position in content coordinates
@@ -296,7 +336,7 @@ class _ChunkOverlayPainter extends CustomPainter {
     return scrollOffset != oldDelegate.scrollOffset ||
         viewportHeight != oldDelegate.viewportHeight ||
         lineCount != oldDelegate.lineCount ||
-        linesPerChunk != oldDelegate.linesPerChunk ||
+        !identical(chunkStartLines, oldDelegate.chunkStartLines) ||
         lineHeight != oldDelegate.lineHeight ||
         showColors != oldDelegate.showColors ||
         showBorders != oldDelegate.showBorders ||

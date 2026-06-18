@@ -10,11 +10,11 @@ typedef DoubleTapLineCallback = void Function(int lineIndex, int columnOffset);
 /// Uses actual rendered chunk height and line-specific height scales
 /// (headers are taller, empty lines shorter) for accurate line detection.
 class DoubleTapLineDetector extends StatelessWidget {
-  /// The chunk index this detector wraps
-  final int chunkIndex;
+  /// First source line (inclusive) contained in this chunk.
+  final int chunkStartLine;
 
-  /// Number of lines per chunk
-  final int linesPerChunk;
+  /// Number of source lines contained in this chunk.
+  final int chunkLineCount;
 
   /// Total number of lines in the document
   final int totalLines;
@@ -33,8 +33,8 @@ class DoubleTapLineDetector extends StatelessWidget {
 
   const DoubleTapLineDetector({
     super.key,
-    required this.chunkIndex,
-    required this.linesPerChunk,
+    required this.chunkStartLine,
+    required this.chunkLineCount,
     required this.totalLines,
     required this.fontSize,
     required this.onDoubleTapLine,
@@ -63,13 +63,9 @@ class DoubleTapLineDetector extends StatelessWidget {
     Offset localPosition,
     BoxConstraints constraints,
   ) {
-    // Calculate the actual lines in this specific chunk
-    final chunkStartLine = chunkIndex * linesPerChunk;
-    final chunkEndLine = ((chunkIndex + 1) * linesPerChunk).clamp(
-      0,
-      totalLines,
-    );
-    final linesInThisChunk = chunkEndLine - chunkStartLine;
+    // Lines contained in this specific chunk, sourced from the builder's
+    // block-aligned chunk table.
+    final linesInThisChunk = chunkLineCount;
 
     if (linesInThisChunk <= 0) {
       onDoubleTapLine(chunkStartLine.clamp(0, totalLines - 1), 0);

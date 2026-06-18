@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../constants/markdown_constants.dart';
+import 'markdown_chunker.dart';
 import 'markdown_line_height_calculator.dart';
 import 'markdown_link_patterns.dart';
 
@@ -98,13 +99,22 @@ class LineBasedMarkdownBuilder {
   final Map<String, TapGestureRecognizer> _linkRecognizers = {};
   final Map<int, TapGestureRecognizer> _checkboxRecognizers = {};
 
-  /// Lazy code block state - computed per chunk on demand
-  /// Key: chunk index, Value: map of lineIndex -> isInsideCodeBlock
-  final Map<int, Map<int, bool>> _codeBlockStateCache = {};
+  /// Sparse, sorted, non-overlapping list of multi-line blocks (e.g.
+  /// fenced code). Single-line content is represented implicitly (any
+  /// line not covered by a span is its own one-line block), so this
+  /// stays O(number of multi-line blocks) regardless of document size.
+  ///
+  /// Drives two things: (1) code-fence membership lookups (replacing
+  /// the old per-chunk code-block state caches) and (2) block-aligned
+  /// chunk boundaries so an atomic block is never bisected by a chunk.
+  List<MarkdownBlock> _multiLineBlocks = const [];
 
-  /// Track code block state at chunk boundaries for continuity
-  /// Key: chunk index, Value: whether code block is open at START of chunk
-  final Map<int, bool> _chunkStartsInCodeBlock = {};
+  /// Start line (inclusive) of each chunk. Chunk `i` spans
+  /// `[_chunkStartLines[i], _chunkStartLines[i + 1])` with the final
+  /// chunk ending at [_lineCount]. Built once in [prepare] by walking
+  /// blocks so boundaries land on block edges (atomic blocks are kept
+  /// whole; splittable blocks like code fences may still be divided).
+  List<int> _chunkStartLines = const [];
 
   LineBasedMarkdownBuilder({
     required this.style,
@@ -147,7 +157,26 @@ class LineBasedMarkdownBuilder {
       _lines = null; // Will extract on demand
     }
 
+    // Classify multi-line blocks (fenced code today) and compute
+    // block-aligned chunk boundaries via the shared chunker so the
+    // editor's debug overlay can reproduce identical boundaries.
+    _buildChunkLayout();
+
     return _lines ?? [];
+  }
+
+  /// Delegates to [MarkdownChunker] to classify multi-line blocks and
+  /// compute the block-aligned chunk table. [linesPerChunk] is already
+  /// the adaptive size chosen by [MarkdownRenderService], so it is used
+  /// directly as the chunk target here.
+  void _buildChunkLayout() {
+    final layout = MarkdownChunker.computeLayout(
+      lineCount: _lineCount,
+      chunkSize: linesPerChunk,
+      lineAt: _getLine,
+    );
+    _multiLineBlocks = layout.blocks;
+    _chunkStartLines = layout.chunkStartLines;
   }
 
   /// Get a specific line by index (lazy extraction for large docs)
@@ -169,70 +198,76 @@ class LineBasedMarkdownBuilder {
     return _source.substring(start, end.clamp(start, _source.length));
   }
 
-  /// Check if a line is inside a code block (lazy computation)
-  bool _isLineInCodeBlock(int lineIndex, int chunkIndex) {
-    // Check chunk cache first
-    final chunkState = _codeBlockStateCache[chunkIndex];
-    if (chunkState != null && chunkState.containsKey(lineIndex)) {
-      return chunkState[lineIndex]!;
-    }
-
-    // Need to compute code block state for this chunk
-    _computeCodeBlockStateForChunk(chunkIndex);
-    return _codeBlockStateCache[chunkIndex]?[lineIndex] ?? false;
-  }
-
-  /// Compute code block state for a specific chunk
-  void _computeCodeBlockStateForChunk(int chunkIndex) {
-    if (_codeBlockStateCache.containsKey(chunkIndex)) return;
-
-    // Determine starting state by scanning previous chunks if needed
-    bool inCodeBlock = _getCodeBlockStateAtChunkStart(chunkIndex);
-
-    final startLine = chunkIndex * linesPerChunk;
-    final endLine = ((chunkIndex + 1) * linesPerChunk).clamp(0, _lineCount);
-
-    final chunkState = <int, bool>{};
-
-    for (int i = startLine; i < endLine; i++) {
-      final line = _getLine(i);
-      final trimmed = line.trimLeft();
-
-      if (trimmed.startsWith('```')) {
-        if (inCodeBlock) {
-          chunkState[i] = true; // Closing fence is inside
-          inCodeBlock = false;
-        } else {
-          chunkState[i] = true; // Opening fence starts block
-          inCodeBlock = true;
-        }
+  /// Returns the multi-line block covering [lineIndex], or `null` when
+  /// the line is plain single-line content. O(log n) binary search
+  /// over the sparse [_multiLineBlocks] list.
+  MarkdownBlock? _blockForLine(int lineIndex) {
+    final blocks = _multiLineBlocks;
+    if (blocks.isEmpty) return null;
+    int low = 0;
+    int high = blocks.length - 1;
+    while (low <= high) {
+      final mid = (low + high) >> 1;
+      final b = blocks[mid];
+      if (lineIndex < b.startLine) {
+        high = mid - 1;
+      } else if (lineIndex >= b.endLine) {
+        low = mid + 1;
       } else {
-        chunkState[i] = inCodeBlock;
+        return b;
       }
     }
-
-    _codeBlockStateCache[chunkIndex] = chunkState;
-    // Store state at end for next chunk
-    _chunkStartsInCodeBlock[chunkIndex + 1] = inCodeBlock;
+    return null;
   }
 
-  /// Get whether a code block is open at the start of a chunk
-  bool _getCodeBlockStateAtChunkStart(int chunkIndex) {
-    if (chunkIndex == 0) return false;
+  /// Whether [lineIndex] is part of a fenced code block (including the
+  /// opening and closing fence lines). Replaces the former per-chunk
+  /// code-block state caches with a single block lookup.
+  bool _lineInCodeFence(int lineIndex) {
+    final block = _blockForLine(lineIndex);
+    return block != null && block.kind == MarkdownBlockKind.codeFence;
+  }
 
-    // Check if we have cached state
-    if (_chunkStartsInCodeBlock.containsKey(chunkIndex)) {
-      return _chunkStartsInCodeBlock[chunkIndex]!;
+  /// The number of chunks. Driven by the block-aligned chunk table.
+  int get chunkCount => _chunkStartLines.length;
+
+  /// First source line (inclusive) of [chunkIndex].
+  int chunkStartLine(int chunkIndex) {
+    if (chunkIndex < 0 || chunkIndex >= _chunkStartLines.length) return 0;
+    return _chunkStartLines[chunkIndex];
+  }
+
+  /// Number of source lines contained in [chunkIndex].
+  int chunkLineCount(int chunkIndex) {
+    if (chunkIndex < 0 || chunkIndex >= _chunkStartLines.length) return 0;
+    final start = _chunkStartLines[chunkIndex];
+    final end = chunkIndex + 1 < _chunkStartLines.length
+        ? _chunkStartLines[chunkIndex + 1]
+        : _lineCount;
+    return end - start;
+  }
+
+  /// The chunk index that contains [lineIndex]. O(log n) binary search
+  /// over [_chunkStartLines] — replaces the former
+  /// `lineIndex ~/ linesPerChunk` assumption now that chunks are
+  /// block-aligned and may hold variable line counts.
+  int chunkIndexForLine(int lineIndex) {
+    final starts = _chunkStartLines;
+    if (starts.length <= 1) return 0;
+    int low = 0;
+    int high = starts.length - 1;
+    while (low <= high) {
+      final mid = (low + high) >> 1;
+      if (lineIndex < starts[mid]) {
+        high = mid - 1;
+      } else if (mid + 1 < starts.length && lineIndex >= starts[mid + 1]) {
+        low = mid + 1;
+      } else {
+        return mid;
+      }
     }
-
-    // Need to compute previous chunks to know state
-    // This will recursively compute back to chunk 0 if needed
-    _computeCodeBlockStateForChunk(chunkIndex - 1);
-    return _chunkStartsInCodeBlock[chunkIndex] ?? false;
+    return (low).clamp(0, starts.length - 1);
   }
-
-  /// Get the number of chunks
-  int get chunkCount => (_lineCount / linesPerChunk).ceil();
 
   /// Whether this is a large document with lazy optimizations
   bool get isLargeDocument => _lineCount >= _largeDocumentThreshold;
@@ -244,7 +279,7 @@ class LineBasedMarkdownBuilder {
   /// Uses binary search for O(log n) performance.
   int getChunkIndexForOffset(int sourceOffset) {
     final lineIndex = getLineIndexForOffset(sourceOffset);
-    return lineIndex ~/ linesPerChunk;
+    return chunkIndexForLine(lineIndex);
   }
 
   /// Get line index for a given source offset.
@@ -281,8 +316,8 @@ class LineBasedMarkdownBuilder {
 
   /// Get the source offset range for a given chunk index.
   List<int> getChunkOffsetRange(int chunkIndex) {
-    final startLine = chunkIndex * linesPerChunk;
-    final endLine = ((chunkIndex + 1) * linesPerChunk).clamp(0, _lineCount);
+    final startLine = chunkStartLine(chunkIndex);
+    final endLine = startLine + chunkLineCount(chunkIndex);
 
     if (startLine >= _lineOffsets.length - 1) return [0, 0];
 
@@ -302,8 +337,8 @@ class LineBasedMarkdownBuilder {
       return _chunkCache[chunkIndex]!;
     }
 
-    final startLine = chunkIndex * linesPerChunk;
-    final endLine = ((chunkIndex + 1) * linesPerChunk).clamp(0, _lineCount);
+    final startLine = chunkStartLine(chunkIndex);
+    final endLine = startLine + chunkLineCount(chunkIndex);
 
     final spans = <InlineSpan>[];
 
@@ -347,8 +382,8 @@ class LineBasedMarkdownBuilder {
 
   /// Clean up recognizers for a specific chunk
   void _cleanupChunkRecognizers(int chunkIndex) {
-    final startLine = chunkIndex * linesPerChunk;
-    final endLine = ((chunkIndex + 1) * linesPerChunk).clamp(0, _lineCount);
+    final startLine = chunkStartLine(chunkIndex);
+    final endLine = startLine + chunkLineCount(chunkIndex);
 
     // Remove checkbox recognizers for this chunk's lines
     for (int i = startLine; i < endLine; i++) {
@@ -383,8 +418,6 @@ class LineBasedMarkdownBuilder {
   void clearCache() {
     _chunkCache.clear();
     _cacheAccessOrder.clear();
-    _codeBlockStateCache.clear();
-    _chunkStartsInCodeBlock.clear();
     // Dispose all gesture recognizers to prevent memory leaks
     for (final recognizer in _linkRecognizers.values) {
       recognizer.dispose();
@@ -407,14 +440,14 @@ class LineBasedMarkdownBuilder {
   /// These are actual height ratios, not font size multipliers.
   /// Used for accurate double-tap line detection.
   List<double> getLineHeightScales(int chunkIndex) {
-    final startLine = chunkIndex * linesPerChunk;
-    final endLine = ((chunkIndex + 1) * linesPerChunk).clamp(0, _lineCount);
+    final startLine = chunkStartLine(chunkIndex);
+    final endLine = startLine + chunkLineCount(chunkIndex);
     final scales = <double>[];
 
     for (int i = startLine; i < endLine; i++) {
       if (i >= _lineCount) break;
       final line = _getLine(i);
-      final isInCodeBlock = _isLineInCodeBlock(i, chunkIndex);
+      final isInCodeBlock = _lineInCodeFence(i);
       scales.add(
         MarkdownLineHeightCalculator.getLineHeightScale(
           line,
@@ -446,9 +479,10 @@ class LineBasedMarkdownBuilder {
     final trimmed = line.trimLeft();
     final indent = line.length - trimmed.length;
 
-    // Check if line is inside a code block (lazy computation)
-    final effectiveChunkIndex = chunkIndex ?? (lineIndex ~/ linesPerChunk);
-    if (_isLineInCodeBlock(lineIndex, effectiveChunkIndex)) {
+    // Check if line is inside a fenced code block (block lookup).
+    // The optional [chunkIndex] is retained for call-site compatibility
+    // but no longer needed for fence detection.
+    if (_lineInCodeFence(lineIndex)) {
       return _buildCodeBlockLine(line, trimmed, lineStart, lineEnd);
     }
 
@@ -479,79 +513,26 @@ class LineBasedMarkdownBuilder {
       return _buildTableRow(trimmed, lineStart, lineEnd);
     }
 
-    // Heading detection - calculate content offset accounting for # and space
-    if (trimmed.startsWith('######')) {
-      final contentOffset =
-          lineStart +
-          indent +
-          6 +
-          (trimmed.length > 6 && trimmed[6] == ' ' ? 1 : 0);
-      return _buildHeading(
-        trimmed.substring(6).trim(),
-        6,
-        contentOffset,
-        lineEnd,
-      );
-    } else if (trimmed.startsWith('#####')) {
-      final contentOffset =
-          lineStart +
-          indent +
-          5 +
-          (trimmed.length > 5 && trimmed[5] == ' ' ? 1 : 0);
-      return _buildHeading(
-        trimmed.substring(5).trim(),
-        5,
-        contentOffset,
-        lineEnd,
-      );
-    } else if (trimmed.startsWith('####')) {
-      final contentOffset =
-          lineStart +
-          indent +
-          4 +
-          (trimmed.length > 4 && trimmed[4] == ' ' ? 1 : 0);
-      return _buildHeading(
-        trimmed.substring(4).trim(),
-        4,
-        contentOffset,
-        lineEnd,
-      );
-    } else if (trimmed.startsWith('###')) {
-      final contentOffset =
-          lineStart +
-          indent +
-          3 +
-          (trimmed.length > 3 && trimmed[3] == ' ' ? 1 : 0);
-      return _buildHeading(
-        trimmed.substring(3).trim(),
-        3,
-        contentOffset,
-        lineEnd,
-      );
-    } else if (trimmed.startsWith('##')) {
-      final contentOffset =
-          lineStart +
-          indent +
-          2 +
-          (trimmed.length > 2 && trimmed[2] == ' ' ? 1 : 0);
-      return _buildHeading(
-        trimmed.substring(2).trim(),
-        2,
-        contentOffset,
-        lineEnd,
-      );
-    } else if (trimmed.startsWith('#')) {
-      final contentOffset =
-          lineStart +
-          indent +
-          1 +
-          (trimmed.length > 1 && trimmed[1] == ' ' ? 1 : 0);
-      return _buildHeading(
-        trimmed.substring(1).trim(),
-        1,
-        contentOffset,
-        lineEnd,
-      );
+    // ATX heading: 1–6 leading '#' that must be followed by a space or
+    // be the entire line. `#tag` (no space) and `#######` (7+) are NOT
+    // headings — they fall through to paragraph rendering (CommonMark).
+    if (trimmed.startsWith('#')) {
+      int hashes = 0;
+      while (hashes < trimmed.length && trimmed.codeUnitAt(hashes) == 0x23) {
+        hashes++;
+      }
+      final followedBySpaceOrEol =
+          hashes == trimmed.length || trimmed.codeUnitAt(hashes) == 0x20;
+      if (hashes <= 6 && followedBySpaceOrEol) {
+        final hasSpace = hashes < trimmed.length;
+        final contentOffset = lineStart + indent + hashes + (hasSpace ? 1 : 0);
+        return _buildHeading(
+          trimmed.substring(hashes).trim(),
+          hashes,
+          contentOffset,
+          lineEnd,
+        );
+      }
     }
 
     // Checkbox list item
@@ -1080,11 +1061,12 @@ class LineBasedMarkdownBuilder {
     return TextSpan(style: baseStyle, children: children);
   }
 
-  /// Build inline formatted text with bold, italic, code, links, and highlighting.
+  /// Build inline formatted text with bold, italic, code, links, and
+  /// highlighting. [contentStart] is the source offset where [text]
+  /// begins — critical so search highlighting lands on the right
+  /// characters. Delegates to the recursive [_parseInline] scanner.
   ///
-  /// The contentStart parameter is the source offset where 'text' begins.
-  /// This is critical for correct search highlighting - the offset must match
-  /// the actual position in the source document.
+  /// [lineEnd] is retained for call-site compatibility and is unused.
   TextSpan _buildInlineFormatted(
     String text,
     TextStyle baseStyle,
@@ -1094,176 +1076,369 @@ class LineBasedMarkdownBuilder {
     if (text.isEmpty) {
       return TextSpan(text: '', style: baseStyle);
     }
+    return _parseInline(text, baseStyle, contentStart);
+  }
 
+  /// Recursively parses inline markdown in [text] whose first character
+  /// sits at source offset [contentStart]. Every leaf text run is routed
+  /// through [_applyHighlighting] with its exact offset, so search
+  /// highlighting stays aligned at any nesting depth.
+  ///
+  /// Improvements over the former single-pass regex:
+  ///   * Nested emphasis (`**bold _italic_**`, `[**x**](url)`).
+  ///   * Backslash escaping (`\*literal\*`).
+  ///   * Intra-word underscores are not emphasis (`snake_case_word`).
+  ///   * Inline code is literal (its content is never re-parsed).
+  TextSpan _parseInline(String text, TextStyle baseStyle, int contentStart) {
     final children = <InlineSpan>[];
-    int pos = 0;
+    final length = text.length;
+    int i = 0;
+    int runStart = 0;
 
-    // Use pre-compiled regex for inline markdown
-    final matches = _MarkdownPatterns.inline.allMatches(text).toList();
-
-    for (final match in matches) {
-      // Add text before this match
-      if (match.start > pos) {
-        final beforeText = text.substring(pos, match.start);
+    void flushRun(int end) {
+      if (end > runStart) {
         children.add(
-          _applyHighlighting(beforeText, baseStyle, contentStart + pos),
+          _applyHighlighting(
+            text.substring(runStart, end),
+            baseStyle,
+            contentStart + runStart,
+          ),
         );
       }
+    }
 
-      // Determine match type and apply styling
-      // For each type, we need to calculate where the actual content starts
-      // accounting for the markdown delimiters
-      if (match.group(1) != null) {
-        // Bold + Italic: ***content*** or ___content___
-        final delimiter = match.group(1)!; // *** or ___
-        final content = match.group(2)!;
-        final contentOffset = contentStart + match.start + delimiter.length;
+    while (i < length) {
+      final c = text.codeUnitAt(i);
+
+      // Backslash escape: emit the next punctuation char literally.
+      if (c == _kBackslash &&
+          i + 1 < length &&
+          _isEscapablePunctuation(text.codeUnitAt(i + 1))) {
+        flushRun(i);
         children.add(
           _applyHighlighting(
-            content,
-            baseStyle.copyWith(
-              fontWeight: FontWeight.bold,
-              fontStyle: FontStyle.italic,
-            ),
-            contentOffset,
+            text.substring(i + 1, i + 2),
+            baseStyle,
+            contentStart + i + 1,
           ),
         );
-      } else if (match.group(3) != null) {
-        // Bold: **content** or __content__
-        final delimiter = match.group(3)!; // ** or __
-        final content = match.group(4)!;
-        final contentOffset = contentStart + match.start + delimiter.length;
-        children.add(
-          _applyHighlighting(
-            content,
-            baseStyle.copyWith(fontWeight: FontWeight.bold),
-            contentOffset,
-          ),
-        );
-      } else if (match.group(5) != null) {
-        // Italic: *content* or _content_
-        final delimiter = match.group(5)!; // * or _
-        final content = match.group(6)!;
-        final contentOffset = contentStart + match.start + delimiter.length;
-        children.add(
-          _applyHighlighting(
-            content,
-            baseStyle.copyWith(fontStyle: FontStyle.italic),
-            contentOffset,
-          ),
-        );
-      } else if (match.group(7) != null) {
-        // Strikethrough: ~~content~~
-        final delimiter = match.group(7)!; // ~~
-        final content = match.group(8)!;
-        final contentOffset = contentStart + match.start + delimiter.length;
-        children.add(
-          _applyHighlighting(
-            content,
-            baseStyle.copyWith(decoration: TextDecoration.lineThrough),
-            contentOffset,
-          ),
-        );
-      } else if (match.group(9) != null) {
-        // Inline code: `content`
-        final delimiter = match.group(9)!; // `
-        final content = match.group(10)!;
-        final contentOffset = contentStart + match.start + delimiter.length;
-        children.add(
-          _applyHighlighting(
-            content,
-            baseStyle.copyWith(
-              fontFamily: 'monospace',
-              backgroundColor: style.codeBackground,
-              fontSize: baseStyle.fontSize! * 0.9,
-            ),
-            contentOffset,
-          ),
-        );
-      } else if (match.group(11) != null) {
-        // Link: [text](url)
-        final linkText = match.group(11)!;
-        final url = match.group(12)!;
-        // Link text starts after '[', so +1
-        final linkTextOffset = contentStart + match.start + 1;
-        children.add(_buildLink(linkText, url, baseStyle, linkTextOffset));
-      } else if (match.group(13) != null) {
-        // Bare autolink: https?://... or www....
-        var url = match.group(13)!;
-        var consumed = url.length;
-        // GFM-style trailing punctuation trim so "see https://x.com."
-        // doesn't include the period in the link.
-        while (url.isNotEmpty &&
-            _trailingPunctuation.contains(url[url.length - 1])) {
-          url = url.substring(0, url.length - 1);
-          consumed--;
-        }
-        final href = url.toLowerCase().startsWith('www.')
-            ? 'https://$url'
-            : url;
-        final urlOffset = contentStart + match.start;
-        children.add(_buildLink(url, href, baseStyle, urlOffset));
-        pos = match.start + consumed;
+        i += 2;
+        runStart = i;
         continue;
       }
 
-      pos = match.end;
+      // Inline code span: `code` / ``co`de`` — literal, no nesting.
+      if (c == _kBacktick) {
+        final fence = _countRun(text, i, _kBacktick);
+        final close = _findClosingBacktick(text, i + fence, fence);
+        if (close != -1) {
+          flushRun(i);
+          final contentBegin = i + fence;
+          children.add(
+            _applyHighlighting(
+              text.substring(contentBegin, close),
+              baseStyle.copyWith(
+                fontFamily: 'monospace',
+                backgroundColor: style.codeBackground,
+                fontSize: baseStyle.fontSize! * 0.9,
+              ),
+              contentStart + contentBegin,
+            ),
+          );
+          i = close + fence;
+          runStart = i;
+          continue;
+        }
+      }
+
+      // Link: [text](url) — link text is parsed recursively.
+      if (c == _kOpenBracket) {
+        final link = _tryParseLinkAt(text, i);
+        if (link != null) {
+          flushRun(i);
+          final inner = _parseInline(
+            text.substring(link.textStart, link.textEnd),
+            baseStyle.copyWith(
+              color: style.primaryColor,
+              decoration: TextDecoration.underline,
+            ),
+            contentStart + link.textStart,
+          );
+          children.add(_wrapLinkSpan(inner, link.url, contentStart + i));
+          i = link.end;
+          runStart = i;
+          continue;
+        }
+      }
+
+      // Emphasis / strong / strikethrough.
+      if (c == _kStar || c == _kUnderscore || c == _kTilde) {
+        final emphasis = _tryParseEmphasisAt(text, i);
+        if (emphasis != null) {
+          flushRun(i);
+          children.add(
+            _parseInline(
+              text.substring(emphasis.contentStart, emphasis.contentEnd),
+              _applyEmphasisStyle(baseStyle, emphasis.kind),
+              contentStart + emphasis.contentStart,
+            ),
+          );
+          i = emphasis.end;
+          runStart = i;
+          continue;
+        }
+      }
+
+      // Bare autolink: http://… https://… www.…
+      if ((c == _kLowerH || c == _kLowerW) && _isWordBoundaryBefore(text, i)) {
+        final auto = _tryParseBareUrlAt(text, i);
+        if (auto != null) {
+          flushRun(i);
+          final inner = _applyHighlighting(
+            text.substring(i, auto.end),
+            baseStyle.copyWith(
+              color: style.primaryColor,
+              decoration: TextDecoration.underline,
+            ),
+            contentStart + i,
+          );
+          children.add(_wrapLinkSpan(inner, auto.url, contentStart + i));
+          i = auto.end;
+          runStart = i;
+          continue;
+        }
+      }
+
+      i++;
     }
 
-    // Add remaining text after last match
-    if (pos < text.length) {
-      final afterText = text.substring(pos);
-      children.add(
-        _applyHighlighting(afterText, baseStyle, contentStart + pos),
-      );
-    }
+    flushRun(length);
 
     if (children.isEmpty) {
       return _applyHighlighting(text, baseStyle, contentStart);
     }
-
     return TextSpan(style: baseStyle, children: children);
   }
 
-  TextSpan _buildLink(
-    String text,
-    String url,
-    TextStyle baseStyle,
-    int sourceOffset,
-  ) {
-    final linkStyle = baseStyle.copyWith(
-      color: style.primaryColor,
-      decoration: TextDecoration.underline,
-    );
-
-    // Apply highlighting to link text
-    final highlightedSpan = _applyHighlighting(text, linkStyle, sourceOffset);
-
-    if (onLinkTap != null) {
-      // Cache recognizer by URL to prevent memory leaks
-      final cacheKey = '$sourceOffset:$url';
-      _linkRecognizers[cacheKey] ??= TapGestureRecognizer()
-        ..onTap = () => onLinkTap!(url);
-
-      // If highlighting produced children, wrap them; otherwise use text directly
-      if (highlightedSpan.children != null &&
-          highlightedSpan.children!.isNotEmpty) {
-        return TextSpan(
-          style: linkStyle,
-          children: highlightedSpan.children,
-          recognizer: _linkRecognizers[cacheKey],
+  /// Applies the style delta for an emphasis [kind] on top of [base],
+  /// so nested emphasis composes (e.g. strikethrough + bold).
+  TextStyle _applyEmphasisStyle(TextStyle base, _EmphasisKind kind) {
+    switch (kind) {
+      case _EmphasisKind.boldItalic:
+        return base.copyWith(
+          fontWeight: FontWeight.bold,
+          fontStyle: FontStyle.italic,
         );
-      }
+      case _EmphasisKind.bold:
+        return base.copyWith(fontWeight: FontWeight.bold);
+      case _EmphasisKind.italic:
+        return base.copyWith(fontStyle: FontStyle.italic);
+      case _EmphasisKind.strikethrough:
+        return base.copyWith(decoration: TextDecoration.lineThrough);
+    }
+  }
 
+  /// Wraps a parsed link [inner] span with a cached tap recognizer.
+  /// The recognizer is attached to every leaf so taps register even
+  /// when the link text was split by nesting or search highlighting.
+  InlineSpan _wrapLinkSpan(TextSpan inner, String url, int sourceOffset) {
+    if (onLinkTap == null) return inner;
+    final cacheKey = '$sourceOffset:$url';
+    final recognizer = _linkRecognizers[cacheKey] ??= TapGestureRecognizer()
+      ..onTap = () => onLinkTap!(url);
+    return _attachRecognizer(inner, recognizer);
+  }
+
+  /// Returns a copy of [span] with [recognizer] set on every [TextSpan]
+  /// node so hit-testing resolves to it at any leaf.
+  InlineSpan _attachRecognizer(
+    InlineSpan span,
+    TapGestureRecognizer recognizer,
+  ) {
+    if (span is TextSpan) {
       return TextSpan(
-        text: text,
-        style: linkStyle,
-        recognizer: _linkRecognizers[cacheKey],
+        text: span.text,
+        style: span.style,
+        recognizer: recognizer,
+        children: span.children
+            ?.map((s) => _attachRecognizer(s, recognizer))
+            .toList(),
       );
     }
-
-    return highlightedSpan;
+    return span;
   }
+
+  /// Tries to parse a `[text](url)` link starting at the `[` at [open].
+  /// Mirrors the previous regex (`[^\]]+` text, `[^)]+` url), so nested
+  /// brackets/parens still terminate at the first match.
+  _InlineLink? _tryParseLinkAt(String text, int open) {
+    final closeBracket = text.indexOf(']', open + 1);
+    if (closeBracket <= open + 1) return null; // empty or missing text
+    if (closeBracket + 1 >= text.length ||
+        text.codeUnitAt(closeBracket + 1) != _kOpenParen) {
+      return null;
+    }
+    final closeParen = text.indexOf(')', closeBracket + 2);
+    if (closeParen <= closeBracket + 2) return null; // empty or missing url
+    return _InlineLink(
+      textStart: open + 1,
+      textEnd: closeBracket,
+      url: text.substring(closeBracket + 2, closeParen),
+      end: closeParen + 1,
+    );
+  }
+
+  /// Tries to parse an emphasis run (`*`, `_`, `~`) opening at [i].
+  /// Applies CommonMark-style flanking so underscores never match
+  /// intra-word and a run must wrap non-space content.
+  _InlineEmphasis? _tryParseEmphasisAt(String text, int i) {
+    final marker = text.codeUnitAt(i);
+    final runLen = _countRun(text, i, marker);
+
+    final int use;
+    final _EmphasisKind kind;
+    if (marker == _kTilde) {
+      if (runLen < 2) return null; // single ~ is literal
+      use = 2;
+      kind = _EmphasisKind.strikethrough;
+    } else if (runLen >= 3) {
+      use = 3;
+      kind = _EmphasisKind.boldItalic;
+    } else if (runLen == 2) {
+      use = 2;
+      kind = _EmphasisKind.bold;
+    } else {
+      use = 1;
+      kind = _EmphasisKind.italic;
+    }
+
+    if (!_canOpenEmphasis(text, i, marker, use)) return null;
+
+    final contentStart = i + use;
+    int j = contentStart;
+    while (j < text.length) {
+      if (text.codeUnitAt(j) == marker) {
+        final closeRun = _countRun(text, j, marker);
+        if (closeRun >= use &&
+            j > contentStart &&
+            _canCloseEmphasis(text, j, marker, use)) {
+          return _InlineEmphasis(
+            kind: kind,
+            contentStart: contentStart,
+            contentEnd: j,
+            end: j + use,
+          );
+        }
+        j += closeRun;
+      } else {
+        j++;
+      }
+    }
+    return null; // no valid closing run
+  }
+
+  /// Whether an emphasis run of [use] [marker]s at [i] can open: it must
+  /// be followed by a non-space char, and underscores must sit at a left
+  /// word boundary (so `a_b_` stays literal).
+  bool _canOpenEmphasis(String text, int i, int marker, int use) {
+    final afterIdx = i + use;
+    if (afterIdx >= text.length) return false;
+    if (_isSpace(text.codeUnitAt(afterIdx))) return false;
+    if (marker == _kUnderscore &&
+        i > 0 &&
+        _isAlphaNumeric(text.codeUnitAt(i - 1))) {
+      return false;
+    }
+    return true;
+  }
+
+  /// Whether an emphasis run of [use] [marker]s at [j] can close: it must
+  /// be preceded by a non-space char, and underscores must sit at a right
+  /// word boundary.
+  bool _canCloseEmphasis(String text, int j, int marker, int use) {
+    if (j == 0) return false;
+    if (_isSpace(text.codeUnitAt(j - 1))) return false;
+    if (marker == _kUnderscore) {
+      final afterIdx = j + use;
+      if (afterIdx < text.length &&
+          _isAlphaNumeric(text.codeUnitAt(afterIdx))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Tries to match a bare URL at [i], trimming GFM trailing punctuation.
+  _InlineAutoLink? _tryParseBareUrlAt(String text, int i) {
+    final match = MarkdownLinkPatterns.bareUrl.matchAsPrefix(text, i);
+    if (match == null) return null;
+    int end = match.end;
+    while (end > i && _trailingPunctuation.contains(text[end - 1])) {
+      end--;
+    }
+    if (end <= i) return null;
+    final raw = text.substring(i, end);
+    final href = raw.toLowerCase().startsWith('www.') ? 'https://$raw' : raw;
+    return _InlineAutoLink(end: end, url: href);
+  }
+
+  /// Counts how many consecutive [marker] code units start at [i].
+  static int _countRun(String text, int i, int marker) {
+    int n = 0;
+    while (i + n < text.length && text.codeUnitAt(i + n) == marker) {
+      n++;
+    }
+    return n;
+  }
+
+  /// Finds a backtick run of exactly [fence] length at/after [from],
+  /// returning its start index, or -1. CommonMark requires the closing
+  /// run to match the opening length.
+  static int _findClosingBacktick(String text, int from, int fence) {
+    int j = from;
+    while (j < text.length) {
+      if (text.codeUnitAt(j) == _kBacktick) {
+        final run = _countRun(text, j, _kBacktick);
+        if (run == fence) return j;
+        j += run;
+      } else {
+        j++;
+      }
+    }
+    return -1;
+  }
+
+  bool _isWordBoundaryBefore(String text, int i) {
+    if (i == 0) return true;
+    return !_isAlphaNumeric(text.codeUnitAt(i - 1));
+  }
+
+  static bool _isSpace(int c) =>
+      c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D;
+
+  static bool _isAlphaNumeric(int c) =>
+      (c >= 0x30 && c <= 0x39) || // 0-9
+      (c >= 0x41 && c <= 0x5A) || // A-Z
+      (c >= 0x61 && c <= 0x7A); // a-z
+
+  /// ASCII-punctuation test for backslash escaping (CommonMark allows
+  /// escaping any ASCII punctuation).
+  static bool _isEscapablePunctuation(int c) =>
+      (c >= 0x21 && c <= 0x2F) ||
+      (c >= 0x3A && c <= 0x40) ||
+      (c >= 0x5B && c <= 0x60) ||
+      (c >= 0x7B && c <= 0x7E);
+
+  // Inline-scanner code-unit constants.
+  static const int _kBackslash = 0x5C; // \
+  static const int _kBacktick = 0x60; // `
+  static const int _kStar = 0x2A; // *
+  static const int _kUnderscore = 0x5F; // _
+  static const int _kTilde = 0x7E; // ~
+  static const int _kOpenBracket = 0x5B; // [
+  static const int _kOpenParen = 0x28; // (
+  static const int _kLowerH = 0x68; // h
+  static const int _kLowerW = 0x77; // w
 
   /// Apply search highlighting to text.
   TextSpan _applyHighlighting(
@@ -1341,6 +1516,49 @@ class _HighlightRange {
   });
 }
 
+/// Inline emphasis variants produced by the recursive inline parser.
+enum _EmphasisKind { boldItalic, bold, italic, strikethrough }
+
+/// A parsed `[text](url)` link with source offsets for the link text.
+class _InlineLink {
+  final int textStart;
+  final int textEnd;
+  final String url;
+  final int end;
+
+  const _InlineLink({
+    required this.textStart,
+    required this.textEnd,
+    required this.url,
+    required this.end,
+  });
+}
+
+/// A parsed emphasis run: [contentStart, contentEnd) is the inner text,
+/// [end] is the index just past the closing delimiter.
+class _InlineEmphasis {
+  final _EmphasisKind kind;
+  final int contentStart;
+  final int contentEnd;
+  final int end;
+
+  const _InlineEmphasis({
+    required this.kind,
+    required this.contentStart,
+    required this.contentEnd,
+    required this.end,
+  });
+}
+
+/// A parsed bare autolink: [end] is the index just past the URL and
+/// [url] is the launch target (scheme-normalized for `www.` links).
+class _InlineAutoLink {
+  final int end;
+  final String url;
+
+  const _InlineAutoLink({required this.end, required this.url});
+}
+
 /// Pre-compiled regex patterns for inline markdown (compiled once, reused)
 class _MarkdownPatterns {
   static final checkbox = RegExp(r'^(\s*)-\s*\[([xX\s])\]\s*(.*)$');
@@ -1355,14 +1573,4 @@ class _MarkdownPatterns {
 
   /// Table separator pattern: |---|---| or | --- | --- |
   static final tableSeparator = RegExp(r'^\|[\s:-]+\|[\s:|+-]*$');
-
-  static final inline = RegExp(
-    r'(\*\*\*|___)(.*?)\1|' // Bold+Italic
-    r'(\*\*|__)(.*?)\3|' // Bold
-    r'(\*|_)(.*?)\5|' // Italic
-    r'(~~)(.*?)\7|' // Strikethrough
-    r'(`)(.*?)\9|' // Inline code
-    r'\[([^\]]+)\]\(([^)]+)\)|' // Links
-    '(${MarkdownLinkPatterns.bareUrl.pattern})', // Bare autolinks (shared)
-  );
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../utils/line_based_markdown_builder.dart';
+import '../utils/markdown_chunker.dart';
 
 /// Owns the lifecycle of a [LineBasedMarkdownBuilder] for a single
 /// markdown preview surface.
@@ -34,6 +35,16 @@ class MarkdownRenderService {
   int get chunkCount => _builder?.chunkCount ?? 0;
   int get lineCount => _builder?.lineCount ?? 0;
   int get linesPerChunk => _builder?.linesPerChunk ?? 0;
+
+  /// The first source line of the block-aligned chunk that contains
+  /// [lineIndex]. Returns 0 when no builder is prepared. Used by the
+  /// editor page to compare the preview's top line against the saved
+  /// cursor's chunk without assuming uniform chunk sizes.
+  int chunkStartLineForLine(int lineIndex) {
+    final b = _builder;
+    if (b == null) return 0;
+    return b.chunkStartLine(b.chunkIndexForLine(lineIndex));
+  }
 
   /// Ensures the underlying builder is up to date for the given inputs.
   ///
@@ -78,7 +89,7 @@ class MarkdownRenderService {
     _lastLinesPerChunk = linesPerChunk;
     _lastDebugEnabled = debugEnabled;
 
-    final adaptiveChunkSize = _computeAdaptiveChunkSize(
+    final adaptiveChunkSize = MarkdownChunker.adaptiveChunkSize(
       _estimateLineCount(data),
       linesPerChunk,
     );
@@ -124,37 +135,10 @@ class MarkdownRenderService {
   }
 
   /// Counts source lines by scanning for newline characters. Used
-  /// only to drive [_computeAdaptiveChunkSize], so an off-by-one is
-  /// inconsequential.
+  /// only to drive [MarkdownChunker.adaptiveChunkSize], so an
+  /// off-by-one is inconsequential.
   int _estimateLineCount(String data) {
     return '\n'.allMatches(data).length + 1;
-  }
-
-  /// Hard cap on the chunk size produced by [_computeAdaptiveChunkSize].
-  ///
-  /// `scrollToLineIndex` lands on the chunk containing the target
-  /// line and then interpolates an `alignment` within that chunk —
-  /// so larger chunks make line-precision scroll coarser. 100 lines
-  /// per chunk keeps the worst-case landing error to roughly one
-  /// screen height even on huge documents while still capping the
-  /// total `ScrollablePositionedList` item count.
-  static const int _maxAdaptiveChunkSize = 100;
-
-  int _computeAdaptiveChunkSize(int lineCount, int baseChunkSize) {
-    final int scaled;
-    if (lineCount < 1000) {
-      scaled = baseChunkSize;
-    } else if (lineCount < 10000) {
-      scaled = baseChunkSize * 2;
-    } else if (lineCount < 50000) {
-      scaled = baseChunkSize * 5;
-    } else {
-      scaled = baseChunkSize * 10;
-    }
-    // Never go below the configured size and never exceed the cap.
-    if (scaled < baseChunkSize) return baseChunkSize;
-    if (scaled > _maxAdaptiveChunkSize) return _maxAdaptiveChunkSize;
-    return scaled;
   }
 
   bool _highlightsEqual(List<TextRange>? a, List<TextRange>? b) {
