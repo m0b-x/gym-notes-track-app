@@ -67,6 +67,7 @@ class MarkdownRenderService {
     LinkTapCallback? onLinkTap,
     CheckboxTapCallback? onCheckboxTap,
     GhostTapCallback? onGhostTap,
+    TagTapCallback? onTagTap,
   }) {
     final needsRebuild =
         _builder == null ||
@@ -101,6 +102,7 @@ class MarkdownRenderService {
       onLinkTap: onLinkTap,
       onCheckboxTap: onCheckboxTap,
       onGhostTap: onGhostTap,
+      onTagTap: onTagTap,
       searchHighlights: searchHighlights,
       currentHighlightIndex: currentHighlightIndex,
       linesPerChunk: adaptiveChunkSize,

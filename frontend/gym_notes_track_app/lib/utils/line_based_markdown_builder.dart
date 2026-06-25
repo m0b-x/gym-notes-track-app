@@ -16,6 +16,11 @@ typedef CheckboxTapCallback = void Function(int start, int end, bool isChecked);
 /// (markers included) so the caller can delete it and navigate.
 typedef GhostTapCallback = void Function(int start, int end);
 
+/// Invoked when a `#tag` is tapped in the preview. [tag] is the full
+/// matched token including the leading `#`, so the caller can search for
+/// it verbatim across notes.
+typedef TagTapCallback = void Function(String tag);
+
 /// Trailing characters trimmed from bare autolinks (GFM-style) so a
 /// sentence like `see https://example.com.` doesn't include the period.
 const _trailingPunctuation = {
@@ -44,6 +49,11 @@ class LineMarkdownStyle {
   /// Colour for ghost-text placeholders (`{{ … }}`), rendered dimmed.
   final Color ghostColor;
 
+  /// Background colour for `==highlighted==` ("marker"/highlighter) text.
+  /// Distinct from [highlightColor] (search) so the two never read the
+  /// same.
+  final Color markColor;
+
   const LineMarkdownStyle({
     required this.baseFontSize,
     required this.textColor,
@@ -53,6 +63,7 @@ class LineMarkdownStyle {
     required this.highlightColor,
     required this.currentHighlightColor,
     required this.ghostColor,
+    required this.markColor,
   });
 
   factory LineMarkdownStyle.fromTheme(ThemeData theme, double fontSize) {
@@ -67,6 +78,9 @@ class LineMarkdownStyle {
       highlightColor: theme.colorScheme.primaryContainer,
       currentHighlightColor: theme.colorScheme.primary.withValues(alpha: 0.5),
       ghostColor: base.withValues(alpha: 0.45),
+      // Theme-matched highlighter amber that keeps the (light/dark) text
+      // colour readable on top.
+      markColor: isDark ? const Color(0xFF5A4B1C) : const Color(0xFFFFF176),
     );
   }
 }
@@ -84,6 +98,7 @@ class LineBasedMarkdownBuilder {
   final LinkTapCallback? onLinkTap;
   final CheckboxTapCallback? onCheckboxTap;
   final GhostTapCallback? onGhostTap;
+  final TagTapCallback? onTagTap;
   final List<TextRange>? searchHighlights;
   final int? currentHighlightIndex;
 
@@ -135,6 +150,7 @@ class LineBasedMarkdownBuilder {
     this.onLinkTap,
     this.onCheckboxTap,
     this.onGhostTap,
+    this.onTagTap,
     this.searchHighlights,
     this.currentHighlightIndex,
     this.linesPerChunk = 10,
@@ -406,9 +422,14 @@ class LineBasedMarkdownBuilder {
       recognizer?.dispose();
     }
 
-    // Remove link recognizers for this chunk (they have chunk-based keys)
+    // Remove link/tag/ghost recognizers whose source offset falls inside
+    // this chunk. For 'img:'/'tag:'/'ghost:' keys (and chunk-prefixed
+    // ones) parts[1] is the numeric source offset used for the range test.
     _linkRecognizers.removeWhere((key, recognizer) {
-      if (key.startsWith('$chunkIndex:') || key.startsWith('img:')) {
+      if (key.startsWith('$chunkIndex:') ||
+          key.startsWith('img:') ||
+          key.startsWith('tag:') ||
+          key.startsWith('ghost:')) {
         // Check if the offset falls within this chunk
         final parts = key.split(':');
         if (parts.length >= 2) {
@@ -1213,8 +1234,8 @@ class LineBasedMarkdownBuilder {
         }
       }
 
-      // Emphasis / strong / strikethrough.
-      if (c == _kStar || c == _kUnderscore || c == _kTilde) {
+      // Emphasis / strong / strikethrough / highlight (`*`, `_`, `~`, `==`).
+      if (c == _kStar || c == _kUnderscore || c == _kTilde || c == _kEquals) {
         final emphasis = _tryParseEmphasisAt(text, i);
         if (emphasis != null) {
           flushRun(i);
@@ -1226,6 +1247,20 @@ class LineBasedMarkdownBuilder {
             ),
           );
           i = emphasis.end;
+          runStart = i;
+          continue;
+        }
+      }
+
+      // Tag: #identifier (letter-led, at a word boundary) — tappable,
+      // searches across notes. Letter-led so `#3` / `set #1` and `C#`
+      // are never tags.
+      if (c == _kHash && _isWordBoundaryBefore(text, i)) {
+        final tagEnd = _tryParseTagAt(text, i);
+        if (tagEnd != null) {
+          flushRun(i);
+          children.add(_buildTagSpan(text, i, tagEnd, baseStyle, contentStart));
+          i = tagEnd;
           runStart = i;
           continue;
         }
@@ -1277,6 +1312,8 @@ class LineBasedMarkdownBuilder {
         return base.copyWith(fontStyle: FontStyle.italic);
       case _EmphasisKind.strikethrough:
         return base.copyWith(decoration: TextDecoration.lineThrough);
+      case _EmphasisKind.highlight:
+        return base.copyWith(backgroundColor: style.markColor);
     }
   }
 
@@ -1343,6 +1380,10 @@ class LineBasedMarkdownBuilder {
       if (runLen < 2) return null; // single ~ is literal
       use = 2;
       kind = _EmphasisKind.strikethrough;
+    } else if (marker == _kEquals) {
+      if (runLen < 2) return null; // single = is literal
+      use = 2;
+      kind = _EmphasisKind.highlight;
     } else if (runLen >= 3) {
       use = 3;
       kind = _EmphasisKind.boldItalic;
@@ -1450,9 +1491,15 @@ class LineBasedMarkdownBuilder {
     return -1;
   }
 
+  /// Whether the character before [i] is a word boundary, so an inline
+  /// token (`#tag`) or a bare autolink may start here. ASCII
+  /// alphanumerics AND Unicode letters count as word characters, so a `#`
+  /// glued to an accented word (`café#x`) is not a tag — matching the
+  /// Unicode-aware tag body in [_isTagChar].
   bool _isWordBoundaryBefore(String text, int i) {
     if (i == 0) return true;
-    return !_isAlphaNumeric(text.codeUnitAt(i - 1));
+    final prev = text.codeUnitAt(i - 1);
+    return !_isAlphaNumeric(prev) && !_isLetter(prev);
   }
 
   static bool _isSpace(int c) =>
@@ -1462,6 +1509,51 @@ class LineBasedMarkdownBuilder {
       (c >= 0x30 && c <= 0x39) || // 0-9
       (c >= 0x41 && c <= 0x5A) || // A-Z
       (c >= 0x61 && c <= 0x7A); // a-z
+
+  /// Matches a single Unicode letter (any script). Used so `#tag` accepts
+  /// accented / non-Latin letters — de: ä ö ü ß, ro: ă â î ș ț, etc. — not
+  /// just ASCII a–z. ASCII is fast-pathed in [_isLetter]; this regex only
+  /// runs for non-ASCII code units, and a lone surrogate simply yields no
+  /// match (BMP letters cover every supported language).
+  static final RegExp _unicodeLetterRe = RegExp(r'\p{L}', unicode: true);
+
+  static bool _isLetter(int c) =>
+      (c >= 0x41 && c <= 0x5A) ||
+      (c >= 0x61 && c <= 0x7A) ||
+      (c > 0x7F && _unicodeLetterRe.hasMatch(String.fromCharCode(c)));
+
+  /// Matches one Unicode "tag-body" code unit: a letter (`L`), combining
+  /// mark (`M`), or number (`N`) of any script. Beyond [_unicodeLetterRe]
+  /// this also keeps NFD-decomposed accents (base letter + combining mark,
+  /// e.g. `a` + U+0301) and non-ASCII digits inside a tag. ASCII is
+  /// fast-pathed in [_isTagChar]; this only runs for non-ASCII code units.
+  static final RegExp _unicodeTagBodyRe = RegExp(
+    r'[\p{L}\p{M}\p{N}]',
+    unicode: true,
+  );
+
+  /// Characters allowed in a `#tag` body (after the letter-led start):
+  /// ASCII letters/digits, `_`, `-`, and any Unicode letter / combining
+  /// mark / number (so accented, NFD, and non-Latin tags stay intact).
+  static bool _isTagChar(int c) =>
+      _isAlphaNumeric(c) ||
+      c == 0x5F /* _ */ ||
+      c == 0x2D /* - */ ||
+      (c > 0x7F && _unicodeTagBodyRe.hasMatch(String.fromCharCode(c)));
+
+  /// Returns the end index (exclusive) of a `#tag` starting at the `#`
+  /// at [i], or `null` when it is not a tag. The first body character
+  /// must be a letter so `#3` / `set #1` are never tags.
+  int? _tryParseTagAt(String text, int i) {
+    final firstIdx = i + 1;
+    if (firstIdx >= text.length) return null;
+    if (!_isLetter(text.codeUnitAt(firstIdx))) return null;
+    int j = firstIdx + 1;
+    while (j < text.length && _isTagChar(text.codeUnitAt(j))) {
+      j++;
+    }
+    return j;
+  }
 
   /// ASCII-punctuation test for backslash escaping (CommonMark allows
   /// escaping any ASCII punctuation).
@@ -1477,11 +1569,38 @@ class LineBasedMarkdownBuilder {
   static const int _kStar = 0x2A; // *
   static const int _kUnderscore = 0x5F; // _
   static const int _kTilde = 0x7E; // ~
+  static const int _kEquals = 0x3D; // =
+  static const int _kHash = 0x23; // #
   static const int _kOpenBracket = 0x5B; // [
   static const int _kOpenParen = 0x28; // (
   static const int _kOpenBrace = 0x7B; // {
   static const int _kLowerH = 0x68; // h
   static const int _kLowerW = 0x77; // w
+
+  /// Builds the span for a `#tag`, tinted and (when [onTagTap] is set)
+  /// tappable. The tag text — including the leading `#` — stays a normal
+  /// offset-mapped text run so search highlighting still applies inside
+  /// it; the recognizer is attached to every leaf.
+  InlineSpan _buildTagSpan(
+    String text,
+    int start,
+    int end,
+    TextStyle baseStyle,
+    int contentStart,
+  ) {
+    final tagText = text.substring(start, end);
+    final tagStyle = baseStyle.copyWith(
+      color: style.primaryColor,
+      fontWeight: FontWeight.w600,
+      backgroundColor: style.primaryColor.withValues(alpha: 0.12),
+    );
+    final span = _applyHighlighting(tagText, tagStyle, contentStart + start);
+    if (onTagTap == null) return span;
+    final cacheKey = 'tag:${contentStart + start}:$tagText';
+    final recognizer = _linkRecognizers[cacheKey] ??= TapGestureRecognizer()
+      ..onTap = () => onTagTap!(tagText);
+    return _attachRecognizer(span, recognizer);
+  }
 
   /// Builds the dimmed span for a ghost run. The `{{` / `}}` markers are
   /// hidden; only the inner text renders, tinted with [style.ghostColor]
@@ -1589,7 +1708,7 @@ class _HighlightRange {
 }
 
 /// Inline emphasis variants produced by the recursive inline parser.
-enum _EmphasisKind { boldItalic, bold, italic, strikethrough }
+enum _EmphasisKind { boldItalic, bold, italic, strikethrough, highlight }
 
 /// A parsed `[text](url)` link with source offsets for the link text.
 class _InlineLink {

@@ -138,8 +138,12 @@ abstract final class AppNavigator {
     );
   }
 
-  static Future<void> toSearch(BuildContext context, {String? folderId}) {
-    return push(context, SearchPage(folderId: folderId));
+  static Future<void> toSearch(
+    BuildContext context, {
+    String? folderId,
+    String? query,
+  }) {
+    return push(context, SearchPage(folderId: folderId, initialQuery: query));
   }
 
   static Future<SettingsResult?> toDatabaseSettings(BuildContext context) {

@@ -59,6 +59,7 @@ class MarkdownPreviewBloc
   LinkTapCallback? _onLinkTap;
   CheckboxTapCallback? _onCheckboxTap;
   GhostTapCallback? _onGhostTap;
+  TagTapCallback? _onTagTap;
 
   /// Optional pull-style content source. When set, callers can
   /// dispatch [PreviewContentRefreshRequested] (and bump the dirty
@@ -149,10 +150,12 @@ class MarkdownPreviewBloc
     LinkTapCallback? onLinkTap,
     CheckboxTapCallback? onCheckboxTap,
     GhostTapCallback? onGhostTap,
+    TagTapCallback? onTagTap,
   }) {
     _onLinkTap = onLinkTap;
     _onCheckboxTap = onCheckboxTap;
     _onGhostTap = onGhostTap;
+    _onTagTap = onTagTap;
   }
 
   /// Binds a pull-style content source. Subsequent
@@ -319,6 +322,7 @@ class MarkdownPreviewBloc
       onLinkTap: _onLinkTap,
       onCheckboxTap: _onCheckboxTap,
       onGhostTap: _onGhostTap,
+      onTagTap: _onTagTap,
     );
 
     if (rebuilt) {

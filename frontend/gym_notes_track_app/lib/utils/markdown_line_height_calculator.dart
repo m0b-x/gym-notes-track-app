@@ -44,20 +44,35 @@ class MarkdownLineHeightCalculator {
       return MarkdownConstants.emptyLineScale;
     }
 
-    // Headings - return font scale directly (height ratio = font scale since lineHeight is constant)
-    // H1: fontSize * 2.0 * 1.5 vs Normal: fontSize * 1.0 * 1.5 → ratio = 2.0
-    if (trimmed.startsWith('######')) {
-      return MarkdownConstants.h6Scale; // 0.875
-    } else if (trimmed.startsWith('#####')) {
-      return MarkdownConstants.h5Scale; // 1.0
-    } else if (trimmed.startsWith('####')) {
-      return MarkdownConstants.h4Scale; // 1.125
-    } else if (trimmed.startsWith('###')) {
-      return MarkdownConstants.h3Scale; // 1.25
-    } else if (trimmed.startsWith('##')) {
-      return MarkdownConstants.h2Scale; // 1.5
-    } else if (trimmed.startsWith('#')) {
-      return MarkdownConstants.h1Scale; // 2.0
+    // Headings: 1–6 leading '#' that must be followed by a space or be
+    // the whole line (CommonMark). This mirrors the renderer's heading
+    // rule in LineBasedMarkdownBuilder.buildLine — `#tag` (no space) and
+    // `#######` (7+) are NOT headings, they render as normal paragraphs
+    // (and may contain `#tag`s), so they must use the normal scale to
+    // keep double-tap line mapping aligned with what is actually drawn.
+    if (trimmed.startsWith('#')) {
+      int hashes = 0;
+      while (hashes < trimmed.length && trimmed.codeUnitAt(hashes) == 0x23) {
+        hashes++;
+      }
+      final followedBySpaceOrEol =
+          hashes == trimmed.length || trimmed.codeUnitAt(hashes) == 0x20;
+      if (hashes <= 6 && followedBySpaceOrEol) {
+        switch (hashes) {
+          case 1:
+            return MarkdownConstants.h1Scale; // 2.0
+          case 2:
+            return MarkdownConstants.h2Scale; // 1.5
+          case 3:
+            return MarkdownConstants.h3Scale; // 1.25
+          case 4:
+            return MarkdownConstants.h4Scale; // 1.125
+          case 5:
+            return MarkdownConstants.h5Scale; // 1.0
+          default:
+            return MarkdownConstants.h6Scale; // 0.875
+        }
+      }
     }
 
     // Horizontal rule (---, ***, ___) - renders at half height

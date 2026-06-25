@@ -50,6 +50,15 @@ class DefaultMarkdownShortcuts {
       isDefault: true,
     ),
     CustomMarkdownShortcut(
+      id: 'default_highlight',
+      label: 'Highlight',
+      iconCodePoint: Icons.highlight.codePoint,
+      iconFontFamily: 'MaterialIcons',
+      beforeText: '==',
+      afterText: '==',
+      isDefault: true,
+    ),
+    CustomMarkdownShortcut(
       id: 'default_bullet_list',
       label: 'Bullet List',
       iconCodePoint: Icons.format_list_bulleted.codePoint,

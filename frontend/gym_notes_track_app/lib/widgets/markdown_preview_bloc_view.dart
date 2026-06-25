@@ -47,6 +47,10 @@ class MarkdownPreviewBlocView extends StatefulWidget {
   /// the page can delete it and navigate to the editor.
   final void Function(int start, int end)? onGhostTap;
 
+  /// Invoked when a `#tag` is tapped in the preview. Carries the full
+  /// token (including `#`) so the page can search for it across notes.
+  final void Function(String tag)? onTagTap;
+
   /// Forwarded **after** the bloc has been notified so callers that
   /// rely on the legacy callback (e.g. `PreviewScrollController`)
   /// keep working without going through the bloc state.
@@ -69,6 +73,7 @@ class MarkdownPreviewBlocView extends StatefulWidget {
     this.onTapLink,
     this.onDoubleTapLine,
     this.onGhostTap,
+    this.onTagTap,
     this.onScrollProgress,
     this.viewKey,
   });
@@ -143,7 +148,8 @@ class _MarkdownPreviewBlocViewState extends State<MarkdownPreviewBlocView> {
     }
     if (oldWidget.onTapLink != widget.onTapLink ||
         oldWidget.onCheckboxToggle != widget.onCheckboxToggle ||
-        oldWidget.onGhostTap != widget.onGhostTap) {
+        oldWidget.onGhostTap != widget.onGhostTap ||
+        oldWidget.onTagTap != widget.onTagTap) {
       _bindCallbacks();
     }
   }
@@ -170,6 +176,7 @@ class _MarkdownPreviewBlocViewState extends State<MarkdownPreviewBlocView> {
               );
             },
       onGhostTap: widget.onGhostTap,
+      onTagTap: widget.onTagTap,
     );
   }
 

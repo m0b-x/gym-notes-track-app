@@ -1082,6 +1082,15 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _saveCurrentPosition();
   }
 
+  /// Opens cross-note search pre-filled with a tapped `#tag`. Searches
+  /// across **all** notes (not just the current folder) so a tag works
+  /// as a global filter. [tag] includes the leading `#`.
+  Future<void> _handleTagTap(String tag) async {
+    await _saveCurrentPosition();
+    if (!mounted) return;
+    AppNavigator.toSearch(context, query: tag);
+  }
+
   void _scrollToOffsetInPreview(int charOffset) {
     // Use the PreviewScrollController which delegates to the
     // SourceMappedMarkdownView's native scroll method.
@@ -1649,6 +1658,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       onTapLink: _handleLinkTap,
       onDoubleTapLine: _handleDoubleTapLine,
       onGhostTap: _handleGhostTap,
+      onTagTap: _handleTagTap,
       // Forward scroll progress to the preview controller so the
       // interactive scrollbar (which listens on the same controller)
       // keeps tracking position. The bloc already mirrors progress

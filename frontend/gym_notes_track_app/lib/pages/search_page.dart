@@ -12,7 +12,11 @@ import '../widgets/unified_app_bars.dart';
 class SearchPage extends StatefulWidget {
   final String? folderId;
 
-  const SearchPage({super.key, this.folderId});
+  /// When set, the search field opens pre-filled with this query and the
+  /// search runs immediately (used by `#tag` taps from the preview).
+  final String? initialQuery;
+
+  const SearchPage({super.key, this.folderId, this.initialQuery});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -25,10 +29,23 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void initState() {
     super.initState();
-    _loadAllNotes();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _focusNode.requestFocus();
-    });
+    final initial = widget.initialQuery?.trim() ?? '';
+    if (initial.isNotEmpty) {
+      _searchController.text = initial;
+      // Run the tag query straight away. _onQuickSearchNotes queries the
+      // DB itself, so pre-loading all notes would only flash the full
+      // list before the filtered results replace it.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.read<OptimizedNoteBloc>().add(
+          QuickSearchNotes(query: initial, folderId: widget.folderId),
+        );
+      });
+    } else {
+      _loadAllNotes();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _focusNode.requestFocus();
+      });
+    }
   }
 
   void _loadAllNotes() {
