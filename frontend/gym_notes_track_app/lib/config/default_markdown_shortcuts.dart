@@ -95,6 +95,18 @@ class DefaultMarkdownShortcuts {
       isDefault: true,
     ),
     CustomMarkdownShortcut(
+      id: 'default_callout',
+      label: 'Callout',
+      iconCodePoint: Icons.info_outline.codePoint,
+      iconFontFamily: 'MaterialIcons',
+      // Idiomatic two-line callout: the `[!NOTE]` type sits alone on the
+      // lead line (rendered as an icon + label header) and the caret
+      // lands on the body line. Users can swap NOTE for TIP/WARNING/etc.
+      beforeText: '> [!NOTE]\n> ',
+      afterText: '',
+      isDefault: true,
+    ),
+    CustomMarkdownShortcut(
       id: 'default_inline_code',
       label: 'Inline Code',
       iconCodePoint: Icons.code.codePoint,

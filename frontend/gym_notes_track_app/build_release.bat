@@ -46,3 +46,4 @@ if %ERRORLEVEL% neq 0 (
 
 echo.
 echo Build successful! APK is at: build\app\outputs\flutter-apk\app-release.apk
+explorer build\app\outputs\flutter-apk

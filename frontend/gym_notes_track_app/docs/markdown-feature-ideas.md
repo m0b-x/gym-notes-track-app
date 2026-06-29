@@ -33,7 +33,11 @@ Tiers are by value-to-effort for this app specifically.
   `_applyHighlighting`.
 - **Effort:** XS. **Offset risk:** none.
 
-### 2. Tags — `#legday`, `#pr`, `#deload`
+### 2. Tags — `#legday`, `#pr`, `#deload` — ✅ SHIPPED (baseline)
+- **Status:** the inline `#tag` token, tappable render, and tap → global
+  diacritic-insensitive search are shipped. Body is Unicode-aware (accents, NFD,
+  non-ASCII digits). Next steps (full-content search, tag index, autocomplete,
+  browser) are tracked in **`docs/tag-system-roadmap.md`**.
 - **Why (gym):** the highest-leverage organizational feature for a training log —
   tag sessions by split, mesocycle, or feeling, then filter/search across notes.
 - **Fit:** inline token in `_parseInline` (word-boundary `#` + identifier),
@@ -42,13 +46,15 @@ Tiers are by value-to-effort for this app specifically.
 - **Effort:** M (rendering XS; the index/filter UI is the real work).
 - **Offset risk:** none for rendering.
 
-### 3. Callouts / admonitions — `> [!TIP]`, `> [!WARNING]`, `> [!PR]`
+### 3. Callouts / admonitions — `> [!TIP]`, `> [!WARNING]`, `> [!PR]` — ✅ SHIPPED
+- **Status:** the first real customer of the block model after code fences.
+  `MarkdownBlockKind.callout` (non-atomic) + the shared
+  `lib/utils/markdown_callout_syntax.dart` grammar; each line renders a colored
+  left bar + tint, with an icon + label/title header on the lead line. Types:
+  `note, tip, important, warning, caution, success, pr` (5 GitHub + 2 gym).
+  Preview-only; per-line offsets unchanged; search highlights compose inside.
 - **Why (gym):** form cues, injury warnings, coach notes, deload reminders — a
   blockquote that actually stands out with an icon + tint.
-- **Fit:** a **multi-line block** → first real customer of the block model after
-  code fences. Add a `MarkdownBlockKind.callout` to `MarkdownChunker` (mark it
-  `atomic: false` so long callouts still virtualize), parse the `[!TYPE]` lead
-  line, render the run with a colored left bar + icon. Reuses blockquote styling.
 - **Effort:** M. **Offset risk:** low (block-aligned; per-line offsets unchanged).
 
 ### 4. Auto-renumber ordered lists (editor companion)

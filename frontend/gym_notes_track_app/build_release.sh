@@ -32,3 +32,4 @@ flutter build apk --release $PLATFORM_FLAG --obfuscate --split-debug-info=build/
 echo ""
 echo "Build successful! APK is at: build/app/outputs/flutter-apk/app-release.apk"
 echo "Debug symbols saved to:       build/debug-info/"
+open build/app/outputs/flutter-apk

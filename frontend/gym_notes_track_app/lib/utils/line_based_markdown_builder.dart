@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/markdown_constants.dart';
 import 'ghost_text.dart';
+import 'markdown_callout_syntax.dart';
 import 'markdown_chunker.dart';
 import 'markdown_line_height_calculator.dart';
 import 'markdown_link_patterns.dart';
@@ -54,6 +55,11 @@ class LineMarkdownStyle {
   /// same.
   final Color markColor;
 
+  /// Whether the active theme is dark. Lets the renderer pick the
+  /// light/dark variant of semantic palettes (e.g. callout accents)
+  /// without re-deriving brightness from a colour's luminance.
+  final bool isDark;
+
   const LineMarkdownStyle({
     required this.baseFontSize,
     required this.textColor,
@@ -64,6 +70,7 @@ class LineMarkdownStyle {
     required this.currentHighlightColor,
     required this.ghostColor,
     required this.markColor,
+    required this.isDark,
   });
 
   factory LineMarkdownStyle.fromTheme(ThemeData theme, double fontSize) {
@@ -81,6 +88,7 @@ class LineMarkdownStyle {
       // Theme-matched highlighter amber that keeps the (light/dark) text
       // colour readable on top.
       markColor: isDark ? const Color(0xFF5A4B1C) : const Color(0xFFFFF176),
+      isDark: isDark,
     );
   }
 }
@@ -315,7 +323,7 @@ class LineBasedMarkdownBuilder {
 
   /// Get line index for a given source offset.
   int getLineIndexForOffset(int sourceOffset) {
-    if (_lineOffsets.isEmpty) return 0;
+    if (_lineOffsets.length < 2) return 0;
 
     int low = 0;
     int high = _lineOffsets.length - 2;
@@ -520,11 +528,16 @@ class LineBasedMarkdownBuilder {
     final trimmed = line.trimLeft();
     final indent = line.length - trimmed.length;
 
-    // Check if line is inside a fenced code block (block lookup).
-    // The optional [chunkIndex] is retained for call-site compatibility
-    // but no longer needed for fence detection.
-    if (_lineInCodeFence(lineIndex)) {
+    // Multi-line block lookup (single binary search). Code-fence lines
+    // render monospaced; callout lines (`> [!TYPE]` runs) render with a
+    // coloured left bar + icon + tint. The optional [chunkIndex] is
+    // retained for call-site compatibility but no longer needed here.
+    final block = _blockForLine(lineIndex);
+    if (block != null && block.kind == MarkdownBlockKind.codeFence) {
       return _buildCodeBlockLine(line, trimmed, lineStart, lineEnd);
+    }
+    if (block != null && block.kind == MarkdownBlockKind.callout) {
+      return _buildCalloutLine(line, lineIndex, block, lineStart, lineEnd);
     }
 
     // Check for different markdown patterns
@@ -882,13 +895,138 @@ class LineBasedMarkdownBuilder {
       contentStart,
       lineEnd,
     );
-    if (contentSpan.children != null) {
-      children.addAll(contentSpan.children!);
-    } else if (contentSpan.text != null) {
-      children.add(contentSpan);
+    _appendFlattened(children, contentSpan);
+
+    return TextSpan(children: children);
+  }
+
+  /// Builds one line of a callout block (`> [!TYPE]` run). [block] is the
+  /// enclosing callout; [lineIndex] is the absolute source line.
+  ///
+  /// The callout type is resolved from the block's lead line so every
+  /// body line shares the same accent. Rendering mirrors [_buildBlockquote]
+  /// (a coloured left bar + flattened inline content) but adds the type's
+  /// tint and an icon/label header on the lead line. Per-line content
+  /// offsets are identical to a plain blockquote, so search highlighting
+  /// and scroll mapping are unaffected.
+  TextSpan _buildCalloutLine(
+    String line,
+    int lineIndex,
+    MarkdownBlock block,
+    int lineStart,
+    int lineEnd,
+  ) {
+    // Resolve the callout type from the block's lead line (reuse [line]
+    // when this IS the lead, avoiding a redundant lazy line extraction).
+    final leadLine = lineIndex == block.startLine
+        ? line
+        : _getLine(block.startLine);
+    final lead = MarkdownCalloutSyntax.parseLead(leadLine);
+    final type = lead?.type ?? MarkdownCalloutType.note;
+    final accent = _calloutAccent(type);
+    final tint = accent.withValues(alpha: style.isDark ? 0.16 : 0.10);
+
+    final lineStyle = TextStyle(
+      fontSize: style.baseFontSize,
+      height: MarkdownConstants.lineHeight,
+      color: style.textColor,
+      backgroundColor: tint,
+    );
+    final accentStyle = lineStyle.copyWith(
+      color: accent,
+      fontWeight: FontWeight.bold,
+    );
+
+    // Coloured left bar (tinted background carries down every line so the
+    // run reads as one block).
+    final children = <InlineSpan>[TextSpan(text: '┃ ', style: accentStyle)];
+
+    if (lineIndex == block.startLine) {
+      // Lead line: icon + header. The `[!TYPE]` token is consumed as
+      // decorative chrome (like emphasis markers); an optional custom
+      // title stays offset-mapped so it is still searchable.
+      children.add(
+        TextSpan(
+          text: '${MarkdownCalloutSyntax.iconFor(type)} ',
+          style: lineStyle,
+        ),
+      );
+      if (lead != null && lead.title.isNotEmpty) {
+        _appendFlattened(
+          children,
+          _buildInlineFormatted(
+            lead.title,
+            accentStyle,
+            lineStart + lead.titleStart,
+            lineEnd,
+          ),
+        );
+      } else {
+        children.add(
+          TextSpan(
+            text: MarkdownCalloutSyntax.labelFor(type),
+            style: accentStyle,
+          ),
+        );
+      }
+    } else {
+      // Body line: the content after the `>` marker, inline-formatted at
+      // its true source offset (mirrors the blockquote offset maths).
+      final trimmed = line.trimLeft();
+      final indent = line.length - trimmed.length;
+      final afterArrow = trimmed.startsWith('>')
+          ? trimmed.substring(1)
+          : trimmed;
+      final spaceAfter = afterArrow.startsWith(' ') ? 1 : 0;
+      final contentOffset = lineStart + indent + 1 + spaceAfter;
+      _appendFlattened(
+        children,
+        _buildInlineFormatted(
+          afterArrow.trim(),
+          lineStyle,
+          contentOffset,
+          lineEnd,
+        ),
+      );
     }
 
     return TextSpan(children: children);
+  }
+
+  /// Appends [span] to [children], flattening one wrapper level. Every
+  /// direct child of an inline-parsed span already carries its full
+  /// (merged) style, so dropping the redundant outer wrapper preserves
+  /// styling — the same technique [_buildBlockquote] uses.
+  void _appendFlattened(List<InlineSpan> children, TextSpan span) {
+    if (span.children != null) {
+      children.addAll(span.children!);
+    } else if (span.text != null) {
+      children.add(span);
+    }
+  }
+
+  /// The accent colour for a callout [type], in a light/dark variant
+  /// chosen by [LineMarkdownStyle.isDark]. The tint background is derived
+  /// from this accent at low alpha, so a single colour per type drives
+  /// the bar, icon-label header, and band.
+  Color _calloutAccent(MarkdownCalloutType type) {
+    final dark = style.isDark;
+    switch (type) {
+      case MarkdownCalloutType.note:
+        return dark ? const Color(0xFF64B5F6) : const Color(0xFF1976D2);
+      case MarkdownCalloutType.tip:
+        return dark ? const Color(0xFF81C784) : const Color(0xFF2E7D32);
+      case MarkdownCalloutType.important:
+        return dark ? const Color(0xFFBA68C8) : const Color(0xFF6A1B9A);
+      case MarkdownCalloutType.warning:
+        return dark ? const Color(0xFFFFB74D) : const Color(0xFFE65100);
+      case MarkdownCalloutType.caution:
+        return dark ? const Color(0xFFEF9A9A) : const Color(0xFFC62828);
+      case MarkdownCalloutType.success:
+        return dark ? const Color(0xFF4DB6AC) : const Color(0xFF00897B);
+      case MarkdownCalloutType.pr:
+        return dark ? const Color(0xFFFFD54F) : const Color(0xFFF9A825);
+    }
   }
 
   TextSpan _buildHorizontalRule() {

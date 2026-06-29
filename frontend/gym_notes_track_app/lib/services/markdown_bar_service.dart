@@ -32,6 +32,7 @@ class MarkdownBarService extends ChangeNotifier {
   /// profiles only once (and not resurrected after the user removes it).
   static const String _ghostSeedKey = 'ghost_shortcut_seeded';
   static const String _highlightSeedKey = 'highlight_shortcut_seeded';
+  static const String _calloutSeedKey = 'callout_shortcut_seeded';
 
   /// In-memory cache of all profiles.
   List<MarkdownBarProfile> _profiles = [];
@@ -339,6 +340,7 @@ class MarkdownBarService extends ChangeNotifier {
     // they shipped (runs after legacy migration so they aren't wiped).
     await _seedDefaultShortcutIfNeeded('default_ghost', _ghostSeedKey);
     await _seedDefaultShortcutIfNeeded('default_highlight', _highlightSeedKey);
+    await _seedDefaultShortcutIfNeeded('default_callout', _calloutSeedKey);
   }
 
   Future<void> _persist() async {
