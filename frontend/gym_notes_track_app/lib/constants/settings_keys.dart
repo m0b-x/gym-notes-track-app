@@ -53,6 +53,10 @@ class SettingsKeys {
   static const String calendarMaxDayBars = 'calendar_max_day_bars';
   static const String holidayProfile = 'holiday_profile';
 
+  /// Recently used custom event colors (comma-separated ARGB ints,
+  /// most-recent-first).
+  static const String recentEventColors = 'recent_event_colors';
+
   // Last navigation location (restored on next app launch)
   static const String lastFolderId = 'last_folder_id';
   static const String lastFolderTitle = 'last_folder_title';
@@ -95,4 +99,7 @@ class SettingsKeys {
   /// Maximum number of bars shown in a calendar day cell before an "+X"
   /// overflow indicator is rendered in place of the last bar.
   static const int defaultCalendarMaxDayBars = 3;
+
+  /// Maximum number of recently-used custom event colors to remember.
+  static const int maxRecentEventColors = 6;
 }

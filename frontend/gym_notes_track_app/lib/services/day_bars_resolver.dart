@@ -1,3 +1,5 @@
+import 'package:flutter/painting.dart';
+
 import '../constants/calendar_categories.dart';
 import '../constants/calendar_colors.dart';
 import '../constants/public_holidays.dart';
@@ -56,26 +58,30 @@ class PublicHolidayDayBarProvider implements DayBarProvider {
   }
 }
 
-/// Emits one bar per distinct event category present on the day.
-class EventCategoryDayBarProvider implements DayBarProvider {
-  final AppLocalizations l10n;
-
-  const EventCategoryDayBarProvider(this.l10n);
+/// Emits one bar per event on the day.
+///
+/// Each bar is colored by the event's explicit color override (falling back
+/// to its category color) and ordered by the event's priority: higher
+/// priority sorts higher in the stack and wins the day cell's limited bar
+/// slots. The bar [DayBar.priority] stays in `0..kMaxEventPriority-1`, which
+/// is below the contextual holiday/weekend bands so events stay dominant.
+class EventDayBarProvider implements DayBarProvider {
+  const EventDayBarProvider();
 
   @override
   Iterable<DayBar> barsFor(DateTime day, List<CalendarEvent> events) {
     if (events.isEmpty) return const [];
-    final seen = <String>{};
     final bars = <DayBar>[];
     for (final event in events) {
-      if (!seen.add(event.categoryId)) continue;
-      final category = CalendarCategories.resolve(event.categoryId);
+      final color = event.colorValue != null
+          ? Color(event.colorValue!)
+          : CalendarCategories.resolve(event.categoryId).color;
       bars.add(
         DayBar(
-          key: 'event:${event.categoryId}',
-          color: category.color,
-          priority: category.sortOrder, // categories sort above contextual bars
-          semanticLabel: CalendarCategories.labelOf(category, l10n),
+          key: 'event:${event.id}',
+          color: color,
+          priority: kMaxEventPriority - event.priority,
+          semanticLabel: event.title,
         ),
       );
     }
@@ -102,7 +108,7 @@ class DayBarsResolver {
   factory DayBarsResolver.defaults(AppLocalizations l10n) {
     return DayBarsResolver(
       providers: [
-        EventCategoryDayBarProvider(l10n),
+        const EventDayBarProvider(),
         PublicHolidayDayBarProvider(l10n),
         WeekendDayBarProvider(l10n),
       ],
@@ -117,7 +123,10 @@ class DayBarsResolver {
       }
     }
     final sorted = byKey.values.toList()
-      ..sort((a, b) => a.priority.compareTo(b.priority));
+      ..sort((a, b) {
+        final byPriority = a.priority.compareTo(b.priority);
+        return byPriority != 0 ? byPriority : a.key.compareTo(b.key);
+      });
     return sorted;
   }
 }

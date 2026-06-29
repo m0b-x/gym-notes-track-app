@@ -558,6 +558,85 @@
   "@eventUntilHint": {
     "description": "Subtitle hint for the recurrence end-date picker when empty"
   },
+  "eventColor": "Color",
+  "@eventColor": {
+    "description": "Section label for the per-event color picker"
+  },
+  "eventColorCustomTitle": "Custom color",
+  "@eventColorCustomTitle": {
+    "description": "Title of the custom color wheel dialog"
+  },
+  "select": "Select",
+  "@select": {
+    "description": "Generic confirm button for a selection dialog"
+  },
+  "eventTintIcon": "Tint icon with color",
+  "@eventTintIcon": {
+    "description": "Toggle label: also apply the event color to the icon"
+  },
+  "eventTintIconHint": "Use the event color for the icon too",
+  "@eventTintIconHint": {
+    "description": "Subtitle for the tint-icon toggle"
+  },
+  "eventPriority": "Priority",
+  "@eventPriority": {
+    "description": "Section label for the event priority stepper"
+  },
+  "eventPriorityHint": "Higher priority shows first and keeps its bar when a day is full",
+  "@eventPriorityHint": {
+    "description": "Hint shown under the event priority stepper"
+  },
+  "eventPriorityDecrease": "Lower priority",
+  "@eventPriorityDecrease": {
+    "description": "Tooltip for the button that lowers the event priority"
+  },
+  "eventPriorityIncrease": "Higher priority",
+  "@eventPriorityIncrease": {
+    "description": "Tooltip for the button that raises the event priority"
+  },
+  "eventPriorityLowest": "Lowest",
+  "@eventPriorityLowest": {
+    "description": "Qualitative label for priority level 1"
+  },
+  "eventPriorityLow": "Low",
+  "@eventPriorityLow": {
+    "description": "Qualitative label for priority level 2"
+  },
+  "eventPriorityNormal": "Normal",
+  "@eventPriorityNormal": {
+    "description": "Qualitative label for priority level 3 (default)"
+  },
+  "eventPriorityHigh": "High",
+  "@eventPriorityHigh": {
+    "description": "Qualitative label for priority level 4"
+  },
+  "eventPriorityHighest": "Highest",
+  "@eventPriorityHighest": {
+    "description": "Qualitative label for priority level 5"
+  },
+  "eventDatesLabel": "Dates",
+  "@eventDatesLabel": {
+    "description": "Section label for the one-time event's date chip list"
+  },
+  "eventDatesHint": "Add more one-off dates to repeat this event without a recurrence",
+  "@eventDatesHint": {
+    "description": "Hint shown when a one-time event has no additional dates yet"
+  },
+  "eventAddDate": "Add date",
+  "@eventAddDate": {
+    "description": "Action chip that adds another one-off date"
+  },
+  "eventRemoveDate": "Remove date",
+  "@eventRemoveDate": {
+    "description": "Tooltip to remove an additional one-off date chip"
+  },
+  "recurrenceSpecificDates": "{count, plural, =1{One date} other{{count} dates}}",
+  "@recurrenceSpecificDates": {
+    "description": "Summary for a one-time event pinned to several specific dates",
+    "placeholders": {
+      "count": { "type": "int", "example": "3" }
+    }
+  },
   "eventDescription": "Description",
   "@eventDescription": {
     "description": "Label for the optional multiline description / notes field on an event"

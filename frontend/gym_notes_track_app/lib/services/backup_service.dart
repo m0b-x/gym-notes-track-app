@@ -83,7 +83,7 @@ class BackupService {
     final publicHolidays = await GetIt.I<PublicHolidayService>().exportData();
 
     return {
-      'version': 4,
+      'version': 5,
       'exportedAt': DateTime.now().toIso8601String(),
       'folders': foldersData,
       'notes': notesWithContent,

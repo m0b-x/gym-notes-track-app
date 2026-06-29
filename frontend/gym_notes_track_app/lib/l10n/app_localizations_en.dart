@@ -476,6 +476,73 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eventUntilHint => 'Tap to set an end date';
 
   @override
+  String get eventColor => 'Color';
+
+  @override
+  String get eventColorCustomTitle => 'Custom color';
+
+  @override
+  String get select => 'Select';
+
+  @override
+  String get eventTintIcon => 'Tint icon with color';
+
+  @override
+  String get eventTintIconHint => 'Use the event color for the icon too';
+
+  @override
+  String get eventPriority => 'Priority';
+
+  @override
+  String get eventPriorityHint =>
+      'Higher priority shows first and keeps its bar when a day is full';
+
+  @override
+  String get eventPriorityDecrease => 'Lower priority';
+
+  @override
+  String get eventPriorityIncrease => 'Higher priority';
+
+  @override
+  String get eventPriorityLowest => 'Lowest';
+
+  @override
+  String get eventPriorityLow => 'Low';
+
+  @override
+  String get eventPriorityNormal => 'Normal';
+
+  @override
+  String get eventPriorityHigh => 'High';
+
+  @override
+  String get eventPriorityHighest => 'Highest';
+
+  @override
+  String get eventDatesLabel => 'Dates';
+
+  @override
+  String get eventDatesHint =>
+      'Add more one-off dates to repeat this event without a recurrence';
+
+  @override
+  String get eventAddDate => 'Add date';
+
+  @override
+  String get eventRemoveDate => 'Remove date';
+
+  @override
+  String recurrenceSpecificDates(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count dates',
+      one: 'One date',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get eventDescription => 'Description';
 
   @override

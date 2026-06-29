@@ -17,6 +17,12 @@ import 'package:drift/drift.dart';
 /// (`notes.id`). `null` means the event has no linked note. The folder is
 /// resolved from the note at navigation time, so only the id is stored —
 /// the link survives the note being moved between folders.
+///
+/// [colorValue] / [tintIcon] / [priority] (added in schema v16) drive
+/// per-event presentation. [colorValue] is an optional 32-bit ARGB override
+/// (NULL = use the category color); [tintIcon] decides whether that color
+/// also tints the icon; [priority] (1–5, default 3) orders bars / summary
+/// entries and decides which bars win a day cell's limited slots.
 @DataClassName('CalendarEventRow')
 class CalendarEvents extends Table {
   TextColumn get id => text()();
@@ -32,6 +38,9 @@ class CalendarEvents extends Table {
   IntColumn get durationMinutes => integer().nullable()();
   TextColumn get description => text().nullable()();
   TextColumn get noteId => text().nullable()();
+  IntColumn get colorValue => integer().nullable()();
+  BoolColumn get tintIcon => boolean().withDefault(const Constant(true))();
+  IntColumn get priority => integer().withDefault(const Constant(3))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 

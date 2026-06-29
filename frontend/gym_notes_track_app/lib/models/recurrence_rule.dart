@@ -44,6 +44,24 @@ final class OneTimeRecurrence extends RecurrenceRule {
   bool occursOn(DateTime day, DateTime start) => day == start;
 }
 
+/// Fires on an explicit set of one-off [dates] (each date-only UTC).
+///
+/// Models a one-time event the user pinned to several specific days at once
+/// ("available on these dates"). Membership is exact and independent of
+/// [start]; an empty set never fires (the editor guards against this). The
+/// owning event's [start] is conventionally the earliest date in the set.
+final class SpecificDatesRecurrence extends RecurrenceRule {
+  final Set<DateTime> dates;
+
+  const SpecificDatesRecurrence({required this.dates});
+
+  @override
+  bool occursOn(DateTime day, DateTime start) => dates.contains(day);
+
+  @override
+  List<Object?> get props => [dates];
+}
+
 /// Fires every [interval] days on or after [start] (1 = every day).
 final class DailyRecurrence extends RecurrenceRule {
   final int interval;

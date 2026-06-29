@@ -3742,6 +3742,44 @@ class $CalendarEventsTable extends CalendarEvents
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _colorValueMeta = const VerificationMeta(
+    'colorValue',
+  );
+  @override
+  late final GeneratedColumn<int> colorValue = GeneratedColumn<int>(
+    'color_value',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tintIconMeta = const VerificationMeta(
+    'tintIcon',
+  );
+  @override
+  late final GeneratedColumn<bool> tintIcon = GeneratedColumn<bool>(
+    'tint_icon',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("tint_icon" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _priorityMeta = const VerificationMeta(
+    'priority',
+  );
+  @override
+  late final GeneratedColumn<int> priority = GeneratedColumn<int>(
+    'priority',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(3),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -3779,6 +3817,9 @@ class $CalendarEventsTable extends CalendarEvents
     durationMinutes,
     description,
     noteId,
+    colorValue,
+    tintIcon,
+    priority,
     createdAt,
     updatedAt,
   ];
@@ -3891,6 +3932,24 @@ class $CalendarEventsTable extends CalendarEvents
         noteId.isAcceptableOrUnknown(data['note_id']!, _noteIdMeta),
       );
     }
+    if (data.containsKey('color_value')) {
+      context.handle(
+        _colorValueMeta,
+        colorValue.isAcceptableOrUnknown(data['color_value']!, _colorValueMeta),
+      );
+    }
+    if (data.containsKey('tint_icon')) {
+      context.handle(
+        _tintIconMeta,
+        tintIcon.isAcceptableOrUnknown(data['tint_icon']!, _tintIconMeta),
+      );
+    }
+    if (data.containsKey('priority')) {
+      context.handle(
+        _priorityMeta,
+        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -3968,6 +4027,18 @@ class $CalendarEventsTable extends CalendarEvents
         DriftSqlType.string,
         data['${effectivePrefix}note_id'],
       ),
+      colorValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}color_value'],
+      ),
+      tintIcon: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}tint_icon'],
+      )!,
+      priority: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}priority'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -4000,6 +4071,9 @@ class CalendarEventRow extends DataClass
   final int? durationMinutes;
   final String? description;
   final String? noteId;
+  final int? colorValue;
+  final bool tintIcon;
+  final int priority;
   final DateTime createdAt;
   final DateTime updatedAt;
   const CalendarEventRow({
@@ -4016,6 +4090,9 @@ class CalendarEventRow extends DataClass
     this.durationMinutes,
     this.description,
     this.noteId,
+    this.colorValue,
+    required this.tintIcon,
+    required this.priority,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -4049,6 +4126,11 @@ class CalendarEventRow extends DataClass
     if (!nullToAbsent || noteId != null) {
       map['note_id'] = Variable<String>(noteId);
     }
+    if (!nullToAbsent || colorValue != null) {
+      map['color_value'] = Variable<int>(colorValue);
+    }
+    map['tint_icon'] = Variable<bool>(tintIcon);
+    map['priority'] = Variable<int>(priority);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -4083,6 +4165,11 @@ class CalendarEventRow extends DataClass
       noteId: noteId == null && nullToAbsent
           ? const Value.absent()
           : Value(noteId),
+      colorValue: colorValue == null && nullToAbsent
+          ? const Value.absent()
+          : Value(colorValue),
+      tintIcon: Value(tintIcon),
+      priority: Value(priority),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -4107,6 +4194,9 @@ class CalendarEventRow extends DataClass
       durationMinutes: serializer.fromJson<int?>(json['durationMinutes']),
       description: serializer.fromJson<String?>(json['description']),
       noteId: serializer.fromJson<String?>(json['noteId']),
+      colorValue: serializer.fromJson<int?>(json['colorValue']),
+      tintIcon: serializer.fromJson<bool>(json['tintIcon']),
+      priority: serializer.fromJson<int>(json['priority']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -4128,6 +4218,9 @@ class CalendarEventRow extends DataClass
       'durationMinutes': serializer.toJson<int?>(durationMinutes),
       'description': serializer.toJson<String?>(description),
       'noteId': serializer.toJson<String?>(noteId),
+      'colorValue': serializer.toJson<int?>(colorValue),
+      'tintIcon': serializer.toJson<bool>(tintIcon),
+      'priority': serializer.toJson<int>(priority),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -4147,6 +4240,9 @@ class CalendarEventRow extends DataClass
     Value<int?> durationMinutes = const Value.absent(),
     Value<String?> description = const Value.absent(),
     Value<String?> noteId = const Value.absent(),
+    Value<int?> colorValue = const Value.absent(),
+    bool? tintIcon,
+    int? priority,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => CalendarEventRow(
@@ -4165,6 +4261,9 @@ class CalendarEventRow extends DataClass
         : this.durationMinutes,
     description: description.present ? description.value : this.description,
     noteId: noteId.present ? noteId.value : this.noteId,
+    colorValue: colorValue.present ? colorValue.value : this.colorValue,
+    tintIcon: tintIcon ?? this.tintIcon,
+    priority: priority ?? this.priority,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -4191,6 +4290,11 @@ class CalendarEventRow extends DataClass
           ? data.description.value
           : this.description,
       noteId: data.noteId.present ? data.noteId.value : this.noteId,
+      colorValue: data.colorValue.present
+          ? data.colorValue.value
+          : this.colorValue,
+      tintIcon: data.tintIcon.present ? data.tintIcon.value : this.tintIcon,
+      priority: data.priority.present ? data.priority.value : this.priority,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -4212,6 +4316,9 @@ class CalendarEventRow extends DataClass
           ..write('durationMinutes: $durationMinutes, ')
           ..write('description: $description, ')
           ..write('noteId: $noteId, ')
+          ..write('colorValue: $colorValue, ')
+          ..write('tintIcon: $tintIcon, ')
+          ..write('priority: $priority, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4233,6 +4340,9 @@ class CalendarEventRow extends DataClass
     durationMinutes,
     description,
     noteId,
+    colorValue,
+    tintIcon,
+    priority,
     createdAt,
     updatedAt,
   );
@@ -4253,6 +4363,9 @@ class CalendarEventRow extends DataClass
           other.durationMinutes == this.durationMinutes &&
           other.description == this.description &&
           other.noteId == this.noteId &&
+          other.colorValue == this.colorValue &&
+          other.tintIcon == this.tintIcon &&
+          other.priority == this.priority &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -4271,6 +4384,9 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
   final Value<int?> durationMinutes;
   final Value<String?> description;
   final Value<String?> noteId;
+  final Value<int?> colorValue;
+  final Value<bool> tintIcon;
+  final Value<int> priority;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -4288,6 +4404,9 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     this.durationMinutes = const Value.absent(),
     this.description = const Value.absent(),
     this.noteId = const Value.absent(),
+    this.colorValue = const Value.absent(),
+    this.tintIcon = const Value.absent(),
+    this.priority = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -4306,6 +4425,9 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     this.durationMinutes = const Value.absent(),
     this.description = const Value.absent(),
     this.noteId = const Value.absent(),
+    this.colorValue = const Value.absent(),
+    this.tintIcon = const Value.absent(),
+    this.priority = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -4330,6 +4452,9 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     Expression<int>? durationMinutes,
     Expression<String>? description,
     Expression<String>? noteId,
+    Expression<int>? colorValue,
+    Expression<bool>? tintIcon,
+    Expression<int>? priority,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -4348,6 +4473,9 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
       if (durationMinutes != null) 'duration_minutes': durationMinutes,
       if (description != null) 'description': description,
       if (noteId != null) 'note_id': noteId,
+      if (colorValue != null) 'color_value': colorValue,
+      if (tintIcon != null) 'tint_icon': tintIcon,
+      if (priority != null) 'priority': priority,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -4368,6 +4496,9 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     Value<int?>? durationMinutes,
     Value<String?>? description,
     Value<String?>? noteId,
+    Value<int?>? colorValue,
+    Value<bool>? tintIcon,
+    Value<int>? priority,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -4386,6 +4517,9 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
       durationMinutes: durationMinutes ?? this.durationMinutes,
       description: description ?? this.description,
       noteId: noteId ?? this.noteId,
+      colorValue: colorValue ?? this.colorValue,
+      tintIcon: tintIcon ?? this.tintIcon,
+      priority: priority ?? this.priority,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -4434,6 +4568,15 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
     if (noteId.present) {
       map['note_id'] = Variable<String>(noteId.value);
     }
+    if (colorValue.present) {
+      map['color_value'] = Variable<int>(colorValue.value);
+    }
+    if (tintIcon.present) {
+      map['tint_icon'] = Variable<bool>(tintIcon.value);
+    }
+    if (priority.present) {
+      map['priority'] = Variable<int>(priority.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -4462,6 +4605,9 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEventRow> {
           ..write('durationMinutes: $durationMinutes, ')
           ..write('description: $description, ')
           ..write('noteId: $noteId, ')
+          ..write('colorValue: $colorValue, ')
+          ..write('tintIcon: $tintIcon, ')
+          ..write('priority: $priority, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -7182,6 +7328,9 @@ typedef $$CalendarEventsTableCreateCompanionBuilder =
       Value<int?> durationMinutes,
       Value<String?> description,
       Value<String?> noteId,
+      Value<int?> colorValue,
+      Value<bool> tintIcon,
+      Value<int> priority,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -7201,6 +7350,9 @@ typedef $$CalendarEventsTableUpdateCompanionBuilder =
       Value<int?> durationMinutes,
       Value<String?> description,
       Value<String?> noteId,
+      Value<int?> colorValue,
+      Value<bool> tintIcon,
+      Value<int> priority,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -7277,6 +7429,21 @@ class $$CalendarEventsTableFilterComposer
 
   ColumnFilters<String> get noteId => $composableBuilder(
     column: $table.noteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get tintIcon => $composableBuilder(
+    column: $table.tintIcon,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get priority => $composableBuilder(
+    column: $table.priority,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7365,6 +7532,21 @@ class $$CalendarEventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get tintIcon => $composableBuilder(
+    column: $table.tintIcon,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -7432,6 +7614,17 @@ class $$CalendarEventsTableAnnotationComposer
   GeneratedColumn<String> get noteId =>
       $composableBuilder(column: $table.noteId, builder: (column) => column);
 
+  GeneratedColumn<int> get colorValue => $composableBuilder(
+    column: $table.colorValue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get tintIcon =>
+      $composableBuilder(column: $table.tintIcon, builder: (column) => column);
+
+  GeneratedColumn<int> get priority =>
+      $composableBuilder(column: $table.priority, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -7489,6 +7682,9 @@ class $$CalendarEventsTableTableManager
                 Value<int?> durationMinutes = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String?> noteId = const Value.absent(),
+                Value<int?> colorValue = const Value.absent(),
+                Value<bool> tintIcon = const Value.absent(),
+                Value<int> priority = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -7506,6 +7702,9 @@ class $$CalendarEventsTableTableManager
                 durationMinutes: durationMinutes,
                 description: description,
                 noteId: noteId,
+                colorValue: colorValue,
+                tintIcon: tintIcon,
+                priority: priority,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -7525,6 +7724,9 @@ class $$CalendarEventsTableTableManager
                 Value<int?> durationMinutes = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String?> noteId = const Value.absent(),
+                Value<int?> colorValue = const Value.absent(),
+                Value<bool> tintIcon = const Value.absent(),
+                Value<int> priority = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -7542,6 +7744,9 @@ class $$CalendarEventsTableTableManager
                 durationMinutes: durationMinutes,
                 description: description,
                 noteId: noteId,
+                colorValue: colorValue,
+                tintIcon: tintIcon,
+                priority: priority,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

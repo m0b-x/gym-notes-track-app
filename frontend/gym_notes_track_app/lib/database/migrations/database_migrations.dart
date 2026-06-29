@@ -80,6 +80,11 @@ class DatabaseMigrations {
       toVersion: DatabaseSchema.v15CalendarCategories,
       migrate: _migrateV14ToV15,
     ),
+    Migration(
+      fromVersion: DatabaseSchema.v15CalendarCategories,
+      toVersion: DatabaseSchema.v16CalendarEventColorPriority,
+      migrate: _migrateV15ToV16,
+    ),
   ];
 
   Future<void> runMigrations(Migrator m, int from, int to) async {
@@ -469,5 +474,39 @@ class DatabaseMigrations {
       '  PRIMARY KEY (id)'
       ')',
     );
+  }
+
+  /// v15→v16: Per-event color & priority on `calendar_events`.
+  ///
+  /// - `color_value INTEGER` (nullable) is an optional ARGB override; `NULL`
+  ///   keeps the historical "use the category color" behaviour.
+  /// - `tint_icon INTEGER NOT NULL DEFAULT 1` decides whether the color also
+  ///   tints the icon. Existing rows default to `1` (tint both).
+  /// - `priority INTEGER NOT NULL DEFAULT 3` orders bars / summary entries.
+  ///   Existing rows default to the neutral middle priority.
+  ///
+  /// All three are `ALTER TABLE ADD COLUMN`, guarded by `PRAGMA table_info`
+  /// so a partial-upgrade re-run cannot fail.
+  Future<void> _migrateV15ToV16(Migrator m, GeneratedDatabase db) async {
+    final existing = <String>{
+      for (final row
+          in await _db.customSelect('PRAGMA table_info(calendar_events)').get())
+        row.read<String>('name'),
+    };
+    if (!existing.contains('color_value')) {
+      await _db.customStatement(
+        'ALTER TABLE calendar_events ADD COLUMN color_value INTEGER',
+      );
+    }
+    if (!existing.contains('tint_icon')) {
+      await _db.customStatement(
+        'ALTER TABLE calendar_events ADD COLUMN tint_icon INTEGER NOT NULL DEFAULT 1',
+      );
+    }
+    if (!existing.contains('priority')) {
+      await _db.customStatement(
+        'ALTER TABLE calendar_events ADD COLUMN priority INTEGER NOT NULL DEFAULT 3',
+      );
+    }
   }
 }

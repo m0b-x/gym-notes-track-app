@@ -27,6 +27,10 @@ class CalendarDayBars extends StatelessWidget {
     this.horizontalInset = 6,
   });
 
+  /// Below this luminance delta against the cell surface, a bar gets a
+  /// hairline outline so pale / low-contrast colors stay visible.
+  static const double _lowContrastThreshold = 0.22;
+
   @override
   Widget build(BuildContext context) {
     if (bars.isEmpty || maxBars <= 0) return const SizedBox.shrink();
@@ -36,6 +40,10 @@ class CalendarDayBars extends StatelessWidget {
     // Reserve the last slot for the "+N" indicator when overflowing.
     final visibleCount = hasOverflow ? maxBars - 1 : bars.length;
     final hiddenCount = hasOverflow ? bars.length - visibleCount : 0;
+    // Reference luminance of the calendar cell background, used to outline
+    // bars whose color is too close to it (e.g. a pale custom color).
+    final surfaceLum = theme.colorScheme.surface.computeLuminance();
+    final outlineColor = theme.colorScheme.onSurface.withValues(alpha: 0.4);
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: horizontalInset),
@@ -52,6 +60,11 @@ class CalendarDayBars extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: bars[i].color,
                   borderRadius: BorderRadius.circular(barHeight),
+                  border:
+                      (bars[i].color.computeLuminance() - surfaceLum).abs() <
+                          _lowContrastThreshold
+                      ? Border.all(color: outlineColor, width: 0.5)
+                      : null,
                 ),
               ),
             ),

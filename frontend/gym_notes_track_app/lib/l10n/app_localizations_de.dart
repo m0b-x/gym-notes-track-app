@@ -477,6 +477,74 @@ class AppLocalizationsDe extends AppLocalizations {
   String get eventUntilHint => 'Tippe, um ein Enddatum festzulegen';
 
   @override
+  String get eventColor => 'Farbe';
+
+  @override
+  String get eventColorCustomTitle => 'Eigene Farbe';
+
+  @override
+  String get select => 'Auswählen';
+
+  @override
+  String get eventTintIcon => 'Symbol einfärben';
+
+  @override
+  String get eventTintIconHint =>
+      'Die Ereignisfarbe auch für das Symbol verwenden';
+
+  @override
+  String get eventPriority => 'Priorität';
+
+  @override
+  String get eventPriorityHint =>
+      'Höhere Priorität wird zuerst angezeigt und behält ihren Balken, wenn ein Tag voll ist';
+
+  @override
+  String get eventPriorityDecrease => 'Niedrigere Priorität';
+
+  @override
+  String get eventPriorityIncrease => 'Höhere Priorität';
+
+  @override
+  String get eventPriorityLowest => 'Niedrigste';
+
+  @override
+  String get eventPriorityLow => 'Niedrig';
+
+  @override
+  String get eventPriorityNormal => 'Normal';
+
+  @override
+  String get eventPriorityHigh => 'Hoch';
+
+  @override
+  String get eventPriorityHighest => 'Höchste';
+
+  @override
+  String get eventDatesLabel => 'Termine';
+
+  @override
+  String get eventDatesHint =>
+      'Füge weitere einzelne Termine hinzu, um dieses Ereignis ohne Wiederholung zu wiederholen';
+
+  @override
+  String get eventAddDate => 'Datum hinzufügen';
+
+  @override
+  String get eventRemoveDate => 'Datum entfernen';
+
+  @override
+  String recurrenceSpecificDates(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Termine',
+      one: 'Ein Termin',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get eventDescription => 'Beschreibung';
 
   @override

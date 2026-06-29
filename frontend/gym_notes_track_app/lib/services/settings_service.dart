@@ -260,6 +260,28 @@ class SettingsService {
     await _setInt(SettingsKeys.calendarMaxDayBars, value);
   }
 
+  // Calendar - Recently used custom event colors (most-recent-first, capped).
+  Future<List<int>> getRecentEventColors() async {
+    final raw = await _db.userSettingsDao.getValue(
+      SettingsKeys.recentEventColors,
+    );
+    if (raw == null || raw.isEmpty) return const [];
+    return raw.split(',').map(int.tryParse).whereType<int>().toList();
+  }
+
+  /// Pushes [color] to the front of the recent list (dedup, capped to
+  /// [SettingsKeys.maxRecentEventColors]).
+  Future<void> addRecentEventColor(int color) async {
+    final current = await getRecentEventColors();
+    final next = <int>[color, ...current.where((c) => c != color)]
+        .take(SettingsKeys.maxRecentEventColors)
+        .toList();
+    await _db.userSettingsDao.setValue(
+      SettingsKeys.recentEventColors,
+      next.join(','),
+    );
+  }
+
   // ── Last navigation location ─────────────────────────────────────────
   // Remembers the folder (and optionally the note inside it) the user was
   // viewing, so the app can reopen that location on the next cold launch.

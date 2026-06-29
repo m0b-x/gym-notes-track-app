@@ -96,6 +96,9 @@ class CalendarEventService {
           'durationMinutes': row.durationMinutes,
           'description': row.description,
           'noteId': row.noteId,
+          'colorValue': row.colorValue,
+          'tintIcon': row.tintIcon,
+          'priority': row.priority,
           'createdAtMs': row.createdAt.millisecondsSinceEpoch,
           'updatedAtMs': row.updatedAt.millisecondsSinceEpoch,
         },
@@ -157,6 +160,15 @@ class CalendarEventService {
             noteId: map['noteId'] is String
                 ? Value(map['noteId'] as String)
                 : const Value.absent(),
+            colorValue: map['colorValue'] is int
+                ? Value(map['colorValue'] as int)
+                : const Value.absent(),
+            tintIcon: map['tintIcon'] is bool
+                ? Value(map['tintIcon'] as bool)
+                : const Value.absent(),
+            priority: map['priority'] is int
+                ? Value(map['priority'] as int)
+                : const Value.absent(),
             createdAt: Value(
               DateTime.fromMillisecondsSinceEpoch(createdMs, isUtc: true),
             ),
@@ -185,6 +197,9 @@ class CalendarEventService {
       time: _decodeTime(row.startMinute, row.durationMinutes),
       description: row.description,
       noteId: row.noteId,
+      colorValue: row.colorValue,
+      tintIcon: row.tintIcon,
+      priority: row.priority.clamp(kMinEventPriority, kMaxEventPriority),
       rule: _decodeRule(row.ruleKind, row.rulePayload),
     );
   }
@@ -239,6 +254,9 @@ class CalendarEventService {
       durationMinutes: Value(time?.durationMinutes),
       description: Value(event.description),
       noteId: Value(event.noteId),
+      colorValue: Value(event.colorValue),
+      tintIcon: Value(event.tintIcon),
+      priority: Value(event.priority),
       createdAt: Value(updatedAt),
       updatedAt: Value(updatedAt),
     );
@@ -247,6 +265,7 @@ class CalendarEventService {
   // ── Recurrence serialization ──────────────────────────────────────────
 
   static const String _kOneTime = 'oneTime';
+  static const String _kSpecificDates = 'specificDates';
   static const String _kDaily = 'daily';
   static const String _kWeekly = 'weekly';
   static const String _kMonthly = 'monthly';
@@ -258,6 +277,7 @@ class CalendarEventService {
   String _ruleKind(RecurrenceRule rule) {
     return switch (rule) {
       OneTimeRecurrence() => _kOneTime,
+      SpecificDatesRecurrence() => _kSpecificDates,
       DailyRecurrence() => _kDaily,
       WeeklyRecurrence() => _kWeekly,
       MonthlyRecurrence() => _kMonthly,
@@ -273,6 +293,11 @@ class CalendarEventService {
     if (rule is WeeklyRecurrence) {
       final days = rule.weekdays.toList()..sort();
       map['weekdays'] = days;
+    }
+    if (rule is SpecificDatesRecurrence) {
+      final ms =
+          rule.dates.map((d) => d.millisecondsSinceEpoch).toList()..sort();
+      map['dates'] = ms;
     }
     final interval = _intervalOf(rule);
     if (interval > 1) map['interval'] = interval;
@@ -305,6 +330,10 @@ class CalendarEventService {
 
   RecurrenceRule _decodeRule(String kind, String? payload) {
     switch (kind) {
+      case _kSpecificDates:
+        final dates = _decodeDates(payload);
+        if (dates.isEmpty) return const OneTimeRecurrence();
+        return SpecificDatesRecurrence(dates: dates);
       case _kDaily:
         return DailyRecurrence(interval: _decodeInterval(payload));
       case _kWeekly:
@@ -339,5 +368,30 @@ class CalendarEventService {
       default:
         return const OneTimeRecurrence();
     }
+  }
+
+  /// Parses the explicit one-off date set from a `specificDates` payload,
+  /// normalizing each entry to date-only UTC. Malformed/missing entries are
+  /// skipped; an empty result lets [_decodeRule] fall back to one-time.
+  Set<DateTime> _decodeDates(String? payload) {
+    final dates = <DateTime>{};
+    if (payload == null || payload.isEmpty) return dates;
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is Map && decoded['dates'] is List) {
+        for (final raw in decoded['dates'] as List) {
+          if (raw is int) {
+            dates.add(
+              _dateOnlyUtc(
+                DateTime.fromMillisecondsSinceEpoch(raw, isUtc: true),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[CalendarEventService] Bad specificDates payload: $e');
+    }
+    return dates;
   }
 }

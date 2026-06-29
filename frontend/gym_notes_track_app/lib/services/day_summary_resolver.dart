@@ -87,17 +87,23 @@ class EventSummaryProvider implements DaySummaryProvider {
     DateTime day,
     List<CalendarEvent> events,
   ) {
-    return events.map(
-      (event) => DaySummaryEntry(
+    return events.map((event) {
+      final category = CalendarCategories.resolve(event.categoryId);
+      // The event color tints the icon only when the user opted in
+      // (tintIcon); otherwise the icon keeps its category color.
+      final color = (event.colorValue != null && event.tintIcon)
+          ? Color(event.colorValue!)
+          : category.color;
+      return DaySummaryEntry(
         key: 'event:${event.id}',
         icon: CalendarCategories.iconFor(event),
-        color: CalendarCategories.resolve(event.categoryId).color,
+        color: color,
         title: event.title,
         subtitle: _subtitleFor(event),
-        priority: CalendarCategories.resolve(event.categoryId).sortOrder,
+        priority: kMaxEventPriority - event.priority,
         event: event,
-      ),
-    );
+      );
+    });
   }
 
   String? _subtitleFor(CalendarEvent event) {
@@ -145,7 +151,10 @@ class DaySummaryResolver {
       }
     }
     final sorted = byKey.values.toList()
-      ..sort((a, b) => a.priority.compareTo(b.priority));
+      ..sort((a, b) {
+        final byPriority = a.priority.compareTo(b.priority);
+        return byPriority != 0 ? byPriority : a.key.compareTo(b.key);
+      });
     return sorted;
   }
 }

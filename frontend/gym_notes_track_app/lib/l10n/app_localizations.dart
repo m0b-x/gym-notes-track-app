@@ -880,6 +880,120 @@ abstract class AppLocalizations {
   /// **'Tap to set an end date'**
   String get eventUntilHint;
 
+  /// Section label for the per-event color picker
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get eventColor;
+
+  /// Title of the custom color wheel dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Custom color'**
+  String get eventColorCustomTitle;
+
+  /// Generic confirm button for a selection dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get select;
+
+  /// Toggle label: also apply the event color to the icon
+  ///
+  /// In en, this message translates to:
+  /// **'Tint icon with color'**
+  String get eventTintIcon;
+
+  /// Subtitle for the tint-icon toggle
+  ///
+  /// In en, this message translates to:
+  /// **'Use the event color for the icon too'**
+  String get eventTintIconHint;
+
+  /// Section label for the event priority stepper
+  ///
+  /// In en, this message translates to:
+  /// **'Priority'**
+  String get eventPriority;
+
+  /// Hint shown under the event priority stepper
+  ///
+  /// In en, this message translates to:
+  /// **'Higher priority shows first and keeps its bar when a day is full'**
+  String get eventPriorityHint;
+
+  /// Tooltip for the button that lowers the event priority
+  ///
+  /// In en, this message translates to:
+  /// **'Lower priority'**
+  String get eventPriorityDecrease;
+
+  /// Tooltip for the button that raises the event priority
+  ///
+  /// In en, this message translates to:
+  /// **'Higher priority'**
+  String get eventPriorityIncrease;
+
+  /// Qualitative label for priority level 1
+  ///
+  /// In en, this message translates to:
+  /// **'Lowest'**
+  String get eventPriorityLowest;
+
+  /// Qualitative label for priority level 2
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get eventPriorityLow;
+
+  /// Qualitative label for priority level 3 (default)
+  ///
+  /// In en, this message translates to:
+  /// **'Normal'**
+  String get eventPriorityNormal;
+
+  /// Qualitative label for priority level 4
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get eventPriorityHigh;
+
+  /// Qualitative label for priority level 5
+  ///
+  /// In en, this message translates to:
+  /// **'Highest'**
+  String get eventPriorityHighest;
+
+  /// Section label for the one-time event's date chip list
+  ///
+  /// In en, this message translates to:
+  /// **'Dates'**
+  String get eventDatesLabel;
+
+  /// Hint shown when a one-time event has no additional dates yet
+  ///
+  /// In en, this message translates to:
+  /// **'Add more one-off dates to repeat this event without a recurrence'**
+  String get eventDatesHint;
+
+  /// Action chip that adds another one-off date
+  ///
+  /// In en, this message translates to:
+  /// **'Add date'**
+  String get eventAddDate;
+
+  /// Tooltip to remove an additional one-off date chip
+  ///
+  /// In en, this message translates to:
+  /// **'Remove date'**
+  String get eventRemoveDate;
+
+  /// Summary for a one-time event pinned to several specific dates
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{One date} other{{count} dates}}'**
+  String recurrenceSpecificDates(int count);
+
   /// Label for the optional multiline description / notes field on an event
   ///
   /// In en, this message translates to:

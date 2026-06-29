@@ -25,6 +25,16 @@ const String kFallbackCategoryId = 'other';
 /// defaults a brand-new (still one-time) event to a yearly recurrence.
 const String kBirthdayCategoryId = 'birthday';
 
+/// Lowest selectable event priority.
+const int kMinEventPriority = 1;
+
+/// Highest selectable event priority. Higher values sort above lower ones in
+/// the day bars and the day summary, and win the limited day-cell bar slots.
+const int kMaxEventPriority = 5;
+
+/// Neutral default priority assigned to brand-new events.
+const int kDefaultEventPriority = 3;
+
 /// Time-of-day annotation for a [CalendarEvent].
 ///
 /// An event is considered **timed** iff it carries a non-null
@@ -128,6 +138,23 @@ class CalendarEvent extends Equatable {
   /// When `null`, the icon falls back to the category default.
   final String? iconKey;
 
+  /// Optional explicit color override (a 32-bit ARGB value). When `null`, the
+  /// event uses its category color. Applies to the whole event, so a recurring
+  /// rule colors every occurrence and a multi-date one-time event colors all
+  /// its dates. Always tints the day-cell bar; the icon is tinted only when
+  /// [tintIcon] is also `true`.
+  final int? colorValue;
+
+  /// Whether [colorValue] should also tint the event's icon (day summary).
+  /// Ignored when [colorValue] is `null`. Defaults to `true` so a chosen
+  /// color affects both the bar and the icon unless the user opts out.
+  final bool tintIcon;
+
+  /// Display priority in `[kMinEventPriority, kMaxEventPriority]`. Higher
+  /// values sort first in the day bars / day summary and are kept when the
+  /// day cell can only show a limited number of bars.
+  final int priority;
+
   const CalendarEvent({
     required this.id,
     required this.title,
@@ -139,6 +166,9 @@ class CalendarEvent extends Equatable {
     this.description,
     this.noteId,
     this.iconKey,
+    this.colorValue,
+    this.tintIcon = true,
+    this.priority = kDefaultEventPriority,
   });
 
   /// Derived: `true` iff this event has no [time] annotation. This is the
@@ -157,11 +187,15 @@ class CalendarEvent extends Equatable {
     String? description,
     String? noteId,
     String? iconKey,
+    int? colorValue,
+    bool? tintIcon,
+    int? priority,
     bool clearEndDate = false,
     bool clearTime = false,
     bool clearDescription = false,
     bool clearNoteId = false,
     bool clearIconKey = false,
+    bool clearColorValue = false,
   }) {
     return CalendarEvent(
       id: id ?? this.id,
@@ -174,6 +208,9 @@ class CalendarEvent extends Equatable {
       description: clearDescription ? null : (description ?? this.description),
       noteId: clearNoteId ? null : (noteId ?? this.noteId),
       iconKey: clearIconKey ? null : (iconKey ?? this.iconKey),
+      colorValue: clearColorValue ? null : (colorValue ?? this.colorValue),
+      tintIcon: tintIcon ?? this.tintIcon,
+      priority: priority ?? this.priority,
     );
   }
 
@@ -206,5 +243,8 @@ class CalendarEvent extends Equatable {
     description,
     noteId,
     iconKey,
+    colorValue,
+    tintIcon,
+    priority,
   ];
 }

@@ -487,6 +487,75 @@ class AppLocalizationsRo extends AppLocalizations {
   String get eventUntilHint => 'Atinge pentru a seta o dată de final';
 
   @override
+  String get eventColor => 'Culoare';
+
+  @override
+  String get eventColorCustomTitle => 'Culoare personalizată';
+
+  @override
+  String get select => 'Selectează';
+
+  @override
+  String get eventTintIcon => 'Colorează pictograma';
+
+  @override
+  String get eventTintIconHint =>
+      'Folosește culoarea evenimentului și pentru pictogramă';
+
+  @override
+  String get eventPriority => 'Prioritate';
+
+  @override
+  String get eventPriorityHint =>
+      'Prioritatea mai mare apare prima și își păstrează bara când ziua e plină';
+
+  @override
+  String get eventPriorityDecrease => 'Prioritate mai mică';
+
+  @override
+  String get eventPriorityIncrease => 'Prioritate mai mare';
+
+  @override
+  String get eventPriorityLowest => 'Minimă';
+
+  @override
+  String get eventPriorityLow => 'Scăzută';
+
+  @override
+  String get eventPriorityNormal => 'Normală';
+
+  @override
+  String get eventPriorityHigh => 'Ridicată';
+
+  @override
+  String get eventPriorityHighest => 'Maximă';
+
+  @override
+  String get eventDatesLabel => 'Date';
+
+  @override
+  String get eventDatesHint =>
+      'Adaugă alte date individuale pentru a repeta acest eveniment fără recurență';
+
+  @override
+  String get eventAddDate => 'Adaugă dată';
+
+  @override
+  String get eventRemoveDate => 'Elimină data';
+
+  @override
+  String recurrenceSpecificDates(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de date',
+      few: '$count date',
+      one: 'O dată',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get eventDescription => 'Descriere';
 
   @override

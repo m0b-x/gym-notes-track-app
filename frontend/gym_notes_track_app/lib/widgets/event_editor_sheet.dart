@@ -4,14 +4,18 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../constants/calendar_categories.dart';
+import '../constants/calendar_colors.dart';
 import '../constants/calendar_icons.dart';
+import '../constants/settings_keys.dart';
 import '../l10n/app_localizations.dart';
 import '../models/calendar_event.dart';
 import '../models/recurrence_rule.dart';
 import '../repositories/note_repository.dart';
 import '../services/event_time_formatter.dart';
 import '../services/recurrence_formatter.dart';
+import '../services/settings_service.dart';
 import 'category_picker_sheet.dart';
+import 'color_wheel_picker.dart';
 import 'icon_picker_sheet.dart';
 import 'note_picker_dialog.dart';
 
@@ -127,6 +131,23 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
   String? _noteTitle;
   bool _noteMissing = false;
 
+  /// Optional per-event color override (32-bit ARGB). `null` = use the
+  /// category color. [_tintIcon] decides whether it also tints the icon.
+  int? _colorValue;
+  bool _tintIcon = true;
+
+  /// Display priority in `[kMinEventPriority, kMaxEventPriority]`.
+  int _priority = kDefaultEventPriority;
+
+  /// Extra one-off dates for a one-time event (date-only UTC, sorted, never
+  /// containing [_date]). When non-empty, the event saves as a
+  /// [SpecificDatesRecurrence] covering [_date] plus these dates.
+  late List<DateTime> _additionalDates;
+
+  /// Recently-used custom (non-palette) colors, most-recent-first. Loaded
+  /// from settings on open and updated when the user picks a wheel color.
+  List<int> _recentColors = const [];
+
   bool get _isEditing => widget.initialEvent != null;
 
   @override
@@ -146,18 +167,27 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     _startMinute = initialTime?.startMinute ?? _defaultStartMinute;
     _durationMinutes = initialTime?.durationMinutes;
     _noteId = initial?.noteId;
+    _colorValue = initial?.colorValue;
+    _tintIcon = initial?.tintIcon ?? true;
+    _priority = initial?.priority ?? kDefaultEventPriority;
     _initRecurrenceFrom(initial?.rule ?? const OneTimeRecurrence());
     if (_noteId != null) _loadLinkedNoteTitle();
+    _loadRecentColors();
   }
 
   void _initRecurrenceFrom(RecurrenceRule rule) {
     // Sensible default weekday set anchored to the event start date.
     _weekdays = {_date.weekday};
     _interval = 1;
+    _additionalDates = [];
     switch (rule) {
       case OneTimeRecurrence():
         _mode = _RepeatMode.oneTime;
         _kind = _RecurrenceKind.daily;
+      case SpecificDatesRecurrence(:final dates):
+        _mode = _RepeatMode.oneTime;
+        _kind = _RecurrenceKind.daily;
+        _additionalDates = dates.where((d) => d != _date).toList()..sort();
       case DailyRecurrence(:final interval):
         _mode = _RepeatMode.recurring;
         _kind = _RecurrenceKind.daily;
@@ -199,7 +229,12 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
   DateTime _normalize(DateTime d) => DateTime.utc(d.year, d.month, d.day);
 
   RecurrenceRule _buildRule() {
-    if (_mode == _RepeatMode.oneTime) return const OneTimeRecurrence();
+    if (_mode == _RepeatMode.oneTime) {
+      if (_additionalDates.isEmpty) return const OneTimeRecurrence();
+      return SpecificDatesRecurrence(
+        dates: Set.unmodifiable(<DateTime>{_date, ..._additionalDates}),
+      );
+    }
     return switch (_kind) {
       _RecurrenceKind.daily => DailyRecurrence(interval: _interval),
       _RecurrenceKind.weekly => WeeklyRecurrence(
@@ -248,6 +283,24 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     return true;
   }
 
+  /// Whether the chosen color is a freeform value not present in the swatch
+  /// palette (so the "custom" dot reflects it instead of a palette dot).
+  bool get _isCustomColor =>
+      _colorValue != null &&
+      !CalendarColors.swatchPalette.contains(_colorValue);
+
+  /// Qualitative label shown next to the numeric priority so "3" reads as
+  /// "Normal" rather than a bare number.
+  String _priorityLabel(AppLocalizations l10n, int p) {
+    return switch (p) {
+      1 => l10n.eventPriorityLowest,
+      2 => l10n.eventPriorityLow,
+      4 => l10n.eventPriorityHigh,
+      5 => l10n.eventPriorityHighest,
+      _ => l10n.eventPriorityNormal,
+    };
+  }
+
   String _kindLabel(AppLocalizations l10n, _RecurrenceKind k) {
     return switch (k) {
       _RecurrenceKind.daily => l10n.recurrenceDaily,
@@ -280,6 +333,8 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
         _weekdays = {next.weekday};
       }
       _date = next;
+      // A new primary date must never also live in the extra-dates list.
+      _additionalDates = _additionalDates.where((d) => d != next).toList();
       // If the recurrence end is now before the new start, drop it rather
       // than silently producing an event that never occurs.
       if (_endDate != null && _endDate!.isBefore(next)) {
@@ -298,6 +353,48 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     );
     if (picked == null || !mounted) return;
     setState(() => _endDate = _normalize(picked));
+  }
+
+  Future<void> _pickAdditionalDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime(_date.year - 20),
+      lastDate: DateTime(_date.year + 20),
+    );
+    if (picked == null || !mounted) return;
+    _setOneTimeDates(<DateTime>{_date, ..._additionalDates, _normalize(picked)});
+  }
+
+  Future<void> _editOneTimeDate(DateTime old) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: old,
+      firstDate: DateTime(old.year - 20),
+      lastDate: DateTime(old.year + 20),
+    );
+    if (picked == null || !mounted) return;
+    final next = <DateTime>{_date, ..._additionalDates}
+      ..remove(old)
+      ..add(_normalize(picked));
+    _setOneTimeDates(next);
+  }
+
+  void _removeOneTimeDate(DateTime date) {
+    final next = <DateTime>{_date, ..._additionalDates}..remove(date);
+    if (next.isEmpty) return;
+    _setOneTimeDates(next);
+  }
+
+  /// Re-derives [_date] (earliest) and [_additionalDates] (the rest) from a
+  /// full one-time date set so the chip list always reads as one uniform,
+  /// sorted collection with the earliest auto-anchoring the event.
+  void _setOneTimeDates(Set<DateTime> dates) {
+    final sorted = dates.toList()..sort();
+    setState(() {
+      _date = sorted.first;
+      _additionalDates = sorted.skip(1).toList();
+    });
   }
 
   Future<void> _pickStartTime() async {
@@ -363,6 +460,29 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     );
     if (picked == null || !mounted) return;
     setState(() => _iconKey = picked);
+  }
+
+  Future<void> _pickCustomColor() async {
+    final picked = await ColorWheelDialog.show(
+      context,
+      initialColor: _colorValue,
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _colorValue = picked;
+      _recentColors = <int>{picked, ..._recentColors}
+          .take(SettingsKeys.maxRecentEventColors)
+          .toList();
+    });
+    final settings = await SettingsService.getInstance();
+    await settings.addRecentEventColor(picked);
+  }
+
+  Future<void> _loadRecentColors() async {
+    final settings = await SettingsService.getInstance();
+    final colors = await settings.getRecentEventColors();
+    if (!mounted) return;
+    setState(() => _recentColors = colors);
   }
 
   Future<void> _pickCategory() async {
@@ -449,34 +569,49 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
             startMinute: _startMinute,
             durationMinutes: _durationMinutes,
           );
+    // For a multi-date one-time event, anchor the start on the earliest date
+    // so ordering / "starts on" reflect the real first occurrence.
+    final effectiveStart =
+        (_mode == _RepeatMode.oneTime && _additionalDates.isNotEmpty)
+        ? <DateTime>{_date, ..._additionalDates}.reduce(
+            (a, b) => a.isBefore(b) ? a : b,
+          )
+        : _date;
     final event = base == null
         ? CalendarEvent(
             id: const Uuid().v4(),
             title: title,
             categoryId: _categoryId,
-            startDate: _date,
+            startDate: effectiveStart,
             rule: _buildRule(),
             endDate: effectiveEnd,
             time: effectiveTime,
             description: effectiveDescription,
             noteId: _noteId,
             iconKey: _iconKey,
+            colorValue: _colorValue,
+            tintIcon: _tintIcon,
+            priority: _priority,
           )
         : base.copyWith(
             title: title,
             categoryId: _categoryId,
-            startDate: _date,
+            startDate: effectiveStart,
             rule: _buildRule(),
             endDate: effectiveEnd,
             time: effectiveTime,
             description: effectiveDescription,
             noteId: _noteId,
             iconKey: _iconKey,
+            colorValue: _colorValue,
+            tintIcon: _tintIcon,
+            priority: _priority,
             clearEndDate: effectiveEnd == null,
             clearTime: effectiveTime == null,
             clearDescription: effectiveDescription == null,
             clearNoteId: _noteId == null,
             clearIconKey: _iconKey == null,
+            clearColorValue: _colorValue == null,
           );
     Navigator.of(context).pop(EventEditorSaved(event));
   }
@@ -517,6 +652,17 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     final localeName = l10n.localeName;
     final category = CalendarCategories.resolve(_categoryId);
     final categoryColor = category.color;
+    // All one-time dates (anchor + extras) as one uniform, sorted list.
+    final oneTimeDates = <DateTime>{_date, ..._additionalDates}.toList()
+      ..sort();
+    // Custom (non-palette) color dots: the current custom color first, then
+    // recently used ones, deduped and capped.
+    final customColorDots = <int>{
+      if (_isCustomColor) _colorValue!,
+      ..._recentColors.where(
+        (c) => !CalendarColors.swatchPalette.contains(c),
+      ),
+    }.take(SettingsKeys.maxRecentEventColors).toList();
     final viewInsets = MediaQuery.viewInsetsOf(context).bottom;
     final viewPadding = MediaQuery.viewPaddingOf(context).bottom;
     final bottomClearance = viewInsets > viewPadding ? viewInsets : viewPadding;
@@ -623,6 +769,72 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
                           ),
                     onTap: _pickIcon,
                   ),
+                  _SectionLabel(text: l10n.eventColor),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      _EventColorDot(
+                        color: categoryColor,
+                        icon:
+                            CalendarIcons.forKey(category.iconKey) ??
+                            Icons.event_rounded,
+                        selected: _colorValue == null,
+                        onTap: () => setState(() => _colorValue = null),
+                      ),
+                      for (final swatch in CalendarColors.swatchPalette)
+                        _EventColorDot(
+                          color: Color(swatch),
+                          selected: _colorValue == swatch,
+                          onTap: () => setState(() => _colorValue = swatch),
+                        ),
+                      for (final c in customColorDots)
+                        _EventColorDot(
+                          color: Color(c),
+                          selected: _colorValue == c,
+                          onTap: () => setState(() => _colorValue = c),
+                        ),
+                      _EventColorDot(
+                        icon: Icons.colorize_rounded,
+                        selected: false,
+                        onTap: _pickCustomColor,
+                      ),
+                    ],
+                  ),
+                  if (_colorValue != null) ...[
+                    const SizedBox(height: 8),
+                    Card(
+                      margin: EdgeInsets.zero,
+                      child: SwitchListTile(
+                        value: _tintIcon,
+                        onChanged: (v) => setState(() => _tintIcon = v),
+                        secondary: const CircleAvatar(
+                          child: Icon(Icons.brush_rounded),
+                        ),
+                        title: Text(l10n.eventTintIcon),
+                        subtitle: Text(l10n.eventTintIconHint),
+                      ),
+                    ),
+                  ],
+                  _SectionLabel(text: l10n.eventPriority),
+                  _IntervalStepper(
+                    value: _priority,
+                    unitLabel: _priorityLabel(l10n, _priority),
+                    min: kMinEventPriority,
+                    max: kMaxEventPriority,
+                    decrementTooltip: l10n.eventPriorityDecrease,
+                    incrementTooltip: l10n.eventPriorityIncrease,
+                    onChanged: (v) => setState(() => _priority = v),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      l10n.eventPriorityHint,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
                   _SectionLabel(text: l10n.eventLinkedNote),
                   _PickerTile(
                     leading: CircleAvatar(
@@ -657,17 +869,51 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
                           ),
                     onTap: _pickNote,
                   ),
-                  _SectionLabel(text: l10n.eventDate),
-                  _PickerTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.calendar_today_rounded),
+                  if (_mode == _RepeatMode.oneTime) ...[
+                    _SectionLabel(text: l10n.eventDatesLabel),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final d in oneTimeDates)
+                          InputChip(
+                            label: Text(
+                              DateFormat.yMMMd(localeName).format(d),
+                            ),
+                            onPressed: () => _editOneTimeDate(d),
+                            onDeleted: oneTimeDates.length > 1
+                                ? () => _removeOneTimeDate(d)
+                                : null,
+                            deleteButtonTooltipMessage: l10n.eventRemoveDate,
+                          ),
+                        ActionChip(
+                          avatar: const Icon(Icons.add_rounded, size: 18),
+                          label: Text(l10n.eventAddDate),
+                          onPressed: _pickAdditionalDate,
+                        ),
+                      ],
                     ),
-                    title: DateFormat.yMMMMEEEEd(localeName).format(_date),
-                    subtitle: _mode == _RepeatMode.recurring
-                        ? l10n.startsOn
-                        : null,
-                    onTap: _pickDate,
-                  ),
+                    if (oneTimeDates.length == 1)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          l10n.eventDatesHint,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                  ] else ...[
+                    _SectionLabel(text: l10n.eventDate),
+                    _PickerTile(
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.calendar_today_rounded),
+                      ),
+                      title: DateFormat.yMMMMEEEEd(localeName).format(_date),
+                      subtitle: l10n.startsOn,
+                      onTap: _pickDate,
+                    ),
+                  ],
                   _SectionLabel(text: l10n.eventTimeSection),
                   Card(
                     margin: EdgeInsets.zero,
@@ -942,6 +1188,65 @@ class _PickerTile extends StatelessWidget {
         subtitle: subtitle == null ? null : Text(subtitle!),
         trailing: trailing ?? const Icon(Icons.chevron_right_rounded),
         onTap: onTap,
+      ),
+    );
+  }
+}
+
+/// A circular color choice used in the event editor's color picker. A `null`
+/// [color] paints a rainbow sweep to represent the "custom" entry; a non-null
+/// [color] fills the dot. Shows a check when [selected], otherwise [icon].
+class _EventColorDot extends StatelessWidget {
+  final Color? color;
+  final bool selected;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  const _EventColorDot({
+    required this.selected,
+    required this.onTap,
+    this.color,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final fill = color;
+    final foreground = fill == null
+        ? Colors.white
+        : (ThemeData.estimateBrightnessForColor(fill) == Brightness.dark
+              ? Colors.white
+              : Colors.black);
+    return InkWell(
+      onTap: onTap,
+      customBorder: const CircleBorder(),
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: fill,
+          gradient: fill == null
+              ? const SweepGradient(
+                  colors: [
+                    Color(0xFFE53935),
+                    Color(0xFFFFB300),
+                    Color(0xFF43A047),
+                    Color(0xFF00ACC1),
+                    Color(0xFF3949AB),
+                    Color(0xFF8E24AA),
+                    Color(0xFFE53935),
+                  ],
+                )
+              : null,
+          shape: BoxShape.circle,
+          border: selected
+              ? Border.all(color: theme.colorScheme.onSurface, width: 3)
+              : Border.all(color: theme.colorScheme.outlineVariant),
+        ),
+        child: selected
+            ? Icon(Icons.check_rounded, color: foreground, size: 22)
+            : (icon != null ? Icon(icon, color: foreground, size: 20) : null),
       ),
     );
   }

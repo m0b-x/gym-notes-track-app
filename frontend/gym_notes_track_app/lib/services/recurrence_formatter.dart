@@ -12,6 +12,9 @@ abstract final class RecurrenceFormatter {
   ) {
     return switch (rule) {
       OneTimeRecurrence() => l10n.recurrenceNone,
+      SpecificDatesRecurrence(:final dates) => l10n.recurrenceSpecificDates(
+        dates.length,
+      ),
       DailyRecurrence(:final interval) => l10n.recurrenceEveryDays(interval),
       WeeklyRecurrence(:final weekdays, :final interval) =>
         weekdays.isEmpty
