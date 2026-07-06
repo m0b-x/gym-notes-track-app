@@ -185,35 +185,37 @@ class _OptimizedFolderContentPageState
     super.didChangeDependencies();
     FocusManager.instance.primaryFocus?.unfocus();
     _loadSettings();
-    // The root page observes route changes so it can forget the restored
-    // launch location once the user navigates back to it (see didPopNext).
-    if (widget.folderId == null) {
-      final route = ModalRoute.of(context);
-      if (route is PageRoute) {
-        AppNavigator.routeObserver.subscribe(this, route);
-      }
+    // Every folder page observes route changes so the remembered launch
+    // location stays in sync when the user navigates back onto it (see
+    // didPopNext).
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      AppNavigator.routeObserver.subscribe(this, route);
     }
   }
 
   @override
   void dispose() {
-    if (widget.folderId == null) {
-      AppNavigator.routeObserver.unsubscribe(this);
-    }
+    AppNavigator.routeObserver.unsubscribe(this);
     _selectionSub?.cancel();
     _selection.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  /// Called when a route pushed on top of the root page is popped, making
-  /// the root page visible again. At that point the user has explicitly
-  /// navigated "home", so we clear the remembered last location and the
-  /// next cold launch opens at the root instead of the previous folder/note.
+  /// Called when a route pushed on top of this page is popped, making this
+  /// folder page visible again. We keep the remembered last location in sync
+  /// with what the user is now looking at: the root page forgets everything
+  /// (the user navigated "home"), while a nested folder re-asserts itself as
+  /// the last location and drops any remembered note (the user backed out of
+  /// a note/subfolder), so the next cold launch restores this folder rather
+  /// than the note that is no longer on screen.
   @override
   void didPopNext() {
-    if (widget.folderId != null) return;
-    SettingsService.getInstance().then((s) => s.clearLastLocation());
+    SettingsService.getInstance().then((s) {
+      if (widget.folderId == null) return s.clearLastLocation();
+      return s.saveLastFolder(widget.folderId!, widget.title);
+    });
   }
 
   // ─── Selection mode helpers ─────────────────────────────────────────────

@@ -47,8 +47,7 @@ class _ColorWheelDialogState extends State<ColorWheelDialog> {
     _value = initial == null ? 1.0 : hsv.value;
   }
 
-  Color get _color =>
-      HSVColor.fromAHSV(1, _hue, _saturation, _value).toColor();
+  Color get _color => HSVColor.fromAHSV(1, _hue, _saturation, _value).toColor();
 
   void _updateFromLocal(Offset local, double size) {
     final center = Offset(size / 2, size / 2);
@@ -143,9 +142,7 @@ class _PreviewSwatch extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
     );
   }
@@ -203,7 +200,8 @@ class _WheelPainter extends CustomPainter {
     // Thumb at (hue angle, saturation radius).
     final angle = hue * math.pi / 180;
     final thumb =
-        center + Offset(math.cos(angle), math.sin(angle)) * (saturation * radius);
+        center +
+        Offset(math.cos(angle), math.sin(angle)) * (saturation * radius);
     canvas.drawCircle(thumb, 10, Paint()..color = Colors.white);
     canvas.drawCircle(
       thumb,

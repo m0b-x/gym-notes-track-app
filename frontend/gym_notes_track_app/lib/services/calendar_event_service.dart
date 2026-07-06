@@ -295,8 +295,8 @@ class CalendarEventService {
       map['weekdays'] = days;
     }
     if (rule is SpecificDatesRecurrence) {
-      final ms =
-          rule.dates.map((d) => d.millisecondsSinceEpoch).toList()..sort();
+      final ms = rule.dates.map((d) => d.millisecondsSinceEpoch).toList()
+        ..sort();
       map['dates'] = ms;
     }
     final interval = _intervalOf(rule);

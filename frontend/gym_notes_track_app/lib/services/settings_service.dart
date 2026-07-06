@@ -273,9 +273,10 @@ class SettingsService {
   /// [SettingsKeys.maxRecentEventColors]).
   Future<void> addRecentEventColor(int color) async {
     final current = await getRecentEventColors();
-    final next = <int>[color, ...current.where((c) => c != color)]
-        .take(SettingsKeys.maxRecentEventColors)
-        .toList();
+    final next = <int>[
+      color,
+      ...current.where((c) => c != color),
+    ].take(SettingsKeys.maxRecentEventColors).toList();
     await _db.userSettingsDao.setValue(
       SettingsKeys.recentEventColors,
       next.join(','),

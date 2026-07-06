@@ -244,21 +244,37 @@ abstract final class AppNavigator {
       return;
     }
 
-    await rootPush(
-      OptimizedFolderContentPage(folderId: folder.id, title: folder.name),
-    );
-
+    // Resolve any remembered note up front so the folder and note are pushed
+    // together as a single back-stack (Home -> Folder -> Note). We must NOT
+    // `await` the folder's push future before pushing the note: Navigator's
+    // push future only completes when that route is *popped*, so awaiting it
+    // deferred the note push until the user pressed Back -- which made Back
+    // appear to open a note instead of returning to the folder/home.
+    String? noteIdToRestore;
     final noteId = await settings.getLastNoteId();
-    if (noteId == null || noteId.isEmpty) return;
-
-    final notes = await GetIt.I<NoteRepository>().getNotesByIds([noteId]);
-    if (notes.isEmpty) {
-      await settings.saveLastFolder(folder.id, folder.name);
-      return;
+    if (noteId != null && noteId.isNotEmpty) {
+      final notes = await GetIt.I<NoteRepository>().getNotesByIds([noteId]);
+      if (notes.isEmpty) {
+        // The note was deleted since it was remembered: restore the folder
+        // only and forget the stale note.
+        await settings.saveLastFolder(folder.id, folder.name);
+      } else {
+        noteIdToRestore = noteId;
+      }
     }
 
-    await rootPush(
-      OptimizedNoteEditorPage(folderId: folder.id, noteId: noteId),
+    unawaited(
+      rootPush(
+        OptimizedFolderContentPage(folderId: folder.id, title: folder.name),
+      ),
+    );
+
+    if (noteIdToRestore == null) return;
+
+    unawaited(
+      rootPush(
+        OptimizedNoteEditorPage(folderId: folder.id, noteId: noteIdToRestore),
+      ),
     );
   }
 }

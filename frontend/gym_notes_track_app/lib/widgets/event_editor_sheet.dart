@@ -363,7 +363,11 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
       lastDate: DateTime(_date.year + 20),
     );
     if (picked == null || !mounted) return;
-    _setOneTimeDates(<DateTime>{_date, ..._additionalDates, _normalize(picked)});
+    _setOneTimeDates(<DateTime>{
+      _date,
+      ..._additionalDates,
+      _normalize(picked),
+    });
   }
 
   Future<void> _editOneTimeDate(DateTime old) async {
@@ -470,9 +474,10 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     if (picked == null || !mounted) return;
     setState(() {
       _colorValue = picked;
-      _recentColors = <int>{picked, ..._recentColors}
-          .take(SettingsKeys.maxRecentEventColors)
-          .toList();
+      _recentColors = <int>{
+        picked,
+        ..._recentColors,
+      }.take(SettingsKeys.maxRecentEventColors).toList();
     });
     final settings = await SettingsService.getInstance();
     await settings.addRecentEventColor(picked);
@@ -573,9 +578,10 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     // so ordering / "starts on" reflect the real first occurrence.
     final effectiveStart =
         (_mode == _RepeatMode.oneTime && _additionalDates.isNotEmpty)
-        ? <DateTime>{_date, ..._additionalDates}.reduce(
-            (a, b) => a.isBefore(b) ? a : b,
-          )
+        ? <DateTime>{
+            _date,
+            ..._additionalDates,
+          }.reduce((a, b) => a.isBefore(b) ? a : b)
         : _date;
     final event = base == null
         ? CalendarEvent(
@@ -659,9 +665,7 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
     // recently used ones, deduped and capped.
     final customColorDots = <int>{
       if (_isCustomColor) _colorValue!,
-      ..._recentColors.where(
-        (c) => !CalendarColors.swatchPalette.contains(c),
-      ),
+      ..._recentColors.where((c) => !CalendarColors.swatchPalette.contains(c)),
     }.take(SettingsKeys.maxRecentEventColors).toList();
     final viewInsets = MediaQuery.viewInsetsOf(context).bottom;
     final viewPadding = MediaQuery.viewPaddingOf(context).bottom;
@@ -877,9 +881,7 @@ class _EventEditorSheetState extends State<EventEditorSheet> {
                       children: [
                         for (final d in oneTimeDates)
                           InputChip(
-                            label: Text(
-                              DateFormat.yMMMd(localeName).format(d),
-                            ),
+                            label: Text(DateFormat.yMMMd(localeName).format(d)),
                             onPressed: () => _editOneTimeDate(d),
                             onDeleted: oneTimeDates.length > 1
                                 ? () => _removeOneTimeDate(d)

@@ -23,8 +23,9 @@ abstract final class RecurrenceFormatter {
                 interval,
                 formatWeekdays(weekdays, localeName),
               ),
-      MonthlyRecurrence(:final interval) =>
-        l10n.recurrenceEveryMonths(interval),
+      MonthlyRecurrence(:final interval) => l10n.recurrenceEveryMonths(
+        interval,
+      ),
       YearlyRecurrence(:final interval) => l10n.recurrenceEveryYears(interval),
       WorkdaysRecurrence() => l10n.recurrenceWorkdays,
       WeekendsRecurrence() => l10n.recurrenceWeekends,
