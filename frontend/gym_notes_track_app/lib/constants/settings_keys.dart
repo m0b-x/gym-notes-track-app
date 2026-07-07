@@ -53,6 +53,17 @@ class SettingsKeys {
   static const String calendarMaxDayBars = 'calendar_max_day_bars';
   static const String holidayProfile = 'holiday_profile';
 
+  // Calendar appearance settings
+  static const String calendarTodayStyle = 'calendar_today_style';
+  static const String calendarMarkerStyle = 'calendar_marker_style';
+  static const String calendarWeekStart = 'calendar_week_start';
+
+  /// Explicit ARGB accent for today/selected highlights. Empty/absent means
+  /// "follow the theme's primary color".
+  static const String calendarAccentColor = 'calendar_accent_color';
+  static const String calendarHighlightWeekends = 'calendar_highlight_weekends';
+  static const String calendarShowWeekNumbers = 'calendar_show_week_numbers';
+
   /// Recently used custom event colors (comma-separated ARGB ints,
   /// most-recent-first).
   static const String recentEventColors = 'recent_event_colors';
@@ -99,6 +110,14 @@ class SettingsKeys {
   /// Maximum number of bars shown in a calendar day cell before an "+X"
   /// overflow indicator is rendered in place of the last bar.
   static const int defaultCalendarMaxDayBars = 3;
+
+  // Default values for calendar appearance (enum names are parsed with a
+  // forward-compatible fallback in `calendar_appearance.dart`).
+  static const String defaultCalendarTodayStyle = 'tonal';
+  static const String defaultCalendarMarkerStyle = 'bars';
+  static const String defaultCalendarWeekStart = 'monday';
+  static const bool defaultCalendarHighlightWeekends = true;
+  static const bool defaultCalendarShowWeekNumbers = false;
 
   /// Maximum number of recently-used custom event colors to remember.
   static const int maxRecentEventColors = 6;

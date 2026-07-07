@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/calendar_event.dart';
 import '../models/day_summary_entry.dart';
 
-/// Renders the calendar's bottom panel: a list of [DaySummaryEntry] cards
-/// (events, weekend, public holiday, etc.). Shows an empty-state when the
-/// resolver returns no entries at all.
+/// Renders the calendar's bottom panel: a header naming the selected day
+/// followed by a list of [DaySummaryEntry] cards (events, weekend, public
+/// holiday, etc.). Shows an empty-state when the resolver returns no entries.
 class DaySummaryPanel extends StatelessWidget {
+  /// The selected day the entries belong to, shown in the panel header.
+  final DateTime day;
+
   final List<DaySummaryEntry> entries;
 
   /// Called when the user taps an entry that carries a [CalendarEvent].
@@ -20,6 +24,7 @@ class DaySummaryPanel extends StatelessWidget {
 
   const DaySummaryPanel({
     super.key,
+    required this.day,
     required this.entries,
     this.onEventTap,
     this.onOpenNote,
@@ -28,64 +33,136 @@ class DaySummaryPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
-    if (entries.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.event_available_rounded,
-              size: 48,
-              color: colorScheme.onSurfaceVariant,
+    final header = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              DateFormat.MMMMEEEEd(l10n.localeName).format(day),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 12),
+          ),
+          if (entries.isNotEmpty)
             Text(
-              l10n.calendarNoEventsForDay,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              l10n.daySummaryEntryCount(entries.length),
+              style: theme.textTheme.labelMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
               ),
             ),
-          ],
-        ),
+        ],
+      ),
+    );
+
+    if (entries.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          header,
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.event_available_rounded,
+                    size: 48,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.calendarNoEventsForDay,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: entries.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        final event = entry.event;
-        final hasLinkedNote = event?.noteId != null;
-        return Card(
-          child: ListTile(
-            leading: Icon(entry.icon, color: entry.color),
-            title: Text(entry.title),
-            subtitle: entry.subtitle == null ? null : Text(entry.subtitle!),
-            trailing: event == null
-                ? null
-                : (hasLinkedNote && onOpenNote != null
-                      ? Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: l10n.eventOpenLinkedNote,
-                              icon: const Icon(Icons.sticky_note_2_outlined),
-                              onPressed: () => onOpenNote!(event),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        header,
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            itemCount: entries.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final entry = entries[index];
+              final event = entry.event;
+              final hasLinkedNote = event?.noteId != null;
+              return Card(
+                margin: EdgeInsets.zero,
+                clipBehavior: Clip.antiAlias,
+                // IntrinsicHeight bounds the Row to its tallest child's
+                // height before `stretch` applies — without it, the Card
+                // (inside a ListView) hands the Row unbounded height and
+                // the accent-stripe Container tries to stretch to infinity.
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Accent stripe echoing the day-cell marker color, so
+                      // list entries and grid markers read as one system.
+                      Container(width: 4, color: entry.color),
+                      Expanded(
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: entry.color.withValues(
+                              alpha: 0.16,
                             ),
-                            const Icon(Icons.chevron_right_rounded),
-                          ],
-                        )
-                      : const Icon(Icons.chevron_right_rounded)),
-            onTap: event == null || onEventTap == null
-                ? null
-                : () => onEventTap!(event),
+                            foregroundColor: entry.color,
+                            child: Icon(entry.icon),
+                          ),
+                          title: Text(entry.title),
+                          subtitle: entry.subtitle == null
+                              ? null
+                              : Text(entry.subtitle!),
+                          trailing: event == null
+                              ? null
+                              : (hasLinkedNote && onOpenNote != null
+                                    ? Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            tooltip: l10n.eventOpenLinkedNote,
+                                            icon: const Icon(
+                                              Icons.sticky_note_2_outlined,
+                                            ),
+                                            onPressed: () =>
+                                                onOpenNote!(event),
+                                          ),
+                                          const Icon(
+                                            Icons.chevron_right_rounded,
+                                          ),
+                                        ],
+                                      )
+                                    : const Icon(Icons.chevron_right_rounded)),
+                          onTap: event == null || onEventTap == null
+                              ? null
+                              : () => onEventTap!(event),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }

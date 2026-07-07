@@ -1683,6 +1683,67 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String get calendarAppearanceSection => 'Darstellung';
+
+  @override
+  String get calendarTodayStyleTitle => 'Heute-Markierung';
+
+  @override
+  String get todayStyleTonal => 'Dezent';
+
+  @override
+  String get todayStyleRing => 'Ring';
+
+  @override
+  String get todayStyleFilled => 'Gefüllt';
+
+  @override
+  String get calendarAccentColor => 'Markierungsfarbe';
+
+  @override
+  String get calendarAccentColorDesc => 'Färbt heute und den ausgewählten Tag';
+
+  @override
+  String get calendarAccentThemeDefault => 'Themenfarbe';
+
+  @override
+  String get calendarMarkerStyleTitle => 'Ereignis-Markierungen';
+
+  @override
+  String get markerStyleBars => 'Balken';
+
+  @override
+  String get markerStyleDots => 'Punkte';
+
+  @override
+  String get calendarHighlightWeekends => 'Wochenenden einfärben';
+
+  @override
+  String get calendarHighlightWeekendsDesc =>
+      'Samstag und Sonntag in eigener Farbe anzeigen';
+
+  @override
+  String get calendarShowWeekNumbers => 'Kalenderwochen';
+
+  @override
+  String get calendarShowWeekNumbersDesc =>
+      'Wochennummern am linken Rand anzeigen';
+
+  @override
+  String get calendarWeekStartTitle => 'Woche beginnt am';
+
+  @override
+  String daySummaryEntryCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Einträge',
+      one: '1 Eintrag',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get dateOffset => 'Datumsversatz';
 
   @override

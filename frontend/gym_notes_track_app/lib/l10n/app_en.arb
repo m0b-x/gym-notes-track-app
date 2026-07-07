@@ -2150,6 +2150,79 @@
       }
     }
   },
+  "calendarAppearanceSection": "Appearance",
+  "@calendarAppearanceSection": {
+    "description": "Calendar appearance settings section title"
+  },
+  "calendarTodayStyleTitle": "Today highlight",
+  "@calendarTodayStyleTitle": {
+    "description": "Label for the today-highlight style selector"
+  },
+  "todayStyleTonal": "Soft",
+  "@todayStyleTonal": {
+    "description": "Today highlight style: soft tinted circle"
+  },
+  "todayStyleRing": "Ring",
+  "@todayStyleRing": {
+    "description": "Today highlight style: outlined ring"
+  },
+  "todayStyleFilled": "Filled",
+  "@todayStyleFilled": {
+    "description": "Today highlight style: solid circle"
+  },
+  "calendarAccentColor": "Highlight color",
+  "@calendarAccentColor": {
+    "description": "Label for the calendar accent color picker"
+  },
+  "calendarAccentColorDesc": "Colors today and the selected day",
+  "@calendarAccentColorDesc": {
+    "description": "Description for the calendar accent color picker"
+  },
+  "calendarAccentThemeDefault": "Theme color",
+  "@calendarAccentThemeDefault": {
+    "description": "Tooltip for the accent swatch that follows the app theme"
+  },
+  "calendarMarkerStyleTitle": "Event markers",
+  "@calendarMarkerStyleTitle": {
+    "description": "Label for the event marker style selector"
+  },
+  "markerStyleBars": "Bars",
+  "@markerStyleBars": {
+    "description": "Event marker style: stacked bars"
+  },
+  "markerStyleDots": "Dots",
+  "@markerStyleDots": {
+    "description": "Event marker style: row of dots"
+  },
+  "calendarHighlightWeekends": "Tint weekends",
+  "@calendarHighlightWeekends": {
+    "description": "Switch title for weekend day-number tinting"
+  },
+  "calendarHighlightWeekendsDesc": "Show Saturday and Sunday in a distinct color",
+  "@calendarHighlightWeekendsDesc": {
+    "description": "Switch subtitle for weekend day-number tinting"
+  },
+  "calendarShowWeekNumbers": "Week numbers",
+  "@calendarShowWeekNumbers": {
+    "description": "Switch title for ISO week numbers"
+  },
+  "calendarShowWeekNumbersDesc": "Show week numbers at the left edge",
+  "@calendarShowWeekNumbersDesc": {
+    "description": "Switch subtitle for ISO week numbers"
+  },
+  "calendarWeekStartTitle": "Week starts on",
+  "@calendarWeekStartTitle": {
+    "description": "Label for the first-day-of-week dropdown"
+  },
+  "daySummaryEntryCount": "{count, plural, one {1 entry} other {{count} entries}}",
+  "@daySummaryEntryCount": {
+    "description": "Entry count badge in the day summary header",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "dateOffset": "Date Offset",
   "@dateOffset": {
     "description": "Section title for date offset settings"

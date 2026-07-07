@@ -56,8 +56,8 @@ class OptimizedFolderContentPage extends StatefulWidget {
       _OptimizedFolderContentPageState();
 }
 
-class _OptimizedFolderContentPageState
-    extends State<OptimizedFolderContentPage> with RouteAware {
+class _OptimizedFolderContentPageState extends State<OptimizedFolderContentPage>
+    with RouteAware {
   final ScrollController _scrollController = ScrollController();
   NotesSortOrder _notesSortOrder = NotesSortOrder.updatedDesc;
   FoldersSortOrder _foldersSortOrder = FoldersSortOrder.nameAsc;

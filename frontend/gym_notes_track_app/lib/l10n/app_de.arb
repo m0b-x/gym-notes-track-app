@@ -1532,6 +1532,30 @@
       }
     }
   },
+  "calendarAppearanceSection": "Darstellung",
+  "calendarTodayStyleTitle": "Heute-Markierung",
+  "todayStyleTonal": "Dezent",
+  "todayStyleRing": "Ring",
+  "todayStyleFilled": "Gefüllt",
+  "calendarAccentColor": "Markierungsfarbe",
+  "calendarAccentColorDesc": "Färbt heute und den ausgewählten Tag",
+  "calendarAccentThemeDefault": "Themenfarbe",
+  "calendarMarkerStyleTitle": "Ereignis-Markierungen",
+  "markerStyleBars": "Balken",
+  "markerStyleDots": "Punkte",
+  "calendarHighlightWeekends": "Wochenenden einfärben",
+  "calendarHighlightWeekendsDesc": "Samstag und Sonntag in eigener Farbe anzeigen",
+  "calendarShowWeekNumbers": "Kalenderwochen",
+  "calendarShowWeekNumbersDesc": "Wochennummern am linken Rand anzeigen",
+  "calendarWeekStartTitle": "Woche beginnt am",
+  "daySummaryEntryCount": "{count, plural, one {1 Eintrag} other {{count} Einträge}}",
+  "@daySummaryEntryCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "dateOffset": "Datumsversatz",
   "@dateOffset": {
     "description": "Section title for date offset settings"

@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+import '../constants/calendar_colors.dart';
 import '../constants/public_holidays.dart';
 import '../constants/settings_keys.dart';
 import '../l10n/app_localizations.dart';
+import '../models/calendar_appearance.dart';
+import '../models/day_bar.dart';
 import '../services/app_navigator.dart';
 import '../services/public_holiday_service.dart';
 import '../services/settings_service.dart';
 import '../utils/custom_snackbar.dart';
 import '../widgets/app_dialogs.dart';
+import '../widgets/calendar_day_bars.dart';
+import '../widgets/calendar_day_cell.dart';
+import '../widgets/color_wheel_picker.dart';
 import '../widgets/unified_app_bars.dart';
 
 /// Calendar settings page grouping every calendar-specific option
-/// (day-bar density, holiday set, …) in one place.
+/// (week start, holiday set, appearance, day-bar density, …) in one place.
 class CalendarSettingsPage extends StatefulWidget {
   const CalendarSettingsPage({super.key});
 
@@ -23,7 +30,7 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
   SettingsService? _settings;
   bool _isLoading = true;
 
-  int _calendarMaxDayBars = SettingsKeys.defaultCalendarMaxDayBars;
+  CalendarAppearance _appearance = const CalendarAppearance();
   PublicHolidayService? _holidayService;
   HolidayProfile _holidayProfile = HolidayProfile.generic;
   bool _hapticFeedback = true;
@@ -36,14 +43,14 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
 
   Future<void> _loadSettings() async {
     final settings = await SettingsService.getInstance();
-    final calendarMaxDayBars = await settings.getCalendarMaxDayBars();
+    final appearance = await settings.getCalendarAppearance();
     final haptic = await settings.getHapticFeedback();
     final holidayService = await PublicHolidayService.getInstance();
 
     if (!mounted) return;
     setState(() {
       _settings = settings;
-      _calendarMaxDayBars = calendarMaxDayBars;
+      _appearance = appearance;
       _hapticFeedback = haptic;
       _holidayService = holidayService;
       _holidayProfile = holidayService.profile;
@@ -55,6 +62,28 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
     if (_hapticFeedback) {
       HapticFeedback.lightImpact();
     }
+  }
+
+  /// Localized weekday name for a [CalendarWeekStart] option, derived via
+  /// `intl` from an anchor date (2024-01-01 is a Monday) — never an ARB
+  /// weekday matrix.
+  String _weekStartLabel(CalendarWeekStart start, String localeName) {
+    final anchor = DateTime.utc(2024, 1, start.weekday);
+    final name = DateFormat.EEEE(localeName).format(anchor);
+    return toBeginningOfSentenceCase(name, localeName) ?? name;
+  }
+
+  Future<void> _pickCustomAccent() async {
+    final picked = await ColorWheelDialog.show(
+      context,
+      initialColor: _appearance.accentColorValue,
+    );
+    if (picked == null || !mounted) return;
+    _onHapticFeedback();
+    setState(
+      () => _appearance = _appearance.copyWith(accentColorValue: picked),
+    );
+    await _settings?.setCalendarAccentColor(picked);
   }
 
   @override
@@ -79,22 +108,37 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
                   icon: Icons.calendar_month_rounded,
                   title: l10n.calendarSection,
                   children: [
-                    _buildSliderTile(
-                      context: context,
-                      colorScheme: colorScheme,
-                      title: l10n.calendarMaxDayBars,
-                      subtitle: l10n.calendarMaxDayBarsDesc(
-                        _calendarMaxDayBars,
+                    ListTile(
+                      leading: Icon(
+                        Icons.view_week_outlined,
+                        color: colorScheme.primary,
                       ),
-                      value: _calendarMaxDayBars.toDouble(),
-                      min: 1,
-                      max: 6,
-                      divisions: 5,
-                      onChanged: (value) async {
-                        _onHapticFeedback();
-                        setState(() => _calendarMaxDayBars = value.round());
-                        await _settings?.setCalendarMaxDayBars(value.round());
-                      },
+                      title: Text(l10n.calendarWeekStartTitle),
+                      trailing: DropdownButton<CalendarWeekStart>(
+                        value: _appearance.weekStart,
+                        underline: const SizedBox.shrink(),
+                        onChanged: (next) async {
+                          if (next == null || next == _appearance.weekStart) {
+                            return;
+                          }
+                          _onHapticFeedback();
+                          setState(
+                            () => _appearance = _appearance.copyWith(
+                              weekStart: next,
+                            ),
+                          );
+                          await _settings?.setCalendarWeekStart(next);
+                        },
+                        items: [
+                          for (final start in CalendarWeekStart.values)
+                            DropdownMenuItem(
+                              value: start,
+                              child: Text(
+                                _weekStartLabel(start, l10n.localeName),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                     const Divider(height: 1),
                     ListTile(
@@ -142,6 +186,257 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
                             ),
                         ],
                       ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildSectionCard(
+                  context: context,
+                  colorScheme: colorScheme,
+                  icon: Icons.palette_rounded,
+                  title: l10n.calendarAppearanceSection,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                      child: _AppearancePreview(appearance: _appearance),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.calendarTodayStyleTitle,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SegmentedButton<CalendarTodayStyle>(
+                            segments: [
+                              ButtonSegment(
+                                value: CalendarTodayStyle.tonal,
+                                label: Text(l10n.todayStyleTonal),
+                              ),
+                              ButtonSegment(
+                                value: CalendarTodayStyle.ring,
+                                label: Text(l10n.todayStyleRing),
+                              ),
+                              ButtonSegment(
+                                value: CalendarTodayStyle.filled,
+                                label: Text(l10n.todayStyleFilled),
+                              ),
+                            ],
+                            selected: {_appearance.todayStyle},
+                            showSelectedIcon: false,
+                            onSelectionChanged: (sel) async {
+                              _onHapticFeedback();
+                              setState(
+                                () => _appearance = _appearance.copyWith(
+                                  todayStyle: sel.first,
+                                ),
+                              );
+                              await _settings?.setCalendarTodayStyle(
+                                sel.first,
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.calendarAccentColor,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            l10n.calendarAccentColorDesc,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              _AccentColorDot(
+                                color: colorScheme.primary,
+                                icon: Icons.format_color_reset_rounded,
+                                tooltip: l10n.calendarAccentThemeDefault,
+                                selected:
+                                    _appearance.accentColorValue == null,
+                                onTap: () async {
+                                  _onHapticFeedback();
+                                  setState(
+                                    () => _appearance = _appearance.copyWith(
+                                      clearAccentColor: true,
+                                    ),
+                                  );
+                                  await _settings?.setCalendarAccentColor(
+                                    null,
+                                  );
+                                },
+                              ),
+                              for (final swatch
+                                  in CalendarColors.swatchPalette)
+                                _AccentColorDot(
+                                  color: Color(swatch),
+                                  selected:
+                                      _appearance.accentColorValue == swatch,
+                                  onTap: () async {
+                                    _onHapticFeedback();
+                                    setState(
+                                      () => _appearance = _appearance
+                                          .copyWith(accentColorValue: swatch),
+                                    );
+                                    await _settings?.setCalendarAccentColor(
+                                      swatch,
+                                    );
+                                  },
+                                ),
+                              if (_appearance.accentColorValue != null &&
+                                  !CalendarColors.swatchPalette.contains(
+                                    _appearance.accentColorValue,
+                                  ))
+                                _AccentColorDot(
+                                  color: Color(_appearance.accentColorValue!),
+                                  selected: true,
+                                  onTap: _pickCustomAccent,
+                                ),
+                              _AccentColorDot(
+                                color: colorScheme.surfaceContainerHighest,
+                                icon: Icons.colorize_rounded,
+                                tooltip: l10n.eventColorCustomTitle,
+                                selected: false,
+                                onTap: _pickCustomAccent,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.calendarMarkerStyleTitle,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SegmentedButton<CalendarMarkerStyle>(
+                            segments: [
+                              ButtonSegment(
+                                value: CalendarMarkerStyle.bars,
+                                icon: const Icon(Icons.view_agenda_outlined),
+                                label: Text(l10n.markerStyleBars),
+                              ),
+                              ButtonSegment(
+                                value: CalendarMarkerStyle.dots,
+                                icon: const Icon(
+                                  Icons.more_horiz_rounded,
+                                ),
+                                label: Text(l10n.markerStyleDots),
+                              ),
+                            ],
+                            selected: {_appearance.markerStyle},
+                            showSelectedIcon: false,
+                            onSelectionChanged: (sel) async {
+                              _onHapticFeedback();
+                              setState(
+                                () => _appearance = _appearance.copyWith(
+                                  markerStyle: sel.first,
+                                ),
+                              );
+                              await _settings?.setCalendarMarkerStyle(
+                                sel.first,
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    _buildSliderTile(
+                      context: context,
+                      colorScheme: colorScheme,
+                      title: l10n.calendarMaxDayBars,
+                      subtitle: l10n.calendarMaxDayBarsDesc(
+                        _appearance.maxDayBars,
+                      ),
+                      value: _appearance.maxDayBars.toDouble(),
+                      min: 1,
+                      max: 6,
+                      divisions: 5,
+                      onChanged: (value) async {
+                        _onHapticFeedback();
+                        setState(
+                          () => _appearance = _appearance.copyWith(
+                            maxDayBars: value.round(),
+                          ),
+                        );
+                        await _settings?.setCalendarMaxDayBars(value.round());
+                      },
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      value: _appearance.highlightWeekends,
+                      secondary: Icon(
+                        Icons.weekend_outlined,
+                        color: colorScheme.primary,
+                      ),
+                      title: Text(l10n.calendarHighlightWeekends),
+                      subtitle: Text(l10n.calendarHighlightWeekendsDesc),
+                      onChanged: (value) async {
+                        _onHapticFeedback();
+                        setState(
+                          () => _appearance = _appearance.copyWith(
+                            highlightWeekends: value,
+                          ),
+                        );
+                        await _settings?.setCalendarHighlightWeekends(value);
+                      },
+                    ),
+                    SwitchListTile(
+                      value: _appearance.showWeekNumbers,
+                      secondary: Icon(
+                        Icons.tag_rounded,
+                        color: colorScheme.primary,
+                      ),
+                      title: Text(l10n.calendarShowWeekNumbers),
+                      subtitle: Text(l10n.calendarShowWeekNumbersDesc),
+                      onChanged: (value) async {
+                        _onHapticFeedback();
+                        setState(
+                          () => _appearance = _appearance.copyWith(
+                            showWeekNumbers: value,
+                          ),
+                        );
+                        await _settings?.setCalendarShowWeekNumbers(value);
+                      },
                     ),
                   ],
                 ),
@@ -277,9 +572,16 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
   }
 
   Future<void> _resetToDefaults() async {
-    await _settings?.setCalendarMaxDayBars(
-      SettingsKeys.defaultCalendarMaxDayBars,
+    const defaults = CalendarAppearance(
+      maxDayBars: SettingsKeys.defaultCalendarMaxDayBars,
     );
+    await _settings?.setCalendarMaxDayBars(defaults.maxDayBars);
+    await _settings?.setCalendarTodayStyle(defaults.todayStyle);
+    await _settings?.setCalendarMarkerStyle(defaults.markerStyle);
+    await _settings?.setCalendarWeekStart(defaults.weekStart);
+    await _settings?.setCalendarAccentColor(defaults.accentColorValue);
+    await _settings?.setCalendarHighlightWeekends(defaults.highlightWeekends);
+    await _settings?.setCalendarShowWeekNumbers(defaults.showWeekNumbers);
     try {
       await _holidayService?.setProfile(HolidayProfile.generic);
     } catch (_) {
@@ -289,7 +591,7 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
 
     if (!mounted) return;
     setState(() {
-      _calendarMaxDayBars = SettingsKeys.defaultCalendarMaxDayBars;
+      _appearance = defaults;
       _holidayProfile = _holidayService?.profile ?? HolidayProfile.generic;
     });
 
@@ -298,5 +600,167 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
       context,
       AppLocalizations.of(context)!.settingsReset,
     );
+  }
+}
+
+/// Live preview strip: five sample day cells (weekend, plain, today,
+/// selected, busy day with overflowing markers) rendered with the exact
+/// widgets the calendar grid uses, so every appearance option is visible
+/// before leaving the settings page.
+class _AppearancePreview extends StatelessWidget {
+  final CalendarAppearance appearance;
+
+  const _AppearancePreview({required this.appearance});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final accent = appearance.accentOr(colorScheme.primary);
+    final today = DateTime.now();
+
+    final palette = [
+      for (final value in CalendarColors.swatchPalette) Color(value),
+    ];
+    final overflowBars = [
+      for (var i = 0; i <= appearance.maxDayBars; i++)
+        _previewBar('overflow$i', palette[(i * 3) % palette.length]),
+    ];
+    final cellHeight =
+        CalendarDayCell.chipZoneHeight +
+        CalendarDayBars.stripHeight(
+          appearance.maxDayBars,
+          appearance.markerStyle,
+        ) +
+        6;
+
+    Widget cell(
+      DateTime day, {
+      bool isToday = false,
+      bool isSelected = false,
+      bool isWeekend = false,
+      List<DayBar> bars = const [],
+    }) {
+      return Expanded(
+        child: SizedBox(
+          height: cellHeight < 52 ? 52 : cellHeight,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: CalendarDayCell(
+                  day: day,
+                  isToday: isToday,
+                  isSelected: isSelected,
+                  isOutside: false,
+                  isWeekend: isWeekend,
+                  todayStyle: appearance.todayStyle,
+                  highlightWeekends: appearance.highlightWeekends,
+                  accent: accent,
+                ),
+              ),
+              if (bars.isNotEmpty)
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: CalendarDayBars(
+                      bars: bars,
+                      maxBars: appearance.maxDayBars,
+                      style: appearance.markerStyle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          cell(
+            today.subtract(const Duration(days: 2)),
+            isWeekend: true,
+            bars: [_previewBar('weekend', CalendarColors.weekend)],
+          ),
+          cell(today.subtract(const Duration(days: 1))),
+          cell(
+            today,
+            isToday: true,
+            bars: [_previewBar('a', palette[0])],
+          ),
+          cell(
+            today.add(const Duration(days: 1)),
+            isSelected: true,
+            bars: [
+              _previewBar('b', palette[3]),
+              _previewBar('c', palette[7]),
+            ],
+          ),
+          cell(today.add(const Duration(days: 2)), bars: overflowBars),
+        ],
+      ),
+    );
+  }
+
+  static DayBar _previewBar(String key, Color color) {
+    return DayBar(key: key, color: color, priority: 0, semanticLabel: '');
+  }
+}
+
+/// Tappable color swatch used by the accent-color picker row. Mirrors the
+/// event editor's color dots for a consistent picking experience.
+class _AccentColorDot extends StatelessWidget {
+  final Color color;
+  final IconData? icon;
+  final String? tooltip;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _AccentColorDot({
+    required this.color,
+    this.icon,
+    this.tooltip,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final onColor =
+        ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+        ? Colors.white
+        : Colors.black87;
+    final dot = InkWell(
+      onTap: onTap,
+      customBorder: const CircleBorder(),
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected ? colorScheme.onSurface : colorScheme.outlineVariant,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: selected && icon == null
+            ? Icon(Icons.check_rounded, size: 20, color: onColor)
+            : icon != null
+            ? Icon(icon, size: 20, color: onColor)
+            : null,
+      ),
+    );
+    if (tooltip == null) return dot;
+    return Tooltip(message: tooltip!, child: dot);
   }
 }

@@ -495,6 +495,30 @@
   "calendarSettings": "Calendar",
   "calendarMaxDayBars": "Numărul maxim de bare pe zi",
   "calendarMaxDayBarsDesc": "Afișează până la {count} bare pe zi. Restul categoriilor sunt grupate într-un indicator +N.",
+  "calendarAppearanceSection": "Aspect",
+  "calendarTodayStyleTitle": "Evidențierea zilei de azi",
+  "todayStyleTonal": "Estompat",
+  "todayStyleRing": "Inel",
+  "todayStyleFilled": "Plin",
+  "calendarAccentColor": "Culoarea de evidențiere",
+  "calendarAccentColorDesc": "Colorează ziua de azi și ziua selectată",
+  "calendarAccentThemeDefault": "Culoarea temei",
+  "calendarMarkerStyleTitle": "Marcaje evenimente",
+  "markerStyleBars": "Bare",
+  "markerStyleDots": "Puncte",
+  "calendarHighlightWeekends": "Colorează weekendurile",
+  "calendarHighlightWeekendsDesc": "Afișează sâmbăta și duminica într-o culoare distinctă",
+  "calendarShowWeekNumbers": "Numerele săptămânilor",
+  "calendarShowWeekNumbersDesc": "Afișează numărul săptămânii în marginea stângă",
+  "calendarWeekStartTitle": "Săptămâna începe",
+  "daySummaryEntryCount": "{count, plural, one {1 intrare} few {{count} intrări} other {{count} de intrări}}",
+  "@daySummaryEntryCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "dateOffset": "Offset Dată",
   "dateOffsetDescription": "Deplasează data înainte sau înapoi față de azi",
   "days": "Zile",

@@ -1,6 +1,7 @@
 import '../constants/settings_keys.dart';
 import '../database/database.dart';
 import '../database/database_lifecycle.dart';
+import '../models/calendar_appearance.dart';
 import '../models/utility_button_config.dart';
 
 /// Service for managing app settings using SQLite database
@@ -258,6 +259,110 @@ class SettingsService {
 
   Future<void> setCalendarMaxDayBars(int value) async {
     await _setInt(SettingsKeys.calendarMaxDayBars, value);
+  }
+
+  // Calendar appearance - today highlight style.
+  Future<CalendarTodayStyle> getCalendarTodayStyle() async {
+    final raw = await _db.userSettingsDao.getValue(
+      SettingsKeys.calendarTodayStyle,
+    );
+    return CalendarTodayStyle.fromName(
+      raw ?? SettingsKeys.defaultCalendarTodayStyle,
+    );
+  }
+
+  Future<void> setCalendarTodayStyle(CalendarTodayStyle style) async {
+    await _db.userSettingsDao.setValue(
+      SettingsKeys.calendarTodayStyle,
+      style.name,
+    );
+  }
+
+  // Calendar appearance - event marker style (bars / dots).
+  Future<CalendarMarkerStyle> getCalendarMarkerStyle() async {
+    final raw = await _db.userSettingsDao.getValue(
+      SettingsKeys.calendarMarkerStyle,
+    );
+    return CalendarMarkerStyle.fromName(
+      raw ?? SettingsKeys.defaultCalendarMarkerStyle,
+    );
+  }
+
+  Future<void> setCalendarMarkerStyle(CalendarMarkerStyle style) async {
+    await _db.userSettingsDao.setValue(
+      SettingsKeys.calendarMarkerStyle,
+      style.name,
+    );
+  }
+
+  // Calendar appearance - first day of the week.
+  Future<CalendarWeekStart> getCalendarWeekStart() async {
+    final raw = await _db.userSettingsDao.getValue(
+      SettingsKeys.calendarWeekStart,
+    );
+    return CalendarWeekStart.fromName(
+      raw ?? SettingsKeys.defaultCalendarWeekStart,
+    );
+  }
+
+  Future<void> setCalendarWeekStart(CalendarWeekStart start) async {
+    await _db.userSettingsDao.setValue(
+      SettingsKeys.calendarWeekStart,
+      start.name,
+    );
+  }
+
+  // Calendar appearance - custom highlight accent (null = theme primary).
+  Future<int?> getCalendarAccentColor() async {
+    final raw = await _db.userSettingsDao.getValue(
+      SettingsKeys.calendarAccentColor,
+    );
+    if (raw == null || raw.isEmpty) return null;
+    return int.tryParse(raw);
+  }
+
+  Future<void> setCalendarAccentColor(int? color) async {
+    await _db.userSettingsDao.setValue(
+      SettingsKeys.calendarAccentColor,
+      color?.toString() ?? '',
+    );
+  }
+
+  // Calendar appearance - tint weekend day numbers.
+  Future<bool> getCalendarHighlightWeekends() async {
+    return _getBool(
+      SettingsKeys.calendarHighlightWeekends,
+      SettingsKeys.defaultCalendarHighlightWeekends,
+    );
+  }
+
+  Future<void> setCalendarHighlightWeekends(bool value) async {
+    await _setBool(SettingsKeys.calendarHighlightWeekends, value);
+  }
+
+  // Calendar appearance - show ISO week numbers.
+  Future<bool> getCalendarShowWeekNumbers() async {
+    return _getBool(
+      SettingsKeys.calendarShowWeekNumbers,
+      SettingsKeys.defaultCalendarShowWeekNumbers,
+    );
+  }
+
+  Future<void> setCalendarShowWeekNumbers(bool value) async {
+    await _setBool(SettingsKeys.calendarShowWeekNumbers, value);
+  }
+
+  /// Loads every calendar look & feel option in one call.
+  Future<CalendarAppearance> getCalendarAppearance() async {
+    return CalendarAppearance(
+      todayStyle: await getCalendarTodayStyle(),
+      markerStyle: await getCalendarMarkerStyle(),
+      weekStart: await getCalendarWeekStart(),
+      accentColorValue: await getCalendarAccentColor(),
+      highlightWeekends: await getCalendarHighlightWeekends(),
+      showWeekNumbers: await getCalendarShowWeekNumbers(),
+      maxDayBars: await getCalendarMaxDayBars(),
+    );
   }
 
   // Calendar - Recently used custom event colors (most-recent-first, capped).

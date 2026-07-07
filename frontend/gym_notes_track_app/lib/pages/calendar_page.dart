@@ -5,8 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../bloc/calendar/calendar_bloc.dart';
-import '../constants/settings_keys.dart';
 import '../l10n/app_localizations.dart';
+import '../models/calendar_appearance.dart';
 import '../models/calendar_event.dart';
 import '../repositories/note_repository.dart';
 import '../services/app_navigator.dart';
@@ -15,6 +15,7 @@ import '../services/day_summary_resolver.dart';
 import '../services/settings_service.dart';
 import '../utils/custom_snackbar.dart';
 import '../widgets/calendar_day_bars.dart';
+import '../widgets/calendar_day_cell.dart';
 import '../widgets/calendar_filter_sheet.dart';
 import '../widgets/day_summary_panel.dart';
 import '../widgets/event_editor_sheet.dart';
@@ -36,7 +37,7 @@ class _CalendarView extends StatefulWidget {
 }
 
 class _CalendarViewState extends State<_CalendarView> {
-  int _maxDayBars = SettingsKeys.defaultCalendarMaxDayBars;
+  CalendarAppearance _appearance = const CalendarAppearance();
 
   @override
   void initState() {
@@ -46,9 +47,9 @@ class _CalendarViewState extends State<_CalendarView> {
 
   Future<void> _loadSettings() async {
     final settings = await SettingsService.getInstance();
-    final maxBars = await settings.getCalendarMaxDayBars();
+    final appearance = await settings.getCalendarAppearance();
     if (!mounted) return;
-    setState(() => _maxDayBars = maxBars);
+    setState(() => _appearance = appearance);
   }
 
   @override
@@ -100,10 +101,11 @@ class _CalendarViewState extends State<_CalendarView> {
           );
           return Column(
             children: [
-              _CalendarTable(state: loaded, maxDayBars: _maxDayBars),
+              _CalendarTable(state: loaded, appearance: _appearance),
               const Divider(height: 1),
               Expanded(
                 child: DaySummaryPanel(
+                  day: loaded.selectedDay,
                   entries: entries,
                   onEventTap: (event) =>
                       _openEditorSheet(context, initialEvent: event),
@@ -204,8 +206,8 @@ class _CalendarViewState extends State<_CalendarView> {
   Future<void> _openSettings(BuildContext context) async {
     final bloc = context.read<CalendarBloc>();
     await AppNavigator.toCalendarSettings(context);
-    // Reload calendar-affecting settings (max day bars) and reload events so
-    // holiday recurrences re-render if the holiday profile changed in settings.
+    // Reload the appearance settings and the events so holiday recurrences
+    // re-render if the holiday profile changed in settings.
     await _loadSettings();
     if (!mounted) return;
     bloc.add(const LoadCalendarEvents());
@@ -214,9 +216,46 @@ class _CalendarViewState extends State<_CalendarView> {
 
 class _CalendarTable extends StatelessWidget {
   final CalendarPageLoaded state;
-  final int maxDayBars;
+  final CalendarAppearance appearance;
 
-  const _CalendarTable({required this.state, required this.maxDayBars});
+  const _CalendarTable({required this.state, required this.appearance});
+
+  StartingDayOfWeek get _startingDayOfWeek {
+    return switch (appearance.weekStart) {
+      CalendarWeekStart.monday => StartingDayOfWeek.monday,
+      CalendarWeekStart.saturday => StartingDayOfWeek.saturday,
+      CalendarWeekStart.sunday => StartingDayOfWeek.sunday,
+    };
+  }
+
+  /// Row height that guarantees the day-number chip zone and the marker
+  /// strip never overlap, whatever the marker style and density.
+  double get _rowHeight {
+    final strip = CalendarDayBars.stripHeight(
+      appearance.maxDayBars,
+      appearance.markerStyle,
+    );
+    final height = CalendarDayCell.chipZoneHeight + strip + 6;
+    return height < 52 ? 52 : height.ceilToDouble();
+  }
+
+  Widget _buildDayCell(
+    BuildContext context,
+    DateTime day, {
+    required bool isOutside,
+  }) {
+    return CalendarDayCell(
+      day: day,
+      isToday: isSameDay(day, DateTime.now()),
+      isSelected: isSameDay(day, state.selectedDay),
+      isOutside: isOutside,
+      isWeekend:
+          day.weekday == DateTime.saturday || day.weekday == DateTime.sunday,
+      todayStyle: appearance.todayStyle,
+      highlightWeekends: appearance.highlightWeekends,
+      accent: appearance.accentOr(Theme.of(context).colorScheme.primary),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -225,6 +264,10 @@ class _CalendarTable extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final calendarBloc = context.read<CalendarBloc>();
     final barsResolver = DayBarsResolver.defaults(l10n);
+    final dowStyle = theme.textTheme.labelMedium!.copyWith(
+      fontWeight: FontWeight.w600,
+      color: colorScheme.onSurfaceVariant,
+    );
 
     return TableCalendar<CalendarEvent>(
       firstDay: DateTime.utc(2000, 1, 1),
@@ -233,51 +276,56 @@ class _CalendarTable extends StatelessWidget {
       selectedDayPredicate: (day) => isSameDay(state.selectedDay, day),
       calendarFormat: state.format,
       eventLoader: calendarBloc.eventsForDay,
-      startingDayOfWeek: StartingDayOfWeek.monday,
+      startingDayOfWeek: _startingDayOfWeek,
+      weekNumbersVisible: appearance.showWeekNumbers,
+      rowHeight: _rowHeight,
+      daysOfWeekHeight: 24,
       locale: l10n.localeName,
       availableCalendarFormats: {
         CalendarFormat.month: l10n.calendarFormatMonth,
         CalendarFormat.twoWeeks: l10n.calendarFormatTwoWeeks,
         CalendarFormat.week: l10n.calendarFormatWeek,
       },
-      headerStyle: const HeaderStyle(
+      headerStyle: HeaderStyle(
         titleCentered: true,
         formatButtonVisible: false,
+        leftChevronIcon: Icon(
+          Icons.chevron_left_rounded,
+          color: colorScheme.onSurfaceVariant,
+        ),
+        rightChevronIcon: Icon(
+          Icons.chevron_right_rounded,
+          color: colorScheme.onSurfaceVariant,
+        ),
+      ),
+      daysOfWeekStyle: DaysOfWeekStyle(
+        weekdayStyle: dowStyle,
+        weekendStyle: appearance.highlightWeekends
+            ? dowStyle.copyWith(
+                color: colorScheme.error.withValues(alpha: 0.85),
+              )
+            : dowStyle,
       ),
       calendarStyle: CalendarStyle(
         // Show leading/trailing days from adjacent months, faded so the
-        // focused month still reads as the primary content.
+        // focused month still reads as the primary content (the fade itself
+        // is applied by the cell/marker builders).
         outsideDaysVisible: true,
-        outsideTextStyle: theme.textTheme.bodyMedium!.copyWith(
-          color: colorScheme.onSurface.withValues(alpha: 0.35),
+        weekNumberTextStyle: theme.textTheme.labelSmall!.copyWith(
+          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
         ),
-        weekendTextStyle: theme.textTheme.bodyMedium!.copyWith(
-          color: colorScheme.error.withValues(alpha: 0.85),
-        ),
-        // Transparent today bubble with a subtle ring, so the day-bar
-        // markers underneath stay visible and the cell does not visually
-        // fight with bar colors.
-        todayDecoration: BoxDecoration(
-          color: Colors.transparent,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: colorScheme.primary.withValues(alpha: 0.55),
-            width: 1.4,
-          ),
-        ),
-        todayTextStyle: TextStyle(
-          color: colorScheme.primary,
-          fontWeight: FontWeight.w600,
-        ),
-        selectedDecoration: BoxDecoration(
-          color: colorScheme.primary,
-          shape: BoxShape.circle,
-        ),
-        selectedTextStyle: TextStyle(color: colorScheme.onPrimary),
         // Default dot markers are replaced by markerBuilder bars below.
         markersMaxCount: 0,
       ),
       calendarBuilders: CalendarBuilders<CalendarEvent>(
+        defaultBuilder: (context, day, focusedDay) =>
+            _buildDayCell(context, day, isOutside: false),
+        todayBuilder: (context, day, focusedDay) =>
+            _buildDayCell(context, day, isOutside: false),
+        selectedBuilder: (context, day, focusedDay) =>
+            _buildDayCell(context, day, isOutside: false),
+        outsideBuilder: (context, day, focusedDay) =>
+            _buildDayCell(context, day, isOutside: true),
         headerTitleBuilder: (context, day) {
           final title = DateFormat.yMMMM(l10n.localeName).format(day);
           return Row(
@@ -317,14 +365,21 @@ class _CalendarTable extends StatelessWidget {
         markerBuilder: (context, day, events) {
           final bars = barsResolver.resolve(day, events);
           if (bars.isEmpty) return const SizedBox.shrink();
+          // Outside-month fading only applies to the month format; week and
+          // two-week rows show every day at full strength.
           final isOutside =
-              day.month != state.focusedDay.month ||
-              day.year != state.focusedDay.year;
+              state.format == CalendarFormat.month &&
+              (day.month != state.focusedDay.month ||
+                  day.year != state.focusedDay.year);
           Widget child = Align(
             alignment: Alignment.bottomCenter,
             child: Padding(
               padding: const EdgeInsets.only(bottom: 4),
-              child: CalendarDayBars(bars: bars, maxBars: maxDayBars),
+              child: CalendarDayBars(
+                bars: bars,
+                maxBars: appearance.maxDayBars,
+                style: appearance.markerStyle,
+              ),
             ),
           );
           if (isOutside) child = Opacity(opacity: 0.35, child: child);

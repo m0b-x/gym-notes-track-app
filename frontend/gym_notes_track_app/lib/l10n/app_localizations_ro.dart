@@ -1692,6 +1692,69 @@ class AppLocalizationsRo extends AppLocalizations {
   }
 
   @override
+  String get calendarAppearanceSection => 'Aspect';
+
+  @override
+  String get calendarTodayStyleTitle => 'Evidențierea zilei de azi';
+
+  @override
+  String get todayStyleTonal => 'Estompat';
+
+  @override
+  String get todayStyleRing => 'Inel';
+
+  @override
+  String get todayStyleFilled => 'Plin';
+
+  @override
+  String get calendarAccentColor => 'Culoarea de evidențiere';
+
+  @override
+  String get calendarAccentColorDesc =>
+      'Colorează ziua de azi și ziua selectată';
+
+  @override
+  String get calendarAccentThemeDefault => 'Culoarea temei';
+
+  @override
+  String get calendarMarkerStyleTitle => 'Marcaje evenimente';
+
+  @override
+  String get markerStyleBars => 'Bare';
+
+  @override
+  String get markerStyleDots => 'Puncte';
+
+  @override
+  String get calendarHighlightWeekends => 'Colorează weekendurile';
+
+  @override
+  String get calendarHighlightWeekendsDesc =>
+      'Afișează sâmbăta și duminica într-o culoare distinctă';
+
+  @override
+  String get calendarShowWeekNumbers => 'Numerele săptămânilor';
+
+  @override
+  String get calendarShowWeekNumbersDesc =>
+      'Afișează numărul săptămânii în marginea stângă';
+
+  @override
+  String get calendarWeekStartTitle => 'Săptămâna începe';
+
+  @override
+  String daySummaryEntryCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count de intrări',
+      few: '$count intrări',
+      one: '1 intrare',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get dateOffset => 'Offset Dată';
 
   @override

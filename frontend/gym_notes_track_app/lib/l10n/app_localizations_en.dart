@@ -1671,6 +1671,67 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get calendarAppearanceSection => 'Appearance';
+
+  @override
+  String get calendarTodayStyleTitle => 'Today highlight';
+
+  @override
+  String get todayStyleTonal => 'Soft';
+
+  @override
+  String get todayStyleRing => 'Ring';
+
+  @override
+  String get todayStyleFilled => 'Filled';
+
+  @override
+  String get calendarAccentColor => 'Highlight color';
+
+  @override
+  String get calendarAccentColorDesc => 'Colors today and the selected day';
+
+  @override
+  String get calendarAccentThemeDefault => 'Theme color';
+
+  @override
+  String get calendarMarkerStyleTitle => 'Event markers';
+
+  @override
+  String get markerStyleBars => 'Bars';
+
+  @override
+  String get markerStyleDots => 'Dots';
+
+  @override
+  String get calendarHighlightWeekends => 'Tint weekends';
+
+  @override
+  String get calendarHighlightWeekendsDesc =>
+      'Show Saturday and Sunday in a distinct color';
+
+  @override
+  String get calendarShowWeekNumbers => 'Week numbers';
+
+  @override
+  String get calendarShowWeekNumbersDesc =>
+      'Show week numbers at the left edge';
+
+  @override
+  String get calendarWeekStartTitle => 'Week starts on';
+
+  @override
+  String daySummaryEntryCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count entries',
+      one: '1 entry',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get dateOffset => 'Date Offset';
 
   @override

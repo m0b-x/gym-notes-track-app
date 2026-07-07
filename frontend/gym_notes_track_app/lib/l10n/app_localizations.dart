@@ -3082,6 +3082,108 @@ abstract class AppLocalizations {
   /// **'Show up to {count} bars per day. Extra categories collapse into a +N indicator.'**
   String calendarMaxDayBarsDesc(int count);
 
+  /// Calendar appearance settings section title
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get calendarAppearanceSection;
+
+  /// Label for the today-highlight style selector
+  ///
+  /// In en, this message translates to:
+  /// **'Today highlight'**
+  String get calendarTodayStyleTitle;
+
+  /// Today highlight style: soft tinted circle
+  ///
+  /// In en, this message translates to:
+  /// **'Soft'**
+  String get todayStyleTonal;
+
+  /// Today highlight style: outlined ring
+  ///
+  /// In en, this message translates to:
+  /// **'Ring'**
+  String get todayStyleRing;
+
+  /// Today highlight style: solid circle
+  ///
+  /// In en, this message translates to:
+  /// **'Filled'**
+  String get todayStyleFilled;
+
+  /// Label for the calendar accent color picker
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight color'**
+  String get calendarAccentColor;
+
+  /// Description for the calendar accent color picker
+  ///
+  /// In en, this message translates to:
+  /// **'Colors today and the selected day'**
+  String get calendarAccentColorDesc;
+
+  /// Tooltip for the accent swatch that follows the app theme
+  ///
+  /// In en, this message translates to:
+  /// **'Theme color'**
+  String get calendarAccentThemeDefault;
+
+  /// Label for the event marker style selector
+  ///
+  /// In en, this message translates to:
+  /// **'Event markers'**
+  String get calendarMarkerStyleTitle;
+
+  /// Event marker style: stacked bars
+  ///
+  /// In en, this message translates to:
+  /// **'Bars'**
+  String get markerStyleBars;
+
+  /// Event marker style: row of dots
+  ///
+  /// In en, this message translates to:
+  /// **'Dots'**
+  String get markerStyleDots;
+
+  /// Switch title for weekend day-number tinting
+  ///
+  /// In en, this message translates to:
+  /// **'Tint weekends'**
+  String get calendarHighlightWeekends;
+
+  /// Switch subtitle for weekend day-number tinting
+  ///
+  /// In en, this message translates to:
+  /// **'Show Saturday and Sunday in a distinct color'**
+  String get calendarHighlightWeekendsDesc;
+
+  /// Switch title for ISO week numbers
+  ///
+  /// In en, this message translates to:
+  /// **'Week numbers'**
+  String get calendarShowWeekNumbers;
+
+  /// Switch subtitle for ISO week numbers
+  ///
+  /// In en, this message translates to:
+  /// **'Show week numbers at the left edge'**
+  String get calendarShowWeekNumbersDesc;
+
+  /// Label for the first-day-of-week dropdown
+  ///
+  /// In en, this message translates to:
+  /// **'Week starts on'**
+  String get calendarWeekStartTitle;
+
+  /// Entry count badge in the day summary header
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one {1 entry} other {{count} entries}}'**
+  String daySummaryEntryCount(int count);
+
   /// Section title for date offset settings
   ///
   /// In en, this message translates to:

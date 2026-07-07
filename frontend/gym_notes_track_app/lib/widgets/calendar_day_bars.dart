@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
 
+import '../models/calendar_appearance.dart';
 import '../models/day_bar.dart';
 
-/// Renders a vertical stack of thin colored bars inside a calendar day cell.
+/// Renders the per-day event markers inside a calendar day cell, either as a
+/// vertical stack of thin colored bars or as a centered row of colored dots
+/// (selected by [style]).
 ///
-/// Designed to be cheap: a `Column` of `DecoratedBox`es with no animations.
-/// Use through `TableCalendar.calendarBuilders.markerBuilder`.
+/// Designed to be cheap: plain `Container`s with no animations. Use through
+/// `TableCalendar.calendarBuilders.markerBuilder`.
 ///
 /// When [bars] contains more than [maxBars] entries, the first
-/// `maxBars - 1` bars are rendered followed by a compact "+N" overflow
-/// indicator that takes the slot of the last bar. The widget never grows
-/// beyond [maxBars] visual rows so calendar cells keep a stable height.
+/// `maxBars - 1` markers are rendered followed by a compact "+N" overflow
+/// indicator that takes the slot of the last marker. The widget never grows
+/// beyond [maxBars] visual slots so calendar cells keep a stable height.
 class CalendarDayBars extends StatelessWidget {
   final List<DayBar> bars;
   final int maxBars;
+  final CalendarMarkerStyle style;
   final double barHeight;
   final double spacing;
   final double horizontalInset;
@@ -22,12 +26,28 @@ class CalendarDayBars extends StatelessWidget {
     super.key,
     required this.bars,
     this.maxBars = 3,
+    this.style = CalendarMarkerStyle.bars,
     this.barHeight = 3,
     this.spacing = 1.5,
     this.horizontalInset = 6,
   });
 
-  /// Below this luminance delta against the cell surface, a bar gets a
+  /// Diameter of a single dot in [CalendarMarkerStyle.dots] mode.
+  static const double dotSize = 5;
+
+  /// Height of the marker strip for [maxBars] markers in the given [style],
+  /// used by the calendar page to compute a collision-free row height. The
+  /// "+N" overflow chip (9px text) is taller than a dot/bar, so both styles
+  /// reserve room for it.
+  static double stripHeight(int maxBars, CalendarMarkerStyle style) {
+    if (maxBars <= 0) return 0;
+    return switch (style) {
+      CalendarMarkerStyle.bars => maxBars * 3 + (maxBars - 1) * 1.5 + 4,
+      CalendarMarkerStyle.dots => 9,
+    };
+  }
+
+  /// Below this luminance delta against the cell surface, a marker gets a
   /// hairline outline so pale / low-contrast colors stay visible.
   static const double _lowContrastThreshold = 0.22;
 
@@ -41,9 +61,48 @@ class CalendarDayBars extends StatelessWidget {
     final visibleCount = hasOverflow ? maxBars - 1 : bars.length;
     final hiddenCount = hasOverflow ? bars.length - visibleCount : 0;
     // Reference luminance of the calendar cell background, used to outline
-    // bars whose color is too close to it (e.g. a pale custom color).
+    // markers whose color is too close to it (e.g. a pale custom color).
     final surfaceLum = theme.colorScheme.surface.computeLuminance();
     final outlineColor = theme.colorScheme.onSurface.withValues(alpha: 0.4);
+
+    Border? outlineFor(Color color) {
+      return (color.computeLuminance() - surfaceLum).abs() <
+              _lowContrastThreshold
+          ? Border.all(color: outlineColor, width: 0.5)
+          : null;
+    }
+
+    if (style == CalendarMarkerStyle.dots) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          for (var i = 0; i < visibleCount; i++) ...[
+            if (i > 0) const SizedBox(width: 3),
+            Semantics(
+              label: bars[i].semanticLabel,
+              child: Container(
+                width: dotSize,
+                height: dotSize,
+                decoration: BoxDecoration(
+                  color: bars[i].color,
+                  shape: BoxShape.circle,
+                  border: outlineFor(bars[i].color),
+                ),
+              ),
+            ),
+          ],
+          if (hasOverflow) ...[
+            if (visibleCount > 0) const SizedBox(width: 3),
+            _OverflowChip(
+              count: hiddenCount,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ],
+        ],
+      );
+    }
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: horizontalInset),
@@ -60,11 +119,7 @@ class CalendarDayBars extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: bars[i].color,
                   borderRadius: BorderRadius.circular(barHeight),
-                  border:
-                      (bars[i].color.computeLuminance() - surfaceLum).abs() <
-                          _lowContrastThreshold
-                      ? Border.all(color: outlineColor, width: 0.5)
-                      : null,
+                  border: outlineFor(bars[i].color),
                 ),
               ),
             ),

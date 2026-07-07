@@ -39,4 +39,11 @@ One-time = start only. Daily/weekly/monthly/yearly carry `interval` (weekly uses
 - **New holiday profile**: `HolidayProfile` enum value → `profileNameOf` switch → `holidayProfile<Name>` ARB trio → `_<name>Seeds(year)` builder dispatched from `_buildSeeds`; new holidays also need a `PublicHoliday` enum value + `nameOf` branch + `publicHoliday<Name>` ARB trio. The settings dropdown auto-enumerates. No schema change.
 - **New calendar setting**: `CalendarSettingsPage` (mirror `_buildSectionCard` / `_buildSliderTile` helpers) + `SettingsService` getter/setter + `SettingsKeys` key + reset-to-defaults. Count sliders show bare numbers; only time-based sliders get an `s` suffix.
 
+## Appearance system (customizable calendar UI)
+
+- `CalendarAppearance` (`lib/models/calendar_appearance.dart`) bundles every look & feel option: `CalendarTodayStyle` (tonal/ring/filled), `CalendarMarkerStyle` (bars/dots), `CalendarWeekStart` (monday/saturday/sunday), optional accent ARGB (`null` = theme primary via `accentOr`), `highlightWeekends`, `showWeekNumbers`, `maxDayBars`. Loaded via `SettingsService.getCalendarAppearance()`; enums parse with forward-compatible fallbacks (`fromName`).
+- Day cells are rendered by `CalendarDayCell` (`lib/widgets/calendar_day_cell.dart`): the day number lives in a fixed 34px chip anchored to the **top** of the cell; markers own the bottom strip. The page computes `rowHeight` from `CalendarDayCell.chipZoneHeight + CalendarDayBars.stripHeight(maxBars, style)` so highlights and markers can never overlap — never revert to table_calendar's default whole-cell decorations.
+- `CalendarDayBars` renders both marker styles; new marker styles must extend it and `stripHeight`. Week-start labels come from `intl` weekday names anchored on 2024-01-01 (Monday) + `toBeginningOfSentenceCase` — no ARB weekday matrix.
+- The settings page hosts a live `_AppearancePreview` built from the same `CalendarDayCell`/`CalendarDayBars` widgets the grid uses — keep it that way so the preview can't drift from reality.
+
 Backup: `BackupService` round-trips `calendar_categories`, `calendar_events`, `public_holidays` (backup version 4; categories import **before** events). Old backups must keep importing.
