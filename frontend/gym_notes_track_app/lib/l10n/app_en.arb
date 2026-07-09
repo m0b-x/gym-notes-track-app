@@ -356,6 +356,30 @@
   "@categoryDeleted": {
     "description": "Snackbar shown after a custom category is deleted"
   },
+  "calendarEventsSection": "Events",
+  "@calendarEventsSection": {
+    "description": "Section title on calendar settings grouping event data actions"
+  },
+  "deleteAllEvents": "Delete all events",
+  "@deleteAllEvents": {
+    "description": "Action/title for deleting every custom calendar event"
+  },
+  "deleteAllEventsDesc": "Permanently remove every event you created. Holidays are kept.",
+  "@deleteAllEventsDesc": {
+    "description": "Subtitle for the delete-all-events entry on calendar settings"
+  },
+  "deleteAllEventsConfirm": "Delete all your events? Public holidays aren't affected. This can't be undone.",
+  "@deleteAllEventsConfirm": {
+    "description": "Confirmation message when deleting all custom calendar events"
+  },
+  "noEventsToDelete": "No events to delete",
+  "@noEventsToDelete": {
+    "description": "Subtitle shown when there are no custom events to delete"
+  },
+  "allEventsDeleted": "All events deleted",
+  "@allEventsDeleted": {
+    "description": "Snackbar shown after all custom events are deleted"
+  },
   "eventType": "Type",
   "@eventType": {
     "description": "Section label in the calendar event editor for selecting the category"

@@ -278,6 +278,26 @@ class AppLocalizationsRo extends AppLocalizations {
   String get categoryDeleted => 'Categorie ștearsă';
 
   @override
+  String get calendarEventsSection => 'Evenimente';
+
+  @override
+  String get deleteAllEvents => 'Șterge toate evenimentele';
+
+  @override
+  String get deleteAllEventsDesc =>
+      'Elimină definitiv toate evenimentele create. Sărbătorile rămân.';
+
+  @override
+  String get deleteAllEventsConfirm =>
+      'Ștergi toate evenimentele? Sărbătorile legale nu sunt afectate. Această acțiune nu poate fi anulată.';
+
+  @override
+  String get noEventsToDelete => 'Niciun eveniment de șters';
+
+  @override
+  String get allEventsDeleted => 'Toate evenimentele au fost șterse';
+
+  @override
   String get eventType => 'Tip';
 
   @override

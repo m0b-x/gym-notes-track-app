@@ -73,6 +73,13 @@ class CalendarEventService {
     _cache = List.unmodifiable(_cache.where((e) => e.id != id));
   }
 
+  /// Removes every custom calendar event. Public holidays live in a separate
+  /// table and are untouched.
+  Future<void> deleteAll() async {
+    await _dao.deleteAll();
+    _cache = const [];
+  }
+
   // ── Backup export / import ────────────────────────────────────────────
 
   /// Snapshot of every event row for inclusion in a full-app backup.

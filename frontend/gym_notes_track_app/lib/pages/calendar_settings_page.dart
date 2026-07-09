@@ -8,6 +8,7 @@ import '../l10n/app_localizations.dart';
 import '../models/calendar_appearance.dart';
 import '../models/day_bar.dart';
 import '../services/app_navigator.dart';
+import '../services/calendar_event_service.dart';
 import '../services/public_holiday_service.dart';
 import '../services/settings_service.dart';
 import '../utils/custom_snackbar.dart';
@@ -35,6 +36,9 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
   HolidayProfile _holidayProfile = HolidayProfile.generic;
   bool _hapticFeedback = true;
 
+  CalendarEventService? _eventService;
+  int _eventCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -46,6 +50,7 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
     final appearance = await settings.getCalendarAppearance();
     final haptic = await settings.getHapticFeedback();
     final holidayService = await PublicHolidayService.getInstance();
+    final eventService = await CalendarEventService.getInstance();
 
     if (!mounted) return;
     setState(() {
@@ -54,6 +59,8 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
       _hapticFeedback = haptic;
       _holidayService = holidayService;
       _holidayProfile = holidayService.profile;
+      _eventService = eventService;
+      _eventCount = eventService.events.length;
       _isLoading = false;
     });
   }
@@ -240,9 +247,7 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
                                   todayStyle: sel.first,
                                 ),
                               );
-                              await _settings?.setCalendarTodayStyle(
-                                sel.first,
-                              );
+                              await _settings?.setCalendarTodayStyle(sel.first);
                             },
                           ),
                         ],
@@ -280,8 +285,7 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
                                 color: colorScheme.primary,
                                 icon: Icons.format_color_reset_rounded,
                                 tooltip: l10n.calendarAccentThemeDefault,
-                                selected:
-                                    _appearance.accentColorValue == null,
+                                selected: _appearance.accentColorValue == null,
                                 onTap: () async {
                                   _onHapticFeedback();
                                   setState(
@@ -289,13 +293,10 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
                                       clearAccentColor: true,
                                     ),
                                   );
-                                  await _settings?.setCalendarAccentColor(
-                                    null,
-                                  );
+                                  await _settings?.setCalendarAccentColor(null);
                                 },
                               ),
-                              for (final swatch
-                                  in CalendarColors.swatchPalette)
+                              for (final swatch in CalendarColors.swatchPalette)
                                 _AccentColorDot(
                                   color: Color(swatch),
                                   selected:
@@ -303,8 +304,9 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
                                   onTap: () async {
                                     _onHapticFeedback();
                                     setState(
-                                      () => _appearance = _appearance
-                                          .copyWith(accentColorValue: swatch),
+                                      () => _appearance = _appearance.copyWith(
+                                        accentColorValue: swatch,
+                                      ),
                                     );
                                     await _settings?.setCalendarAccentColor(
                                       swatch,
@@ -357,9 +359,7 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
                               ),
                               ButtonSegment(
                                 value: CalendarMarkerStyle.dots,
-                                icon: const Icon(
-                                  Icons.more_horiz_rounded,
-                                ),
+                                icon: const Icon(Icons.more_horiz_rounded),
                                 label: Text(l10n.markerStyleDots),
                               ),
                             ],
@@ -456,6 +456,36 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
                       subtitle: Text(l10n.calendarCategoriesDesc),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () => AppNavigator.toCalendarCategories(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildSectionCard(
+                  context: context,
+                  colorScheme: colorScheme,
+                  icon: Icons.event_note_rounded,
+                  title: l10n.calendarEventsSection,
+                  children: [
+                    ListTile(
+                      enabled: _eventCount > 0,
+                      leading: Icon(
+                        Icons.delete_sweep_outlined,
+                        color: _eventCount > 0
+                            ? colorScheme.error
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                      title: Text(
+                        l10n.deleteAllEvents,
+                        style: TextStyle(
+                          color: _eventCount > 0 ? colorScheme.error : null,
+                        ),
+                      ),
+                      subtitle: Text(
+                        _eventCount > 0
+                            ? l10n.deleteAllEventsDesc
+                            : l10n.noEventsToDelete,
+                      ),
+                      onTap: _eventCount > 0 ? _confirmDeleteAllEvents : null,
                     ),
                   ],
                 ),
@@ -569,6 +599,26 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
     );
     if (!confirmed) return;
     await _resetToDefaults();
+  }
+
+  Future<void> _confirmDeleteAllEvents() async {
+    final l10n = AppLocalizations.of(context)!;
+    _onHapticFeedback();
+
+    final confirmed = await AppDialogs.confirm(
+      context,
+      title: l10n.deleteAllEvents,
+      content: l10n.deleteAllEventsConfirm,
+      confirmText: l10n.delete,
+      icon: Icons.delete_sweep_rounded,
+      isDestructive: true,
+    );
+    if (!confirmed || !mounted) return;
+
+    await _eventService?.deleteAll();
+    if (!mounted) return;
+    setState(() => _eventCount = 0);
+    CustomSnackbar.showSuccess(context, l10n.allEventsDeleted);
   }
 
   Future<void> _resetToDefaults() async {
@@ -691,18 +741,11 @@ class _AppearancePreview extends StatelessWidget {
             bars: [_previewBar('weekend', CalendarColors.weekend)],
           ),
           cell(today.subtract(const Duration(days: 1))),
-          cell(
-            today,
-            isToday: true,
-            bars: [_previewBar('a', palette[0])],
-          ),
+          cell(today, isToday: true, bars: [_previewBar('a', palette[0])]),
           cell(
             today.add(const Duration(days: 1)),
             isSelected: true,
-            bars: [
-              _previewBar('b', palette[3]),
-              _previewBar('c', palette[7]),
-            ],
+            bars: [_previewBar('b', palette[3]), _previewBar('c', palette[7])],
           ),
           cell(today.add(const Duration(days: 2)), bars: overflowBars),
         ],
@@ -749,7 +792,9 @@ class _AccentColorDot extends StatelessWidget {
           color: color,
           shape: BoxShape.circle,
           border: Border.all(
-            color: selected ? colorScheme.onSurface : colorScheme.outlineVariant,
+            color: selected
+                ? colorScheme.onSurface
+                : colorScheme.outlineVariant,
             width: selected ? 2 : 1,
           ),
         ),

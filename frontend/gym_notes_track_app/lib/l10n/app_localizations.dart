@@ -628,6 +628,42 @@ abstract class AppLocalizations {
   /// **'Category deleted'**
   String get categoryDeleted;
 
+  /// Section title on calendar settings grouping event data actions
+  ///
+  /// In en, this message translates to:
+  /// **'Events'**
+  String get calendarEventsSection;
+
+  /// Action/title for deleting every custom calendar event
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all events'**
+  String get deleteAllEvents;
+
+  /// Subtitle for the delete-all-events entry on calendar settings
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently remove every event you created. Holidays are kept.'**
+  String get deleteAllEventsDesc;
+
+  /// Confirmation message when deleting all custom calendar events
+  ///
+  /// In en, this message translates to:
+  /// **'Delete all your events? Public holidays aren\'t affected. This can\'t be undone.'**
+  String get deleteAllEventsConfirm;
+
+  /// Subtitle shown when there are no custom events to delete
+  ///
+  /// In en, this message translates to:
+  /// **'No events to delete'**
+  String get noEventsToDelete;
+
+  /// Snackbar shown after all custom events are deleted
+  ///
+  /// In en, this message translates to:
+  /// **'All events deleted'**
+  String get allEventsDeleted;
+
   /// Section label in the calendar event editor for selecting the category
   ///
   /// In en, this message translates to:

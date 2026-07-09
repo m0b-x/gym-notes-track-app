@@ -276,6 +276,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get categoryDeleted => 'Category deleted';
 
   @override
+  String get calendarEventsSection => 'Events';
+
+  @override
+  String get deleteAllEvents => 'Delete all events';
+
+  @override
+  String get deleteAllEventsDesc =>
+      'Permanently remove every event you created. Holidays are kept.';
+
+  @override
+  String get deleteAllEventsConfirm =>
+      'Delete all your events? Public holidays aren\'t affected. This can\'t be undone.';
+
+  @override
+  String get noEventsToDelete => 'No events to delete';
+
+  @override
+  String get allEventsDeleted => 'All events deleted';
+
+  @override
   String get eventType => 'Type';
 
   @override

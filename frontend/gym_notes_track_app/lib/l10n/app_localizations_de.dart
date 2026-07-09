@@ -277,6 +277,26 @@ class AppLocalizationsDe extends AppLocalizations {
   String get categoryDeleted => 'Kategorie gelöscht';
 
   @override
+  String get calendarEventsSection => 'Ereignisse';
+
+  @override
+  String get deleteAllEvents => 'Alle Ereignisse löschen';
+
+  @override
+  String get deleteAllEventsDesc =>
+      'Alle selbst erstellten Ereignisse dauerhaft entfernen. Feiertage bleiben erhalten.';
+
+  @override
+  String get deleteAllEventsConfirm =>
+      'Alle Ereignisse löschen? Feiertage sind nicht betroffen. Dies kann nicht rückgängig gemacht werden.';
+
+  @override
+  String get noEventsToDelete => 'Keine Ereignisse zum Löschen';
+
+  @override
+  String get allEventsDeleted => 'Alle Ereignisse gelöscht';
+
+  @override
   String get eventType => 'Typ';
 
   @override
