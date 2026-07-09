@@ -394,14 +394,16 @@ class _CodeInputController extends ChangeNotifier
         selection.extent.copyWith(offset: _remoteEditingValue?.composing.end));
     if (composingStart != null && composingEnd != null) {
       _textInputConnection!.setComposingRect(Rect.fromPoints(
-          composingStart, composingEnd + Offset(0, render.lineHeight)));
+          composingStart,
+          composingEnd +
+              Offset(0, render.lineHeightOfLine(selection.extentIndex))));
     }
     final Offset? caret =
         render.calculateTextPositionViewportOffset(selection.base) ??
             composingStart;
     if (caret != null) {
-      _textInputConnection!.setCaretRect(Rect.fromLTWH(
-          caret.dx, caret.dy, render.cursorWidth, render.lineHeight));
+      _textInputConnection!.setCaretRect(Rect.fromLTWH(caret.dx, caret.dy,
+          render.cursorWidth, render.lineHeightOfLine(selection.baseIndex)));
     } else if (!retry) {
       Future.delayed(const Duration(milliseconds: 10), () {
         _updateRemoteComposingIfNeeded(retry: true);

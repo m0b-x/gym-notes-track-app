@@ -1,3 +1,5 @@
+import 'dart:ui' show Color;
+
 /// Constants for markdown rendering and preview
 class MarkdownConstants {
   MarkdownConstants._();
@@ -75,4 +77,13 @@ class MarkdownConstants {
   // List item widths
   /// Width reserved for numbered list numbers
   static const double numberedListNumberWidth = 24.0;
+
+  // Highlighter (`==mark==`) backgrounds
+  /// Theme-matched highlighter amber that keeps the light-theme text
+  /// colour readable on top. Shared by preview and live editor so the
+  /// two surfaces always match.
+  static const Color markBackgroundLight = Color(0xFFFFF176);
+
+  /// Dark-theme counterpart of [markBackgroundLight].
+  static const Color markBackgroundDark = Color(0xFF5A4B1C);
 }

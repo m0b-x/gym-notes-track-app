@@ -29,6 +29,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
   bool _showStatsBar = true;
   bool _hapticFeedback = true;
   // Editor settings
+  bool _liveMarkdownRendering = true;
   bool _showLineNumbers = false;
   bool _wordWrap = true;
   bool _showCursorLine = false;
@@ -58,6 +59,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     final showPreview = await settings.getShowNotePreview();
     final showStats = await settings.getShowStatsBar();
     final haptic = await settings.getHapticFeedback();
+    final liveMarkdownRendering = await settings.getLiveMarkdownRendering();
     final showLineNumbers = await settings.getShowLineNumbers();
     final wordWrap = await settings.getWordWrap();
     final showCursorLine = await settings.getShowCursorLine();
@@ -78,6 +80,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showNotePreview = showPreview;
       _showStatsBar = showStats;
       _hapticFeedback = haptic;
+      _liveMarkdownRendering = liveMarkdownRendering;
       _showLineNumbers = showLineNumbers;
       _wordWrap = wordWrap;
       _showCursorLine = showCursorLine;
@@ -268,6 +271,18 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
                     icon: Icons.code_rounded,
                     title: l10n.editorSection,
                     children: [
+                      _buildSwitchTile(
+                        context: context,
+                        title: l10n.liveMarkdownRendering,
+                        subtitle: l10n.liveMarkdownRenderingDesc,
+                        value: _liveMarkdownRendering,
+                        onChanged: (value) async {
+                          _onHapticFeedback();
+                          setState(() => _liveMarkdownRendering = value);
+                          await _settings?.setLiveMarkdownRendering(value);
+                        },
+                      ),
+                      const Divider(height: 1),
                       _buildSwitchTile(
                         context: context,
                         title: l10n.showLineNumbers,
@@ -551,6 +566,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
     await _settings?.setShowNotePreview(true);
     await _settings?.setShowStatsBar(true);
     await _settings?.setHapticFeedback(true);
+    await _settings?.setLiveMarkdownRendering(true);
     await _settings?.setShowLineNumbers(false);
     await _settings?.setWordWrap(true);
     await _settings?.setShowCursorLine(false);
@@ -566,6 +582,7 @@ class _ControlsSettingsPageState extends State<ControlsSettingsPage> {
       _showNotePreview = true;
       _showStatsBar = true;
       _hapticFeedback = true;
+      _liveMarkdownRendering = true;
       _showLineNumbers = false;
       _wordWrap = true;
       _showCursorLine = false;

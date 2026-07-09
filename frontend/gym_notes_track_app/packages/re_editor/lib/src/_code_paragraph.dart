@@ -200,6 +200,13 @@ class _ParagraphImpl extends IParagraph {
   }
 }
 
+class _ScaledLineStyle {
+  final ui.ParagraphStyle paragraphStyle;
+  final double preferredLineHeight;
+
+  const _ScaledLineStyle(this.paragraphStyle, this.preferredLineHeight);
+}
+
 class _CodeParagraphProvider {
   // Bound the cache so we don't retain `ui.Paragraph` (and its native skia
   // memory) for every line ever scrolled past. Tuned for ~10x a typical
@@ -209,13 +216,21 @@ class _CodeParagraphProvider {
 
   final Map<TextSpan, _ParagraphImpl> _cachedParagraphs;
 
+  // A span whose root style sets a fontSize different from the base style
+  // gets its own strut / preferred line height, so callers (span builders)
+  // can render individual lines taller than the editor's base line height.
+  final Map<double, _ScaledLineStyle> _scaledLineStyles;
+
   ui.TextStyle? _style;
+  TextStyle? _baseStyle;
   ui.ParagraphConstraints? _constraints;
   ui.ParagraphStyle? _paragraphStyle;
   double? _preferredLineHeight;
   int? _maxLengthSingleLineRendering;
 
-  _CodeParagraphProvider() : _cachedParagraphs = {};
+  _CodeParagraphProvider()
+      : _cachedParagraphs = {},
+        _scaledLineStyles = {};
 
   void updateBaseStyle(TextStyle style) {
     final ui.TextStyle uiStyle = style.getTextStyle();
@@ -232,12 +247,39 @@ class _CodeParagraphProvider {
           forceStrutHeight: true,
         ));
     _style = uiStyle;
+    _baseStyle = style;
+    _scaledLineStyles.clear();
     final TextPainter painter = TextPainter(
       textDirection: TextDirection.ltr,
     );
     painter.text = TextSpan(text: '0', style: style);
     _preferredLineHeight = painter.preferredLineHeight;
     clearCache();
+  }
+
+  _ScaledLineStyle _scaledLineStyle(double fontSize) {
+    final _ScaledLineStyle? cached = _scaledLineStyles[fontSize];
+    if (cached != null) {
+      return cached;
+    }
+    final TextStyle style = _baseStyle!.copyWith(fontSize: fontSize);
+    final ui.ParagraphStyle paragraphStyle = style.getParagraphStyle(
+        textAlign: TextAlign.left,
+        textDirection: TextDirection.ltr,
+        strutStyle: StrutStyle(
+          fontSize: fontSize,
+          fontFamily: style.fontFamily,
+          height: style.height,
+          forceStrutHeight: true,
+        ));
+    final TextPainter painter = TextPainter(
+      textDirection: TextDirection.ltr,
+    );
+    painter.text = TextSpan(text: '0', style: style);
+    final _ScaledLineStyle scaled =
+        _ScaledLineStyle(paragraphStyle, painter.preferredLineHeight);
+    _scaledLineStyles[fontSize] = scaled;
+    return scaled;
   }
 
   void updateMaxLengthSingleLineRendering(int? maxLengthSingleLineRendering) {
@@ -315,9 +357,19 @@ class _CodeParagraphProvider {
   }
 
   _ParagraphImpl _build(TextSpan span, String plainText, bool trucated) {
-    final ui.ParagraphStyle? style = _paragraphStyle;
+    ui.ParagraphStyle? style = _paragraphStyle;
+    double? preferredLineHeight = _preferredLineHeight;
     if (style == null) {
       throw AssertionError('Must call updateBaseStyle before build Paragraph.');
+    }
+    final double? rootFontSize = span.style?.fontSize;
+    final double? baseFontSize = _baseStyle?.fontSize;
+    if (rootFontSize != null &&
+        baseFontSize != null &&
+        rootFontSize != baseFontSize) {
+      final _ScaledLineStyle scaled = _scaledLineStyle(rootFontSize);
+      style = scaled.paragraphStyle;
+      preferredLineHeight = scaled.preferredLineHeight;
     }
     final ui.ParagraphBuilder builder = ui.ParagraphBuilder(style);
     span.build(builder);
@@ -328,7 +380,7 @@ class _CodeParagraphProvider {
       span: span,
       paragraph: paragraph,
       trucated: trucated,
-      preferredLineHeight: _preferredLineHeight!,
+      preferredLineHeight: preferredLineHeight!,
     );
   }
 }

@@ -1604,6 +1604,13 @@ class AppLocalizationsRo extends AppLocalizations {
   String get editorSection => 'Editor';
 
   @override
+  String get liveMarkdownRendering => 'Redare Markdown Live';
+
+  @override
+  String get liveMarkdownRenderingDesc =>
+      'Afișează titlurile, listele, casetele de bifat și stilurile de text direct în timpul editării';
+
+  @override
   String get showLineNumbers => 'Numere de Linie';
 
   @override

@@ -673,6 +673,17 @@ class _MobileSelectionOverlayController implements _SelectionOverlayController {
     return render.lineHeight;
   }
 
+  /// Line height at [position]'s line, so handles sit and size against
+  /// their own (possibly scaled) line instead of the base height.
+  double _lineHeightAt(CodeLinePosition position) {
+    final _CodeFieldRender? render =
+        editorKey.currentContext?.findRenderObject() as _CodeFieldRender?;
+    if (render == null) {
+      return 0;
+    }
+    return render.lineHeightOfLine(position.index);
+  }
+
   bool get attached {
     final _CodeFieldRender? render =
         editorKey.currentContext?.findRenderObject() as _CodeFieldRender?;
@@ -707,6 +718,10 @@ class _MobileSelectionOverlayController implements _SelectionOverlayController {
   void _buildHandles(BuildContext context) {
     final bool isCollapsed = controller.selection.isCollapsed;
     if (_handleCollapsed == isCollapsed) {
+      // The selection may have moved to a line with a different height
+      // (scaled markdown headers) — refresh the handle geometry.
+      _handles?[0].markNeedsBuild();
+      _handles?[1].markNeedsBuild();
       return;
     }
     _handleCollapsed = isCollapsed;
@@ -770,7 +785,7 @@ class _MobileSelectionOverlayController implements _SelectionOverlayController {
           },
           selectionControls: selectionControls,
           visibility: _effectiveStartHandleVisibility,
-          preferredLineHeight: lineHeight,
+          preferredLineHeight: _lineHeightAt(controller.selection.start),
         ),
       ),
     );
@@ -806,7 +821,7 @@ class _MobileSelectionOverlayController implements _SelectionOverlayController {
         },
         selectionControls: selectionControls,
         visibility: _effectiveEndHandleVisibility,
-        preferredLineHeight: lineHeight,
+        preferredLineHeight: _lineHeightAt(controller.selection.end),
       );
     }
     return CodeEditorTapRegion(child: ExcludeSemantics(child: handle));
@@ -821,7 +836,8 @@ class _MobileSelectionOverlayController implements _SelectionOverlayController {
         controller.selection.start,
       )!,
     );
-    final double centerOfLine = startPoint.dy + ensureRender.lineHeight / 2;
+    final double centerOfLine = startPoint.dy +
+        ensureRender.lineHeightOfLine(controller.selection.start.index) / 2;
     _startHandleDragPositionToCenterOfLine =
         centerOfLine - _startHandleDragPosition;
     toolbarVisibility.value = false;
@@ -910,7 +926,8 @@ class _MobileSelectionOverlayController implements _SelectionOverlayController {
         controller.selection.end,
       )!,
     );
-    final double centerOfLine = endPoint.dy + ensureRender.lineHeight / 2;
+    final double centerOfLine = endPoint.dy +
+        ensureRender.lineHeightOfLine(controller.selection.end.index) / 2;
     _endHandleDragPositionToCenterOfLine =
         centerOfLine - _endHandleDragPosition;
     toolbarVisibility.value = false;

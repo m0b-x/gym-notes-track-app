@@ -485,6 +485,21 @@ class _CodeFieldRender extends RenderBox implements MouseTrackerAnnotation {
 
   double get lineHeight => _preferredLineHeight;
 
+  /// Line height of the paragraph at line [index] — taller than the base
+  /// [lineHeight] when the span builder scaled the line (e.g. markdown
+  /// headers). Falls back to the base height for off-screen lines.
+  double lineHeightOfLine(int index) =>
+      findDisplayParagraphByLineIndex(index)?.preferredLineHeight ??
+      _preferredLineHeight;
+
+  /// Line height of the paragraph under [localOffset] (viewport-local,
+  /// as used by hit tests and the floating cursor), falling back to the
+  /// base height when no paragraph is there.
+  double lineHeightAtOffset(Offset localOffset) =>
+      _findDisplayRenderParagraph(localOffset + paintOffset, true)
+          ?.preferredLineHeight ??
+      _preferredLineHeight;
+
   EdgeInsetsGeometry get padding => _padding;
 
   double get paddingLeft => _padding.resolve(TextDirection.ltr).left;
@@ -990,17 +1005,19 @@ class _CodeFieldRender extends RenderBox implements MouseTrackerAnnotation {
 
     context.paintChild(_foregroundRender, offset);
 
+    // Anchor each handle at the bottom of its own line, which may be
+    // taller than the base height (scaled markdown headers).
     final Offset? startHandlePosition =
         calculateTextPositionViewportOffset(_selection.start);
     if (startHandlePosition != null) {
       _drawHandleLayer(context, _startHandleLayerLink, startHandlePosition,
-          offset + Offset(0, _preferredLineHeight));
+          offset + Offset(0, lineHeightOfLine(_selection.start.index)));
     }
     final Offset? endHandlePosition =
         calculateTextPositionViewportOffset(_selection.end);
     if (endHandlePosition != null) {
       _drawHandleLayer(context, _endHandleLayerLink, endHandlePosition,
-          offset + Offset(0, _preferredLineHeight));
+          offset + Offset(0, lineHeightOfLine(_selection.end.index)));
     }
     // _Trace.end('CodeField paint');
   }
@@ -1039,8 +1056,9 @@ class _CodeFieldRender extends RenderBox implements MouseTrackerAnnotation {
       CodeLinePosition position, bool rightBottom) {
     final Offset? offset = calculateTextPositionViewportOffset(position);
     if (offset != null) {
-      return localToGlobal(
-          rightBottom ? offset + Offset(0, _preferredLineHeight) : offset);
+      return localToGlobal(rightBottom
+          ? offset + Offset(0, lineHeightOfLine(position.index))
+          : offset);
     }
     return null;
   }
@@ -1242,7 +1260,7 @@ class _CodeFieldRender extends RenderBox implements MouseTrackerAnnotation {
           .inflate(visibleRegionSlop)
           .contains(endOffset.dy < 0
               ? endOffset
-              : endOffset + Offset(0, _preferredLineHeight));
+              : endOffset + Offset(0, lineHeightOfLine(_selection.end.index)));
     }
   }
 
@@ -1743,20 +1761,24 @@ class _CodeFieldCursorPainter extends _CodeFieldExtraPainter {
       return;
     }
     offset += paragraph.offset - render.paintOffset;
+    // Use the paragraph's own line height so the caret fills lines whose
+    // span builder scaled them (e.g. markdown headers) instead of
+    // floating at the top with the base height.
+    final double height = paragraph.preferredLineHeight;
     if (offset.dx + _width < 0 ||
         offset.dx >= size.width ||
-        offset.dy + _height < 0 ||
+        offset.dy + height < 0 ||
         offset.dy >= size.height) {
       return;
     }
-    _drawCaret(canvas, offset, size);
+    _drawCaret(canvas, offset, size, height);
   }
 
-  void _drawCaret(Canvas canvas, Offset offset, Size size) {
+  void _drawCaret(Canvas canvas, Offset offset, Size size, double height) {
     _paint.color = _color;
     canvas.drawRRect(
         RRect.fromRectXY(
-            Rect.fromLTWH(offset.dx - _width / 2, offset.dy, _width, _height),
+            Rect.fromLTWH(offset.dx - _width / 2, offset.dy, _width, height),
             _width / 2,
             _width / 2),
         _paint);
@@ -1824,15 +1846,20 @@ class _CodeFieldFloatingCursorPainter extends _CodeFieldExtraPainter {
         _color.a == 0.0) {
       return;
     }
-    _drawFloatingCaret(canvas, _position.floatingCursorOffset!, size);
+    // Match each caret to the line it hovers over, so the floating and
+    // preview cursors fill scaled lines (e.g. markdown headers).
+    _drawFloatingCaret(canvas, _position.floatingCursorOffset!, size,
+        render.lineHeightAtOffset(_position.floatingCursorOffset!));
     if (_position.previewCursorOffset != null) {
-      _drawPreviewCursor(canvas, _position.previewCursorOffset!, size);
+      _drawPreviewCursor(canvas, _position.previewCursorOffset!, size,
+          render.lineHeightAtOffset(_position.previewCursorOffset!));
     }
   }
 
-  void _drawFloatingCaret(Canvas canvas, Offset offset, Size size) {
+  void _drawFloatingCaret(
+      Canvas canvas, Offset offset, Size size, double height) {
     final caretRect = RRect.fromRectXY(
-      Rect.fromLTWH(offset.dx - _width / 2, offset.dy, _width, _height),
+      Rect.fromLTWH(offset.dx - _width / 2, offset.dy, _width, height),
       _width / 2,
       _width / 2,
     );
@@ -1846,19 +1873,15 @@ class _CodeFieldFloatingCursorPainter extends _CodeFieldExtraPainter {
     );
 
     _paint.color = _color;
-    canvas.drawRRect(
-        RRect.fromRectXY(
-            Rect.fromLTWH(offset.dx - _width / 2, offset.dy, _width, _height),
-            _width / 2,
-            _width / 2),
-        _paint);
+    canvas.drawRRect(caretRect, _paint);
   }
 
-  void _drawPreviewCursor(Canvas canvas, Offset offset, Size size) {
+  void _drawPreviewCursor(
+      Canvas canvas, Offset offset, Size size, double height) {
     _paint.color = _color.withAlpha(150);
     canvas.drawRRect(
         RRect.fromRectXY(
-            Rect.fromLTWH(offset.dx - _width / 2, offset.dy, _width, _height),
+            Rect.fromLTWH(offset.dx - _width / 2, offset.dy, _width, height),
             _width / 2,
             _width / 2),
         _paint);

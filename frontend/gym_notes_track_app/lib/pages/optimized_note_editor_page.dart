@@ -46,6 +46,7 @@ import '../utils/re_editor_search_controller.dart';
 import '../utils/text_history_observer.dart';
 import '../utils/text_position_utils.dart';
 import '../utils/markdown_list_utils.dart';
+import '../utils/markdown_editor_span_builder.dart';
 import '../utils/ghost_text.dart';
 import '../utils/paste_line_breaker.dart';
 import '../controllers/preview_scroll_controller.dart';
@@ -78,6 +79,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     with WidgetsBindingObserver {
   late TextEditingController _titleController;
   late CodeLineEditingController _contentController;
+  final MarkdownEditorSpanBuilder _markdownSpanBuilder =
+      MarkdownEditorSpanBuilder();
+  bool _liveMarkdownRendering = SettingsKeys.defaultLiveMarkdownRendering;
   late FocusNode _contentFocusNode;
   late CodeScrollController _editorScrollController;
   late TextHistoryObserver _historyObserver;
@@ -190,8 +194,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       text: widget.metadata?.title ?? '',
     );
     _contentController = CodeLineEditingController(
-      spanBuilder: _buildGhostEditorSpan,
+      spanBuilder: _buildEditorSpan,
     );
+    _markdownSpanBuilder.bind(_contentController);
     _historyObserver = TextHistoryObserver(_contentController);
     _previousTextLength = 0;
     _contentFocusNode = FocusNode();
@@ -437,6 +442,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     final settings = await SettingsService.getInstance();
     final noteSwipe = await settings.getNoteSwipeEnabled();
     final showStats = await settings.getShowStatsBar();
+    final liveMarkdownRendering = await settings.getLiveMarkdownRendering();
     final showLineNumbers = await settings.getShowLineNumbers();
     final wordWrap = await settings.getWordWrap();
     final showCursorLine = await settings.getShowCursorLine();
@@ -453,6 +459,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       setState(() {
         _noteSwipeEnabled = noteSwipe;
         _showStatsBar = showStats;
+        _liveMarkdownRendering = liveMarkdownRendering;
         _showLineNumbers = showLineNumbers;
         _wordWrap = wordWrap;
         _showCursorLine = showCursorLine;
@@ -1688,14 +1695,45 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     );
   }
 
+  /// Routes line rendering: live markdown styling when the editor setting
+  /// is on (unhandled lines fall through), the ghost-text builder
+  /// otherwise.
+  TextSpan _buildEditorSpan({
+    required BuildContext context,
+    required int index,
+    required CodeLine codeLine,
+    required TextSpan textSpan,
+    required TextStyle style,
+  }) {
+    if (_liveMarkdownRendering) {
+      final span = _markdownSpanBuilder.build(
+        context: context,
+        index: index,
+        codeLine: codeLine,
+        style: style,
+      );
+      if (span != null) return span;
+    }
+    return _buildGhostEditorSpan(
+      context: context,
+      index: index,
+      codeLine: codeLine,
+      textSpan: textSpan,
+      style: style,
+    );
+  }
+
   Widget _buildEditor() {
     final devOptions = DevOptions.instance;
     final showChunkDebug = devOptions.showChunkIndicators;
+    final markdownRendering = _liveMarkdownRendering;
 
     return KeyedSubtree(
       key: _editorWrapperKey,
       child: ModernEditorWrapper(
-        key: const ValueKey('editor'),
+        // Toggling live markdown rendering remounts the editor so all
+        // cached line paragraphs are rebuilt with the new span builder.
+        key: ValueKey(markdownRendering ? 'editor-md' : 'editor'),
         controller: _contentController,
         focusNode: _contentFocusNode,
         scrollController: _editorScrollController,
@@ -1705,6 +1743,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         showLineNumbers: _showLineNumbers,
         wordWrap: _wordWrap,
         showCursorLine: _showCursorLine,
+        checkboxTapToggle: markdownRendering,
         lineNumbersKey: _lineNumbersKey,
         scrollIndicatorKey: _scrollIndicatorKey,
         // Chunk debug visualization (matches preview mode)

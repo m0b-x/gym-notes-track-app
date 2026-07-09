@@ -8,6 +8,7 @@ import '../constants/app_spacing.dart';
 import '../constants/font_constants.dart';
 import '../constants/markdown_constants.dart';
 import '../utils/ghost_text.dart';
+import '../utils/markdown_list_syntax.dart';
 import '../utils/markdown_list_utils.dart';
 import '../utils/re_editor_search_controller.dart';
 import 'editor_chunk_overlay.dart';
@@ -24,6 +25,11 @@ class ModernEditorWrapper extends StatefulWidget {
   final bool showLineNumbers;
   final bool wordWrap;
   final bool showCursorLine;
+
+  /// Whether tapping a task item's checkbox toggles it (experimental
+  /// markdown rendering).
+  final bool checkboxTapToggle;
+
   final GlobalKey? lineNumbersKey;
   final GlobalKey? scrollIndicatorKey;
 
@@ -47,6 +53,7 @@ class ModernEditorWrapper extends StatefulWidget {
     this.showLineNumbers = false,
     this.wordWrap = true,
     this.showCursorLine = false,
+    this.checkboxTapToggle = false,
     this.lineNumbersKey,
     this.scrollIndicatorKey,
     this.linesPerChunk = 10,
@@ -71,6 +78,19 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
   /// Reentrancy guard while we programmatically set the selection to
   /// activate a ghost.
   bool _activatingGhost = false;
+
+  /// Reentrancy guard while a tapped checkbox is being toggled.
+  bool _togglingCheckbox = false;
+
+  /// The ghost run engaged by the last tap (whole-run selection). A
+  /// second tap on the same, unmodified ghost switches to edit mode:
+  /// the caret stays where the tap put it instead of re-selecting the
+  /// run. Cleared as soon as the selection leaves the run or its line
+  /// changes.
+  int _engagedGhostLine = -1;
+  int _engagedGhostStart = -1;
+  int _engagedGhostEnd = -1;
+  String _engagedGhostText = '';
 
   static const Duration _ghostTapWindow = Duration(milliseconds: 350);
 
@@ -106,8 +126,10 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
   /// native selection highlight is the "you tapped it" signal. Typing
   /// replaces the run (markers included); tapping away simply collapses
   /// the selection, leaving the placeholder intact, so nothing is ever
-  /// lost. The selection is set in a microtask so we never reenter the
-  /// controller from within its own notification.
+  /// lost. Tapping the same ghost a second time switches to edit mode:
+  /// the caret stays where that tap put it so the inner text can be
+  /// edited in place. The selection is set in a microtask so we never
+  /// reenter the controller from within its own notification.
   void _maybeActivateTappedGhost() {
     if (!_pendingGhostTapCheck || _activatingGhost) return;
     final controller = widget.controller;
@@ -120,6 +142,22 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
     if (!GhostText.mightContain(lineText)) return;
     final ghost = GhostText.ghostAtOffset(lineText, selection.baseOffset);
     if (ghost == null) return;
+
+    if (lineIndex == _engagedGhostLine &&
+        lineText == _engagedGhostText &&
+        ghost.start == _engagedGhostStart &&
+        ghost.end == _engagedGhostEnd) {
+      // Second tap on the engaged ghost: leave the collapsed caret in
+      // place for editing.
+      _pendingGhostTapCheck = false;
+      _ghostTapExpiry?.cancel();
+      _clearEngagedGhost();
+      return;
+    }
+    _engagedGhostLine = lineIndex;
+    _engagedGhostStart = ghost.start;
+    _engagedGhostEnd = ghost.end;
+    _engagedGhostText = lineText;
 
     _pendingGhostTapCheck = false;
     _ghostTapExpiry?.cancel();
@@ -194,6 +232,103 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
   void _onControllerChanged() {
     widget.onTextChanged();
     _maybeActivateTappedGhost();
+    _maybeToggleTappedCheckbox();
+    _maybeClearEngagedGhost();
+  }
+
+  /// Drops the engaged-ghost state once the selection leaves the run or
+  /// its line's text changes, so a much-later tap on the same ghost
+  /// starts fresh in replace mode instead of edit mode.
+  void _maybeClearEngagedGhost() {
+    if (_engagedGhostLine < 0) return;
+    final controller = widget.controller;
+    final selection = controller.selection;
+    final lines = controller.codeLines;
+    if (selection.baseIndex != _engagedGhostLine ||
+        selection.extentIndex != _engagedGhostLine ||
+        _engagedGhostLine >= lines.length ||
+        lines[_engagedGhostLine].text != _engagedGhostText) {
+      _clearEngagedGhost();
+      return;
+    }
+    final base = selection.baseOffset;
+    final extent = selection.extentOffset;
+    final lo = base < extent ? base : extent;
+    final hi = base < extent ? extent : base;
+    if (lo < _engagedGhostStart || hi > _engagedGhostEnd) {
+      _clearEngagedGhost();
+    }
+  }
+
+  void _clearEngagedGhost() {
+    _engagedGhostLine = -1;
+    _engagedGhostStart = -1;
+    _engagedGhostEnd = -1;
+    _engagedGhostText = '';
+  }
+
+  /// When live markdown rendering is on and a tap lands the caret inside
+  /// a task item's `[ ]` / `[x]` box, flips the checkbox as a single
+  /// undoable edit. Same tap-arming scheme as the ghost check above, and
+  /// ghosts win: if the tap engaged a ghost, the pending flag is already
+  /// consumed. Mutation runs in a microtask so we never reenter the
+  /// controller from within its own notification.
+  ///
+  /// Toggling must not feel like editing: the edit is one atomic value
+  /// change and the caret is restored to wherever it was before the tap,
+  /// so the task line never becomes the revealed caret line. Editing the
+  /// item starts by tapping its text, right of the box (the box itself is
+  /// still reachable with arrow keys).
+  void _maybeToggleTappedCheckbox() {
+    if (!widget.checkboxTapToggle) return;
+    if (!_pendingGhostTapCheck || _activatingGhost || _togglingCheckbox) {
+      return;
+    }
+    final controller = widget.controller;
+    final selection = controller.selection;
+    if (!selection.isCollapsed) return;
+    final lineIndex = selection.baseIndex;
+    final lines = controller.codeLines;
+    if (lineIndex < 0 || lineIndex >= lines.length) return;
+    final item = MarkdownListSyntax.parse(lines[lineIndex].text);
+    if (item == null || item.kind != MarkdownListKind.task) return;
+    final offset = selection.baseOffset;
+    if (offset < item.bracketStart || offset > item.bracketStart + 3) return;
+
+    // The pre-tap selection; the toggled line keeps its length, so it is
+    // still valid after the edit.
+    final previousSelection = controller.preValue?.selection;
+    _pendingGhostTapCheck = false;
+    _ghostTapExpiry?.cancel();
+    _togglingCheckbox = true;
+    scheduleMicrotask(() {
+      if (!mounted) {
+        _togglingCheckbox = false;
+        return;
+      }
+      final lines = controller.codeLines;
+      if (lineIndex < lines.length) {
+        final lineText = lines[lineIndex].text;
+        final current = MarkdownListSyntax.parse(lineText);
+        if (current != null && current.kind == MarkdownListKind.task) {
+          final toggled = lineText.replaceRange(
+            current.bracketStart + 1,
+            current.bracketStart + 2,
+            current.checked ? ' ' : 'x',
+          );
+          controller.runRevocableOp(() {
+            controller.value = CodeLineEditingValue(
+              codeLines: CodeLines.of([
+                for (int i = 0; i < lines.length; i++)
+                  if (i == lineIndex) CodeLine(toggled) else lines[i],
+              ]),
+              selection: previousSelection ?? controller.selection,
+            );
+          });
+        }
+      }
+      _togglingCheckbox = false;
+    });
   }
 
   /// Overrides re_editor's Tab / Shift-Tab so that, when the caret sits on

@@ -1595,6 +1595,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get editorSection => 'Editor';
 
   @override
+  String get liveMarkdownRendering => 'Live-Markdown-Darstellung';
+
+  @override
+  String get liveMarkdownRenderingDesc =>
+      'Überschriften, Listen, Kontrollkästchen und Textstile direkt beim Bearbeiten darstellen';
+
+  @override
   String get showLineNumbers => 'Zeilennummern';
 
   @override

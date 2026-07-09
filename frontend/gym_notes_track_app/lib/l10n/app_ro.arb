@@ -479,6 +479,8 @@
   "selectMatch": "Selectează",
   "searching": "Se caută...",
   "editorSection": "Editor",
+  "liveMarkdownRendering": "Redare Markdown Live",
+  "liveMarkdownRenderingDesc": "Afișează titlurile, listele, casetele de bifat și stilurile de text direct în timpul editării",
   "showLineNumbers": "Numere de Linie",
   "showLineNumbersDesc": "Afișează numerele liniilor în partea stângă a editorului",
   "wordWrap": "Împachetare Text",

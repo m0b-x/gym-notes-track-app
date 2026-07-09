@@ -2944,6 +2944,18 @@ abstract class AppLocalizations {
   /// **'Editor'**
   String get editorSection;
 
+  /// Setting for rendering markdown live inside the text editor
+  ///
+  /// In en, this message translates to:
+  /// **'Live Markdown Rendering'**
+  String get liveMarkdownRendering;
+
+  /// Description for the live markdown rendering setting
+  ///
+  /// In en, this message translates to:
+  /// **'Render headers, lists, checkboxes and text styles directly while editing'**
+  String get liveMarkdownRenderingDesc;
+
   /// Setting for showing line numbers in editor
   ///
   /// In en, this message translates to:

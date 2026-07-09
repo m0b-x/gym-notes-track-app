@@ -156,6 +156,18 @@ class SettingsService {
     await _setBool(SettingsKeys.hapticFeedback, value);
   }
 
+  // Editor settings - Live markdown rendering in the text editor
+  Future<bool> getLiveMarkdownRendering() async {
+    return _getBool(
+      SettingsKeys.liveMarkdownRendering,
+      SettingsKeys.defaultLiveMarkdownRendering,
+    );
+  }
+
+  Future<void> setLiveMarkdownRendering(bool value) async {
+    await _setBool(SettingsKeys.liveMarkdownRendering, value);
+  }
+
   // Editor settings - Show line numbers
   Future<bool> getShowLineNumbers() async {
     return _getBool(

@@ -8,6 +8,7 @@ import 'markdown_chunker.dart';
 import 'markdown_line_height_calculator.dart';
 import 'markdown_link_patterns.dart';
 import 'markdown_list_syntax.dart';
+import 'markdown_tag_syntax.dart';
 
 typedef LinkTapCallback = void Function(String url);
 typedef CheckboxTapCallback = void Function(int start, int end, bool isChecked);
@@ -85,9 +86,9 @@ class LineMarkdownStyle {
       highlightColor: theme.colorScheme.primaryContainer,
       currentHighlightColor: theme.colorScheme.primary.withValues(alpha: 0.5),
       ghostColor: base.withValues(alpha: 0.45),
-      // Theme-matched highlighter amber that keeps the (light/dark) text
-      // colour readable on top.
-      markColor: isDark ? const Color(0xFF5A4B1C) : const Color(0xFFFFF176),
+      markColor: isDark
+          ? MarkdownConstants.markBackgroundDark
+          : MarkdownConstants.markBackgroundLight,
       isDark: isDark,
     );
   }
@@ -1394,7 +1395,7 @@ class LineBasedMarkdownBuilder {
       // searches across notes. Letter-led so `#3` / `set #1` and `C#`
       // are never tags.
       if (c == _kHash && _isWordBoundaryBefore(text, i)) {
-        final tagEnd = _tryParseTagAt(text, i);
+        final tagEnd = MarkdownTagSyntax.tryParseTagAt(text, i);
         if (tagEnd != null) {
           flushRun(i);
           children.add(_buildTagSpan(text, i, tagEnd, baseStyle, contentStart));
@@ -1630,15 +1631,10 @@ class LineBasedMarkdownBuilder {
   }
 
   /// Whether the character before [i] is a word boundary, so an inline
-  /// token (`#tag`) or a bare autolink may start here. ASCII
-  /// alphanumerics AND Unicode letters count as word characters, so a `#`
-  /// glued to an accented word (`café#x`) is not a tag — matching the
-  /// Unicode-aware tag body in [_isTagChar].
-  bool _isWordBoundaryBefore(String text, int i) {
-    if (i == 0) return true;
-    final prev = text.codeUnitAt(i - 1);
-    return !_isAlphaNumeric(prev) && !_isLetter(prev);
-  }
+  /// token (`#tag`) or a bare autolink may start here. Delegates to the
+  /// shared tag grammar so preview and live editor always agree.
+  bool _isWordBoundaryBefore(String text, int i) =>
+      MarkdownTagSyntax.isWordBoundaryBefore(text, i);
 
   static bool _isSpace(int c) =>
       c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D;
@@ -1647,51 +1643,6 @@ class LineBasedMarkdownBuilder {
       (c >= 0x30 && c <= 0x39) || // 0-9
       (c >= 0x41 && c <= 0x5A) || // A-Z
       (c >= 0x61 && c <= 0x7A); // a-z
-
-  /// Matches a single Unicode letter (any script). Used so `#tag` accepts
-  /// accented / non-Latin letters — de: ä ö ü ß, ro: ă â î ș ț, etc. — not
-  /// just ASCII a–z. ASCII is fast-pathed in [_isLetter]; this regex only
-  /// runs for non-ASCII code units, and a lone surrogate simply yields no
-  /// match (BMP letters cover every supported language).
-  static final RegExp _unicodeLetterRe = RegExp(r'\p{L}', unicode: true);
-
-  static bool _isLetter(int c) =>
-      (c >= 0x41 && c <= 0x5A) ||
-      (c >= 0x61 && c <= 0x7A) ||
-      (c > 0x7F && _unicodeLetterRe.hasMatch(String.fromCharCode(c)));
-
-  /// Matches one Unicode "tag-body" code unit: a letter (`L`), combining
-  /// mark (`M`), or number (`N`) of any script. Beyond [_unicodeLetterRe]
-  /// this also keeps NFD-decomposed accents (base letter + combining mark,
-  /// e.g. `a` + U+0301) and non-ASCII digits inside a tag. ASCII is
-  /// fast-pathed in [_isTagChar]; this only runs for non-ASCII code units.
-  static final RegExp _unicodeTagBodyRe = RegExp(
-    r'[\p{L}\p{M}\p{N}]',
-    unicode: true,
-  );
-
-  /// Characters allowed in a `#tag` body (after the letter-led start):
-  /// ASCII letters/digits, `_`, `-`, and any Unicode letter / combining
-  /// mark / number (so accented, NFD, and non-Latin tags stay intact).
-  static bool _isTagChar(int c) =>
-      _isAlphaNumeric(c) ||
-      c == 0x5F /* _ */ ||
-      c == 0x2D /* - */ ||
-      (c > 0x7F && _unicodeTagBodyRe.hasMatch(String.fromCharCode(c)));
-
-  /// Returns the end index (exclusive) of a `#tag` starting at the `#`
-  /// at [i], or `null` when it is not a tag. The first body character
-  /// must be a letter so `#3` / `set #1` are never tags.
-  int? _tryParseTagAt(String text, int i) {
-    final firstIdx = i + 1;
-    if (firstIdx >= text.length) return null;
-    if (!_isLetter(text.codeUnitAt(firstIdx))) return null;
-    int j = firstIdx + 1;
-    while (j < text.length && _isTagChar(text.codeUnitAt(j))) {
-      j++;
-    }
-    return j;
-  }
 
   /// ASCII-punctuation test for backslash escaping (CommonMark allows
   /// escaping any ASCII punctuation).

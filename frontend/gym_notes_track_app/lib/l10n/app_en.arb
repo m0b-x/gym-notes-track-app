@@ -2043,6 +2043,14 @@
   "@editorSection": {
     "description": "Editor settings section title"
   },
+  "liveMarkdownRendering": "Live Markdown Rendering",
+  "@liveMarkdownRendering": {
+    "description": "Setting for rendering markdown live inside the text editor"
+  },
+  "liveMarkdownRenderingDesc": "Render headers, lists, checkboxes and text styles directly while editing",
+  "@liveMarkdownRenderingDesc": {
+    "description": "Description for the live markdown rendering setting"
+  },
   "showLineNumbers": "Line Numbers",
   "@showLineNumbers": {
     "description": "Setting for showing line numbers in editor"
@@ -2480,6 +2488,7 @@
   "@showDatabaseStatsDesc": {
     "description": "Description for show database stats option"
   },
+
   "saveStatusSaved": "Saved",
   "@saveStatusSaved": {
     "description": "Indicator label when note is fully saved"

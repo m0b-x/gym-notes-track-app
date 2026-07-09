@@ -1468,6 +1468,14 @@
   "@editorSection": {
     "description": "Editor settings section title"
   },
+  "liveMarkdownRendering": "Live-Markdown-Darstellung",
+  "@liveMarkdownRendering": {
+    "description": "Setting for rendering markdown live inside the text editor"
+  },
+  "liveMarkdownRenderingDesc": "Überschriften, Listen, Kontrollkästchen und Textstile direkt beim Bearbeiten darstellen",
+  "@liveMarkdownRenderingDesc": {
+    "description": "Description for the live markdown rendering setting"
+  },
   "showLineNumbers": "Zeilennummern",
   "@showLineNumbers": {
     "description": "Setting for showing line numbers in editor"

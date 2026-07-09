@@ -30,6 +30,7 @@ class SettingsKeys {
   static const String hapticFeedback = 'haptic_feedback';
 
   // Editor settings
+  static const String liveMarkdownRendering = 'live_markdown_rendering';
   static const String showLineNumbers = 'show_line_numbers';
   static const String wordWrap = 'word_wrap';
   static const String showCursorLine = 'show_cursor_line';
@@ -88,6 +89,7 @@ class SettingsKeys {
   static const int defaultDefaultNotesSortOrder = 0;
 
   // Default values for editor settings
+  static const bool defaultLiveMarkdownRendering = true;
   static const bool defaultShowLineNumbers = false;
   static const bool defaultWordWrap = true;
   static const bool defaultShowCursorLine = false;
