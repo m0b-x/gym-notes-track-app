@@ -2461,4 +2461,12 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get linkSchemeNotAllowed => 'Linktyp nicht unterstützt';
+
+  @override
+  String linkOpenPrompt(String target) {
+    return '$target öffnen?';
+  }
+
+  @override
+  String get linkOpenAction => 'Öffnen';
 }
