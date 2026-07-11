@@ -3161,5 +3161,18 @@
   "linkSchemeNotAllowed": "Link type not supported",
   "@linkSchemeNotAllowed": {
     "description": "Snackbar shown when a markdown preview link uses an unsupported URL scheme"
+  },
+  "linkOpenPrompt": "Open {target}?",
+  "@linkOpenPrompt": {
+    "description": "Snackbar prompt shown before opening a link tapped in the editor",
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "linkOpenAction": "Open",
+  "@linkOpenAction": {
+    "description": "Snackbar action label that opens the tapped link"
   }
 }

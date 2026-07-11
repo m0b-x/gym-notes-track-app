@@ -214,7 +214,7 @@ class _CodeParagraphProvider {
   // small enough to keep peak memory bounded on long documents.
   static const int _kMaxCacheSize = 512;
 
-  final Map<TextSpan, _ParagraphImpl> _cachedParagraphs;
+  final Map<TextSpan, IParagraph> _cachedParagraphs;
 
   // A span whose root style sets a fontSize different from the base style
   // gets its own strut / preferred line height, so callers (span builders)
@@ -295,14 +295,14 @@ class _CodeParagraphProvider {
       _constraints = ui.ParagraphConstraints(width: maxWidth);
       clearCache();
     }
-    final _ParagraphImpl? cache = _cachedParagraphs[span];
+    final IParagraph? cache = _cachedParagraphs[span];
     if (cache != null) {
       // Touch for LRU: re-insert at the tail (insertion order = recency).
       _cachedParagraphs.remove(span);
       _cachedParagraphs[span] = cache;
       return cache;
     }
-    final _ParagraphImpl impl;
+    final IParagraph impl;
     // Trucate the span if it's too long.
     final String plainText = span.toPlainText();
     final int? renderingLength = _maxLengthSingleLineRendering;
@@ -327,26 +327,31 @@ class _CodeParagraphProvider {
         return const TextSpan(text: '');
       }
       String? text = span.text;
+      String? keptText;
       if (text != null) {
-        int remainingLength = maxLength - currentLength;
-        if (text.length > remainingLength) {
-          text = text.substring(0, remainingLength);
-        }
-        currentLength += text.length;
-        return TextSpan(text: text, style: span.style);
+        final int remainingLength = maxLength - currentLength;
+        keptText =
+            text.length > remainingLength ? text.substring(0, remainingLength) : text;
+        currentLength += keptText.length;
       }
-      final List<InlineSpan> children = [];
-      for (InlineSpan child in span.children ?? const []) {
-        if (currentLength >= maxLength) {
-          break;
-        }
-        if (child is TextSpan) {
-          children.add(truncateSpan(child));
-        } else {
-          children.add(child);
+      List<InlineSpan>? children;
+      if (span.children != null) {
+        children = [];
+        for (InlineSpan child in span.children!) {
+          if (currentLength >= maxLength) {
+            break;
+          }
+          if (child is TextSpan) {
+            children.add(truncateSpan(child));
+          } else {
+            // Placeholders count for their code-unit length so the
+            // truncated tree stays aligned with the truncated text.
+            currentLength += child.length;
+            children.add(child);
+          }
         }
       }
-      return TextSpan(children: children, style: span.style);
+      return TextSpan(text: keptText, style: span.style, children: children);
     }
 
     return truncateSpan(span);
@@ -356,7 +361,7 @@ class _CodeParagraphProvider {
     _cachedParagraphs.clear();
   }
 
-  _ParagraphImpl _build(TextSpan span, String plainText, bool trucated) {
+  IParagraph _build(TextSpan span, String plainText, bool trucated) {
     ui.ParagraphStyle? style = _paragraphStyle;
     double? preferredLineHeight = _preferredLineHeight;
     if (style == null) {
@@ -371,6 +376,13 @@ class _CodeParagraphProvider {
       style = scaled.paragraphStyle;
       preferredLineHeight = scaled.preferredLineHeight;
     }
+    if (!trucated && span is CodeHangingTextSpan) {
+      final IParagraph? hanging =
+          _buildHanging(span, plainText, style, preferredLineHeight!);
+      if (hanging != null) {
+        return hanging;
+      }
+    }
     final ui.ParagraphBuilder builder = ui.ParagraphBuilder(style);
     span.build(builder);
     final ui.Paragraph paragraph = builder.build();
@@ -382,5 +394,264 @@ class _CodeParagraphProvider {
       trucated: trucated,
       preferredLineHeight: preferredLineHeight!,
     );
+  }
+
+  /// Builds the two-part hanging-indent paragraph for [span], or null
+  /// when the split is degenerate and the plain single paragraph should
+  /// be used instead: an empty/whole-line prefix, a marker wider than
+  /// half the viewport (deeply indented list on a narrow screen), or a
+  /// marker that would itself wrap.
+  IParagraph? _buildHanging(
+    CodeHangingTextSpan span,
+    String plainText,
+    ui.ParagraphStyle style,
+    double preferredLineHeight,
+  ) {
+    final int hangingChars = span.hangingChars;
+    if (hangingChars <= 0 || hangingChars >= plainText.length) {
+      return null;
+    }
+    final double maxWidth = _constraints!.width;
+    final TextSpan markerSpan = trucate(span, hangingChars);
+    final ui.ParagraphBuilder markerBuilder = ui.ParagraphBuilder(style);
+    markerSpan.build(markerBuilder);
+    final ui.Paragraph markerParagraph = markerBuilder.build();
+    markerParagraph.layout(_constraints!);
+    // A marker that wraps can't anchor a hanging indent.
+    if (markerParagraph.height > preferredLineHeight * 1.5) {
+      return null;
+    }
+    // Measure the marker via glyph boxes instead of longestLine: the
+    // prefix always ends in the separator space and longestLine excludes
+    // trailing whitespace, which would collapse the marker-content gap.
+    final List<ui.TextBox> markerBoxes = markerParagraph.getBoxesForRange(
+        0, hangingChars,
+        boxHeightStyle: ui.BoxHeightStyle.strut);
+    double markerRight = 0;
+    for (final ui.TextBox box in markerBoxes) {
+      if (box.right > markerRight) {
+        markerRight = box.right;
+      }
+    }
+    final double indent = markerRight.ceilToDouble();
+    if (indent <= 0 || (maxWidth.isFinite && indent > maxWidth / 2)) {
+      return null;
+    }
+    final TextSpan contentSpan = _dropPrefix(span, hangingChars);
+    final ui.ParagraphBuilder contentBuilder = ui.ParagraphBuilder(style);
+    contentSpan.build(contentBuilder);
+    final ui.Paragraph contentParagraph = contentBuilder.build();
+    contentParagraph.layout(ui.ParagraphConstraints(
+        width: maxWidth.isFinite ? max(0, maxWidth - indent) : maxWidth));
+    return _HangingParagraphImpl(
+      rootSpan: span,
+      marker: _ParagraphImpl(
+        text: plainText.substring(0, hangingChars),
+        span: markerSpan,
+        paragraph: markerParagraph,
+        trucated: false,
+        preferredLineHeight: preferredLineHeight,
+      ),
+      content: _ParagraphImpl(
+        text: plainText.substring(hangingChars),
+        span: contentSpan,
+        paragraph: contentParagraph,
+        trucated: false,
+        preferredLineHeight: preferredLineHeight,
+      ),
+      indent: indent,
+    );
+  }
+
+  /// The mirror of [trucate]: drops the first [skip] code units while
+  /// keeping the span structure and styles, so the content part of a
+  /// hanging line renders exactly as it would inside the full span.
+  /// Non-TextSpan children consume their code-unit length (a placeholder
+  /// is one unit in the plain text), so mixed span trees never desync
+  /// the content paragraph from `plainText.substring(skip)`.
+  TextSpan _dropPrefix(TextSpan span, int skip) {
+    int remaining = skip;
+    TextSpan dropSpan(TextSpan span) {
+      final String? text = span.text;
+      String? keptText;
+      if (text != null) {
+        if (remaining <= 0) {
+          keptText = text;
+        } else if (text.length <= remaining) {
+          remaining -= text.length;
+          keptText = '';
+        } else {
+          keptText = text.substring(remaining);
+          remaining = 0;
+        }
+      }
+      List<InlineSpan>? children;
+      if (span.children != null) {
+        children = [];
+        for (final InlineSpan child in span.children!) {
+          if (child is TextSpan) {
+            children.add(dropSpan(child));
+          } else if (remaining >= child.length) {
+            remaining -= child.length;
+          } else {
+            remaining = 0;
+            children.add(child);
+          }
+        }
+      }
+      return TextSpan(text: keptText, style: span.style, children: children);
+    }
+
+    return dropSpan(span);
+  }
+}
+
+/// Two-part paragraph giving list items a hanging indent: the marker
+/// prefix is its own single-line paragraph at the line's left edge and
+/// the content is laid out at [indent] — the marker's exact advance
+/// width — so soft-wrapped continuation lines align under the content.
+/// Every geometry query (caret offsets, selection/search rects, hit
+/// tests, word and line boundaries) maps piecewise through the two
+/// parts; the seam at the marker/content boundary is invisible because
+/// both sides resolve to the same x.
+class _HangingParagraphImpl extends IParagraph {
+  final TextSpan rootSpan;
+  final _ParagraphImpl marker;
+  final _ParagraphImpl content;
+  final double indent;
+
+  _HangingParagraphImpl({
+    required this.rootSpan,
+    required this.marker,
+    required this.content,
+    required this.indent,
+  });
+
+  int get _markerLen => marker.length;
+
+  @override
+  double get width => indent + content.width;
+
+  @override
+  double get height => content.height;
+
+  @override
+  double get preferredLineHeight => content.preferredLineHeight;
+
+  @override
+  int get length => marker.length + content.length;
+
+  @override
+  int get lineCount => content.lineCount;
+
+  @override
+  bool get trucated => false;
+
+  @override
+  void draw(Canvas canvas, Offset offset) {
+    marker.draw(canvas, offset);
+    content.draw(canvas, offset.translate(indent, 0));
+  }
+
+  @override
+  TextPosition getPosition(Offset offset) {
+    if (offset.dx < indent && offset.dy < preferredLineHeight) {
+      return marker.getPosition(offset);
+    }
+    final TextPosition position =
+        content.getPosition(offset.translate(-indent, 0));
+    return TextPosition(
+      offset: position.offset + _markerLen,
+      affinity: position.affinity,
+    );
+  }
+
+  @override
+  TextRange getWord(Offset offset) {
+    if (offset.dx < indent && offset.dy < preferredLineHeight) {
+      return marker.getWord(offset);
+    }
+    final TextRange range = content.getWord(offset.translate(-indent, 0));
+    return TextRange(
+      start: range.start + _markerLen,
+      end: range.end + _markerLen,
+    );
+  }
+
+  @override
+  InlineSpan? getSpanForPosition(TextPosition position) {
+    // Resolve against the ORIGINAL span tree, not the rebuilt marker/
+    // content copies: callers pair this with the identity-based
+    // getRangeForSpan and rely on recognizer/annotation spans surviving.
+    if (position.offset >= length - 1) {
+      return null;
+    }
+    return rootSpan.getSpanForPosition(position);
+  }
+
+  @override
+  TextRange getRangeForSpan(InlineSpan span) {
+    int offset = 0;
+    rootSpan.visitChildren((child) {
+      if (identical(child, span)) {
+        return false;
+      }
+      offset += child.length;
+      return true;
+    });
+    return TextRange(start: offset, end: offset + span.length);
+  }
+
+  @override
+  TextRange getLineBoundary(TextPosition position) {
+    if (position.offset < _markerLen) {
+      final TextRange first =
+          content.getLineBoundary(const TextPosition(offset: 0));
+      return TextRange(start: 0, end: first.end + _markerLen);
+    }
+    final TextRange range = content.getLineBoundary(TextPosition(
+      offset: position.offset - _markerLen,
+      affinity: position.affinity,
+    ));
+    // The first visual line includes the marker chars, so Home reaches
+    // the real line start.
+    return TextRange(
+      start: range.start == 0 ? 0 : range.start + _markerLen,
+      end: range.end + _markerLen,
+    );
+  }
+
+  @override
+  Offset? getOffset(TextPosition position) {
+    if (position.offset < _markerLen ||
+        (position.offset == _markerLen &&
+            position.affinity == TextAffinity.upstream)) {
+      return marker.getOffset(position);
+    }
+    final Offset? offset = content.getOffset(TextPosition(
+      offset: position.offset - _markerLen,
+      affinity: position.affinity,
+    ));
+    return offset?.translate(indent, 0);
+  }
+
+  @override
+  List<Rect> getRangeRects(TextRange range) {
+    final List<Rect> rects = [];
+    if (range.start < _markerLen) {
+      rects.addAll(marker.getRangeRects(TextRange(
+        start: range.start,
+        end: min(range.end, _markerLen),
+      )));
+    }
+    if (range.end > _markerLen) {
+      rects.addAll(content
+          .getRangeRects(TextRange(
+            start: max(0, range.start - _markerLen),
+            end: range.end - _markerLen,
+          ))
+          .map((rect) => rect.translate(indent, 0)));
+    }
+    return rects;
   }
 }

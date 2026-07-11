@@ -176,6 +176,27 @@ class CodeEditorStyle {
 /// Regarding code folding, you can write a custom code folding analyzer with [chunkAnalyzer].
 /// By default, the editor will use [DefaultCodeChunkAnalyzer]. This works for some commonly used languages,
 /// but may not work for some languages (such as python).
+/// Lets the host app claim taps on interactive text regions (e.g. a
+/// rendered markdown checkbox or a concealed link) before the editor
+/// acts on them.
+///
+/// [shouldIntercept] runs at tap-down with the tapped text position;
+/// returning true swallows the whole tap: the editor neither moves the
+/// caret nor requests focus (so the software keyboard never rises on an
+/// unfocused editor). [onTap] then runs at tap-up with the same
+/// position — only if the gesture stayed a tap. Because the decision is
+/// made per pointer event rather than from selection changes, repeated
+/// taps on the same spot each fire.
+class CodeEditorTapInterceptor {
+  final bool Function(CodeLinePosition position) shouldIntercept;
+  final void Function(CodeLinePosition position) onTap;
+
+  const CodeEditorTapInterceptor({
+    required this.shouldIntercept,
+    required this.onTap,
+  });
+}
+
 class CodeEditor extends StatefulWidget {
   const CodeEditor({
     super.key,
@@ -208,6 +229,7 @@ class CodeEditor extends StatefulWidget {
     this.maxLengthSingleLineRendering,
     this.chunkAnalyzer,
     this.commentFormatter,
+    this.tapInterceptor,
   }) : assert(indicatorBuilder != null ||
             (indicatorBuilder == null && sperator == null));
 
@@ -330,6 +352,10 @@ class CodeEditor extends StatefulWidget {
 
   /// Control how one or more lines of code are commented.
   final CodeCommentFormatter? commentFormatter;
+
+  /// Claims taps on interactive text regions before the editor moves
+  /// the caret or requests focus. See [CodeEditorTapInterceptor].
+  final CodeEditorTapInterceptor? tapInterceptor;
 
   @override
   State<StatefulWidget> createState() => _CodeEditorState();
@@ -566,6 +592,7 @@ class _CodeEditorState extends State<CodeEditor> {
         selectionOverlayController: _selectionOverlayController,
         behavior: HitTestBehavior.translucent,
         editorKey: _editorKey,
+        tapInterceptor: widget.tapInterceptor,
         child: editable);
     final Widget child;
     if (kIsAndroid || kIsIOS) {

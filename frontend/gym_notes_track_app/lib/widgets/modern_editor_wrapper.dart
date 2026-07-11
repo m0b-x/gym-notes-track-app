@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:re_editor/re_editor.dart';
 
 import '../constants/app_constants.dart';
@@ -8,6 +9,8 @@ import '../constants/app_spacing.dart';
 import '../constants/font_constants.dart';
 import '../constants/markdown_constants.dart';
 import '../utils/ghost_text.dart';
+import '../utils/markdown_editor_span_builder.dart';
+import '../utils/markdown_link_patterns.dart';
 import '../utils/markdown_list_syntax.dart';
 import '../utils/markdown_list_utils.dart';
 import '../utils/re_editor_search_controller.dart';
@@ -26,9 +29,19 @@ class ModernEditorWrapper extends StatefulWidget {
   final bool wordWrap;
   final bool showCursorLine;
 
-  /// Whether tapping a task item's checkbox toggles it (experimental
-  /// markdown rendering).
+  /// Whether tapping a task item's checkbox toggles it (live markdown
+  /// rendering). Taps are claimed at pointer level via the editor's
+  /// tap interceptor, so toggling never moves the caret or raises the
+  /// keyboard, and re-tapping the same box re-toggles.
   final bool checkboxTapToggle;
+
+  /// Opens the url of a tapped `[text](url)` link (live markdown
+  /// rendering). Null disables link tap-to-open.
+  final ValueChanged<String>? onOpenLink;
+
+  /// Whether a line sits inside (or delimits) a ``` code fence — fence
+  /// text renders raw, so taps there always fall through to editing.
+  final bool Function(int lineIndex)? isFenceLine;
 
   final GlobalKey? lineNumbersKey;
   final GlobalKey? scrollIndicatorKey;
@@ -54,6 +67,8 @@ class ModernEditorWrapper extends StatefulWidget {
     this.wordWrap = true,
     this.showCursorLine = false,
     this.checkboxTapToggle = false,
+    this.onOpenLink,
+    this.isFenceLine,
     this.lineNumbersKey,
     this.scrollIndicatorKey,
     this.linesPerChunk = 10,
@@ -79,8 +94,31 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
   /// activate a ghost.
   bool _activatingGhost = false;
 
-  /// Reentrancy guard while a tapped checkbox is being toggled.
-  bool _togglingCheckbox = false;
+  /// Claims taps on checkbox boxes and concealed links at pointer level
+  /// (via the fork's [CodeEditorTapInterceptor]) so the editor never
+  /// moves the caret, never requests focus (no keyboard rise on an
+  /// unfocused editor), and every tap fires — including re-taps on the
+  /// same spot. The action is re-resolved at tap-up so a text change
+  /// between down and up can never toggle the wrong line.
+  late final CodeEditorTapInterceptor _tapInterceptor =
+      CodeEditorTapInterceptor(
+        shouldIntercept: (position) => _resolveTapAction(position) != null,
+        onTap: (position) {
+          // The tap was claimed — it must not double as a ghost-arming
+          // tap, or the action's own controller notification could
+          // re-activate a ghost the caret already sits in.
+          _pendingGhostTapCheck = false;
+          _ghostTapExpiry?.cancel();
+          _resolveTapAction(position)?.call();
+          // On desktop the editor's inner Listener dispatches this
+          // pointer-up before this widget's outer Listener re-arms the
+          // flag, so disarm once more after routing finishes.
+          scheduleMicrotask(() {
+            _pendingGhostTapCheck = false;
+            _ghostTapExpiry?.cancel();
+          });
+        },
+      );
 
   /// The ghost run engaged by the last tap (whole-run selection). A
   /// second tap on the same, unmodified ghost switches to edit mode:
@@ -232,8 +270,197 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
   void _onControllerChanged() {
     widget.onTextChanged();
     _maybeActivateTappedGhost();
-    _maybeToggleTappedCheckbox();
     _maybeClearEngagedGhost();
+  }
+
+  /// Resolves what a tap at [position] does instead of editing: toggle
+  /// a task checkbox or open a concealed link. Returns null when the
+  /// tap should fall through to normal caret placement — on reveal
+  /// (selection-covered) lines the raw markdown is showing and taps mean
+  /// editing; fence lines render raw; and ghost runs pass through
+  /// because ghost engagement rides the selection change (ghosts win).
+  VoidCallback? _resolveTapAction(CodeLinePosition position) {
+    final controller = widget.controller;
+    final lines = controller.codeLines;
+    final lineIndex = position.index;
+    if (lineIndex < 0 || lineIndex >= lines.length) return null;
+    if (MarkdownEditorSpanBuilder.selectionCoversLine(
+      controller.selection,
+      lineIndex,
+    )) {
+      return null;
+    }
+    if (widget.isFenceLine?.call(lineIndex) ?? false) return null;
+    final text = lines[lineIndex].text;
+    // Overlong lines render raw (the builder's length guard), so their
+    // constructs are visible markdown and taps mean editing.
+    if (text.length > MarkdownEditorSpanBuilder.maxStyledLineLength) {
+      return null;
+    }
+    final offset = position.offset;
+    // Hit-testing clamps taps in blank space (right of the text, or
+    // below the last line) to the line-end offset — those always mean
+    // caret placement, never an action.
+    if (offset >= text.length) return null;
+    if (GhostText.mightContain(text) &&
+        GhostText.ghostAtOffset(text, offset) != null) {
+      return null;
+    }
+    if (widget.checkboxTapToggle) {
+      final item = MarkdownListSyntax.parse(text);
+      // The toggle zone starts at the list marker, not the bracket, so
+      // fat-finger taps just left of the box still toggle; everything
+      // left of the marker is indent and keeps caret placement, and the
+      // content right of the box stays editable.
+      if (item != null &&
+          item.kind == MarkdownListKind.task &&
+          offset >= item.indent.length &&
+          offset <= item.bracketStart + 3) {
+        return () => _toggleTaskLine(lineIndex);
+      }
+    }
+    final onOpenLink = widget.onOpenLink;
+    if (onOpenLink != null) {
+      final url = _linkUrlAt(text, offset);
+      if (url != null) {
+        // Tactile confirmation — the caret and keyboard intentionally
+        // don't react to an intercepted tap.
+        return () {
+          HapticFeedback.selectionClick();
+          onOpenLink(url);
+        };
+      }
+    }
+    return null;
+  }
+
+  /// Flips the task checkbox on [lineIndex] as one atomic, undoable
+  /// value change. Interception means the tap never moved the selection,
+  /// so it is simply kept — toggling never reads as editing.
+  void _toggleTaskLine(int lineIndex) {
+    final controller = widget.controller;
+    final lines = controller.codeLines;
+    if (lineIndex >= lines.length) return;
+    final lineText = lines[lineIndex].text;
+    final current = MarkdownListSyntax.parse(lineText);
+    if (current == null || current.kind != MarkdownListKind.task) return;
+    // Tactile confirmation — the caret and keyboard intentionally
+    // don't react to an intercepted tap.
+    HapticFeedback.lightImpact();
+    final toggled = lineText.replaceRange(
+      current.bracketStart + 1,
+      current.bracketStart + 2,
+      current.checked ? ' ' : 'x',
+    );
+    controller.runRevocableOp(() {
+      controller.value = CodeLineEditingValue(
+        codeLines: CodeLines.of([
+          for (int i = 0; i < lines.length; i++)
+            if (i == lineIndex) CodeLine(toggled) else lines[i],
+        ]),
+        selection: controller.selection,
+      );
+    });
+  }
+
+  /// The url of the `[text](url)` link covering [offset] in [text], or
+  /// null. Grammar comes from [MarkdownLinkPatterns] (shared with the
+  /// span builder's rendering). To stay aligned with what the editor
+  /// actually renders as a link: opens preceded by `!` or an odd run of
+  /// backslashes never count, brackets inside inline-code backtick runs
+  /// never count, and links whose structural chars sit inside ghost runs
+  /// never count. The zone excludes the construct's outermost boundary
+  /// offsets, so taps that resolve to the edges (including clamped taps
+  /// in blank space) still place the caret.
+  String? _linkUrlAt(String text, int offset) {
+    final ghosts = GhostText.mightContain(text)
+        ? GhostText.findGhosts(text)
+        : const <GhostMatch>[];
+    final codeRuns = _inlineCodeRuns(text);
+    var searchFrom = 0;
+    while (searchFrom < text.length) {
+      final open = text.indexOf('[', searchFrom);
+      if (open < 0) return null;
+      searchFrom = open + 1;
+      if (open > 0) {
+        final before = text.codeUnitAt(open - 1);
+        if (before == 0x21) continue;
+        if (before == 0x5C && _oddBackslashRunBefore(text, open)) continue;
+      }
+      if (_inRanges(codeRuns, open)) continue;
+      final link = MarkdownLinkPatterns.matchInlineLinkAt(text, open);
+      if (link == null) continue;
+      if (_inGhosts(ghosts, link.textEnd) || _inGhosts(ghosts, link.urlEnd)) {
+        continue;
+      }
+      if (offset <= link.start) return null;
+      if (offset < link.end) return link.urlOf(text);
+      searchFrom = link.end;
+    }
+    return null;
+  }
+
+  /// Inline-code backtick runs, mirroring the span builder's `` ` ``
+  /// rule (non-empty, no space just inside the opening backtick or
+  /// before the closing one): links never render inside them, so taps
+  /// there must edit, not open.
+  List<(int, int)> _inlineCodeRuns(String text) {
+    List<(int, int)>? runs;
+    var pos = 0;
+    while (true) {
+      final tick = text.indexOf('`', pos);
+      if (tick < 0) break;
+      final innerStart = tick + 1;
+      if (innerStart >= text.length ||
+          _isSpaceChar(text.codeUnitAt(innerStart))) {
+        pos = tick + 1;
+        continue;
+      }
+      var close = text.indexOf('`', innerStart);
+      var end = -1;
+      while (close != -1) {
+        if (close > innerStart && !_isSpaceChar(text.codeUnitAt(close - 1))) {
+          end = close;
+          break;
+        }
+        close = text.indexOf('`', close + 1);
+      }
+      if (end < 0) {
+        pos = tick + 1;
+        continue;
+      }
+      (runs ??= []).add((tick, end + 1));
+      pos = end + 1;
+    }
+    return runs ?? const [];
+  }
+
+  bool _oddBackslashRunBefore(String text, int index) {
+    var count = 0;
+    var i = index - 1;
+    while (i >= 0 && text.codeUnitAt(i) == 0x5C) {
+      count++;
+      i--;
+    }
+    return count.isOdd;
+  }
+
+  bool _isSpaceChar(int c) => c == 0x20 || c == 0x09;
+
+  bool _inRanges(List<(int, int)> ranges, int index) {
+    for (final (start, end) in ranges) {
+      if (index >= start && index < end) return true;
+      if (start > index) break;
+    }
+    return false;
+  }
+
+  bool _inGhosts(List<GhostMatch> ghosts, int index) {
+    for (final g in ghosts) {
+      if (index >= g.start && index < g.end) return true;
+      if (g.start > index) break;
+    }
+    return false;
   }
 
   /// Drops the engaged-ghost state once the selection leaves the run or
@@ -265,70 +492,6 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
     _engagedGhostStart = -1;
     _engagedGhostEnd = -1;
     _engagedGhostText = '';
-  }
-
-  /// When live markdown rendering is on and a tap lands the caret inside
-  /// a task item's `[ ]` / `[x]` box, flips the checkbox as a single
-  /// undoable edit. Same tap-arming scheme as the ghost check above, and
-  /// ghosts win: if the tap engaged a ghost, the pending flag is already
-  /// consumed. Mutation runs in a microtask so we never reenter the
-  /// controller from within its own notification.
-  ///
-  /// Toggling must not feel like editing: the edit is one atomic value
-  /// change and the caret is restored to wherever it was before the tap,
-  /// so the task line never becomes the revealed caret line. Editing the
-  /// item starts by tapping its text, right of the box (the box itself is
-  /// still reachable with arrow keys).
-  void _maybeToggleTappedCheckbox() {
-    if (!widget.checkboxTapToggle) return;
-    if (!_pendingGhostTapCheck || _activatingGhost || _togglingCheckbox) {
-      return;
-    }
-    final controller = widget.controller;
-    final selection = controller.selection;
-    if (!selection.isCollapsed) return;
-    final lineIndex = selection.baseIndex;
-    final lines = controller.codeLines;
-    if (lineIndex < 0 || lineIndex >= lines.length) return;
-    final item = MarkdownListSyntax.parse(lines[lineIndex].text);
-    if (item == null || item.kind != MarkdownListKind.task) return;
-    final offset = selection.baseOffset;
-    if (offset < item.bracketStart || offset > item.bracketStart + 3) return;
-
-    // The pre-tap selection; the toggled line keeps its length, so it is
-    // still valid after the edit.
-    final previousSelection = controller.preValue?.selection;
-    _pendingGhostTapCheck = false;
-    _ghostTapExpiry?.cancel();
-    _togglingCheckbox = true;
-    scheduleMicrotask(() {
-      if (!mounted) {
-        _togglingCheckbox = false;
-        return;
-      }
-      final lines = controller.codeLines;
-      if (lineIndex < lines.length) {
-        final lineText = lines[lineIndex].text;
-        final current = MarkdownListSyntax.parse(lineText);
-        if (current != null && current.kind == MarkdownListKind.task) {
-          final toggled = lineText.replaceRange(
-            current.bracketStart + 1,
-            current.bracketStart + 2,
-            current.checked ? ' ' : 'x',
-          );
-          controller.runRevocableOp(() {
-            controller.value = CodeLineEditingValue(
-              codeLines: CodeLines.of([
-                for (int i = 0; i < lines.length; i++)
-                  if (i == lineIndex) CodeLine(toggled) else lines[i],
-              ]),
-              selection: previousSelection ?? controller.selection,
-            );
-          });
-        }
-      }
-      _togglingCheckbox = false;
-    });
   }
 
   /// Overrides re_editor's Tab / Shift-Tab so that, when the caret sits on
@@ -503,6 +666,10 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
         wordWrap: widget.wordWrap,
         readOnly: false,
         autofocus: false,
+        tapInterceptor:
+            (widget.checkboxTapToggle || widget.onOpenLink != null)
+            ? _tapInterceptor
+            : null,
         chunkAnalyzer: const NonCodeChunkAnalyzer(),
         // List-aware Tab / Shift-Tab: indent/outdent the whole list item
         // when the caret is on one; otherwise re_editor's default applies.

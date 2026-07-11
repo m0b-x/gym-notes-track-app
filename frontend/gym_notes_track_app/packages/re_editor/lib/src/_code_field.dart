@@ -568,6 +568,20 @@ class _CodeFieldRender extends RenderBox implements MouseTrackerAnnotation {
     return null;
   }
 
+  /// Non-mutating hit-test: the text position under a global [position],
+  /// or null when the pointer is outside the text area. Used by the tap
+  /// interceptor to decide, at tap-down, whether the host app claims the
+  /// tap before any selection or focus change happens.
+  CodeLinePosition? positionAt({
+    required Offset position,
+  }) {
+    final Offset localPosition = globalToLocal(position);
+    if (!isValidPointer(localPosition)) {
+      return null;
+    }
+    return calculateTextPosition(localPosition);
+  }
+
   CodeLineSelection? setPositionAt({
     required Offset position,
   }) {

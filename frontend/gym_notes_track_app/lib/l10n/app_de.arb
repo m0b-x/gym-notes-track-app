@@ -1804,5 +1804,7 @@
   "deleteSelectedConfirm": "{count} ausgewählte Elemente löschen? Dies kann nicht rückgängig gemacht werden.",
   "selectAll": "Alle auswählen",
   "linkOpenFailed": "Link konnte nicht geöffnet werden",
-  "linkSchemeNotAllowed": "Linktyp nicht unterstützt"
+  "linkSchemeNotAllowed": "Linktyp nicht unterstützt",
+  "linkOpenPrompt": "{target} öffnen?",
+  "linkOpenAction": "Öffnen"
 }

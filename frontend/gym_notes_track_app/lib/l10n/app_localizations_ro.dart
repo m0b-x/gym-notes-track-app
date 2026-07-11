@@ -2470,4 +2470,12 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get linkSchemeNotAllowed => 'Tip de link nesuportat';
+
+  @override
+  String linkOpenPrompt(String target) {
+    return 'Deschizi $target?';
+  }
+
+  @override
+  String get linkOpenAction => 'Deschide';
 }

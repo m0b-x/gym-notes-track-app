@@ -995,8 +995,34 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   static const _allowedLinkSchemes = {'http', 'https', 'mailto', 'tel'};
 
   Future<void> _handleLinkTap(String rawUrl) async {
+    final uri = _resolveAllowedLinkUri(rawUrl);
+    if (uri == null) return;
+    await _launchLink(uri);
+  }
+
+  /// Editor link taps confirm before leaving the app: a concealed link
+  /// sits inside editable text, so mid-workout taps can land on it by
+  /// accident. The snackbar's Open action launches the already
+  /// validated target; preview link taps keep instant open.
+  void _handleEditorLinkTap(String rawUrl) {
+    final uri = _resolveAllowedLinkUri(rawUrl);
+    if (uri == null) return;
+    if (ScaffoldMessenger.maybeOf(context) == null) return;
+    final l10n = AppLocalizations.of(context)!;
+    final target = uri.host.isNotEmpty ? uri.host : uri.toString();
+    CustomSnackbar.showWithAction(
+      context,
+      message: l10n.linkOpenPrompt(target),
+      actionLabel: l10n.linkOpenAction,
+      onAction: () => _launchLink(uri),
+    );
+  }
+
+  /// Validates and normalizes a tapped link, or returns null (with a
+  /// localized snackbar) when the scheme is not allowed.
+  Uri? _resolveAllowedLinkUri(String rawUrl) {
     final trimmed = rawUrl.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty) return null;
 
     // Auto-prefix scheme-less URLs starting with `www.` so links like
     // `www.example.com` written in markdown still launch.
@@ -1005,26 +1031,35 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         : trimmed;
 
     final uri = Uri.tryParse(normalized);
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final l10n = AppLocalizations.of(context)!;
-
     if (uri == null ||
         uri.scheme.isEmpty ||
         !_allowedLinkSchemes.contains(uri.scheme.toLowerCase())) {
-      if (messenger != null && mounted) {
-        CustomSnackbar.showError(context, l10n.linkSchemeNotAllowed);
+      if (ScaffoldMessenger.maybeOf(context) != null && mounted) {
+        CustomSnackbar.showError(
+          context,
+          AppLocalizations.of(context)!.linkSchemeNotAllowed,
+        );
       }
-      return;
+      return null;
     }
+    return uri;
+  }
 
+  Future<void> _launchLink(Uri uri) async {
     try {
       final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!ok && mounted) {
-        CustomSnackbar.showError(context, l10n.linkOpenFailed);
+        CustomSnackbar.showError(
+          context,
+          AppLocalizations.of(context)!.linkOpenFailed,
+        );
       }
     } catch (_) {
       if (mounted) {
-        CustomSnackbar.showError(context, l10n.linkOpenFailed);
+        CustomSnackbar.showError(
+          context,
+          AppLocalizations.of(context)!.linkOpenFailed,
+        );
       }
     }
   }
@@ -1744,6 +1779,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         wordWrap: _wordWrap,
         showCursorLine: _showCursorLine,
         checkboxTapToggle: markdownRendering,
+        // Editor link taps confirm via snackbar before the preview's
+        // opener runs (scheme validation + localized errors); fence
+        // lines render raw so taps there stay plain editing.
+        onOpenLink: markdownRendering ? _handleEditorLinkTap : null,
+        isFenceLine: markdownRendering ? _markdownSpanBuilder.lineInFence : null,
         lineNumbersKey: _lineNumbersKey,
         scrollIndicatorKey: _scrollIndicatorKey,
         // Chunk debug visualization (matches preview mode)

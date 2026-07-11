@@ -7,6 +7,7 @@ class _CodeSelectionGestureDetector extends StatefulWidget {
   final HitTestBehavior? behavior;
   final GlobalKey editorKey;
   final _SelectionOverlayController selectionOverlayController;
+  final CodeEditorTapInterceptor? tapInterceptor;
   final Widget child;
 
   const _CodeSelectionGestureDetector({
@@ -16,6 +17,7 @@ class _CodeSelectionGestureDetector extends StatefulWidget {
     this.behavior,
     required this.editorKey,
     required this.selectionOverlayController,
+    this.tapInterceptor,
     required this.child,
   });
 
@@ -37,6 +39,80 @@ class _CodeSelectionGestureDetectorState
       widget.editorKey.currentContext?.findRenderObject() as _CodeFieldRender;
 
   bool _tapping = false;
+
+  /// Set at tap-down when [_CodeSelectionGestureDetector.tapInterceptor]
+  /// claims the tap; consumed at tap-up. While set, the editor performs
+  /// no selection change, no focus request, and no toolbar/handle work
+  /// for this gesture. On the pointer-event (desktop) path the claim is
+  /// tied to the claiming pointer id, so a second simultaneous pointer
+  /// can neither consume nor corrupt it.
+  CodeLinePosition? _interceptedTapPosition;
+  Offset? _interceptedTapDownOffset;
+  PointerDeviceKind? _interceptedTapKind;
+  int? _interceptedTapPointer;
+
+  /// Set when an intercepted desktop tap-up was consumed, so the outer
+  /// GestureDetector's onTapUp (which fires after the raw pointer-up)
+  /// skips its unconditional ensureInput — otherwise a claimed tap would
+  /// still focus the editor and raise a touch keyboard.
+  bool _suppressEnsureInputOnTapUp = false;
+
+  /// Returns true when the interceptor claims the tap at [position];
+  /// the tap's action then fires from [_finishInterceptedTap]. A failed
+  /// claim leaves existing state untouched — it may belong to another
+  /// still-down pointer and dies with that pointer's up/cancel.
+  bool _tryInterceptTap(
+    Offset position, {
+    PointerDeviceKind? kind,
+    int? pointer,
+  }) {
+    final CodeEditorTapInterceptor? interceptor = widget.tapInterceptor;
+    if (interceptor == null) {
+      return false;
+    }
+    final CodeLinePosition? tapped = render.positionAt(position: position);
+    if (tapped == null || !interceptor.shouldIntercept(tapped)) {
+      return false;
+    }
+    _interceptedTapPosition = tapped;
+    _interceptedTapDownOffset = position;
+    _interceptedTapKind = kind;
+    _interceptedTapPointer = pointer;
+    // An intercepted tap must not pair with the taps before or after it
+    // into a double-tap word-select.
+    _pointerTapTimestamp = null;
+    _pointerTapPosition = null;
+    return true;
+  }
+
+  /// Fires the intercepted tap's action if this gesture was claimed at
+  /// tap-down and (for pointer-event callers) stayed within slop —
+  /// precise-pointer slop for mice, touch slop otherwise. Returns true
+  /// when the tap-up was consumed.
+  bool _finishInterceptedTap(Offset position) {
+    final CodeLinePosition? tapped = _interceptedTapPosition;
+    final Offset? downOffset = _interceptedTapDownOffset;
+    final PointerDeviceKind? kind = _interceptedTapKind;
+    _cancelInterceptedTap();
+    if (tapped == null) {
+      return false;
+    }
+    final double slop = kind == PointerDeviceKind.mouse
+        ? kPrecisePointerHitSlop
+        : kTouchSlop;
+    if (downOffset != null && (position - downOffset).distance > slop) {
+      return true;
+    }
+    widget.tapInterceptor?.onTap(tapped);
+    return true;
+  }
+
+  void _cancelInterceptedTap() {
+    _interceptedTapPosition = null;
+    _interceptedTapDownOffset = null;
+    _interceptedTapKind = null;
+    _interceptedTapPointer = null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,12 +168,21 @@ class _CodeSelectionGestureDetectorState
           _dragPosition = null;
         },
         onTapUp: (details) {
+          if (_finishInterceptedTap(details.globalPosition)) {
+            return;
+          }
           _onMobileTapUp(details.globalPosition);
         },
         onTapDown: (details) {
+          if (_tryInterceptTap(details.globalPosition)) {
+            return;
+          }
           if (!render.hasFocus) {
             _onMobileTapDown(details.globalPosition);
           }
+        },
+        onTapCancel: () {
+          _cancelInterceptedTap();
         },
         behavior: widget.behavior,
         child: widget.child,
@@ -143,20 +228,47 @@ class _CodeSelectionGestureDetectorState
           _onSecondaryTapDown(context, detail);
         },
         onTapUp: (_) {
+          if (_suppressEnsureInputOnTapUp) {
+            _suppressEnsureInputOnTapUp = false;
+            return;
+          }
           widget.inputController.ensureInput();
         },
         child: Listener(
           onPointerDown: (event) {
+            _suppressEnsureInputOnTapUp = false;
+            // Only plain primary-button presses are interceptable:
+            // secondary/middle clicks keep their context-menu behavior
+            // and shift-clicks keep selection extension.
+            if (event.buttons == kPrimaryButton &&
+                !_isShiftPressed &&
+                _tryInterceptTap(
+                  event.position,
+                  kind: event.kind,
+                  pointer: event.pointer,
+                )) {
+              _tapping = false;
+              return;
+            }
             _tapping = render.isValidPointer2(event.position);
             // A trick, delay the focus request here to avoid loss.
             Future(widget.inputController.ensureInput);
             _onDesktopTapDown(event.position);
           },
           onPointerUp: (event) {
+            if (_interceptedTapPointer == event.pointer &&
+                _finishInterceptedTap(event.position)) {
+              _suppressEnsureInputOnTapUp = true;
+              return;
+            }
             _tapping = false;
             _onDesktopTapUp(event.position);
           },
           onPointerCancel: (event) {
+            if (_interceptedTapPointer == null ||
+                _interceptedTapPointer == event.pointer) {
+              _cancelInterceptedTap();
+            }
             _tapping = false;
             _handleByNextEvent = false;
             _pointerTapTimestamp = null;

@@ -2439,4 +2439,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get linkSchemeNotAllowed => 'Link type not supported';
+
+  @override
+  String linkOpenPrompt(String target) {
+    return 'Open $target?';
+  }
+
+  @override
+  String get linkOpenAction => 'Open';
 }

@@ -23,21 +23,6 @@ typedef GhostTapCallback = void Function(int start, int end);
 /// it verbatim across notes.
 typedef TagTapCallback = void Function(String tag);
 
-/// Trailing characters trimmed from bare autolinks (GFM-style) so a
-/// sentence like `see https://example.com.` doesn't include the period.
-const _trailingPunctuation = {
-  '.',
-  ',',
-  ';',
-  ':',
-  '!',
-  '?',
-  ')',
-  ']',
-  '\'',
-  '"',
-};
-
 /// Style configuration for line-based markdown rendering.
 class LineMarkdownStyle {
   final double baseFontSize;
@@ -1009,26 +994,10 @@ class LineBasedMarkdownBuilder {
   /// The accent colour for a callout [type], in a light/dark variant
   /// chosen by [LineMarkdownStyle.isDark]. The tint background is derived
   /// from this accent at low alpha, so a single colour per type drives
-  /// the bar, icon-label header, and band.
-  Color _calloutAccent(MarkdownCalloutType type) {
-    final dark = style.isDark;
-    switch (type) {
-      case MarkdownCalloutType.note:
-        return dark ? const Color(0xFF64B5F6) : const Color(0xFF1976D2);
-      case MarkdownCalloutType.tip:
-        return dark ? const Color(0xFF81C784) : const Color(0xFF2E7D32);
-      case MarkdownCalloutType.important:
-        return dark ? const Color(0xFFBA68C8) : const Color(0xFF6A1B9A);
-      case MarkdownCalloutType.warning:
-        return dark ? const Color(0xFFFFB74D) : const Color(0xFFE65100);
-      case MarkdownCalloutType.caution:
-        return dark ? const Color(0xFFEF9A9A) : const Color(0xFFC62828);
-      case MarkdownCalloutType.success:
-        return dark ? const Color(0xFF4DB6AC) : const Color(0xFF00897B);
-      case MarkdownCalloutType.pr:
-        return dark ? const Color(0xFFFFD54F) : const Color(0xFFF9A825);
-    }
-  }
+  /// the bar, icon-label header, and band. Palette lives in
+  /// [MarkdownConstants.calloutAccent], shared with the live editor.
+  Color _calloutAccent(MarkdownCalloutType type) =>
+      MarkdownConstants.calloutAccent(type, dark: style.isDark);
 
   TextSpan _buildHorizontalRule() {
     return TextSpan(
@@ -1366,7 +1335,7 @@ class LineBasedMarkdownBuilder {
             ),
             contentStart + link.textStart,
           );
-          children.add(_wrapLinkSpan(inner, link.url, contentStart + i));
+          children.add(_wrapLinkSpan(inner, link.urlOf(text), contentStart + i));
           i = link.end;
           runStart = i;
           continue;
@@ -1487,24 +1456,10 @@ class LineBasedMarkdownBuilder {
   }
 
   /// Tries to parse a `[text](url)` link starting at the `[` at [open].
-  /// Mirrors the previous regex (`[^\]]+` text, `[^)]+` url), so nested
-  /// brackets/parens still terminate at the first match.
-  _InlineLink? _tryParseLinkAt(String text, int open) {
-    final closeBracket = text.indexOf(']', open + 1);
-    if (closeBracket <= open + 1) return null; // empty or missing text
-    if (closeBracket + 1 >= text.length ||
-        text.codeUnitAt(closeBracket + 1) != _kOpenParen) {
-      return null;
-    }
-    final closeParen = text.indexOf(')', closeBracket + 2);
-    if (closeParen <= closeBracket + 2) return null; // empty or missing url
-    return _InlineLink(
-      textStart: open + 1,
-      textEnd: closeBracket,
-      url: text.substring(closeBracket + 2, closeParen),
-      end: closeParen + 1,
-    );
-  }
+  /// Grammar lives in [MarkdownLinkPatterns.matchInlineLinkAt], shared
+  /// with the live editor's rendering and tap interception.
+  MarkdownInlineLink? _tryParseLinkAt(String text, int open) =>
+      MarkdownLinkPatterns.matchInlineLinkAt(text, open);
 
   /// Tries to parse an emphasis run (`*`, `_`, `~`) opening at [i].
   /// Applies CommonMark-style flanking so underscores never match
@@ -1590,15 +1545,12 @@ class LineBasedMarkdownBuilder {
     return true;
   }
 
-  /// Tries to match a bare URL at [i], trimming GFM trailing punctuation.
+  /// Tries to match a bare URL at [i]. Extent and trailing-punctuation
+  /// trim come from the shared [MarkdownLinkPatterns.matchBareUrlEnd] so
+  /// preview, paste line-breaker, and live editor always agree.
   _InlineAutoLink? _tryParseBareUrlAt(String text, int i) {
-    final match = MarkdownLinkPatterns.bareUrl.matchAsPrefix(text, i);
-    if (match == null) return null;
-    int end = match.end;
-    while (end > i && _trailingPunctuation.contains(text[end - 1])) {
-      end--;
-    }
-    if (end <= i) return null;
+    final end = MarkdownLinkPatterns.matchBareUrlEnd(text, i);
+    if (end < 0) return null;
     final raw = text.substring(i, end);
     final href = raw.toLowerCase().startsWith('www.') ? 'https://$raw' : raw;
     return _InlineAutoLink(end: end, url: href);
@@ -1644,13 +1596,10 @@ class LineBasedMarkdownBuilder {
       (c >= 0x41 && c <= 0x5A) || // A-Z
       (c >= 0x61 && c <= 0x7A); // a-z
 
-  /// ASCII-punctuation test for backslash escaping (CommonMark allows
-  /// escaping any ASCII punctuation).
+  /// ASCII-punctuation test for backslash escaping; shared with the live
+  /// editor via [MarkdownConstants.isEscapablePunctuation].
   static bool _isEscapablePunctuation(int c) =>
-      (c >= 0x21 && c <= 0x2F) ||
-      (c >= 0x3A && c <= 0x40) ||
-      (c >= 0x5B && c <= 0x60) ||
-      (c >= 0x7B && c <= 0x7E);
+      MarkdownConstants.isEscapablePunctuation(c);
 
   // Inline-scanner code-unit constants.
   static const int _kBackslash = 0x5C; // \
@@ -1661,7 +1610,6 @@ class LineBasedMarkdownBuilder {
   static const int _kEquals = 0x3D; // =
   static const int _kHash = 0x23; // #
   static const int _kOpenBracket = 0x5B; // [
-  static const int _kOpenParen = 0x28; // (
   static const int _kOpenBrace = 0x7B; // {
   static const int _kLowerH = 0x68; // h
   static const int _kLowerW = 0x77; // w
@@ -1798,21 +1746,6 @@ class _HighlightRange {
 
 /// Inline emphasis variants produced by the recursive inline parser.
 enum _EmphasisKind { boldItalic, bold, italic, strikethrough, highlight }
-
-/// A parsed `[text](url)` link with source offsets for the link text.
-class _InlineLink {
-  final int textStart;
-  final int textEnd;
-  final String url;
-  final int end;
-
-  const _InlineLink({
-    required this.textStart,
-    required this.textEnd,
-    required this.url,
-    required this.end,
-  });
-}
 
 /// A parsed emphasis run: [contentStart, contentEnd) is the inner text,
 /// [end] is the index just past the closing delimiter.

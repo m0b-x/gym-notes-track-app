@@ -10,7 +10,8 @@
 /// and [GhostText] are each a single source of truth.
 ///
 /// Colours are intentionally NOT defined here so this stays a pure,
-/// Flutter-free, testable grammar; the renderer owns the palette.
+/// Flutter-free, testable grammar; the shared palette lives in
+/// `MarkdownConstants.calloutAccent` (used by preview and live editor).
 library;
 
 /// The recognised callout kinds. The first five mirror GitHub's
@@ -32,10 +33,19 @@ class MarkdownCalloutLead {
   /// on the title text.
   final int titleStart;
 
+  /// Line-relative offset of the `[!TYPE]` token's opening `[`, so the
+  /// live editor can tint the token in place without re-scanning.
+  final int tokenStart;
+
+  /// Line-relative offset just past the token's closing `]`.
+  final int tokenEnd;
+
   const MarkdownCalloutLead({
     required this.type,
     required this.title,
     required this.titleStart,
+    required this.tokenStart,
+    required this.tokenEnd,
   });
 }
 
@@ -117,6 +127,8 @@ class MarkdownCalloutSyntax {
       // [t] is line-relative to [trimmed]; add [indent] for the absolute
       // column inside the original [line].
       titleStart: indent + t,
+      tokenStart: indent + i,
+      tokenEnd: indent + close + 1,
     );
   }
 

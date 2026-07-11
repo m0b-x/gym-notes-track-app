@@ -4485,6 +4485,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Link type not supported'**
   String get linkSchemeNotAllowed;
+
+  /// Snackbar prompt shown before opening a link tapped in the editor
+  ///
+  /// In en, this message translates to:
+  /// **'Open {target}?'**
+  String linkOpenPrompt(String target);
+
+  /// Snackbar action label that opens the tapped link
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get linkOpenAction;
 }
 
 class _AppLocalizationsDelegate

@@ -1,5 +1,7 @@
 import 'dart:ui' show Color;
 
+import '../utils/markdown_callout_syntax.dart';
+
 /// Constants for markdown rendering and preview
 class MarkdownConstants {
   MarkdownConstants._();
@@ -86,4 +88,36 @@ class MarkdownConstants {
 
   /// Dark-theme counterpart of [markBackgroundLight].
   static const Color markBackgroundDark = Color(0xFF5A4B1C);
+
+  /// ASCII-punctuation test for backslash escaping (CommonMark allows
+  /// escaping any ASCII punctuation). Shared by the preview renderer and
+  /// the live editor scanner so escape grammar can never diverge.
+  static bool isEscapablePunctuation(int codeUnit) =>
+      (codeUnit >= 0x21 && codeUnit <= 0x2F) ||
+      (codeUnit >= 0x3A && codeUnit <= 0x40) ||
+      (codeUnit >= 0x5B && codeUnit <= 0x60) ||
+      (codeUnit >= 0x7B && codeUnit <= 0x7E);
+
+  /// The accent colour for a callout [type], in a light/dark variant.
+  /// Shared by the preview renderer (bar, icon-label header, band tint)
+  /// and the live editor (quote bar + `[!TYPE]` token tint) so the two
+  /// surfaces always match.
+  static Color calloutAccent(MarkdownCalloutType type, {required bool dark}) {
+    switch (type) {
+      case MarkdownCalloutType.note:
+        return dark ? const Color(0xFF64B5F6) : const Color(0xFF1976D2);
+      case MarkdownCalloutType.tip:
+        return dark ? const Color(0xFF81C784) : const Color(0xFF2E7D32);
+      case MarkdownCalloutType.important:
+        return dark ? const Color(0xFFBA68C8) : const Color(0xFF6A1B9A);
+      case MarkdownCalloutType.warning:
+        return dark ? const Color(0xFFFFB74D) : const Color(0xFFE65100);
+      case MarkdownCalloutType.caution:
+        return dark ? const Color(0xFFEF9A9A) : const Color(0xFFC62828);
+      case MarkdownCalloutType.success:
+        return dark ? const Color(0xFF4DB6AC) : const Color(0xFF00897B);
+      case MarkdownCalloutType.pr:
+        return dark ? const Color(0xFFFFD54F) : const Color(0xFFF9A825);
+    }
+  }
 }
