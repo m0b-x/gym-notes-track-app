@@ -271,6 +271,40 @@
   "@holidayProfileNone": {
     "description": "Holiday profile name for the empty set"
   },
+  "removeHoliday": "Remove holiday",
+  "@removeHoliday": {
+    "description": "Title of the confirmation dialog and tooltip for removing a public holiday on a specific date"
+  },
+  "removeHolidayConfirm": "Remove \"{holiday}\" for this date? You can restore it anytime from Calendar Settings.",
+  "@removeHolidayConfirm": {
+    "description": "Confirmation prompt before removing a public holiday occurrence",
+    "placeholders": {
+      "holiday": {
+        "type": "String",
+        "example": "Labour Day"
+      }
+    }
+  },
+  "holidayRemoved": "Holiday removed",
+  "@holidayRemoved": {
+    "description": "Snackbar message after removing a public holiday occurrence"
+  },
+  "removedHolidays": "Removed holidays",
+  "@removedHolidays": {
+    "description": "Settings tile title and sheet header for the list of removed public holidays"
+  },
+  "removedHolidaysEmpty": "No holidays removed",
+  "@removedHolidaysEmpty": {
+    "description": "Empty-state text in the removed-holidays list"
+  },
+  "holidayRestore": "Restore",
+  "@holidayRestore": {
+    "description": "Action button label to restore a removed public holiday"
+  },
+  "holidayRestored": "Holiday restored",
+  "@holidayRestored": {
+    "description": "Snackbar message after restoring a removed public holiday"
+  },
   "eventCategoryGym": "Gym",
   "@eventCategoryGym": {
     "description": "Calendar event category: gym session"

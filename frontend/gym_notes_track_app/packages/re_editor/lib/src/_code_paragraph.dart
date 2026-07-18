@@ -14,6 +14,17 @@ class _ParagraphImpl extends IParagraph {
   // For performance, do not init here
   Map<TextPosition, Offset?>? _offsets;
 
+  // Lazily resolved on first draw; empty for the common no-placeholder
+  // line so steady-state drawing stays a single drawParagraph call.
+  List<_InlinePaintBox>? _inlinePaints;
+
+  // Background chips for CodeDecoratedTextSpan runs, resolved with the
+  // inline paints and drawn BEFORE the text so glyphs are never
+  // occluded.
+  List<_DecorPaintBox>? _decorPaints;
+
+  static final Paint _decorPaint = Paint()..style = PaintingStyle.fill;
+
   _ParagraphImpl({
     required this.text,
     required this.span,
@@ -53,7 +64,99 @@ class _ParagraphImpl extends IParagraph {
 
   @override
   void draw(Canvas canvas, Offset offset) {
+    final List<_DecorPaintBox> decors = _decorPaints ??= _resolveDecorPaints();
+    for (final _DecorPaintBox entry in decors) {
+      _decorPaint.color = entry.decoration.color;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          entry.rect.shift(offset),
+          Radius.circular(entry.decoration.radius),
+        ),
+        _decorPaint,
+      );
+    }
     canvas.drawParagraph(paragraph, offset);
+    final List<_InlinePaintBox> paints =
+        _inlinePaints ??= _resolveInlinePaints();
+    for (final _InlinePaintBox entry in paints) {
+      entry.span.paint(canvas, entry.rect.shift(offset));
+    }
+  }
+
+  /// Resolves the chip rect(s) for every [CodeDecoratedTextSpan] in the
+  /// span tree. The walk tracks code-unit offsets exactly as the
+  /// paragraph text counts them (placeholders are one unit), asks for
+  /// strut-height boxes so chip height is uniform regardless of the
+  /// run's glyphs, then applies the decoration's padding/inset.
+  List<_DecorPaintBox> _resolveDecorPaints() {
+    List<_DecorPaintBox>? found;
+    int walk(InlineSpan node, int offset) {
+      if (node is TextSpan) {
+        final int start = offset;
+        final String? nodeText = node.text;
+        if (nodeText != null) {
+          offset += nodeText.length;
+        }
+        final List<InlineSpan>? children = node.children;
+        if (children != null) {
+          for (final InlineSpan child in children) {
+            offset = walk(child, offset);
+          }
+        }
+        if (node is CodeDecoratedTextSpan &&
+            offset > start &&
+            offset <= text.length) {
+          final CodeTextDecoration decoration = node.decoration;
+          final List<ui.TextBox> boxes = paragraph.getBoxesForRange(
+              start, offset,
+              boxHeightStyle: ui.BoxHeightStyle.strut);
+          for (final ui.TextBox box in boxes) {
+            final Rect rect = Rect.fromLTRB(
+              box.left - decoration.horizontalPadding,
+              box.top + decoration.verticalInset,
+              box.right + decoration.horizontalPadding,
+              box.bottom - decoration.verticalInset,
+            );
+            if (!rect.isEmpty) {
+              (found ??= []).add(_DecorPaintBox(decoration, rect));
+            }
+          }
+        }
+        return offset;
+      }
+      return offset + node.length;
+    }
+
+    walk(span, 0);
+    return found ?? const [];
+  }
+
+  /// Pairs each [CodeInlinePaintSpan] in the span tree with its
+  /// reserved box. Placeholder boxes come back in build order, so the
+  /// pairing indexes over ALL placeholder spans (paint spans or not) to
+  /// stay aligned if other placeholder kinds ever appear in a line.
+  List<_InlinePaintBox> _resolveInlinePaints() {
+    List<PlaceholderSpan>? placeholders;
+    span.visitChildren((child) {
+      if (child is PlaceholderSpan) {
+        (placeholders ??= []).add(child);
+      }
+      return true;
+    });
+    final List<PlaceholderSpan>? found = placeholders;
+    if (found == null) {
+      return const [];
+    }
+    final List<ui.TextBox> boxes = paragraph.getBoxesForPlaceholders();
+    final int count = min(found.length, boxes.length);
+    final List<_InlinePaintBox> paints = [];
+    for (int i = 0; i < count; i++) {
+      final PlaceholderSpan placeholder = found[i];
+      if (placeholder is CodeInlinePaintSpan) {
+        paints.add(_InlinePaintBox(placeholder, boxes[i].toRect()));
+      }
+    }
+    return paints;
   }
 
   @override
@@ -200,6 +303,24 @@ class _ParagraphImpl extends IParagraph {
   }
 }
 
+/// A [CodeInlinePaintSpan] paired with its reserved box (paragraph
+/// coordinates), resolved once per built paragraph.
+class _InlinePaintBox {
+  final CodeInlinePaintSpan span;
+  final Rect rect;
+
+  const _InlinePaintBox(this.span, this.rect);
+}
+
+/// A [CodeTextDecoration] paired with one padded chip rect (paragraph
+/// coordinates), resolved once per built paragraph.
+class _DecorPaintBox {
+  final CodeTextDecoration decoration;
+  final Rect rect;
+
+  const _DecorPaintBox(this.decoration, this.rect);
+}
+
 class _ScaledLineStyle {
   final ui.ParagraphStyle paragraphStyle;
   final double preferredLineHeight;
@@ -342,7 +463,16 @@ class _CodeParagraphProvider {
             break;
           }
           if (child is TextSpan) {
-            children.add(truncateSpan(child));
+            // A subtree that fits entirely is kept by identity — no
+            // rebuild allocations, and subclass spans (decorations,
+            // hanging tags) survive the copy.
+            final int childLength = child.length;
+            if (currentLength + childLength <= maxLength) {
+              currentLength += childLength;
+              children.add(child);
+            } else {
+              children.add(truncateSpan(child));
+            }
           } else {
             // Placeholders count for their code-unit length so the
             // truncated tree stays aligned with the truncated text.
@@ -433,6 +563,14 @@ class _CodeParagraphProvider {
         markerRight = box.right;
       }
     }
+    // Placeholder boxes (inline-painted marks like checkboxes) are
+    // queried separately so the measured indent always covers them,
+    // whether or not getBoxesForRange reports placeholder clusters.
+    for (final ui.TextBox box in markerParagraph.getBoxesForPlaceholders()) {
+      if (box.right > markerRight) {
+        markerRight = box.right;
+      }
+    }
     final double indent = markerRight.ceilToDouble();
     if (indent <= 0 || (maxWidth.isFinite && indent > maxWidth / 2)) {
       return null;
@@ -472,6 +610,12 @@ class _CodeParagraphProvider {
   TextSpan _dropPrefix(TextSpan span, int skip) {
     int remaining = skip;
     TextSpan dropSpan(TextSpan span) {
+      // Everything after the drop point is untouched — keep those
+      // subtrees by identity so subclass spans (decorated tag/code
+      // runs in list-item content) survive into the content paragraph.
+      if (remaining <= 0) {
+        return span;
+      }
       final String? text = span.text;
       String? keptText;
       if (text != null) {

@@ -215,6 +215,29 @@ class AppLocalizationsRo extends AppLocalizations {
   String get holidayProfileNone => 'Niciunul';
 
   @override
+  String get removeHoliday => 'Elimină sărbătoarea';
+
+  @override
+  String removeHolidayConfirm(String holiday) {
+    return 'Elimini \"$holiday\" pentru această dată? O poți restaura oricând din Setări calendar.';
+  }
+
+  @override
+  String get holidayRemoved => 'Sărbătoare eliminată';
+
+  @override
+  String get removedHolidays => 'Sărbători eliminate';
+
+  @override
+  String get removedHolidaysEmpty => 'Nicio sărbătoare eliminată';
+
+  @override
+  String get holidayRestore => 'Restaurează';
+
+  @override
+  String get holidayRestored => 'Sărbătoare restaurată';
+
+  @override
   String get eventCategoryGym => 'Sală';
 
   @override

@@ -508,6 +508,48 @@ abstract class AppLocalizations {
   /// **'None'**
   String get holidayProfileNone;
 
+  /// Title of the confirmation dialog and tooltip for removing a public holiday on a specific date
+  ///
+  /// In en, this message translates to:
+  /// **'Remove holiday'**
+  String get removeHoliday;
+
+  /// Confirmation prompt before removing a public holiday occurrence
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{holiday}\" for this date? You can restore it anytime from Calendar Settings.'**
+  String removeHolidayConfirm(String holiday);
+
+  /// Snackbar message after removing a public holiday occurrence
+  ///
+  /// In en, this message translates to:
+  /// **'Holiday removed'**
+  String get holidayRemoved;
+
+  /// Settings tile title and sheet header for the list of removed public holidays
+  ///
+  /// In en, this message translates to:
+  /// **'Removed holidays'**
+  String get removedHolidays;
+
+  /// Empty-state text in the removed-holidays list
+  ///
+  /// In en, this message translates to:
+  /// **'No holidays removed'**
+  String get removedHolidaysEmpty;
+
+  /// Action button label to restore a removed public holiday
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get holidayRestore;
+
+  /// Snackbar message after restoring a removed public holiday
+  ///
+  /// In en, this message translates to:
+  /// **'Holiday restored'**
+  String get holidayRestored;
+
   /// Calendar event category: gym session
   ///
   /// In en, this message translates to:

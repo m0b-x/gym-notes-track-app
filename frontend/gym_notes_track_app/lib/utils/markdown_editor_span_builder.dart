@@ -15,7 +15,9 @@ import 'markdown_tag_syntax.dart';
 /// Restyles one line at a time: headers at the preview's scale factors
 /// (the re_editor fork gives a line whose root span sets a non-base
 /// fontSize its own line height), bullets as `•`, task boxes as
-/// check-glyphs, blockquote `>` as a `┃` bar with italic dimmed content,
+/// custom-painted placeholder marks (checked / unchecked / indeterminate
+/// when a parent's subtree is partially complete),
+/// blockquote `>` as a `┃` bar with italic dimmed content,
 /// `---` rules as dimmed `─` runs, `#tag` tokens tinted (render-only),
 /// and `**bold**` / `*italic*` / `__bold__` / `_italic_` / `~~strike~~` /
 /// `==highlight==` / `` `code` `` runs styled inline. `[text](url)`
@@ -54,13 +56,6 @@ class MarkdownEditorSpanBuilder {
   /// the trimmed line), with the leading indent folded into the regex so
   /// no trim allocation happens on the hot path.
   static final RegExp _ruleRe = RegExp(r'^[ \t]*[-*_]{3,}[ \t]*$');
-  static final String _checkedGlyph = String.fromCharCode(
-    Icons.check_box.codePoint,
-  );
-  static final String _uncheckedGlyph = String.fromCharCode(
-    Icons.check_box_outline_blank.codePoint,
-  );
-  static final String? _glyphFontFamily = Icons.check_box.fontFamily;
 
   static const Color _transparent = Color(0x00000000);
   static const double _concealedFontSize = 0.01;
@@ -73,11 +68,6 @@ class MarkdownEditorSpanBuilder {
   static const double _h56PrimaryBlend = 0.35;
   static const double _h6Alpha = 0.7;
   static const int _maxInlineDepth = 3;
-
-  /// MaterialIcons glyphs fill the em box from the baseline up, so at
-  /// full size the checkbox reads taller and higher than the text.
-  /// Scaling down aligns its top with the cap height.
-  static const double _checkboxGlyphScale = 0.85;
 
   /// Lines longer than this render raw — matches the spirit of
   /// re_editor's maxLengthSingleLineRendering guard. Public so the
@@ -95,23 +85,35 @@ class MarkdownEditorSpanBuilder {
   CodeLines? _fenceLines;
   List<_FenceRole>? _fence;
 
+  /// Positional task-parent aggregation: line indices whose unchecked
+  /// box renders indeterminate because their subtree of task lines is
+  /// partially complete. Recomputed lazily per [CodeLines] instance,
+  /// same contract as the fence index.
+  CodeLines? _taskLines;
+  Set<int>? _taskIndeterminate;
+
   final LruCache<String, TextSpan> _spanCache = LruCache(
     maxSize: _spanCacheSize,
   );
 
-  /// Fence lines can't share [_spanCache] (their styling is positional:
-  /// the same text renders differently inside and outside a fence), but
-  /// they still must return identical span instances so re_editor's
-  /// paragraph cache stays on its fast path — hence a small memo keyed
-  /// by role + text.
-  static const int _fenceSpanCacheSize = 128;
-  final LruCache<String, TextSpan> _fenceSpanCache = LruCache(
-    maxSize: _fenceSpanCacheSize,
+  /// Positionally-styled lines (fence delimiter/interior, indeterminate
+  /// task parents) can't share [_spanCache] — the same text renders
+  /// differently depending on surrounding lines — but they still must
+  /// return identical span instances so re_editor's paragraph cache
+  /// stays on its fast path. Hence a small memo keyed by role + text
+  /// ('d:'/'i:' fence roles, 't:' indeterminate task).
+  static const int _positionalSpanCacheSize = 128;
+  final LruCache<String, TextSpan> _positionalSpanCache = LruCache(
+    maxSize: _positionalSpanCacheSize,
   );
   TextStyle? _cacheStyle;
   Color? _cacheBaseColor;
   Color? _cachePrimary;
   bool _isDark = false;
+
+  /// Contrast colour for the check mark on a [_cachePrimary]-filled
+  /// box; refreshed with the other theme-generation fields.
+  Color _cacheOnAccent = Colors.white;
 
   void bind(CodeLineEditingController controller) {
     _controller = controller;
@@ -140,11 +142,15 @@ class MarkdownEditorSpanBuilder {
         primary != _cachePrimary ||
         isDark != _isDark) {
       _spanCache.clear();
-      _fenceSpanCache.clear();
+      _positionalSpanCache.clear();
       _cacheStyle = style;
       _cacheBaseColor = baseColor;
       _cachePrimary = primary;
       _isDark = isDark;
+      _cacheOnAccent =
+          ThemeData.estimateBrightnessForColor(primary) == Brightness.dark
+          ? Colors.white
+          : Colors.black87;
     }
 
     // Fence status is positional, not textual — fence lines are styled
@@ -154,7 +160,7 @@ class MarkdownEditorSpanBuilder {
       final fenceKey = fenceRole == _FenceRole.delimiter
           ? 'd:$text'
           : 'i:$text';
-      final cached = _fenceSpanCache.get(fenceKey);
+      final cached = _positionalSpanCache.get(fenceKey);
       if (cached != null) return cached;
       final span = _buildFenceLine(
         text: text,
@@ -162,11 +168,34 @@ class MarkdownEditorSpanBuilder {
         style: style,
         baseColor: baseColor,
       );
-      _fenceSpanCache.put(fenceKey, span);
+      _positionalSpanCache.put(fenceKey, span);
       return span;
     }
 
     final reveal = selectionCoversLine(controller.selection, index);
+
+    // Task-parent aggregate state is positional too (it depends on the
+    // child lines), so indeterminate parents style through the
+    // positional memo, mirroring fences. Reveal lines show raw markers
+    // and skip the facet entirely.
+    if (!reveal && _isTaskIndeterminate(controller, index)) {
+      final taskKey = 't:$text';
+      final cached = _positionalSpanCache.get(taskKey);
+      if (cached != null) return cached;
+      final span = _buildLine(
+        text: text,
+        style: style,
+        baseColor: baseColor,
+        primary: primary,
+        reveal: false,
+        taskIndeterminate: true,
+      );
+      if (span != null) {
+        _positionalSpanCache.put(taskKey, span);
+      }
+      return span;
+    }
+
     if (!reveal) {
       final cached = _spanCache.get(text);
       if (cached != null) {
@@ -192,6 +221,7 @@ class MarkdownEditorSpanBuilder {
     required Color baseColor,
     required Color primary,
     required bool reveal,
+    bool taskIndeterminate = false,
   }) {
     final ghosts = GhostText.mightContain(text)
         ? GhostText.findGhosts(text)
@@ -222,6 +252,7 @@ class MarkdownEditorSpanBuilder {
         primary: primary,
         reveal: reveal,
         ghosts: ghosts,
+        indeterminate: taskIndeterminate,
       );
     }
 
@@ -443,6 +474,7 @@ class MarkdownEditorSpanBuilder {
     required Color primary,
     required bool reveal,
     required List<GhostMatch> ghosts,
+    bool indeterminate = false,
   }) {
     final children = <InlineSpan>[];
     if (item.indent.isNotEmpty) {
@@ -502,18 +534,29 @@ class MarkdownEditorSpanBuilder {
               style: _concealStyle(style),
             ),
           );
+          // The box substitutes 1:1 for the `[` code unit as a
+          // placeholder run (fork's CodeInlinePaintSpan): custom-painted,
+          // sized off the line's own font size, and centered on the line
+          // box by the paragraph layout itself — no font-metric fudging.
+          // Clamped under the strut height so the line never grows.
+          final baseSize = style.fontSize ?? 16.0;
+          final lineBox =
+              baseSize * (style.height ?? MarkdownConstants.lineHeight);
+          var side = baseSize * MarkdownConstants.editorCheckboxScale;
+          if (side > lineBox * 0.85) side = lineBox * 0.85;
           children.add(
-            TextSpan(
-              text: item.checked ? _checkedGlyph : _uncheckedGlyph,
-              style: style.copyWith(
-                fontFamily: _glyphFontFamily,
-                fontSize: (style.fontSize ?? 16.0) * _checkboxGlyphScale,
-                color: item.checked
-                    ? primary
-                    : baseColor.withValues(
-                        alpha: MarkdownConstants.uncheckedCheckboxOpacity,
-                      ),
+            _EditorCheckboxSpan(
+              side: side,
+              visual: item.checked
+                  ? _CheckboxVisual.checked
+                  : indeterminate
+                  ? _CheckboxVisual.indeterminate
+                  : _CheckboxVisual.unchecked,
+              accent: primary,
+              border: baseColor.withValues(
+                alpha: MarkdownConstants.uncheckedCheckboxOpacity,
               ),
+              mark: _cacheOnAccent,
             ),
           );
           children.add(
@@ -660,11 +703,11 @@ class MarkdownEditorSpanBuilder {
             style: contextStyle.copyWith(
               color: primary,
               fontWeight: FontWeight.w600,
-              backgroundColor: primary.withValues(alpha: _tagBackgroundAlpha),
             ),
             baseColor: baseColor,
             ghosts: ghosts,
             out: out,
+            decoration: _tagDecoration(contextStyle, primary),
           );
           styled = true;
           pos = tagEnd;
@@ -828,6 +871,9 @@ class MarkdownEditorSpanBuilder {
           baseColor: baseColor,
           ghosts: ghosts,
           out: out,
+          decoration: run.marker == '`'
+              ? _codeDecoration(contextStyle, baseColor)
+              : null,
         );
       }
       out.add(TextSpan(text: run.marker, style: markerStyle));
@@ -862,10 +908,11 @@ class MarkdownEditorSpanBuilder {
     required Color baseColor,
     required List<GhostMatch> ghosts,
     required List<InlineSpan> out,
+    CodeTextDecoration? decoration,
   }) {
     if (start >= end) return;
     if (ghosts.isEmpty) {
-      out.add(TextSpan(text: text.substring(start, end), style: style));
+      out.add(_plainSpan(text.substring(start, end), style, decoration));
       return;
     }
     var pos = start;
@@ -873,7 +920,7 @@ class MarkdownEditorSpanBuilder {
       if (g.end <= pos) continue;
       if (g.start >= end) break;
       if (g.start > pos) {
-        out.add(TextSpan(text: text.substring(pos, g.start), style: style));
+        out.add(_plainSpan(text.substring(pos, g.start), style, decoration));
       }
       final ghostColor = baseColor.withValues(alpha: _dimAlpha);
       var innerStyle = style.copyWith(color: ghostColor);
@@ -891,9 +938,21 @@ class MarkdownEditorSpanBuilder {
       if (pos >= end) return;
     }
     if (pos < end) {
-      out.add(TextSpan(text: text.substring(pos, end), style: style));
+      out.add(_plainSpan(text.substring(pos, end), style, decoration));
     }
   }
+
+  /// A plain emitted segment: an ordinary [TextSpan], or a
+  /// [CodeDecoratedTextSpan] when the run paints a chip behind itself
+  /// (tags, inline code). Ghost segments inside a decorated run keep
+  /// plain spans — the ghost treatment wins there.
+  static InlineSpan _plainSpan(
+    String text,
+    TextStyle style,
+    CodeTextDecoration? decoration,
+  ) => decoration == null
+      ? TextSpan(text: text, style: style)
+      : CodeDecoratedTextSpan(decoration: decoration, text: text, style: style);
 
   void _emitClamped(
     String text,
@@ -1018,11 +1077,37 @@ class MarkdownEditorSpanBuilder {
               : MarkdownConstants.markBackgroundLight,
         );
       case '`':
-        return context.copyWith(
-          backgroundColor: baseColor.withValues(alpha: _codeBackgroundAlpha),
-        );
+        // The background is a painted chip (CodeDecoratedTextSpan) at
+        // the emit site, not a style backgroundColor — rounded corners
+        // and uniform height need real paint, not per-glyph rects.
+        return context;
     }
     return context;
+  }
+
+  /// Stadium pill behind a `#tag` run. Radius past half the chip height
+  /// clamps to a stadium; the vertical inset trims the strut-height box
+  /// to ~1.06em so pills read uniform at every editor font size.
+  CodeTextDecoration _tagDecoration(TextStyle context, Color primary) {
+    final size = context.fontSize ?? 16.0;
+    return CodeTextDecoration(
+      color: primary.withValues(alpha: _tagBackgroundAlpha),
+      radius: size,
+      horizontalPadding: size * 0.15,
+      verticalInset: size * 0.22,
+    );
+  }
+
+  /// Rounded chip behind inline `` `code` `` content (markers stay
+  /// outside the chip).
+  CodeTextDecoration _codeDecoration(TextStyle context, Color baseColor) {
+    final size = context.fontSize ?? 16.0;
+    return CodeTextDecoration(
+      color: baseColor.withValues(alpha: _codeBackgroundAlpha),
+      radius: size * 0.25,
+      horizontalPadding: size * 0.1,
+      verticalInset: size * 0.16,
+    );
   }
 
   double _headerScale(int level) {
@@ -1169,6 +1254,97 @@ class MarkdownEditorSpanBuilder {
     _fence = flags;
   }
 
+  /// Whether the task line at [index] renders its unchecked box as
+  /// indeterminate: its subtree holds at least one checked and at least
+  /// one unchecked task. Positional, so it follows the fence index's
+  /// lazy-recompute contract.
+  bool _isTaskIndeterminate(CodeLineEditingController controller, int index) {
+    final lines = controller.codeLines;
+    if (!identical(lines, _taskLines)) {
+      _rebuildTaskIndex(controller, lines);
+      _taskLines = lines;
+    }
+    return _taskIndeterminate?.contains(index) ?? false;
+  }
+
+  /// One pass over the document with a stack of open task items. A task
+  /// line's subtree is the run of deeper-indented list lines directly
+  /// below it; any blank, non-list, or fence line terminates all open
+  /// subtrees (aggregation spans contiguous list lines only — same
+  /// "fences win" rule as [build]). Each closed frame folds its counts
+  /// into its parent, so parents aggregate descendants at every depth.
+  void _rebuildTaskIndex(CodeLineEditingController controller,
+      CodeLines lines) {
+    Set<int>? result;
+    final frames = <_TaskFrame>[];
+
+    void closeFrames(int level) {
+      while (frames.isNotEmpty && frames.last.level >= level) {
+        final frame = frames.removeLast();
+        if (!frame.checked &&
+            frame.checkedDescendants > 0 &&
+            frame.checkedDescendants < frame.totalDescendants) {
+          (result ??= <int>{}).add(frame.line);
+        }
+        if (frames.isNotEmpty) {
+          frames.last.checkedDescendants += frame.checkedDescendants;
+          frames.last.totalDescendants += frame.totalDescendants;
+        }
+      }
+    }
+
+    final n = lines.length;
+    for (var i = 0; i < n; i++) {
+      final text = lines[i].text;
+      final candidate = text.isNotEmpty &&
+          text.length <= maxStyledLineLength &&
+          _isListCandidate(text);
+      if (!candidate) {
+        if (frames.isNotEmpty) closeFrames(0);
+        continue;
+      }
+      if (_fenceRoleAt(controller, i) != _FenceRole.none) {
+        if (frames.isNotEmpty) closeFrames(0);
+        continue;
+      }
+      final item = MarkdownListSyntax.parse(text);
+      if (item == null) {
+        if (frames.isNotEmpty) closeFrames(0);
+        continue;
+      }
+      final level = item.level;
+      closeFrames(level);
+      if (item.kind == MarkdownListKind.task) {
+        if (frames.isNotEmpty) {
+          if (item.checked) frames.last.checkedDescendants++;
+          frames.last.totalDescendants++;
+        }
+        frames.add(_TaskFrame(line: i, level: level, checked: item.checked));
+      }
+    }
+    closeFrames(0);
+    _taskIndeterminate = result;
+  }
+
+  /// Cheap pre-filter so the regex list parse only runs on lines that
+  /// can possibly be list items: first non-indent char is a bullet
+  /// marker or a digit.
+  static bool _isListCandidate(String text) {
+    var i = 0;
+    while (i < text.length) {
+      final c = text.codeUnitAt(i);
+      if (c != 0x20 && c != 0x09) break;
+      i++;
+    }
+    if (i >= text.length) return false;
+    final c = text.codeUnitAt(i);
+    return c == 0x2D ||
+        c == 0x2A ||
+        c == 0x2B ||
+        c == 0x2022 ||
+        (c >= 0x30 && c <= 0x39);
+  }
+
   /// Code-fence lines mirror the preview's treatment at base size: ```
   /// delimiter lines render monospace and dimmed, interior lines plain
   /// monospace. No per-line background: an empty interior line can't
@@ -1225,3 +1401,120 @@ class _InlineRun {
 /// interior lines style differently, and both bypass the text-keyed
 /// span memo because the role depends on position, not content.
 enum _FenceRole { none, delimiter, interior }
+
+/// Mutable accumulator for one open task item during the task-index
+/// pass: how many task descendants its subtree holds and how many of
+/// them are checked.
+class _TaskFrame {
+  final int line;
+  final int level;
+  final bool checked;
+  int checkedDescendants = 0;
+  int totalDescendants = 0;
+
+  _TaskFrame({required this.line, required this.level, required this.checked});
+}
+
+/// Which glyph the editor checkbox paints. `indeterminate` is a purely
+/// visual facet of an unchecked box whose child tasks are partially
+/// complete — the source text stays `[ ]`, and a tap still checks it.
+enum _CheckboxVisual { unchecked, checked, indeterminate }
+
+/// The live editor's task checkbox: a rounded box custom-painted into a
+/// placeholder run (fork's [CodeInlinePaintSpan]), replacing the old
+/// icon-font glyph. The paragraph layout centers the reserved box on
+/// the line box (PlaceholderAlignment.middle) and its side scales with
+/// the line's own font size, so the mark stays proportional and
+/// vertically centered at every editor text-size setting, independent
+/// of any font's metrics. Substitutes 1:1 for the `[` code unit; the
+/// `x]` stays concealed beside it.
+class _EditorCheckboxSpan extends CodeInlinePaintSpan {
+  final _CheckboxVisual visual;
+  final Color accent;
+  final Color border;
+  final Color mark;
+
+  const _EditorCheckboxSpan({
+    required double side,
+    required this.visual,
+    required this.accent,
+    required this.border,
+    required this.mark,
+  }) : super(width: side, height: side);
+
+  // Glyph geometry as fractions of the box side.
+  static const double _strokeFrac = 0.09;
+  static const double _minStroke = 1.4;
+  static const double _radiusFrac = 0.21;
+  static const double _insetFrac = 0.05;
+
+  // Paint objects are shared across all checkboxes (single-threaded UI
+  // painting) so per-frame drawing allocates nothing but the check path.
+  static final Paint _fillPaint = Paint()..style = PaintingStyle.fill;
+  static final Paint _strokePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeJoin = StrokeJoin.round;
+  static final Paint _markPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round;
+
+  @override
+  void paint(Canvas canvas, Rect rect) {
+    final side = rect.height;
+    var stroke = side * _strokeFrac;
+    if (stroke < _minStroke) stroke = _minStroke;
+    final box = rect.deflate(side * _insetFrac + stroke / 2);
+    final rrect = RRect.fromRectAndRadius(
+      box,
+      Radius.circular(side * _radiusFrac),
+    );
+    switch (visual) {
+      case _CheckboxVisual.unchecked:
+        _strokePaint
+          ..color = border
+          ..strokeWidth = stroke;
+        canvas.drawRRect(rrect, _strokePaint);
+      case _CheckboxVisual.checked:
+        _fillPaint.color = accent;
+        canvas.drawRRect(rrect, _fillPaint);
+        _markPaint
+          ..color = mark
+          ..strokeWidth = stroke * 1.15;
+        final check = Path()
+          ..moveTo(box.left + box.width * 0.24, box.top + box.height * 0.53)
+          ..lineTo(box.left + box.width * 0.43, box.top + box.height * 0.72)
+          ..lineTo(box.left + box.width * 0.78, box.top + box.height * 0.30);
+        canvas.drawPath(check, _markPaint);
+      case _CheckboxVisual.indeterminate:
+        _strokePaint
+          ..color = accent
+          ..strokeWidth = stroke;
+        canvas.drawRRect(rrect, _strokePaint);
+        _markPaint
+          ..color = accent
+          ..strokeWidth = stroke * 1.3;
+        canvas.drawLine(
+          Offset(box.left + box.width * 0.28, box.center.dy),
+          Offset(box.right - box.width * 0.28, box.center.dy),
+          _markPaint,
+        );
+    }
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _EditorCheckboxSpan &&
+          other.visual == visual &&
+          other.accent == accent &&
+          other.border == border &&
+          other.mark == mark &&
+          other.width == width &&
+          other.height == height &&
+          other.style == style;
+
+  @override
+  int get hashCode =>
+      Object.hash(visual, accent, border, mark, width, height, style);
+}

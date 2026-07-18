@@ -39,6 +39,15 @@ class PublicHolidaysTable extends Table {
   TextColumn get profile => text().withDefault(const Constant('generic'))();
   TextColumn get customLabel => text().nullable()();
 
+  /// User-suppressed for this specific dated row. Built-in rows are kept
+  /// (not deleted) when suppressed, precisely so the seeder's
+  /// insert-if-missing pass never resurrects them on the next app start
+  /// or after a backup restore; `PublicHolidayService._load()` skips
+  /// suppressed rows when building the lookup cache. Custom rows are
+  /// still hard-deleted on removal since there is no re-seed to defend
+  /// against. Defaults to `false` so existing rows are unaffected.
+  BoolColumn get suppressed => boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column> get primaryKey => {date, nameKey};
 }

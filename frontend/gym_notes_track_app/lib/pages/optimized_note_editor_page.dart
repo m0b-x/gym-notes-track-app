@@ -48,6 +48,7 @@ import '../utils/text_position_utils.dart';
 import '../utils/markdown_list_utils.dart';
 import '../utils/markdown_editor_span_builder.dart';
 import '../utils/ghost_text.dart';
+import '../utils/list_aware_paste.dart';
 import '../utils/paste_line_breaker.dart';
 import '../controllers/preview_scroll_controller.dart';
 import '../controllers/shortcut_applier.dart';
@@ -193,8 +194,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     _titleController = TextEditingController(
       text: widget.metadata?.title ?? '',
     );
-    _contentController = CodeLineEditingController(
-      spanBuilder: _buildEditorSpan,
+    // List-aware paste wraps the controller (fork's delegate API):
+    // pasting multi-line plain text into a list item continues the
+    // list. Everything else forwards to the inner controller.
+    _contentController = ListAwarePasteController(
+      delegate: CodeLineEditingController(spanBuilder: _buildEditorSpan),
     );
     _markdownSpanBuilder.bind(_contentController);
     _historyObserver = TextHistoryObserver(_contentController);

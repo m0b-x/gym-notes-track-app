@@ -108,6 +108,10 @@ class PublicHolidayService {
     final rows = await _dao.getAll();
     final next = <DateTime, PublicHolidayInfo>{};
     for (final row in rows) {
+      // Suppressed rows are kept in storage (so the seeder's
+      // insert-if-missing pass never resurrects them) but must not
+      // resolve as a holiday, so skip them when building the cache.
+      if (row.suppressed) continue;
       final key = _dateOnlyUtc(row.date);
       if (row.nameKey == kCustomPublicHolidayKey) {
         next[key] = PublicHolidayInfo.custom(row.customLabel ?? '');
@@ -268,10 +272,7 @@ class PublicHolidayService {
       PublicHoliday.memorialDay,
     );
     yield _HolidaySeed(DateTime.utc(year, 6, 19), PublicHoliday.juneteenth);
-    yield _HolidaySeed(
-      DateTime.utc(year, 7, 4),
-      PublicHoliday.independenceDay,
-    );
+    yield _HolidaySeed(DateTime.utc(year, 7, 4), PublicHoliday.independenceDay);
     yield _HolidaySeed(
       _nthWeekdayOfMonth(year, 9, DateTime.monday, 1),
       PublicHoliday.laborDayUnitedStates,
@@ -395,12 +396,7 @@ class PublicHolidayService {
 
   /// Date of the [n]-th [weekday] (1 = Mon … 7 = Sun, per [DateTime]) in
   /// [month] of [year]. `n` is 1-based (e.g. 3 = third Monday).
-  static DateTime _nthWeekdayOfMonth(
-    int year,
-    int month,
-    int weekday,
-    int n,
-  ) {
+  static DateTime _nthWeekdayOfMonth(int year, int month, int weekday, int n) {
     final first = DateTime.utc(year, month, 1);
     final offset = (weekday - first.weekday + 7) % 7;
     return DateTime.utc(year, month, 1 + offset + (n - 1) * 7);
@@ -412,6 +408,7 @@ class PublicHolidayService {
     final offset = (last.weekday - weekday + 7) % 7;
     return last.subtract(Duration(days: offset));
   }
+
   /// Sunday in the Gregorian calendar for [year] as a date-only UTC
   /// `DateTime`.
   static DateTime _easterSundayGregorian(int year) {
@@ -493,9 +490,33 @@ class PublicHolidayService {
     if (inserted) await _load();
   }
 
+  /// Removes the holiday(s) on [date] for this specific occurrence only —
+  /// a built-in row is kept but flagged `suppressed` (so it survives an
+  /// app restart or a backup restore instead of being silently
+  /// re-inserted by the seeder), while a custom row is hard-deleted. Use
+  /// [suppressedHolidays] / [restoreSuppressed] to undo a built-in removal.
   Future<void> removeOn(DateTime date) async {
     final key = DateTime.utc(date.year, date.month, date.day);
-    await _dao.deleteOn(key);
+    await _dao.suppressOn(key);
+    await _load();
+  }
+
+  /// Every built-in holiday the user has suppressed for a specific date,
+  /// across whichever profile(s) still have rows in the table. Feeds the
+  /// "restore a removed holiday" list in Calendar Settings.
+  Future<List<SuppressedHoliday>> suppressedHolidays() async {
+    final rows = await _dao.getSuppressed();
+    return [
+      for (final row in rows)
+        if (_nameToHoliday[row.nameKey] case final holiday?)
+          SuppressedHoliday(date: _dateOnlyUtc(row.date), holiday: holiday),
+    ];
+  }
+
+  /// Restores a single suppressed built-in holiday.
+  Future<void> restoreSuppressed(DateTime date, PublicHoliday holiday) async {
+    final key = DateTime.utc(date.year, date.month, date.day);
+    await _dao.unsuppress(key, holiday.name);
     await _load();
   }
 
@@ -503,9 +524,9 @@ class PublicHolidayService {
 
   /// Snapshot of every holiday row (built-in and user-custom) for
   /// inclusion in a full-app backup. User edits to the built-in set
-  /// (deletions for a given year, custom additions) round-trip exactly
-  /// because we mirror the row shape verbatim, including the new
-  /// `profile` column for forward/backward compatibility.
+  /// (suppressions for a given date, custom additions) round-trip exactly
+  /// because we mirror the row shape verbatim, including the `profile`
+  /// and `suppressed` columns for forward/backward compatibility.
   Future<List<Map<String, dynamic>>> exportData() async {
     final rows = await _dao.getAll();
     return [
@@ -515,6 +536,7 @@ class PublicHolidayService {
           'nameKey': row.nameKey,
           'profile': row.profile,
           'customLabel': row.customLabel,
+          'suppressed': row.suppressed,
         },
     ];
   }
@@ -524,7 +546,9 @@ class PublicHolidayService {
   /// for the active profile (idempotent), so a backup taken before a
   /// new built-in was added will not block the seeder from filling it
   /// in. Backups missing a `profile` field are treated as `generic`
-  /// (matches the v12 → v13 migration's back-fill behaviour).
+  /// (matches the v12 → v13 migration's back-fill behaviour); backups
+  /// missing `suppressed` (taken before this field existed) import as
+  /// `false`, matching the historical "never suppressed" behaviour.
   Future<void> importData(List<dynamic> data) async {
     await _dao.deleteAll();
     for (final raw in data) {
@@ -547,6 +571,7 @@ class PublicHolidayService {
           nameKey: nameKey,
           profile: profile,
           customLabel: map['customLabel'] as String?,
+          suppressed: (map['suppressed'] as bool?) ?? false,
         );
       } catch (e) {
         debugPrint('[PublicHolidayService] Import row error: $e');
@@ -554,6 +579,15 @@ class PublicHolidayService {
     }
     await _load();
   }
+}
+
+/// A single built-in holiday the user has suppressed for one specific
+/// dated occurrence. Exposed for the "restore a removed holiday" list in
+/// Calendar Settings — see [PublicHolidayService.suppressedHolidays].
+class SuppressedHoliday {
+  final DateTime date;
+  final PublicHoliday holiday;
+  const SuppressedHoliday({required this.date, required this.holiday});
 }
 
 class _HolidaySeed {

@@ -4665,8 +4665,29 @@ class $PublicHolidaysTableTable extends PublicHolidaysTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _suppressedMeta = const VerificationMeta(
+    'suppressed',
+  );
   @override
-  List<GeneratedColumn> get $columns => [date, nameKey, profile, customLabel];
+  late final GeneratedColumn<bool> suppressed = GeneratedColumn<bool>(
+    'suppressed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("suppressed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    date,
+    nameKey,
+    profile,
+    customLabel,
+    suppressed,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -4710,6 +4731,12 @@ class $PublicHolidaysTableTable extends PublicHolidaysTable
         ),
       );
     }
+    if (data.containsKey('suppressed')) {
+      context.handle(
+        _suppressedMeta,
+        suppressed.isAcceptableOrUnknown(data['suppressed']!, _suppressedMeta),
+      );
+    }
     return context;
   }
 
@@ -4735,6 +4762,10 @@ class $PublicHolidaysTableTable extends PublicHolidaysTable
         DriftSqlType.string,
         data['${effectivePrefix}custom_label'],
       ),
+      suppressed: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}suppressed'],
+      )!,
     );
   }
 
@@ -4756,11 +4787,21 @@ class PublicHolidayRow extends DataClass
   /// to the historical Catholic-leaning seed set.
   final String profile;
   final String? customLabel;
+
+  /// User-suppressed for this specific dated row. Built-in rows are kept
+  /// (not deleted) when suppressed, precisely so the seeder's
+  /// insert-if-missing pass never resurrects them on the next app start
+  /// or after a backup restore; `PublicHolidayService._load()` skips
+  /// suppressed rows when building the lookup cache. Custom rows are
+  /// still hard-deleted on removal since there is no re-seed to defend
+  /// against. Defaults to `false` so existing rows are unaffected.
+  final bool suppressed;
   const PublicHolidayRow({
     required this.date,
     required this.nameKey,
     required this.profile,
     this.customLabel,
+    required this.suppressed,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4771,6 +4812,7 @@ class PublicHolidayRow extends DataClass
     if (!nullToAbsent || customLabel != null) {
       map['custom_label'] = Variable<String>(customLabel);
     }
+    map['suppressed'] = Variable<bool>(suppressed);
     return map;
   }
 
@@ -4782,6 +4824,7 @@ class PublicHolidayRow extends DataClass
       customLabel: customLabel == null && nullToAbsent
           ? const Value.absent()
           : Value(customLabel),
+      suppressed: Value(suppressed),
     );
   }
 
@@ -4795,6 +4838,7 @@ class PublicHolidayRow extends DataClass
       nameKey: serializer.fromJson<String>(json['nameKey']),
       profile: serializer.fromJson<String>(json['profile']),
       customLabel: serializer.fromJson<String?>(json['customLabel']),
+      suppressed: serializer.fromJson<bool>(json['suppressed']),
     );
   }
   @override
@@ -4805,6 +4849,7 @@ class PublicHolidayRow extends DataClass
       'nameKey': serializer.toJson<String>(nameKey),
       'profile': serializer.toJson<String>(profile),
       'customLabel': serializer.toJson<String?>(customLabel),
+      'suppressed': serializer.toJson<bool>(suppressed),
     };
   }
 
@@ -4813,11 +4858,13 @@ class PublicHolidayRow extends DataClass
     String? nameKey,
     String? profile,
     Value<String?> customLabel = const Value.absent(),
+    bool? suppressed,
   }) => PublicHolidayRow(
     date: date ?? this.date,
     nameKey: nameKey ?? this.nameKey,
     profile: profile ?? this.profile,
     customLabel: customLabel.present ? customLabel.value : this.customLabel,
+    suppressed: suppressed ?? this.suppressed,
   );
   PublicHolidayRow copyWithCompanion(PublicHolidaysTableCompanion data) {
     return PublicHolidayRow(
@@ -4827,6 +4874,9 @@ class PublicHolidayRow extends DataClass
       customLabel: data.customLabel.present
           ? data.customLabel.value
           : this.customLabel,
+      suppressed: data.suppressed.present
+          ? data.suppressed.value
+          : this.suppressed,
     );
   }
 
@@ -4836,13 +4886,15 @@ class PublicHolidayRow extends DataClass
           ..write('date: $date, ')
           ..write('nameKey: $nameKey, ')
           ..write('profile: $profile, ')
-          ..write('customLabel: $customLabel')
+          ..write('customLabel: $customLabel, ')
+          ..write('suppressed: $suppressed')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(date, nameKey, profile, customLabel);
+  int get hashCode =>
+      Object.hash(date, nameKey, profile, customLabel, suppressed);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4850,7 +4902,8 @@ class PublicHolidayRow extends DataClass
           other.date == this.date &&
           other.nameKey == this.nameKey &&
           other.profile == this.profile &&
-          other.customLabel == this.customLabel);
+          other.customLabel == this.customLabel &&
+          other.suppressed == this.suppressed);
 }
 
 class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
@@ -4858,12 +4911,14 @@ class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
   final Value<String> nameKey;
   final Value<String> profile;
   final Value<String?> customLabel;
+  final Value<bool> suppressed;
   final Value<int> rowid;
   const PublicHolidaysTableCompanion({
     this.date = const Value.absent(),
     this.nameKey = const Value.absent(),
     this.profile = const Value.absent(),
     this.customLabel = const Value.absent(),
+    this.suppressed = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PublicHolidaysTableCompanion.insert({
@@ -4871,6 +4926,7 @@ class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
     required String nameKey,
     this.profile = const Value.absent(),
     this.customLabel = const Value.absent(),
+    this.suppressed = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : date = Value(date),
        nameKey = Value(nameKey);
@@ -4879,6 +4935,7 @@ class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
     Expression<String>? nameKey,
     Expression<String>? profile,
     Expression<String>? customLabel,
+    Expression<bool>? suppressed,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4886,6 +4943,7 @@ class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
       if (nameKey != null) 'name_key': nameKey,
       if (profile != null) 'profile': profile,
       if (customLabel != null) 'custom_label': customLabel,
+      if (suppressed != null) 'suppressed': suppressed,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4895,6 +4953,7 @@ class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
     Value<String>? nameKey,
     Value<String>? profile,
     Value<String?>? customLabel,
+    Value<bool>? suppressed,
     Value<int>? rowid,
   }) {
     return PublicHolidaysTableCompanion(
@@ -4902,6 +4961,7 @@ class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
       nameKey: nameKey ?? this.nameKey,
       profile: profile ?? this.profile,
       customLabel: customLabel ?? this.customLabel,
+      suppressed: suppressed ?? this.suppressed,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4921,6 +4981,9 @@ class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
     if (customLabel.present) {
       map['custom_label'] = Variable<String>(customLabel.value);
     }
+    if (suppressed.present) {
+      map['suppressed'] = Variable<bool>(suppressed.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4934,6 +4997,7 @@ class PublicHolidaysTableCompanion extends UpdateCompanion<PublicHolidayRow> {
           ..write('nameKey: $nameKey, ')
           ..write('profile: $profile, ')
           ..write('customLabel: $customLabel, ')
+          ..write('suppressed: $suppressed, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7782,6 +7846,7 @@ typedef $$PublicHolidaysTableTableCreateCompanionBuilder =
       required String nameKey,
       Value<String> profile,
       Value<String?> customLabel,
+      Value<bool> suppressed,
       Value<int> rowid,
     });
 typedef $$PublicHolidaysTableTableUpdateCompanionBuilder =
@@ -7790,6 +7855,7 @@ typedef $$PublicHolidaysTableTableUpdateCompanionBuilder =
       Value<String> nameKey,
       Value<String> profile,
       Value<String?> customLabel,
+      Value<bool> suppressed,
       Value<int> rowid,
     });
 
@@ -7819,6 +7885,11 @@ class $$PublicHolidaysTableTableFilterComposer
 
   ColumnFilters<String> get customLabel => $composableBuilder(
     column: $table.customLabel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get suppressed => $composableBuilder(
+    column: $table.suppressed,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -7851,6 +7922,11 @@ class $$PublicHolidaysTableTableOrderingComposer
     column: $table.customLabel,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get suppressed => $composableBuilder(
+    column: $table.suppressed,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PublicHolidaysTableTableAnnotationComposer
@@ -7873,6 +7949,11 @@ class $$PublicHolidaysTableTableAnnotationComposer
 
   GeneratedColumn<String> get customLabel => $composableBuilder(
     column: $table.customLabel,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get suppressed => $composableBuilder(
+    column: $table.suppressed,
     builder: (column) => column,
   );
 }
@@ -7924,12 +8005,14 @@ class $$PublicHolidaysTableTableTableManager
                 Value<String> nameKey = const Value.absent(),
                 Value<String> profile = const Value.absent(),
                 Value<String?> customLabel = const Value.absent(),
+                Value<bool> suppressed = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PublicHolidaysTableCompanion(
                 date: date,
                 nameKey: nameKey,
                 profile: profile,
                 customLabel: customLabel,
+                suppressed: suppressed,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -7938,12 +8021,14 @@ class $$PublicHolidaysTableTableTableManager
                 required String nameKey,
                 Value<String> profile = const Value.absent(),
                 Value<String?> customLabel = const Value.absent(),
+                Value<bool> suppressed = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PublicHolidaysTableCompanion.insert(
                 date: date,
                 nameKey: nameKey,
                 profile: profile,
                 customLabel: customLabel,
+                suppressed: suppressed,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

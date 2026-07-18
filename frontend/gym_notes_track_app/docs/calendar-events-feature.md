@@ -207,10 +207,16 @@ Users can suppress a built-in (e.g., they don't observe Labour Day). Inside
 the seeded window the cache is the source of truth — a missing entry stays
 missing. Outside the window the fixed-date fallback re-introduces it.
 
-> **Caveat:** the seeder runs every app start with `insertIfMissing`. A
-> deletion suppresses for the current run, but on restart the seeder
-> re-adds it. To make deletions sticky you'd need a tombstone column; not
-> present today.
+**v17** added a `suppressed` column so this is durable: removing a holiday
+(via the day-summary panel's delete action, `PublicHolidayService.removeOn`)
+flags the built-in row rather than deleting it, so `insertIfMissing`'s
+insert-or-ignore never resurrects it — the row stays suppressed across app
+restarts and backup restores. `PublicHolidayService._load()` skips
+suppressed rows when building the lookup cache. Custom rows are still
+hard-deleted (no re-seed to defend against). `suppressedHolidays()` /
+`restoreSuppressed()` back the "Removed holidays" list in Calendar Settings
+(`RemovedHolidaysSheet`), and the day-summary panel's snackbar offers an
+immediate Undo as well.
 
 ---
 
@@ -513,8 +519,6 @@ filters can use it without decoding `time`.
 | No skip-this-occurrence (exceptions)                                | Medium   | Would need an `event_exceptions(event_id, date)` table; checked in `occursOn`.        |
 | No "mark done" / completion log                                    | Medium   | Would need a `completions(event_id, date)` table; surfaces as a check on the day card. |
 | Linked note opens read-through only                                 | Low      | The link is one-way (event → note); a note does not list events that reference it.     |
-| Built-in holiday deletions do not survive backup restore           | Low      | Would need a `suppressed` tombstone column.                                            |
-| No country/region selector for built-in holidays                   | Low      | Today's seed is implicitly Western-Christian.                                         |
 | Movable feasts have no out-of-window fallback                      | Low      | Acceptable; users only see seeded window.                                              |
 | No reminders / notifications                                       | Medium   | Requires platform plugin work; intentionally deferred.                                |
 | Recurrence math has no automated test coverage                     | Medium   | Pure, deterministic logic; high-value target for unit tests (interval phase, Feb-29, day-31 skips). |

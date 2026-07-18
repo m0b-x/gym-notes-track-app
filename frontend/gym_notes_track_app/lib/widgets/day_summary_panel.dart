@@ -22,12 +22,18 @@ class DaySummaryPanel extends StatelessWidget {
   /// event that has a linked note (`event.noteId != null`).
   final ValueChanged<CalendarEvent>? onOpenNote;
 
+  /// Called when the user taps the "remove holiday" affordance on the
+  /// public-holiday entry (`entry.key == 'holiday'`). Only that entry
+  /// carries the action — weekend and event entries are unaffected.
+  final VoidCallback? onSuppressHoliday;
+
   const DaySummaryPanel({
     super.key,
     required this.day,
     required this.entries,
     this.onEventTap,
     this.onOpenNote,
+    this.onSuppressHoliday,
   });
 
   @override
@@ -103,6 +109,7 @@ class DaySummaryPanel extends StatelessWidget {
               final entry = entries[index];
               final event = entry.event;
               final hasLinkedNote = event?.noteId != null;
+              final isHoliday = entry.key == 'holiday';
               return Card(
                 margin: EdgeInsets.zero,
                 clipBehavior: Clip.antiAlias,
@@ -130,9 +137,8 @@ class DaySummaryPanel extends StatelessWidget {
                           subtitle: entry.subtitle == null
                               ? null
                               : Text(entry.subtitle!),
-                          trailing: event == null
-                              ? null
-                              : (hasLinkedNote && onOpenNote != null
+                          trailing: event != null
+                              ? (hasLinkedNote && onOpenNote != null
                                     ? Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
@@ -141,15 +147,23 @@ class DaySummaryPanel extends StatelessWidget {
                                             icon: const Icon(
                                               Icons.sticky_note_2_outlined,
                                             ),
-                                            onPressed: () =>
-                                                onOpenNote!(event),
+                                            onPressed: () => onOpenNote!(event),
                                           ),
                                           const Icon(
                                             Icons.chevron_right_rounded,
                                           ),
                                         ],
                                       )
-                                    : const Icon(Icons.chevron_right_rounded)),
+                                    : const Icon(Icons.chevron_right_rounded))
+                              : (isHoliday && onSuppressHoliday != null
+                                    ? IconButton(
+                                        tooltip: l10n.removeHoliday,
+                                        icon: const Icon(
+                                          Icons.delete_outline_rounded,
+                                        ),
+                                        onPressed: onSuppressHoliday,
+                                      )
+                                    : null),
                           onTap: event == null || onEventTap == null
                               ? null
                               : () => onEventTap!(event),

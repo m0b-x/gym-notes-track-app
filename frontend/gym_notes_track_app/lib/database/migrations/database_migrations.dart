@@ -85,6 +85,11 @@ class DatabaseMigrations {
       toVersion: DatabaseSchema.v16CalendarEventColorPriority,
       migrate: _migrateV15ToV16,
     ),
+    Migration(
+      fromVersion: DatabaseSchema.v16CalendarEventColorPriority,
+      toVersion: DatabaseSchema.v17PublicHolidaySuppressed,
+      migrate: _migrateV16ToV17,
+    ),
   ];
 
   Future<void> runMigrations(Migrator m, int from, int to) async {
@@ -506,6 +511,27 @@ class DatabaseMigrations {
     if (!existing.contains('priority')) {
       await _db.customStatement(
         'ALTER TABLE calendar_events ADD COLUMN priority INTEGER NOT NULL DEFAULT 3',
+      );
+    }
+  }
+
+  /// v16→v17: Add a `suppressed` flag to `public_holidays`.
+  ///
+  /// Lets a user remove a single dated holiday occurrence and have it
+  /// stay removed: suppressed built-in rows are kept (not deleted) so the
+  /// seeder's insert-if-missing pass never resurrects them on the next
+  /// app start or after a backup restore. `ALTER TABLE ADD COLUMN` with a
+  /// `NOT NULL DEFAULT 0`, guarded by `PRAGMA table_info` so a
+  /// partial-upgrade re-run cannot fail.
+  Future<void> _migrateV16ToV17(Migrator m, GeneratedDatabase db) async {
+    final existing = <String>{
+      for (final row
+          in await _db.customSelect('PRAGMA table_info(public_holidays)').get())
+        row.read<String>('name'),
+    };
+    if (!existing.contains('suppressed')) {
+      await _db.customStatement(
+        'ALTER TABLE public_holidays ADD COLUMN suppressed INTEGER NOT NULL DEFAULT 0',
       );
     }
   }

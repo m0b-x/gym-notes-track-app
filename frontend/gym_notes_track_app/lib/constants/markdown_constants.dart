@@ -52,6 +52,13 @@ class MarkdownConstants {
   /// Multiplier for checkbox icon size relative to font size
   static const double checkboxIconScale = 1.25;
 
+  /// Live editor task checkbox: box side as a fraction of the line's
+  /// font size. The box is custom-painted into a placeholder run
+  /// (fork's CodeInlinePaintSpan) and centered on the line box, so this
+  /// scale holds across every editor font-size setting. Must stay
+  /// comfortably below [lineHeight] or the placeholder grows the line.
+  static const double editorCheckboxScale = 1.05;
+
   /// Indent multiplier per level for checkboxes and lists
   static const double indentPerLevel = 16.0;
 

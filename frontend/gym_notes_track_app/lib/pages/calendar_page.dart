@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../bloc/calendar/calendar_bloc.dart';
+import '../constants/public_holidays.dart';
 import '../l10n/app_localizations.dart';
 import '../models/calendar_appearance.dart';
 import '../models/calendar_event.dart';
@@ -12,8 +13,10 @@ import '../repositories/note_repository.dart';
 import '../services/app_navigator.dart';
 import '../services/day_bars_resolver.dart';
 import '../services/day_summary_resolver.dart';
+import '../services/public_holiday_service.dart';
 import '../services/settings_service.dart';
 import '../utils/custom_snackbar.dart';
+import '../widgets/app_dialogs.dart';
 import '../widgets/calendar_day_bars.dart';
 import '../widgets/calendar_day_cell.dart';
 import '../widgets/calendar_filter_sheet.dart';
@@ -110,6 +113,8 @@ class _CalendarViewState extends State<_CalendarView> {
                   onEventTap: (event) =>
                       _openEditorSheet(context, initialEvent: event),
                   onOpenNote: (event) => _openLinkedNote(context, event),
+                  onSuppressHoliday: () =>
+                      _removeHoliday(context, loaded.selectedDay),
                 ),
               ),
             ],
@@ -181,6 +186,49 @@ class _CalendarViewState extends State<_CalendarView> {
       context,
       folderId: note.folderId,
       noteId: note.id,
+    );
+  }
+
+  /// Removes the public holiday resolved for [day] for this occurrence
+  /// only, after a confirmation dialog. Built-in removals are reversible —
+  /// either immediately via the snackbar's Undo action or later from the
+  /// "Removed holidays" list in Calendar Settings — since suppressing a
+  /// specific dated row (rather than deleting it) is exactly what makes
+  /// the removal survive an app restart or a backup restore.
+  Future<void> _removeHoliday(BuildContext context, DateTime day) async {
+    final info = PublicHolidays.holidayOn(day);
+    if (info == null) return;
+    final l10n = AppLocalizations.of(context)!;
+    final label = PublicHolidays.labelOf(info, l10n);
+    final confirmed = await AppDialogs.confirm(
+      context,
+      title: l10n.removeHoliday,
+      content: l10n.removeHolidayConfirm(label),
+      confirmText: l10n.removeHoliday,
+      isDestructive: true,
+      icon: Icons.celebration_rounded,
+    );
+    if (!confirmed || !context.mounted) return;
+
+    final holidayService = GetIt.I<PublicHolidayService>();
+    await holidayService.removeOn(day);
+    if (!context.mounted) return;
+    context.read<CalendarBloc>().add(const LoadCalendarEvents());
+
+    final builtIn = info.builtIn;
+    CustomSnackbar.showWithAction(
+      context,
+      message: l10n.holidayRemoved,
+      actionLabel: l10n.undo,
+      onAction: () async {
+        if (builtIn != null) {
+          await holidayService.restoreSuppressed(day, builtIn);
+        } else {
+          await holidayService.addCustom(day, info.customLabel ?? '');
+        }
+        if (!context.mounted) return;
+        context.read<CalendarBloc>().add(const LoadCalendarEvents());
+      },
     );
   }
 

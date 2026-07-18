@@ -16,6 +16,7 @@ import '../widgets/app_dialogs.dart';
 import '../widgets/calendar_day_bars.dart';
 import '../widgets/calendar_day_cell.dart';
 import '../widgets/color_wheel_picker.dart';
+import '../widgets/removed_holidays_sheet.dart';
 import '../widgets/unified_app_bars.dart';
 
 /// Calendar settings page grouping every calendar-specific option
@@ -193,6 +194,21 @@ class _CalendarSettingsPageState extends State<CalendarSettingsPage> {
                             ),
                         ],
                       ),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: Icon(
+                        Icons.restore_rounded,
+                        color: colorScheme.primary,
+                      ),
+                      title: Text(l10n.removedHolidays),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: _holidayService == null
+                          ? null
+                          : () => RemovedHolidaysSheet.show(
+                              context,
+                              _holidayService!,
+                            ),
                     ),
                   ],
                 ),

@@ -279,6 +279,7 @@ class _CodeFieldRender extends RenderBox implements MouseTrackerAnnotation {
     }
     _codes = value;
     markNeedsLayout();
+    markNeedsSemanticsUpdate();
   }
 
   set selection(CodeLineSelection value) {
@@ -325,6 +326,7 @@ class _CodeFieldRender extends RenderBox implements MouseTrackerAnnotation {
     }
     _hasFocus = value;
     markNeedsPaint();
+    markNeedsSemanticsUpdate();
   }
 
   set highlighter(_CodeHighlighter value) {
@@ -533,6 +535,7 @@ class _CodeFieldRender extends RenderBox implements MouseTrackerAnnotation {
     }
     _readOnly = value;
     markNeedsPaint();
+    markNeedsSemanticsUpdate();
   }
 
   set maxLengthSingleLineRendering(int? value) {
@@ -541,6 +544,24 @@ class _CodeFieldRender extends RenderBox implements MouseTrackerAnnotation {
     }
     _maxLengthSingleLineRendering = value;
     markNeedsLayout();
+  }
+
+  /// The editor paints raw ui.Paragraphs and otherwise contributes no
+  /// semantics at all, so without this the whole document is invisible
+  /// to screen readers. Announce it as a (multiline) text field with
+  /// the document as its value; the value string comes from the
+  /// CodeLines 2-slot asString cache, and none of this runs unless an
+  /// assistive technology has enabled the semantics tree.
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    config
+      ..isSemanticBoundary = true
+      ..isTextField = true
+      ..isMultiline = true
+      ..isReadOnly = _readOnly
+      ..isFocused = _hasFocus
+      ..value = _codes.asString(TextLineBreak.lf, false);
   }
 
   List<CodeLineRenderParagraph> get displayParagraphs => _displayParagraphs;

@@ -214,6 +214,29 @@ class AppLocalizationsDe extends AppLocalizations {
   String get holidayProfileNone => 'Keine';
 
   @override
+  String get removeHoliday => 'Feiertag entfernen';
+
+  @override
+  String removeHolidayConfirm(String holiday) {
+    return '\"$holiday\" für dieses Datum entfernen? Du kannst ihn jederzeit in den Kalendereinstellungen wiederherstellen.';
+  }
+
+  @override
+  String get holidayRemoved => 'Feiertag entfernt';
+
+  @override
+  String get removedHolidays => 'Entfernte Feiertage';
+
+  @override
+  String get removedHolidaysEmpty => 'Keine Feiertage entfernt';
+
+  @override
+  String get holidayRestore => 'Wiederherstellen';
+
+  @override
+  String get holidayRestored => 'Feiertag wiederhergestellt';
+
+  @override
   String get eventCategoryGym => 'Training';
 
   @override

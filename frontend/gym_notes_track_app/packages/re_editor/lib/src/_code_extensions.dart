@@ -8,7 +8,11 @@ extension _InlineSpanExtension on InlineSpan {
     if (this is TextSpan) {
       len += (this as TextSpan).length;
     } else {
-      len += toPlainText(includePlaceholders: false).length;
+      // Placeholders must count as their one U+FFFC code unit — the
+      // same accounting `toPlainText()` uses for the paragraph's text —
+      // or truncation/prefix-drop/range math desyncs on span trees
+      // containing CodeInlinePaintSpan boxes.
+      len += toPlainText().length;
     }
     return len;
   }

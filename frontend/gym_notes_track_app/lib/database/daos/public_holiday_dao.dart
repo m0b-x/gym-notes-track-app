@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../constants/public_holidays.dart';
 import '../database.dart';
 import '../tables/public_holidays_table.dart';
 
@@ -18,12 +19,15 @@ class PublicHolidayDao extends DatabaseAccessor<AppDatabase>
 
   /// Insert-if-not-exists. Returns true when the row was actually inserted.
   /// [profile] tags ownership so [deleteProfile] can later remove only the
-  /// rows that belong to a given preset.
+  /// rows that belong to a given preset. [suppressed] round-trips the flag
+  /// on backup import; regular seeding never passes it (new rows are never
+  /// born suppressed).
   Future<bool> insertIfMissing({
     required DateTime date,
     required String nameKey,
     required String profile,
     String? customLabel,
+    bool suppressed = false,
   }) async {
     final inserted = await into(publicHolidaysTable).insert(
       PublicHolidaysTableCompanion(
@@ -31,18 +35,45 @@ class PublicHolidayDao extends DatabaseAccessor<AppDatabase>
         nameKey: Value(nameKey),
         profile: Value(profile),
         customLabel: Value(customLabel),
+        suppressed: Value(suppressed),
       ),
       mode: InsertMode.insertOrIgnore,
     );
     return inserted > 0;
   }
 
-  /// Deletes every row on [date] regardless of name or profile.
-  /// Used by the existing "remove holiday on this day" UI affordance.
-  Future<void> deleteOn(DateTime date) {
-    return (delete(
-      publicHolidaysTable,
-    )..where((h) => h.date.equals(date))).go();
+  /// Removes the holiday(s) on [date]: built-in rows are kept but flagged
+  /// `suppressed` (so the seeder's insert-if-missing pass never resurrects
+  /// them on the next app start or backup restore), while custom rows are
+  /// hard-deleted (no re-seed to defend against).
+  Future<void> suppressOn(DateTime date) async {
+    await (update(publicHolidaysTable)..where(
+          (h) =>
+              h.date.equals(date) &
+              h.nameKey.equals(kCustomPublicHolidayKey).not(),
+        ))
+        .write(const PublicHolidaysTableCompanion(suppressed: Value(true)));
+    await (delete(publicHolidaysTable)..where(
+          (h) =>
+              h.date.equals(date) & h.nameKey.equals(kCustomPublicHolidayKey),
+        ))
+        .go();
+  }
+
+  /// Every row the user has suppressed, across every profile still present
+  /// in the table. Feeds the "restore a removed holiday" settings list.
+  Future<List<PublicHolidayRow>> getSuppressed() {
+    return (select(publicHolidaysTable)
+          ..where((h) => h.suppressed.equals(true))
+          ..orderBy([(h) => OrderingTerm.asc(h.date)]))
+        .get();
+  }
+
+  /// Clears the suppressed flag on one specific dated row.
+  Future<void> unsuppress(DateTime date, String nameKey) {
+    return (update(publicHolidaysTable)
+          ..where((h) => h.date.equals(date) & h.nameKey.equals(nameKey)))
+        .write(const PublicHolidaysTableCompanion(suppressed: Value(false)));
   }
 
   /// Deletes every built-in row owned by [profile]. Custom rows
