@@ -5,6 +5,7 @@ import '../constants/markdown_constants.dart';
 import 'ghost_text.dart';
 import 'lru_cache.dart';
 import 'markdown_callout_syntax.dart';
+import 'markdown_editor_line_index.dart';
 import 'markdown_link_patterns.dart';
 import 'markdown_list_syntax.dart';
 import 'markdown_tag_syntax.dart';
@@ -46,9 +47,10 @@ import 'markdown_tag_syntax.dart';
 /// generation changes), so steady-state scrolling and typing rebuild
 /// only the edited line and the caret's reveal lines; returning the
 /// identical span instance also keeps re_editor's paragraph cache on its
-/// fast path. The code-fence index is recomputed lazily, only when the
-/// CodeLines instance changes (text mutations clone via
-/// cloneShallowDirty; selection-only changes don't).
+/// fast path. Positional state (fence roles, indeterminate task
+/// parents) lives in [MarkdownEditorLineIndex], recomputed lazily per
+/// CodeLines instance and resumed at the first changed segment, so a
+/// keystroke rescans ~one segment instead of the whole document.
 class MarkdownEditorSpanBuilder {
   static final RegExp _headerRe = RegExp(r'^(#{1,6}) ');
 
@@ -82,15 +84,14 @@ class MarkdownEditorSpanBuilder {
   static const TextSpan _unhandled = TextSpan();
 
   CodeLineEditingController? _controller;
-  CodeLines? _fenceLines;
-  List<_FenceRole>? _fence;
 
-  /// Positional task-parent aggregation: line indices whose unchecked
-  /// box renders indeterminate because their subtree of task lines is
-  /// partially complete. Recomputed lazily per [CodeLines] instance,
-  /// same contract as the fence index.
-  CodeLines? _taskLines;
-  Set<int>? _taskIndeterminate;
+  /// Positional state (fence roles + indeterminate task parents) lives
+  /// in the shared incremental index: one fused rebuild per [CodeLines]
+  /// change, resumed at the first changed segment instead of rescanning
+  /// the whole document per keystroke.
+  final MarkdownEditorLineIndex _lineIndex = MarkdownEditorLineIndex(
+    maxScannedLineLength: maxStyledLineLength,
+  );
 
   final LruCache<String, TextSpan> _spanCache = LruCache(
     maxSize: _spanCacheSize,
@@ -156,8 +157,8 @@ class MarkdownEditorSpanBuilder {
     // Fence status is positional, not textual — fence lines are styled
     // straight from their role and never touch the text-keyed cache.
     final fenceRole = _fenceRoleAt(controller, index);
-    if (fenceRole != _FenceRole.none) {
-      final fenceKey = fenceRole == _FenceRole.delimiter
+    if (fenceRole != MarkdownFenceRole.none) {
+      final fenceKey = fenceRole == MarkdownFenceRole.delimiter
           ? 'd:$text'
           : 'i:$text';
       final cached = _positionalSpanCache.get(fenceKey);
@@ -1219,131 +1220,24 @@ class MarkdownEditorSpanBuilder {
   bool lineInFence(int index) {
     final controller = _controller;
     if (controller == null) return false;
-    return _fenceRoleAt(controller, index) != _FenceRole.none;
+    return _fenceRoleAt(controller, index) != MarkdownFenceRole.none;
   }
 
-  /// Fence-awareness: mirrors MarkdownChunker's fence rule. Delimiter
-  /// and interior lines carry distinct roles so they can style
-  /// differently; both are positional, so neither touches the memo.
-  _FenceRole _fenceRoleAt(CodeLineEditingController controller, int index) {
-    final lines = controller.codeLines;
-    if (!identical(lines, _fenceLines)) {
-      _rebuildFence(lines);
-      _fenceLines = lines;
-    }
-    final fence = _fence;
-    if (fence == null || index < 0 || index >= fence.length) {
-      return _FenceRole.none;
-    }
-    return fence[index];
-  }
-
-  void _rebuildFence(CodeLines lines) {
-    final n = lines.length;
-    List<_FenceRole>? flags;
-    var inFence = false;
-    for (var i = 0; i < n; i++) {
-      if (_isFenceDelimiter(lines[i].text)) {
-        flags ??= List<_FenceRole>.filled(n, _FenceRole.none);
-        flags[i] = _FenceRole.delimiter;
-        inFence = !inFence;
-      } else if (inFence) {
-        flags![i] = _FenceRole.interior;
-      }
-    }
-    _fence = flags;
-  }
+  /// Fence-awareness: grammar and positional state come from the shared
+  /// incremental index ([MarkdownChunker.isFenceDelimiter] +
+  /// [MarkdownEditorLineIndex]). Delimiter and interior lines carry
+  /// distinct roles so they can style differently; both are positional,
+  /// so neither touches the memo.
+  MarkdownFenceRole _fenceRoleAt(
+    CodeLineEditingController controller,
+    int index,
+  ) => _lineIndex.fenceRoleAt(controller.codeLines, index);
 
   /// Whether the task line at [index] renders its unchecked box as
   /// indeterminate: its subtree holds at least one checked and at least
-  /// one unchecked task. Positional, so it follows the fence index's
-  /// lazy-recompute contract.
-  bool _isTaskIndeterminate(CodeLineEditingController controller, int index) {
-    final lines = controller.codeLines;
-    if (!identical(lines, _taskLines)) {
-      _rebuildTaskIndex(controller, lines);
-      _taskLines = lines;
-    }
-    return _taskIndeterminate?.contains(index) ?? false;
-  }
-
-  /// One pass over the document with a stack of open task items. A task
-  /// line's subtree is the run of deeper-indented list lines directly
-  /// below it; any blank, non-list, or fence line terminates all open
-  /// subtrees (aggregation spans contiguous list lines only — same
-  /// "fences win" rule as [build]). Each closed frame folds its counts
-  /// into its parent, so parents aggregate descendants at every depth.
-  void _rebuildTaskIndex(CodeLineEditingController controller,
-      CodeLines lines) {
-    Set<int>? result;
-    final frames = <_TaskFrame>[];
-
-    void closeFrames(int level) {
-      while (frames.isNotEmpty && frames.last.level >= level) {
-        final frame = frames.removeLast();
-        if (!frame.checked &&
-            frame.checkedDescendants > 0 &&
-            frame.checkedDescendants < frame.totalDescendants) {
-          (result ??= <int>{}).add(frame.line);
-        }
-        if (frames.isNotEmpty) {
-          frames.last.checkedDescendants += frame.checkedDescendants;
-          frames.last.totalDescendants += frame.totalDescendants;
-        }
-      }
-    }
-
-    final n = lines.length;
-    for (var i = 0; i < n; i++) {
-      final text = lines[i].text;
-      final candidate = text.isNotEmpty &&
-          text.length <= maxStyledLineLength &&
-          _isListCandidate(text);
-      if (!candidate) {
-        if (frames.isNotEmpty) closeFrames(0);
-        continue;
-      }
-      if (_fenceRoleAt(controller, i) != _FenceRole.none) {
-        if (frames.isNotEmpty) closeFrames(0);
-        continue;
-      }
-      final item = MarkdownListSyntax.parse(text);
-      if (item == null) {
-        if (frames.isNotEmpty) closeFrames(0);
-        continue;
-      }
-      final level = item.level;
-      closeFrames(level);
-      if (item.kind == MarkdownListKind.task) {
-        if (frames.isNotEmpty) {
-          if (item.checked) frames.last.checkedDescendants++;
-          frames.last.totalDescendants++;
-        }
-        frames.add(_TaskFrame(line: i, level: level, checked: item.checked));
-      }
-    }
-    closeFrames(0);
-    _taskIndeterminate = result;
-  }
-
-  /// Cheap pre-filter so the regex list parse only runs on lines that
-  /// can possibly be list items: first non-indent char is a bullet
-  /// marker or a digit.
-  static bool _isListCandidate(String text) {
-    var i = 0;
-    while (i < text.length) {
-      final c = text.codeUnitAt(i);
-      if (c != 0x20 && c != 0x09) break;
-      i++;
-    }
-    if (i >= text.length) return false;
-    final c = text.codeUnitAt(i);
-    return c == 0x2D ||
-        c == 0x2A ||
-        c == 0x2B ||
-        c == 0x2022 ||
-        (c >= 0x30 && c <= 0x39);
-  }
+  /// one unchecked task. Aggregation lives in the shared index.
+  bool _isTaskIndeterminate(CodeLineEditingController controller, int index) =>
+      _lineIndex.taskIndeterminate(controller.codeLines, index);
 
   /// Code-fence lines mirror the preview's treatment at base size: ```
   /// delimiter lines render monospace and dimmed, interior lines plain
@@ -1354,14 +1248,14 @@ class MarkdownEditorSpanBuilder {
   /// tags), and ghosts compose on delimiter and interior lines alike.
   TextSpan _buildFenceLine({
     required String text,
-    required _FenceRole role,
+    required MarkdownFenceRole role,
     required TextStyle style,
     required Color baseColor,
   }) {
     final ghosts = GhostText.mightContain(text)
         ? GhostText.findGhosts(text)
         : const <GhostMatch>[];
-    final lineStyle = role == _FenceRole.delimiter
+    final lineStyle = role == MarkdownFenceRole.delimiter
         ? style.copyWith(
             fontFamily: 'monospace',
             color: baseColor.withValues(alpha: _fenceDelimiterAlpha),
@@ -1380,13 +1274,6 @@ class MarkdownEditorSpanBuilder {
     return TextSpan(style: style, children: children);
   }
 
-  bool _isFenceDelimiter(String text) {
-    var i = 0;
-    while (i < text.length && _isSpace(text.codeUnitAt(i))) {
-      i++;
-    }
-    return text.startsWith('```', i);
-  }
 }
 
 class _InlineRun {
@@ -1395,24 +1282,6 @@ class _InlineRun {
   final int innerEnd;
 
   const _InlineRun(this.marker, this.innerStart, this.innerEnd);
-}
-
-/// Positional role of a line relative to ``` code fences. Delimiter and
-/// interior lines style differently, and both bypass the text-keyed
-/// span memo because the role depends on position, not content.
-enum _FenceRole { none, delimiter, interior }
-
-/// Mutable accumulator for one open task item during the task-index
-/// pass: how many task descendants its subtree holds and how many of
-/// them are checked.
-class _TaskFrame {
-  final int line;
-  final int level;
-  final bool checked;
-  int checkedDescendants = 0;
-  int totalDescendants = 0;
-
-  _TaskFrame({required this.line, required this.level, required this.checked});
 }
 
 /// Which glyph the editor checkbox paints. `indeterminate` is a purely

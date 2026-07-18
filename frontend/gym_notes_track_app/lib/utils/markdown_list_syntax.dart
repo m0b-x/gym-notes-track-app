@@ -147,6 +147,104 @@ class MarkdownListSyntax {
   /// Whether [line] begins a list item.
   static bool isListLine(String line) => parse(line) != null;
 
+  // ---- Packed shape scan (hot-path companion to [parse]) -------------
+  //
+  // The editor's positional line index only needs three facts per line
+  // (kind, checked, level) but asks them for the whole document, so
+  // [scanListShape] answers with a packed int and zero allocations
+  // instead of running the three regexes + building a MarkdownListItem.
+  // It MUST stay in lockstep with the regexes above: same markers, same
+  // whitespace rules (`\s` within a line), same detection order.
+
+  /// [scanListShape] kind values (bits 0–1 of the packed shape).
+  static const int shapeKindBullet = 0;
+  static const int shapeKindOrdered = 1;
+  static const int shapeKindTask = 2;
+
+  static int shapeKind(int shape) => shape & 0x3;
+  static bool shapeChecked(int shape) => (shape & 0x4) != 0;
+  static int shapeLevel(int shape) => shape >> 3;
+
+  /// Scans [line] like [parse] but returns a packed shape — bits 0–1
+  /// kind, bit 2 checked, bits 3+ level — or `-1` when the line is not
+  /// a list item. Level matches [indentLevel] (space/tab columns only).
+  static int scanListShape(String line) {
+    final int n = line.length;
+    int i = 0;
+    int cols = 0;
+    bool colsDone = false;
+    while (i < n) {
+      final int c = line.codeUnitAt(i);
+      if (c == 0x20) {
+        if (!colsDone) cols += 1;
+      } else if (c == 0x09) {
+        if (!colsDone) cols += 2;
+      } else if (_isLineWhitespace(c)) {
+        // Exotic whitespace is valid `\s*` indent for the regexes, but
+        // indentLevel stops counting columns at it.
+        colsDone = true;
+      } else {
+        break;
+      }
+      i++;
+    }
+    if (i >= n) return -1;
+    final int level = (cols ~/ indentUnit) << 3;
+    final int c = line.codeUnitAt(i);
+    // Bullet / task markers: `-` `*` `+` (tasks) plus `•` (bullet only).
+    if (c == 0x2D || c == 0x2A || c == 0x2B || c == 0x2022) {
+      if (i + 1 >= n || !_isLineWhitespace(line.codeUnitAt(i + 1))) {
+        return -1;
+      }
+      if (c != 0x2022) {
+        int j = i + 1;
+        while (j < n && _isLineWhitespace(line.codeUnitAt(j))) {
+          j++;
+        }
+        if (j + 2 < n && line.codeUnitAt(j) == 0x5B) {
+          final int b = line.codeUnitAt(j + 1);
+          if ((b == 0x20 || b == 0x78 || b == 0x58) &&
+              line.codeUnitAt(j + 2) == 0x5D) {
+            return level | shapeKindTask | (b == 0x20 ? 0 : 0x4);
+          }
+        }
+      }
+      return level | shapeKindBullet;
+    }
+    // Ordered: digits, then `.` or `)`, then whitespace.
+    if (c >= 0x30 && c <= 0x39) {
+      int j = i + 1;
+      while (j < n && line.codeUnitAt(j) >= 0x30 && line.codeUnitAt(j) <= 0x39) {
+        j++;
+      }
+      if (j + 1 < n &&
+          (line.codeUnitAt(j) == 0x2E || line.codeUnitAt(j) == 0x29) &&
+          _isLineWhitespace(line.codeUnitAt(j + 1))) {
+        return level | shapeKindOrdered;
+      }
+      return -1;
+    }
+    return -1;
+  }
+
+  /// The `\s` set as it applies within a single line (no `\r`/`\n` can
+  /// appear in a [CodeLine]'s text).
+  static bool _isLineWhitespace(int c) {
+    if (c == 0x20 || c == 0x09) return true;
+    if (c < 0x0B) return false;
+    return c == 0x0B ||
+        c == 0x0C ||
+        c == 0xA0 ||
+        c == 0x1680 ||
+        (c >= 0x2000 && c <= 0x200A) ||
+        c == 0x2028 ||
+        c == 0x2029 ||
+        c == 0x202F ||
+        c == 0x205F ||
+        c == 0x3000 ||
+        c == 0xFEFF;
+  }
+
   /// Visual nesting level for a leading-whitespace string (or any line —
   /// only the leading whitespace is inspected). Tabs count as two
   /// columns; every [indentUnit] columns is one level.

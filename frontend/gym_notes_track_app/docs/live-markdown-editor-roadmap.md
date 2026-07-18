@@ -202,6 +202,11 @@ Long lines (>4096 chars) render raw. Reveal (selection) lines bypass the memo.
 
 ## Not verified on device yet
 
+- Perf batch of 2026-07-18 (incremental line index, paragraph identity
+  cache, plain-span memo): typing latency on a 10k+ line note, checkbox
+  indeterminate dots after rapid edits/undo across segment boundaries
+  (256-line seams), fence styling after typing ``` mid-document
+
 - Checkbox glyph optical size (`_checkboxGlyphScale = 0.85` is the knob)
 - Toggle on a box far from the caret: confirm no scroll jump from selection restore
 - Undo/redo of a checkbox toggle (selection state after undo)
@@ -244,10 +249,29 @@ Long lines (>4096 chars) render raw. Reveal (selection) lines bypass the memo.
 
 ### Performance follow-ups (only if profiling says so)
 
-- [ ] Fence index is O(total lines) per text mutation — fine to ~10k lines;
-      go incremental (diff via `preValue`) only if huge notes appear
-- [ ] Provider paragraph-cache lookups deep-hash the span tree — could key by
-      line text + generation instead (fork change, measure first)
+- [x] Fence index is O(total lines) per text mutation → replaced by
+      `MarkdownEditorLineIndex` (fence roles + indeterminate task parents in
+      one shared incremental index). Exploits `cloneShallowDirty`'s
+      structural sharing: per-segment backing-list identity is the dirty
+      flag, so a keystroke resumes at the first changed segment (fence pass
+      early-stops on a parity-matched unchanged segment; task pass revives
+      the boundary frame-stack snapshot and rescans the suffix). Structural
+      edits (Enter/paste/delete-line) fall back to a full rebuild, kept
+      cheap by the allocation-free `MarkdownListSyntax.scanListShape`
+      (charcode scan, no regexes, no MarkdownListItem allocation). Fence
+      grammar single-sourced as `MarkdownChunker.isFenceDelimiter` (preview
+      block scan + editor index share it; NBSP-indented fences now
+      uniformly not fences — was a preview/editor divergence)
+- [x] Provider paragraph-cache lookups deep-hash the span tree → fork's
+      `_CodeParagraphProvider` got an identity-keyed L1 in front of the
+      deep-equality LRU: the span builder's memo returns identical
+      instances, so steady-state hits are one pointer hash instead of ~3
+      full-tree hashes (lookup + LRU-touch remove/re-add). Also:
+      `updateBaseStyle` short-circuits on the Flutter TextStyle before
+      allocating a `ui.TextStyle` to compare (was per line per layout), and
+      `_CodeHighlighter` memoizes the plain no-theme fallback span per line
+      text — which also makes unhandled/plain lines identity-stable through
+      the ghost builder's pass-through, so they ride the L1 too
 
 ### Product polish
 

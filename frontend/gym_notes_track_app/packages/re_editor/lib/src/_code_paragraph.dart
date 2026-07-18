@@ -337,6 +337,16 @@ class _CodeParagraphProvider {
 
   final Map<TextSpan, IParagraph> _cachedParagraphs;
 
+  // Identity-keyed L1 in front of the deep-equality LRU: span builders
+  // that memoize per line return the identical TextSpan instance on
+  // every layout pass, but `TextSpan.hashCode` recurses through the
+  // whole child tree (and every child's TextStyle), so even a cache HIT
+  // in `_cachedParagraphs` costs hundreds of hash ops — three times per
+  // hit with the LRU touch. This map collapses the steady-state hit to
+  // one pointer hash. Misses fall through to the equality map, so
+  // callers that rebuild fresh spans every frame keep today's behavior.
+  final LinkedHashMap<TextSpan, IParagraph> _identityParagraphs;
+
   // A span whose root style sets a fontSize different from the base style
   // gets its own strut / preferred line height, so callers (span builders)
   // can render individual lines taller than the editor's base line height.
@@ -351,9 +361,16 @@ class _CodeParagraphProvider {
 
   _CodeParagraphProvider()
       : _cachedParagraphs = {},
+        _identityParagraphs = LinkedHashMap.identity(),
         _scaledLineStyles = {};
 
   void updateBaseStyle(TextStyle style) {
+    // Called once per line per layout pass with the render's stable
+    // _textStyle, so short-circuit on the Flutter style before paying
+    // the ui.TextStyle allocation + native comparison below.
+    if (identical(style, _baseStyle) || style == _baseStyle) {
+      return;
+    }
     final ui.TextStyle uiStyle = style.getTextStyle();
     if (uiStyle == _style) {
       return;
@@ -416,11 +433,21 @@ class _CodeParagraphProvider {
       _constraints = ui.ParagraphConstraints(width: maxWidth);
       clearCache();
     }
-    final IParagraph? cache = _cachedParagraphs[span];
+    // Identity fast path: no deep span hashing. The equality LRU is NOT
+    // touched here — if it evicts an entry still hot in the identity
+    // map, the identity map keeps serving it (both maps are bounded).
+    IParagraph? cache = _identityParagraphs[span];
+    if (cache != null) {
+      _identityParagraphs.remove(span);
+      _identityParagraphs[span] = cache;
+      return cache;
+    }
+    cache = _cachedParagraphs[span];
     if (cache != null) {
       // Touch for LRU: re-insert at the tail (insertion order = recency).
       _cachedParagraphs.remove(span);
       _cachedParagraphs[span] = cache;
+      _rememberIdentity(span, cache);
       return cache;
     }
     final IParagraph impl;
@@ -435,10 +462,23 @@ class _CodeParagraphProvider {
     }
     _cachedParagraphs[span] = impl;
     if (_cachedParagraphs.length > _kMaxCacheSize) {
-      // Evict the oldest entry (head of the insertion-ordered map).
-      _cachedParagraphs.remove(_cachedParagraphs.keys.first);
+      // Evict the oldest entry (head of the insertion-ordered map) from
+      // both maps: the identity entry for the same span instance must
+      // not outlive the equality entry, or its native paragraph memory
+      // would be pinned past eviction.
+      final TextSpan evicted = _cachedParagraphs.keys.first;
+      _cachedParagraphs.remove(evicted);
+      _identityParagraphs.remove(evicted);
     }
+    _rememberIdentity(span, impl);
     return impl;
+  }
+
+  void _rememberIdentity(TextSpan span, IParagraph paragraph) {
+    _identityParagraphs[span] = paragraph;
+    if (_identityParagraphs.length > _kMaxCacheSize) {
+      _identityParagraphs.remove(_identityParagraphs.keys.first);
+    }
   }
 
   TextSpan trucate(TextSpan span, int maxLength) {
@@ -489,6 +529,7 @@ class _CodeParagraphProvider {
 
   void clearCache() {
     _cachedParagraphs.clear();
+    _identityParagraphs.clear();
   }
 
   IParagraph _build(TextSpan span, String plainText, bool trucated) {

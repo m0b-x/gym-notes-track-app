@@ -8,6 +8,16 @@ class _CodeHighlighter extends ValueNotifier<List<_HighlightResult>> {
   CodeLineEditingController _controller;
   CodeHighlightTheme? _theme;
 
+  // Memo for the plain no-highlight span (the common case when no
+  // highlight theme is set). Bounded LRU keyed by line text: avoids one
+  // TextSpan allocation per line per layout, and — because the span
+  // builder chain passes unhandled lines through untouched — gives the
+  // paragraph provider's identity cache a stable instance for every
+  // plain line. Invalidated when the base style changes.
+  static const int _kMaxPlainSpanCache = 1024;
+  final LinkedHashMap<String, TextSpan> _plainSpans = LinkedHashMap();
+  TextStyle? _plainSpanStyle;
+
   _CodeHighlighter({
     required BuildContext context,
     required CodeLineEditingController controller,
@@ -69,14 +79,32 @@ class _CodeHighlighter extends ValueNotifier<List<_HighlightResult>> {
     super.dispose();
   }
 
+  TextSpan _plainSpan(String text, TextStyle style) {
+    if (!identical(style, _plainSpanStyle) && style != _plainSpanStyle) {
+      _plainSpans.clear();
+      _plainSpanStyle = style;
+    }
+    TextSpan? span = _plainSpans.remove(text);
+    if (span != null) {
+      _plainSpans[text] = span;
+      return span;
+    }
+    span = TextSpan(text: text, style: style);
+    _plainSpans[text] = span;
+    if (_plainSpans.length > _kMaxPlainSpanCache) {
+      _plainSpans.remove(_plainSpans.keys.first);
+    }
+    return span;
+  }
+
   TextSpan _buildSpan(int index, TextStyle style) {
     final String text = _controller.codeLines[index].text;
     if (index >= value.length) {
-      return TextSpan(text: text, style: style);
+      return _plainSpan(text, style);
     }
     final _HighlightResult result = value[index];
     if (result.nodes.isEmpty) {
-      return TextSpan(text: text, style: style);
+      return _plainSpan(text, style);
     }
     if (result.source == text) {
       return _buildSpanFromNodes(result.nodes, style);

@@ -97,6 +97,21 @@ class MarkdownChunker {
     return scaled;
   }
 
+  /// Whether [line] is a ``` code-fence delimiter: optional space/tab
+  /// indent, then three backticks. The single fence grammar — shared by
+  /// the preview's block scan below and the editor's positional line
+  /// index ([MarkdownEditorLineIndex]), so the two surfaces can never
+  /// disagree about where a fence starts. Allocation-free (no trim).
+  static bool isFenceDelimiter(String line) {
+    int i = 0;
+    while (i < line.length) {
+      final int c = line.codeUnitAt(i);
+      if (c != 0x20 && c != 0x09) break;
+      i++;
+    }
+    return line.startsWith('```', i);
+  }
+
   /// Computes the full chunk layout for a document of [lineCount] lines.
   ///
   /// [chunkSize] is the **final** per-chunk line target; apply
@@ -130,13 +145,12 @@ class MarkdownChunker {
     int i = 0;
     while (i < lineCount) {
       final line = lineAt(i);
-      final trimmed = line.trimLeft();
 
       // Fenced code block: ``` … ``` (or an unterminated fence to EOF).
-      if (trimmed.startsWith('```')) {
+      if (isFenceDelimiter(line)) {
         final start = i;
         i++;
-        while (i < lineCount && !lineAt(i).trimLeft().startsWith('```')) {
+        while (i < lineCount && !isFenceDelimiter(lineAt(i))) {
           i++;
         }
         // Include the closing fence line when present; otherwise the
@@ -159,6 +173,7 @@ class MarkdownChunker {
       // single trimLeft per line — parseLead (which re-trims) only runs on
       // blockquote lines. Continues across contiguous blockquote lines;
       // the first non-blockquote line (or EOF) ends it.
+      final trimmed = line.trimLeft();
       if (trimmed.startsWith('>') &&
           MarkdownCalloutSyntax.parseLead(line) != null) {
         final start = i;
