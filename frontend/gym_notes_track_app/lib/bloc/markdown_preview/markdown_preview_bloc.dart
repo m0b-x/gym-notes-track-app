@@ -86,6 +86,7 @@ class MarkdownPreviewBloc
     on<PreviewSearchUpdated>(_onSearchUpdated);
     on<PreviewLinesPerChunkChanged>(_onLinesPerChunkChanged);
     on<PreviewMoneyConfigChanged>(_onMoneyConfigChanged);
+    on<PreviewColorPaletteChanged>(_onColorPaletteChanged);
     on<PreviewModeToggled>(_onModeToggled);
     on<PreviewThemeChanged>(_onThemeChanged);
   }
@@ -279,6 +280,14 @@ class MarkdownPreviewBloc
     );
   }
 
+  void _onColorPaletteChanged(
+    PreviewColorPaletteChanged event,
+    Emitter<MarkdownPreviewState> emit,
+  ) {
+    if (event.palette == state.colorPalette) return;
+    _emitPrepared(state.copyWith(colorPalette: event.palette), emit);
+  }
+
   void _onModeToggled(
     PreviewModeToggled event,
     Emitter<MarkdownPreviewState> emit,
@@ -348,6 +357,7 @@ class MarkdownPreviewBloc
       moneyStartCents: next.moneyStartCents,
       currencySymbol: next.moneyCurrencySymbol,
       currencySuffix: next.moneyCurrencySuffix,
+      colorPalette: next.colorPalette,
       onLinkTap: _onLinkTap,
       onCheckboxTap: _onCheckboxTap,
       onGhostTap: _onGhostTap,

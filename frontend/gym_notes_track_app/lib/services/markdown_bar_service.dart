@@ -36,6 +36,7 @@ class MarkdownBarService extends ChangeNotifier {
   static const String _moneySeedKey = 'money_shortcut_seeded';
   static const String _moneyOpsSeedKey = 'money_ops_shortcuts_seeded';
   static const String _moneyTargetSeedKey = 'money_target_shortcut_seeded';
+  static const String _colorSeedKey = 'color_shortcuts_seeded';
 
   /// In-memory cache of all profiles.
   List<MarkdownBarProfile> _profiles = [];
@@ -363,6 +364,11 @@ class MarkdownBarService extends ChangeNotifier {
       'default_money_target',
       _moneyTargetSeedKey,
     );
+    // The two colour shortcuts ship together as one family.
+    await _seedDefaultShortcutBatchIfNeeded(const [
+      'default_color_text',
+      'default_color_highlight',
+    ], _colorSeedKey);
   }
 
   /// Batch counterpart of [_seedDefaultShortcutIfNeeded]: appends every

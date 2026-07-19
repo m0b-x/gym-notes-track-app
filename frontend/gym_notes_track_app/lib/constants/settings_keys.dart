@@ -54,6 +54,12 @@ class SettingsKeys {
   /// currency (mirrors the `note_bar_<noteId>` override precedent).
   static const String moneyNoteCurrencyPrefix = 'money_note_currency_';
 
+  // Markdown colour settings
+  /// User-defined colours for `{name:text}` and `==name:text==`, stored
+  /// as `name=aarrggbb;name=aarrggbb`. Absent/empty means presets only.
+  /// Decoded by `MarkdownColorPalette.decode`.
+  static const String markdownCustomColors = 'markdown_custom_colors';
+
   // Preview settings
   static const String showPreviewScrollbar = 'show_preview_scrollbar';
 
@@ -119,6 +125,10 @@ class SettingsKeys {
   static const int defaultMoneyStartCents = 0;
   static const String defaultMoneyCurrencySymbol = '';
   static const bool defaultMoneyCurrencySuffix = false;
+
+  // Default values for markdown colour settings
+  /// No custom colours: the presets-only palette.
+  static const String defaultMarkdownCustomColors = '';
 
   // Default values for preview settings
   static const bool defaultShowPreviewScrollbar = false;

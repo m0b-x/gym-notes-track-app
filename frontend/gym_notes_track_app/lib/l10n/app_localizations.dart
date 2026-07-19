@@ -4623,6 +4623,120 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Money: {amount}'**
   String moneyDaySummaryTitle(String amount);
+
+  /// Page title and settings row for the markdown color palette
+  ///
+  /// In en, this message translates to:
+  /// **'Text colors'**
+  String get markdownColorsTitle;
+
+  /// Settings row subtitle for the markdown color palette
+  ///
+  /// In en, this message translates to:
+  /// **'Colors for text and highlights'**
+  String get markdownColorsSubtitle;
+
+  /// Explains how the colored text syntax works
+  ///
+  /// In en, this message translates to:
+  /// **'Type a color name before the text. Unknown names stay plain.'**
+  String get markdownColorsHowTo;
+
+  /// Placeholder body text shown in the syntax examples
+  ///
+  /// In en, this message translates to:
+  /// **'sample text'**
+  String get markdownColorsSampleText;
+
+  /// Note explaining automatic contrast adjustment for custom colors
+  ///
+  /// In en, this message translates to:
+  /// **'Custom colors are adjusted automatically when they would be unreadable on the current theme.'**
+  String get markdownColorsFallbackNote;
+
+  /// Section header listing the built-in color names
+  ///
+  /// In en, this message translates to:
+  /// **'Presets'**
+  String get markdownColorsPresets;
+
+  /// Section header listing the user's own color names
+  ///
+  /// In en, this message translates to:
+  /// **'Custom colors'**
+  String get markdownColorsCustom;
+
+  /// Empty state for the custom colors list
+  ///
+  /// In en, this message translates to:
+  /// **'No custom colors yet. Tap + to add one.'**
+  String get markdownColorsEmpty;
+
+  /// Title of the dialog asking for a color name
+  ///
+  /// In en, this message translates to:
+  /// **'Color name'**
+  String get markdownColorsNameTitle;
+
+  /// Hint describing the characters allowed in a color name
+  ///
+  /// In en, this message translates to:
+  /// **'lowercase letters, digits, - and _'**
+  String get markdownColorsNameHint;
+
+  /// Error shown when a color name normalizes to empty
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name using letters, digits, - or _'**
+  String get markdownColorsNameInvalid;
+
+  /// Menu action to pick a new color for an existing name
+  ///
+  /// In en, this message translates to:
+  /// **'Change color'**
+  String get markdownColorsRecolor;
+
+  /// Menu action to rename a custom color
+  ///
+  /// In en, this message translates to:
+  /// **'Rename'**
+  String get markdownColorsRename;
+
+  /// Menu action to delete a custom color
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get markdownColorsDelete;
+
+  /// Title of the delete confirmation dialog for a custom color
+  ///
+  /// In en, this message translates to:
+  /// **'Delete color'**
+  String get markdownColorsDeleteTitle;
+
+  /// Subtitle on a preset row that a custom color shadows
+  ///
+  /// In en, this message translates to:
+  /// **'Overridden by a custom color'**
+  String get markdownColorsOverridden;
+
+  /// Error when the entered color name already exists
+  ///
+  /// In en, this message translates to:
+  /// **'\"{name}\" is already used'**
+  String markdownColorsNameTaken(String name);
+
+  /// Error when the custom color limit is reached
+  ///
+  /// In en, this message translates to:
+  /// **'Color limit reached ({count})'**
+  String markdownColorsLimitReached(int count);
+
+  /// Confirmation message when deleting a custom color
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"? Notes using it will show plain text.'**
+  String markdownColorsDeleteMessage(String name);
 }
 
 class _AppLocalizationsDelegate

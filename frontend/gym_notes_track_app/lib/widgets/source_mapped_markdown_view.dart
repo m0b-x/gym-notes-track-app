@@ -9,6 +9,7 @@ import '../models/dev_options.dart';
 import '../models/checkbox_toggle_info.dart';
 import '../services/markdown_render_service.dart';
 import '../utils/line_based_markdown_builder.dart';
+import '../utils/markdown_color_syntax.dart';
 import 'double_tap_line_detector.dart';
 
 typedef LinkTapCallback = void Function(String url);
@@ -43,6 +44,10 @@ class SourceMappedMarkdownView extends StatefulWidget {
   final int moneyStartCents;
   final String currencySymbol;
   final bool currencySuffix;
+
+  /// Resolved markdown colour palette for `{name:text}` runs and
+  /// `==name:text==` highlights.
+  final MarkdownColorPalette colorPalette;
 
   /// Ghost / tag / money tap callbacks. Threaded through so this
   /// widget's own `prepareWithStyle` call (in [_buildCache], which can
@@ -82,6 +87,7 @@ class SourceMappedMarkdownView extends StatefulWidget {
     this.moneyStartCents = 0,
     this.currencySymbol = '',
     this.currencySuffix = false,
+    this.colorPalette = MarkdownColorPalette.presets,
     this.onGhostTap,
     this.onTagTap,
     this.onMoneyTap,
@@ -426,6 +432,7 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
       moneyStartCents: widget.moneyStartCents,
       currencySymbol: widget.currencySymbol,
       currencySuffix: widget.currencySuffix,
+      colorPalette: widget.colorPalette,
       onLinkTap: _handleLinkTap,
       onCheckboxTap: _handleCheckboxTap,
       onGhostTap: widget.onGhostTap,

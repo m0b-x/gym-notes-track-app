@@ -57,6 +57,7 @@ class AvailableIcons {
     Icons.terminal,
     Icons.highlight,
     Icons.format_color_text,
+    Icons.format_color_fill,
     Icons.text_format,
 
     // Time & Calendar

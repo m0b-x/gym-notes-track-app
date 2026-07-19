@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../utils/line_based_markdown_builder.dart';
 import '../utils/markdown_chunker.dart';
+import '../utils/markdown_color_syntax.dart';
 
 /// Owns the lifecycle of a [LineBasedMarkdownBuilder] for a single
 /// markdown preview surface.
@@ -32,6 +33,7 @@ class MarkdownRenderService {
   int? _lastMoneyStartCents;
   String? _lastCurrencySymbol;
   bool? _lastCurrencySuffix;
+  MarkdownColorPalette? _lastColorPalette;
 
   /// The active builder, or `null` if [prepare] has not been called yet.
   LineBasedMarkdownBuilder? get builder => _builder;
@@ -72,6 +74,7 @@ class MarkdownRenderService {
     int moneyStartCents = 0,
     String currencySymbol = '',
     bool currencySuffix = false,
+    MarkdownColorPalette colorPalette = MarkdownColorPalette.presets,
     LinkTapCallback? onLinkTap,
     CheckboxTapCallback? onCheckboxTap,
     GhostTapCallback? onGhostTap,
@@ -90,7 +93,8 @@ class MarkdownRenderService {
         _lastMoneyEnabled != moneyEnabled ||
         _lastMoneyStartCents != moneyStartCents ||
         _lastCurrencySymbol != currencySymbol ||
-        _lastCurrencySuffix != currencySuffix;
+        _lastCurrencySuffix != currencySuffix ||
+        _lastColorPalette != colorPalette;
 
     if (!needsRebuild) {
       return false;
@@ -107,6 +111,7 @@ class MarkdownRenderService {
     _lastMoneyStartCents = moneyStartCents;
     _lastCurrencySymbol = currencySymbol;
     _lastCurrencySuffix = currencySuffix;
+    _lastColorPalette = colorPalette;
 
     final adaptiveChunkSize = MarkdownChunker.adaptiveChunkSize(
       _estimateLineCount(data),
@@ -127,6 +132,7 @@ class MarkdownRenderService {
       moneyStartCents: moneyStartCents,
       currencySymbol: currencySymbol,
       currencySuffix: currencySuffix,
+      colorPalette: colorPalette,
       linesPerChunk: adaptiveChunkSize,
     );
     _builder!.prepare(data);
@@ -157,6 +163,7 @@ class MarkdownRenderService {
     _lastMoneyStartCents = null;
     _lastCurrencySymbol = null;
     _lastCurrencySuffix = null;
+    _lastColorPalette = null;
   }
 
   void _disposeBuilder() {

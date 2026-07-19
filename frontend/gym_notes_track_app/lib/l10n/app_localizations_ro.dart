@@ -2548,4 +2548,71 @@ class AppLocalizationsRo extends AppLocalizations {
   String moneyDaySummaryTitle(String amount) {
     return 'Bani: $amount';
   }
+
+  @override
+  String get markdownColorsTitle => 'Culori text';
+
+  @override
+  String get markdownColorsSubtitle => 'Culori pentru text și evidențieri';
+
+  @override
+  String get markdownColorsHowTo =>
+      'Scrie numele culorii înaintea textului. Numele necunoscute rămân simple.';
+
+  @override
+  String get markdownColorsSampleText => 'text exemplu';
+
+  @override
+  String get markdownColorsFallbackNote =>
+      'Culorile personalizate sunt ajustate automat când ar fi ilizibile pe tema curentă.';
+
+  @override
+  String get markdownColorsPresets => 'Presetări';
+
+  @override
+  String get markdownColorsCustom => 'Culori personalizate';
+
+  @override
+  String get markdownColorsEmpty =>
+      'Nicio culoare personalizată. Apasă + pentru a adăuga.';
+
+  @override
+  String get markdownColorsNameTitle => 'Nume culoare';
+
+  @override
+  String get markdownColorsNameHint => 'litere mici, cifre, - și _';
+
+  @override
+  String get markdownColorsNameInvalid =>
+      'Introdu un nume cu litere, cifre, - sau _';
+
+  @override
+  String get markdownColorsRecolor => 'Schimbă culoarea';
+
+  @override
+  String get markdownColorsRename => 'Redenumește';
+
+  @override
+  String get markdownColorsDelete => 'Șterge';
+
+  @override
+  String get markdownColorsDeleteTitle => 'Șterge culoarea';
+
+  @override
+  String get markdownColorsOverridden => 'Înlocuită de o culoare personalizată';
+
+  @override
+  String markdownColorsNameTaken(String name) {
+    return '„$name” este deja folosit';
+  }
+
+  @override
+  String markdownColorsLimitReached(int count) {
+    return 'Limită de culori atinsă ($count)';
+  }
+
+  @override
+  String markdownColorsDeleteMessage(String name) {
+    return 'Ștergi „$name”? Notițele care o folosesc vor afișa text simplu.';
+  }
 }

@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter/painting.dart' show TextRange;
 
+import '../../utils/markdown_color_syntax.dart';
+
 /// Immutable snapshot of the markdown preview pipeline.
 ///
 /// Stays intentionally small: no [InlineSpan] trees, no AST nodes, no
@@ -46,6 +48,11 @@ final class MarkdownPreviewState extends Equatable {
   final String moneyCurrencySymbol;
   final bool moneyCurrencySuffix;
 
+  /// Resolved markdown colour palette (presets + the user's custom
+  /// colours) driving `{name:text}` and `==name:text==`. Value-equal on
+  /// its persisted source, so it is a safe render-cache key.
+  final MarkdownColorPalette colorPalette;
+
   const MarkdownPreviewState({
     this.content = '',
     this.fontSize = 14.0,
@@ -59,6 +66,7 @@ final class MarkdownPreviewState extends Equatable {
     this.moneyStartCents = 0,
     this.moneyCurrencySymbol = '',
     this.moneyCurrencySuffix = false,
+    this.colorPalette = MarkdownColorPalette.presets,
   });
 
   MarkdownPreviewState copyWith({
@@ -76,6 +84,7 @@ final class MarkdownPreviewState extends Equatable {
     int? moneyStartCents,
     String? moneyCurrencySymbol,
     bool? moneyCurrencySuffix,
+    MarkdownColorPalette? colorPalette,
   }) {
     return MarkdownPreviewState(
       content: content ?? this.content,
@@ -94,6 +103,7 @@ final class MarkdownPreviewState extends Equatable {
       moneyStartCents: moneyStartCents ?? this.moneyStartCents,
       moneyCurrencySymbol: moneyCurrencySymbol ?? this.moneyCurrencySymbol,
       moneyCurrencySuffix: moneyCurrencySuffix ?? this.moneyCurrencySuffix,
+      colorPalette: colorPalette ?? this.colorPalette,
     );
   }
 
@@ -111,5 +121,6 @@ final class MarkdownPreviewState extends Equatable {
     moneyStartCents,
     moneyCurrencySymbol,
     moneyCurrencySuffix,
+    colorPalette,
   ];
 }

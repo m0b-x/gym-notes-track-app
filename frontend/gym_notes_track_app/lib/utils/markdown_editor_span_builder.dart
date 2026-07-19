@@ -5,6 +5,7 @@ import '../constants/markdown_constants.dart';
 import 'ghost_text.dart';
 import 'lru_cache.dart';
 import 'markdown_callout_syntax.dart';
+import 'markdown_color_syntax.dart';
 import 'markdown_editor_line_index.dart';
 import 'markdown_link_patterns.dart';
 import 'markdown_list_syntax.dart';
@@ -121,6 +122,8 @@ class MarkdownEditorSpanBuilder {
   String _currencySymbol = '';
   bool _currencySuffix = false;
 
+  MarkdownColorPalette _colorPalette = MarkdownColorPalette.presets;
+
   void bind(CodeLineEditingController controller) {
     _controller = controller;
   }
@@ -149,6 +152,22 @@ class MarkdownEditorSpanBuilder {
       _positionalSpanCache.clear();
     }
     _lineIndex.configureMoney(enabled: enabled, startCents: startCents);
+  }
+
+  /// Applies the resolved colour palette for `{name:text}` runs and
+  /// `==name:text==` highlights. Called by the page on note load and
+  /// after returning from settings. A palette change invalidates the
+  /// span memos — same lifecycle as a theme or money-config change —
+  /// because cached spans hold already-resolved colours.
+  ///
+  /// Comparison is one string compare on the palette's persisted source
+  /// (with an `identical` short-circuit), so re-applying an unchanged
+  /// palette costs nothing and never clears a warm cache.
+  void configureColors(MarkdownColorPalette palette) {
+    if (palette == _colorPalette) return;
+    _colorPalette = palette;
+    _spanCache.clear();
+    _positionalSpanCache.clear();
   }
 
   /// Returns the restyled span for [codeLine], or `null` when this line
@@ -904,14 +923,16 @@ class MarkdownEditorSpanBuilder {
     var pos = start;
     while (pos < end) {
       final c = text.codeUnitAt(pos);
+      // A ghost run is opaque: skip it whole so `{{`/`}}` never open a
+      // run. Any other `{` falls through to the coloured-text branch
+      // below — it must not be swallowed here, or `{red:x}` would stop
+      // rendering on every line that also contains a ghost.
       if (c == 0x7B && ghosts.isNotEmpty) {
         final g = _ghostAt(ghosts, pos);
         if (g != null) {
           pos = g.end;
           continue;
         }
-        pos++;
-        continue;
       }
       // Backslash escape: the escaped punctuation renders literally and
       // never opens a run/tag/link (mirrors the preview's scan). The `\`
@@ -984,6 +1005,87 @@ class MarkdownEditorSpanBuilder {
         } else {
           pos++;
         }
+        continue;
+      }
+      // Coloured text: {name:content}. `{name:` and `}` are concealed
+      // (transparent + ~0 size) so the line keeps every source code
+      // unit and caret offsets never desync. Rejected inside a ghost —
+      // ghosts win, same as every other construct here.
+      if (c == 0x7B) {
+        final colored = MarkdownColorSyntax.matchAt(
+          text,
+          pos,
+          _colorPalette,
+          end,
+        );
+        if (colored == null ||
+            _inGhost(ghosts, pos) ||
+            _inGhost(ghosts, colored.innerEnd)) {
+          pos++;
+          continue;
+        }
+        if (plainFrom < pos) {
+          _emit(
+            text: text,
+            start: plainFrom,
+            end: pos,
+            style: contextStyle,
+            baseColor: baseColor,
+            ghosts: ghosts,
+            out: out,
+          );
+        }
+        final markerStyle = reveal
+            ? _dimStyle(contextStyle, baseColor)
+            : _concealStyle(contextStyle);
+        final runStyle = contextStyle.copyWith(
+          color: colored.spec.text(dark: _isDark),
+        );
+        _emit(
+          text: text,
+          start: pos,
+          end: colored.innerStart,
+          style: markerStyle,
+          baseColor: baseColor,
+          ghosts: ghosts,
+          out: out,
+        );
+        if (depth < _maxInlineDepth) {
+          _appendInline(
+            text: text,
+            start: colored.innerStart,
+            end: colored.innerEnd,
+            contextStyle: runStyle,
+            baseColor: baseColor,
+            primary: primary,
+            reveal: reveal,
+            ghosts: ghosts,
+            out: out,
+            depth: depth + 1,
+          );
+        } else {
+          _emit(
+            text: text,
+            start: colored.innerStart,
+            end: colored.innerEnd,
+            style: runStyle,
+            baseColor: baseColor,
+            ghosts: ghosts,
+            out: out,
+          );
+        }
+        _emit(
+          text: text,
+          start: colored.innerEnd,
+          end: colored.end,
+          style: markerStyle,
+          baseColor: baseColor,
+          ghosts: ghosts,
+          out: out,
+        );
+        styled = true;
+        pos = colored.end;
+        plainFrom = pos;
         continue;
       }
       if (c == 0x5B) {
@@ -1115,13 +1217,43 @@ class MarkdownEditorSpanBuilder {
       final markerStyle = reveal
           ? _dimStyle(contextStyle, baseColor)
           : _concealStyle(contextStyle);
-      final runStyle = _runStyle(contextStyle, baseColor, run.marker);
+      var innerStart = run.innerStart;
+      var runStyle = _runStyle(contextStyle, baseColor, run.marker);
+      // `==name:text==` tints the highlight and conceals `name:` as
+      // chrome alongside the `==` markers. An unresolved name keeps the
+      // default amber and leaves the prefix as ordinary text, so
+      // `==note: see below==` is never eaten.
+      if (run.marker == '==') {
+        final tint = MarkdownColorSyntax.matchHighlightPrefix(
+          text,
+          innerStart,
+          run.innerEnd,
+          _colorPalette,
+        );
+        if (tint != null && !_inGhost(ghosts, tint.contentStart - 1)) {
+          runStyle = contextStyle.copyWith(
+            backgroundColor: tint.spec.highlight(dark: _isDark),
+          );
+          innerStart = tint.contentStart;
+        }
+      }
       out.add(TextSpan(text: run.marker, style: markerStyle));
+      if (innerStart > run.innerStart) {
+        _emit(
+          text: text,
+          start: run.innerStart,
+          end: innerStart,
+          style: markerStyle,
+          baseColor: baseColor,
+          ghosts: ghosts,
+          out: out,
+        );
+      }
       // Code runs are literal: no nested emphasis inside backticks.
       if (run.marker != '`' && depth < _maxInlineDepth) {
         _appendInline(
           text: text,
-          start: run.innerStart,
+          start: innerStart,
           end: run.innerEnd,
           contextStyle: runStyle,
           baseColor: baseColor,
@@ -1134,7 +1266,7 @@ class MarkdownEditorSpanBuilder {
       } else {
         _emit(
           text: text,
-          start: run.innerStart,
+          start: innerStart,
           end: run.innerEnd,
           style: runStyle,
           baseColor: baseColor,
@@ -1414,7 +1546,8 @@ class MarkdownEditorSpanBuilder {
           c == 0x3D ||
           c == 0x23 ||
           c == 0x5B ||
-          c == 0x5C) {
+          c == 0x5C ||
+          c == 0x7B) {
         return true;
       }
       // Bare-URL candidates need the second scheme char too ("ht", "ww"),

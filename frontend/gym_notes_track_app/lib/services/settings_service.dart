@@ -1,8 +1,11 @@
+import 'package:flutter/painting.dart';
+
 import '../constants/settings_keys.dart';
 import '../database/database.dart';
 import '../database/database_lifecycle.dart';
 import '../models/calendar_appearance.dart';
 import '../models/utility_button_config.dart';
+import '../utils/markdown_color_syntax.dart';
 
 /// Service for managing app settings using SQLite database
 class SettingsService {
@@ -138,6 +141,35 @@ class SettingsService {
     } else {
       await _db.userSettingsDao.setValue(key, '$symbol|${currency.suffix}');
     }
+  }
+
+  /// Memoized palette, so repeated note opens skip the decode and the
+  /// per-colour contrast resolution. Keyed by the persisted source, and
+  /// returning the same instance also lets the render-cache key hit its
+  /// `identical` fast path.
+  MarkdownColorPalette? _colorPalette;
+
+  /// The effective markdown colour palette: the built-in presets
+  /// overlaid with the user's custom colours. Resolved by the editor
+  /// page on note open and after returning from settings.
+  Future<MarkdownColorPalette> getColorPalette() async {
+    final source =
+        await _db.userSettingsDao.getValue(SettingsKeys.markdownCustomColors) ??
+        SettingsKeys.defaultMarkdownCustomColors;
+    final cached = _colorPalette;
+    if (cached != null && cached.source == source) return cached;
+    return _colorPalette = MarkdownColorPalette.decode(source);
+  }
+
+  /// Persists the custom colours (name -> colour). Names must already be
+  /// normalized by [MarkdownColorPalette.normalizeName].
+  Future<void> setCustomColors(Map<String, Color> colors) async {
+    final source = MarkdownColorPalette.encode(colors);
+    await _db.userSettingsDao.setValue(
+      SettingsKeys.markdownCustomColors,
+      source,
+    );
+    _colorPalette = MarkdownColorPalette.decode(source);
   }
 
   Future<int> _getInt(String key, int defaultValue) async {

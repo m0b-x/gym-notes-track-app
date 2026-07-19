@@ -2517,4 +2517,70 @@ class AppLocalizationsEn extends AppLocalizations {
   String moneyDaySummaryTitle(String amount) {
     return 'Money: $amount';
   }
+
+  @override
+  String get markdownColorsTitle => 'Text colors';
+
+  @override
+  String get markdownColorsSubtitle => 'Colors for text and highlights';
+
+  @override
+  String get markdownColorsHowTo =>
+      'Type a color name before the text. Unknown names stay plain.';
+
+  @override
+  String get markdownColorsSampleText => 'sample text';
+
+  @override
+  String get markdownColorsFallbackNote =>
+      'Custom colors are adjusted automatically when they would be unreadable on the current theme.';
+
+  @override
+  String get markdownColorsPresets => 'Presets';
+
+  @override
+  String get markdownColorsCustom => 'Custom colors';
+
+  @override
+  String get markdownColorsEmpty => 'No custom colors yet. Tap + to add one.';
+
+  @override
+  String get markdownColorsNameTitle => 'Color name';
+
+  @override
+  String get markdownColorsNameHint => 'lowercase letters, digits, - and _';
+
+  @override
+  String get markdownColorsNameInvalid =>
+      'Enter a name using letters, digits, - or _';
+
+  @override
+  String get markdownColorsRecolor => 'Change color';
+
+  @override
+  String get markdownColorsRename => 'Rename';
+
+  @override
+  String get markdownColorsDelete => 'Delete';
+
+  @override
+  String get markdownColorsDeleteTitle => 'Delete color';
+
+  @override
+  String get markdownColorsOverridden => 'Overridden by a custom color';
+
+  @override
+  String markdownColorsNameTaken(String name) {
+    return '\"$name\" is already used';
+  }
+
+  @override
+  String markdownColorsLimitReached(int count) {
+    return 'Color limit reached ($count)';
+  }
+
+  @override
+  String markdownColorsDeleteMessage(String name) {
+    return 'Delete \"$name\"? Notes using it will show plain text.';
+  }
 }

@@ -46,6 +46,7 @@ import '../utils/re_editor_search_controller.dart';
 import '../utils/text_history_observer.dart';
 import '../utils/text_position_utils.dart';
 import '../utils/markdown_list_utils.dart';
+import '../utils/markdown_color_syntax.dart';
 import '../utils/markdown_editor_span_builder.dart';
 import '../utils/ghost_text.dart';
 import '../utils/markdown_money_syntax.dart';
@@ -89,6 +90,11 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   int _moneyStartCents = SettingsKeys.defaultMoneyStartCents;
   String _moneyCurrencySymbol = SettingsKeys.defaultMoneyCurrencySymbol;
   bool _moneyCurrencySuffix = SettingsKeys.defaultMoneyCurrencySuffix;
+
+  /// Last applied markdown colour palette. Only used to detect a real
+  /// change (so the editor repaint nudge stays rare); the preview reads
+  /// its palette from bloc state, not from here.
+  MarkdownColorPalette _colorPalette = MarkdownColorPalette.presets;
   late FocusNode _contentFocusNode;
   late CodeScrollController _editorScrollController;
   late TextHistoryObserver _historyObserver;
@@ -483,6 +489,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       });
       _previewBloc.add(PreviewLinesPerChunkChanged(previewLinesPerChunk));
       await _refreshMoneyConfig(settings);
+      await _refreshColorPalette(settings);
     }
   }
 
@@ -535,6 +542,23 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         currencySuffix: config.suffix,
       ),
     );
+  }
+
+  /// Resolves the markdown colour palette (presets + the user's custom
+  /// colours) and applies it to both render surfaces. Same
+  /// non-destructive refresh contract as [_refreshMoneyConfig]: the
+  /// editor's span memos are cleared and a repaint is nudged only when
+  /// the palette actually changed — never a remount.
+  Future<void> _refreshColorPalette(SettingsService settings) async {
+    final palette = await settings.getColorPalette();
+    if (!mounted) return;
+    final changed = palette != _colorPalette;
+    _markdownSpanBuilder.configureColors(palette);
+    if (changed) {
+      _colorPalette = palette;
+      _contentController.forceRepaint();
+    }
+    _previewBloc.add(PreviewColorPaletteChanged(palette));
   }
 
   Future<void> _initDevOptions() async {
@@ -2094,12 +2118,67 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     });
   }
 
+  /// Wraps the selection in [shortcut]'s before/after text. With no
+  /// selection, drops an empty ghost placeholder into the slot and
+  /// **selects the whole run** so the first keystroke replaces it —
+  /// `{red:` yields `{red:{{  }}}` with `{{  }}` selected, and typing
+  /// produces `{red:hello}`, which renders in the colour.
+  ///
+  /// The ghost must be selected, not merely have the caret inside it:
+  /// typing *into* the placeholder leaves the run a ghost
+  /// (`{red:{{ hello }}}`), and the ghost's dim styling overrides the
+  /// colour — the text renders grey and the feature looks broken.
+  ///
+  /// The wrapper text is read from the shortcut itself rather than
+  /// hardcoded, so a user who edits the shortcut to `{green:` (or
+  /// duplicates it per colour) keeps the same insert behavior.
+  void _insertWithGhostSlot(CustomMarkdownShortcut shortcut) {
+    final controller = _contentController;
+    final before = shortcut.beforeText;
+    final after = shortcut.afterText;
+    final selected = controller.selectedText;
+
+    if (selected.isNotEmpty) {
+      controller.runRevocableOp(() {
+        controller.replaceSelection('$before$selected$after');
+      });
+    } else {
+      final caret = controller.selection;
+      final line = caret.baseIndex;
+      final col = caret.baseOffset;
+      final ghost = GhostText.wrap('');
+      controller.runRevocableOp(() {
+        controller.replaceSelection('$before$ghost$after');
+        controller.selection = CodeLineSelection(
+          baseIndex: line,
+          baseOffset: col + before.length,
+          extentIndex: line,
+          extentOffset: col + before.length + ghost.length,
+        );
+      });
+    }
+
+    _onTextChanged();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _contentController.makeCursorVisible();
+    });
+  }
+
   void _handleShortcut(CustomMarkdownShortcut shortcut) {
     // Ghost text has bespoke insert behavior (on an empty selection the
     // caret lands inside the placeholder), so it bypasses the generic
     // applier — mirroring how the header shortcut has its own handling.
     if (shortcut.id == 'default_ghost') {
       _insertGhostText();
+      return;
+    }
+
+    // Colour constructs wrap a selection like Bold, but on an empty
+    // selection they drop a ghost placeholder into the slot so the
+    // fill-in is visible and tappable instead of a bare caret.
+    if (shortcut.id == 'default_color_text' ||
+        shortcut.id == 'default_color_highlight') {
+      _insertWithGhostSlot(shortcut);
       return;
     }
 
@@ -2225,6 +2304,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         _utilityConfigs = utilityConfigs;
       });
       await _refreshMoneyConfig(settings);
+      await _refreshColorPalette(settings);
     }
   }
 }

@@ -161,6 +161,7 @@ class BackupService {
       'money_start_cents',
       'money_currency_symbol',
       'money_currency_suffix',
+      'markdown_custom_colors',
     ];
 
     final settings = <String, dynamic>{};

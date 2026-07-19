@@ -5,6 +5,7 @@ import '../constants/markdown_constants.dart';
 import 'ghost_text.dart';
 import 'markdown_callout_syntax.dart';
 import 'markdown_chunker.dart';
+import 'markdown_color_syntax.dart';
 import 'markdown_line_height_calculator.dart';
 import 'markdown_link_patterns.dart';
 import 'markdown_list_syntax.dart';
@@ -116,6 +117,10 @@ class LineBasedMarkdownBuilder {
   final String currencySymbol;
   final bool currencySuffix;
 
+  /// Resolved colour set for `{name:text}` runs and `==name:text==`
+  /// highlights. Presets-only unless the user defined custom colours.
+  final MarkdownColorPalette colorPalette;
+
   /// Number of lines per chunk - configurable for balance between precision and performance
   final int linesPerChunk;
 
@@ -180,6 +185,7 @@ class LineBasedMarkdownBuilder {
     this.moneyStartCents = 0,
     this.currencySymbol = '',
     this.currencySuffix = false,
+    this.colorPalette = MarkdownColorPalette.presets,
     this.linesPerChunk = 10,
   });
 
@@ -1523,6 +1529,25 @@ class LineBasedMarkdownBuilder {
           runStart = i;
           continue;
         }
+        // Coloured text: {name:content}. The `{name:` and `}` markers
+        // are chrome (like `[!TYPE]` and the `$x` money ops); the
+        // content keeps its source offsets and is parsed recursively so
+        // emphasis, links, and nested colours all compose. An unknown
+        // name never matches, so the braces stay literal text.
+        final colored = MarkdownColorSyntax.matchAt(text, i, colorPalette);
+        if (colored != null) {
+          flushRun(i);
+          children.add(
+            _parseInline(
+              text.substring(colored.innerStart, colored.innerEnd),
+              baseStyle.copyWith(color: colored.spec.text(dark: style.isDark)),
+              contentStart + colored.innerStart,
+            ),
+          );
+          i = colored.end;
+          runStart = i;
+          continue;
+        }
       }
 
       // Inline code span: `code` / ``co`de`` — literal, no nesting.
@@ -1574,11 +1599,31 @@ class LineBasedMarkdownBuilder {
         final emphasis = _tryParseEmphasisAt(text, i);
         if (emphasis != null) {
           flushRun(i);
+          var innerStart = emphasis.contentStart;
+          var runStyle = _applyEmphasisStyle(baseStyle, emphasis.kind);
+          // `==name:text==` tints the highlight and consumes `name:` as
+          // chrome. An unresolved name keeps the default amber and
+          // leaves the prefix as ordinary highlighted text, so plain
+          // prose like `==note: see below==` is never eaten.
+          if (emphasis.kind == _EmphasisKind.highlight) {
+            final tint = MarkdownColorSyntax.matchHighlightPrefix(
+              text,
+              innerStart,
+              emphasis.contentEnd,
+              colorPalette,
+            );
+            if (tint != null) {
+              runStyle = baseStyle.copyWith(
+                backgroundColor: tint.spec.highlight(dark: style.isDark),
+              );
+              innerStart = tint.contentStart;
+            }
+          }
           children.add(
             _parseInline(
-              text.substring(emphasis.contentStart, emphasis.contentEnd),
-              _applyEmphasisStyle(baseStyle, emphasis.kind),
-              contentStart + emphasis.contentStart,
+              text.substring(innerStart, emphasis.contentEnd),
+              runStyle,
+              contentStart + innerStart,
             ),
           );
           i = emphasis.end;

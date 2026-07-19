@@ -15,6 +15,7 @@ import '../pages/counter_management_page.dart';
 import '../pages/counter_per_note_page.dart';
 import '../pages/database_settings_page.dart';
 import '../pages/developer_options_page.dart';
+import '../pages/markdown_colors_page.dart';
 import '../pages/markdown_settings_page.dart';
 import '../pages/note_bar_assignment_page.dart';
 import '../pages/note_money_currency_page.dart';
@@ -212,6 +213,10 @@ abstract final class AppNavigator {
 
   static Future<void> toNoteMoneyCurrency(BuildContext context) {
     return push(context, const NoteMoneyCurrencyPage());
+  }
+
+  static Future<void> toMarkdownColors(BuildContext context) {
+    return push(context, const MarkdownColorsPage());
   }
 
   // --- Last-location persistence & restore ---

@@ -3269,5 +3269,96 @@
         "type": "String"
       }
     }
+  },
+  "markdownColorsTitle": "Text colors",
+  "@markdownColorsTitle": {
+    "description": "Page title and settings row for the markdown color palette"
+  },
+  "markdownColorsSubtitle": "Colors for text and highlights",
+  "@markdownColorsSubtitle": {
+    "description": "Settings row subtitle for the markdown color palette"
+  },
+  "markdownColorsHowTo": "Type a color name before the text. Unknown names stay plain.",
+  "@markdownColorsHowTo": {
+    "description": "Explains how the colored text syntax works"
+  },
+  "markdownColorsSampleText": "sample text",
+  "@markdownColorsSampleText": {
+    "description": "Placeholder body text shown in the syntax examples"
+  },
+  "markdownColorsFallbackNote": "Custom colors are adjusted automatically when they would be unreadable on the current theme.",
+  "@markdownColorsFallbackNote": {
+    "description": "Note explaining automatic contrast adjustment for custom colors"
+  },
+  "markdownColorsPresets": "Presets",
+  "@markdownColorsPresets": {
+    "description": "Section header listing the built-in color names"
+  },
+  "markdownColorsCustom": "Custom colors",
+  "@markdownColorsCustom": {
+    "description": "Section header listing the user's own color names"
+  },
+  "markdownColorsEmpty": "No custom colors yet. Tap + to add one.",
+  "@markdownColorsEmpty": {
+    "description": "Empty state for the custom colors list"
+  },
+  "markdownColorsNameTitle": "Color name",
+  "@markdownColorsNameTitle": {
+    "description": "Title of the dialog asking for a color name"
+  },
+  "markdownColorsNameHint": "lowercase letters, digits, - and _",
+  "@markdownColorsNameHint": {
+    "description": "Hint describing the characters allowed in a color name"
+  },
+  "markdownColorsNameInvalid": "Enter a name using letters, digits, - or _",
+  "@markdownColorsNameInvalid": {
+    "description": "Error shown when a color name normalizes to empty"
+  },
+  "markdownColorsRecolor": "Change color",
+  "@markdownColorsRecolor": {
+    "description": "Menu action to pick a new color for an existing name"
+  },
+  "markdownColorsRename": "Rename",
+  "@markdownColorsRename": {
+    "description": "Menu action to rename a custom color"
+  },
+  "markdownColorsDelete": "Delete",
+  "@markdownColorsDelete": {
+    "description": "Menu action to delete a custom color"
+  },
+  "markdownColorsDeleteTitle": "Delete color",
+  "@markdownColorsDeleteTitle": {
+    "description": "Title of the delete confirmation dialog for a custom color"
+  },
+  "markdownColorsOverridden": "Overridden by a custom color",
+  "@markdownColorsOverridden": {
+    "description": "Subtitle on a preset row that a custom color shadows"
+  },
+  "markdownColorsNameTaken": "\"{name}\" is already used",
+  "@markdownColorsNameTaken": {
+    "description": "Error when the entered color name already exists",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "markdownColorsLimitReached": "Color limit reached ({count})",
+  "@markdownColorsLimitReached": {
+    "description": "Error when the custom color limit is reached",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "markdownColorsDeleteMessage": "Delete \"{name}\"? Notes using it will show plain text.",
+  "@markdownColorsDeleteMessage": {
+    "description": "Confirmation message when deleting a custom color",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

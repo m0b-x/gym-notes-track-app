@@ -857,6 +857,42 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     );
   }
 
+  /// Entry point for the markdown colour palette. The palette drives
+  /// `{name:text}` runs and `==name:text==` highlights on both render
+  /// surfaces; editing lives on its own page.
+  Widget _buildColorsSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              Icons.palette_outlined,
+              size: 26,
+              color: theme.colorScheme.primary,
+            ),
+            title: Text(
+              l10n.markdownColorsTitle,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 17,
+              ),
+            ),
+            subtitle: Text(l10n.markdownColorsSubtitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => AppNavigator.toMarkdownColors(context),
+          ),
+          Divider(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMoneySection(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
@@ -1443,6 +1479,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
             children: [
               _buildProfileSelector(context),
               _buildToolbarRatioAdjuster(context),
+              _buildColorsSection(context),
               _buildMoneySection(context),
               _buildUtilityButtonsSection(context),
               _buildShortcutsSection(context),

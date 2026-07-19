@@ -247,6 +247,7 @@ class _MarkdownPreviewBlocViewState extends State<MarkdownPreviewBlocView> {
           moneyStartCents: state.moneyStartCents,
           currencySymbol: state.moneyCurrencySymbol,
           currencySuffix: state.moneyCurrencySuffix,
+          colorPalette: state.colorPalette,
           onGhostTap: widget.onGhostTap,
           onTagTap: widget.onTagTap,
           onMoneyTap: widget.onMoneyTap,

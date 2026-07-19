@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/painting.dart' show TextRange;
 
 import '../../utils/line_based_markdown_builder.dart';
+import '../../utils/markdown_color_syntax.dart';
 
 /// Events for the markdown preview rendering pipeline.
 ///
@@ -86,6 +87,18 @@ final class PreviewMoneyConfigChanged extends MarkdownPreviewEvent {
     currencySymbol,
     currencySuffix,
   ];
+}
+
+/// Markdown colour palette (presets + the user's custom colours),
+/// resolved from settings by the page on note load or after a settings
+/// change. Drives `{name:text}` runs and `==name:text==` highlights.
+final class PreviewColorPaletteChanged extends MarkdownPreviewEvent {
+  final MarkdownColorPalette palette;
+
+  const PreviewColorPaletteChanged(this.palette);
+
+  @override
+  List<Object?> get props => [palette];
 }
 
 /// Requests the bloc to pull the latest source text from its bound

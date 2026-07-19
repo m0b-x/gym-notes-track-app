@@ -2538,4 +2538,71 @@ class AppLocalizationsDe extends AppLocalizations {
   String moneyDaySummaryTitle(String amount) {
     return 'Geld: $amount';
   }
+
+  @override
+  String get markdownColorsTitle => 'Textfarben';
+
+  @override
+  String get markdownColorsSubtitle => 'Farben für Text und Hervorhebungen';
+
+  @override
+  String get markdownColorsHowTo =>
+      'Farbnamen vor den Text schreiben. Unbekannte Namen bleiben unverändert.';
+
+  @override
+  String get markdownColorsSampleText => 'Beispieltext';
+
+  @override
+  String get markdownColorsFallbackNote =>
+      'Eigene Farben werden automatisch angepasst, wenn sie im aktuellen Design unlesbar wären.';
+
+  @override
+  String get markdownColorsPresets => 'Vorgaben';
+
+  @override
+  String get markdownColorsCustom => 'Eigene Farben';
+
+  @override
+  String get markdownColorsEmpty =>
+      'Noch keine eigenen Farben. Zum Hinzufügen auf + tippen.';
+
+  @override
+  String get markdownColorsNameTitle => 'Farbname';
+
+  @override
+  String get markdownColorsNameHint => 'Kleinbuchstaben, Ziffern, - und _';
+
+  @override
+  String get markdownColorsNameInvalid =>
+      'Name mit Buchstaben, Ziffern, - oder _ eingeben';
+
+  @override
+  String get markdownColorsRecolor => 'Farbe ändern';
+
+  @override
+  String get markdownColorsRename => 'Umbenennen';
+
+  @override
+  String get markdownColorsDelete => 'Löschen';
+
+  @override
+  String get markdownColorsDeleteTitle => 'Farbe löschen';
+
+  @override
+  String get markdownColorsOverridden => 'Durch eigene Farbe ersetzt';
+
+  @override
+  String markdownColorsNameTaken(String name) {
+    return '„$name“ wird bereits verwendet';
+  }
+
+  @override
+  String markdownColorsLimitReached(int count) {
+    return 'Farbgrenze erreicht ($count)';
+  }
+
+  @override
+  String markdownColorsDeleteMessage(String name) {
+    return '„$name“ löschen? Notizen, die sie verwenden, zeigen einfachen Text.';
+  }
 }
