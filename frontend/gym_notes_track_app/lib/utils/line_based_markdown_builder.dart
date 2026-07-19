@@ -1178,15 +1178,13 @@ class LineBasedMarkdownBuilder {
       color: accent,
       fontWeight: FontWeight.w600,
     );
-    // A *resolved* accent token tints the whole row, label included — it
-    // reads as "this row is blue", not "this row's number is blue".
-    // Only the colour is taken: the base weight stays, so the value
-    // still leads. Semantic accents never reach the label (green/red
-    // labels on every op row would be noise), and an unresolved token
-    // leaves it plain, so a palette edit can only ever add colour.
-    final labelStyle = accentSpec != null
-        ? baseStyle.copyWith(color: accent)
-        : baseStyle;
+    // The label takes the row's accent — the resolved colour token when
+    // there is one, otherwise the semantic sign colour (green on `$+`,
+    // red on `$-`, …). Colour only: the base weight stays, so the value
+    // still leads. The whole row reading as one colour is the point —
+    // an accent that stopped at the number left the row looking
+    // half-styled.
+    final labelStyle = baseStyle.copyWith(color: accent);
 
     final children = <InlineSpan>[
       TextSpan(text: '$chrome ', style: accentStyle),
@@ -1256,32 +1254,18 @@ class LineBasedMarkdownBuilder {
     }
 
     if (!isDisplay && unresolvedAccent) {
+      // An unresolved token is literal label text, so it takes the
+      // label's colour rather than staying plain beside a tinted row.
       children.add(
         _applyHighlighting(
           line.substring(m.accentStart, m.accentEnd + 1),
-          baseStyle,
+          labelStyle,
           lineStart + m.accentStart,
         ),
       );
       children.add(TextSpan(text: ' ', style: baseStyle));
     }
-    if (isDisplay) {
-      // `$^ N` keeps its count digits as an offset-mapped source run
-      // (like op amounts), so search lands on them and the window is
-      // visible at a glance. With an unresolved accent token the digits
-      // ride along in the literal label run below instead.
-      if (m.amountEnd > m.amountStart && !unresolvedAccent) {
-        children.add(
-          _applyHighlighting(
-            line.substring(m.amountStart, m.amountEnd),
-            accentStyle,
-            lineStart + m.amountStart,
-          ),
-        );
-        children.add(TextSpan(text: ' ', style: baseStyle));
-      }
-      if (!hasSlot) children.add(buildValue(atSlot: false));
-    } else {
+    void emitAmount() {
       children.add(
         _applyHighlighting(
           line.substring(m.amountStart, m.amountEnd),
@@ -1290,34 +1274,38 @@ class LineBasedMarkdownBuilder {
         ),
       );
     }
-    // An unresolved token on display rows folds back into the label so
-    // the typed text stays visible at its exact offsets.
-    final labelFrom = isDisplay && unresolvedAccent
-        ? m.accentStart
-        : m.labelStart;
-    if (labelFrom < line.length) {
-      children.add(TextSpan(text: ' ', style: baseStyle));
+
+    // [separator] is the gap from whatever precedes the label; a
+    // label-first row puts it right after the chrome glyph, which
+    // already carries its own trailing space.
+    void emitLabel({bool separator = true}) {
+      // An unresolved token on display rows folds back into the label so
+      // the typed text stays visible at its exact offsets.
+      final from = isDisplay && unresolvedAccent ? m.accentStart : m.labelStart;
+      final to = m.labelEnd;
+      if (from >= to) return;
+      if (separator) children.add(TextSpan(text: ' ', style: baseStyle));
       if (hasSlot) {
         // The slot splits the label into two independently inline-parsed
         // runs at their true source offsets, so search still lands on
         // the label text either side of the value.
-        if (labelFrom < m.valueSlot) {
+        if (from < m.valueSlot) {
           _appendFlattened(
             children,
             _buildInlineFormatted(
-              line.substring(labelFrom, m.valueSlot),
+              line.substring(from, m.valueSlot),
               labelStyle,
-              lineStart + labelFrom,
+              lineStart + from,
               lineEnd,
             ),
           );
         }
         children.add(buildValue(atSlot: true));
-        if (m.valueSlot + 1 < line.length) {
+        if (m.valueSlot + 1 < to) {
           _appendFlattened(
             children,
             _buildInlineFormatted(
-              line.substring(m.valueSlot + 1),
+              line.substring(m.valueSlot + 1, to),
               labelStyle,
               lineStart + m.valueSlot + 1,
               lineEnd,
@@ -1328,13 +1316,36 @@ class LineBasedMarkdownBuilder {
         _appendFlattened(
           children,
           _buildInlineFormatted(
-            line.substring(labelFrom),
+            line.substring(from, to),
             labelStyle,
-            lineStart + labelFrom,
+            lineStart + from,
             lineEnd,
           ),
         );
       }
+    }
+
+    if (isDisplay) {
+      // `$^ N` keeps its count digits as an offset-mapped source run
+      // (like op amounts), so search lands on them and the window is
+      // visible at a glance. With an unresolved accent token the digits
+      // ride along in the literal label run below instead.
+      if (m.amountEnd > m.amountStart && !unresolvedAccent) {
+        emitAmount();
+        children.add(TextSpan(text: ' ', style: baseStyle));
+      }
+      if (!hasSlot) children.add(buildValue(atSlot: false));
+      emitLabel();
+    } else if (m.labelStart < m.amountStart) {
+      // Label-first (`$- Loss on trade: 5000`): the typed amount trails
+      // its label instead of leading it. Source order is what renders —
+      // both runs keep their true offsets either way.
+      emitLabel(separator: false);
+      children.add(TextSpan(text: ' ', style: baseStyle));
+      emitAmount();
+    } else {
+      emitAmount();
+      emitLabel();
     }
     // Default trailing position, used only when the label placed no
     // slot. `$=` is the one row with nothing to append — its typed

@@ -533,13 +533,11 @@ class MarkdownEditorSpanBuilder {
       color: accent,
       fontWeight: FontWeight.w600,
     );
-    // A resolved accent token tints the label too, matching the preview
-    // — colour only, so the base weight stays and the value still leads.
-    // Semantic accents never reach the label, and an unresolved token
-    // leaves it plain.
-    final labelStyle = accentSpec != null
-        ? style.copyWith(color: accent)
-        : style;
+    // The label takes the row's accent — resolved colour token when
+    // there is one, otherwise the semantic sign colour — matching the
+    // preview. Colour only, so the base weight stays and the value
+    // still leads.
+    final labelStyle = style.copyWith(color: accent);
 
     // The accent token region: concealed when resolved (it is chrome,
     // like `{name:`), left as plain source text when it does not
@@ -617,23 +615,106 @@ class MarkdownEditorSpanBuilder {
       );
     }
 
-    // Between the marker and the amount sit only spaces and the
-    // optional accent token (parse-guaranteed, so no ghost can start
-    // here). The amount run covers op amounts and `$^ N` count digits
-    // alike — display rows without a count have an empty range.
-    if (m.markerEnd < m.amountStart) {
+    // Emits a label region, substituting the value slot's lone `$` 1:1
+    // with the painted value — exactly like the second `$` of a `$$`
+    // marker. Featured as a tinted chip on display and target rows,
+    // dimmed and unfilled on op rows, mirroring the preview's
+    // pill/annotation split. On reveal the slot stays literal text so
+    // the user edits real source.
+    void emitLabelRegion(int from, int to) {
+      if (from >= to) return;
+      if (hasSlot && !reveal && m.valueSlot >= from && m.valueSlot < to) {
+        if (from < m.valueSlot) {
+          _appendInline(
+            text: text,
+            start: from,
+            end: m.valueSlot,
+            contextStyle: labelStyle,
+            baseColor: baseColor,
+            primary: primary,
+            reveal: reveal,
+            ghosts: ghosts,
+            out: children,
+            depth: 0,
+          );
+        }
+        final bool featured = isDisplay || m.kind == MoneyLineKind.target;
+        children.add(
+          _moneyTotalSpan(
+            style: style,
+            // Targets take their sign-based status colour only when no
+            // accent token resolved — a token wins on every row kind, so
+            // `$! red:` never leaves one element off-colour.
+            accent: m.kind == MoneyLineKind.target && accentSpec == null
+                ? (balance < 0
+                      ? MarkdownConstants.moneyNegative(dark: _isDark)
+                      : MarkdownConstants.moneyPositive(dark: _isDark))
+                : featured
+                ? accent
+                : baseColor.withValues(alpha: 0.5),
+            balance: balance,
+            kind: m.kind,
+            atSlot: true,
+            filled: featured,
+          ),
+        );
+        if (m.valueSlot + 1 < to) {
+          _appendInline(
+            text: text,
+            start: m.valueSlot + 1,
+            end: to,
+            contextStyle: labelStyle,
+            baseColor: baseColor,
+            primary: primary,
+            reveal: reveal,
+            ghosts: ghosts,
+            out: children,
+            depth: 0,
+          );
+        }
+      } else {
+        _appendInline(
+          text: text,
+          start: from,
+          end: to,
+          contextStyle: labelStyle,
+          baseColor: baseColor,
+          primary: primary,
+          reveal: reveal,
+          ghosts: ghosts,
+          out: children,
+          depth: 0,
+        );
+      }
+    }
+
+    // Between the marker and whatever comes first sit only spaces and
+    // the optional accent token (parse-guaranteed, so no ghost can start
+    // here). On a label-first row (`$- Loss: 5000`) that run ends at the
+    // label instead of the amount — every span below stays a contiguous
+    // source range in document order, which is what keeps editor offsets
+    // 1:1 regardless of which order the row was written in.
+    final bool amountTrails = m.labelStart < m.amountStart;
+    final int gapEnd = amountTrails ? m.labelStart : m.amountStart;
+    if (m.markerEnd < gapEnd) {
       if (accentSpec != null) {
-        emitAccentToken(m.markerEnd, m.amountStart);
+        emitAccentToken(m.markerEnd, gapEnd);
       } else {
         children.add(
+          TextSpan(text: text.substring(m.markerEnd, gapEnd), style: style),
+        );
+      }
+    }
+    if (amountTrails) {
+      emitLabelRegion(m.labelStart, m.labelEnd);
+      if (m.labelEnd < m.amountStart) {
+        children.add(
           TextSpan(
-            text: text.substring(m.markerEnd, m.amountStart),
+            text: text.substring(m.labelEnd, m.amountStart),
             style: style,
           ),
         );
       }
-    }
-    if (m.amountStart < m.amountEnd) {
       _emit(
         text: text,
         start: m.amountStart,
@@ -643,77 +724,26 @@ class MarkdownEditorSpanBuilder {
         ghosts: ghosts,
         out: children,
       );
-    }
-
-    final rest = m.amountEnd;
-    if (hasSlot && !reveal) {
-      // The label's lone `$` is substituted 1:1 with the painted value,
-      // exactly like the second `$` of a `$$` marker — featured as a
-      // tinted chip on display and target rows, dimmed and unfilled on
-      // op rows, mirroring the preview's pill/annotation split. On
-      // reveal the slot stays literal text so the user edits real
-      // source, which is why this whole branch is non-reveal only.
-      if (rest < m.valueSlot) {
-        _appendInline(
-          text: text,
-          start: rest,
-          end: m.valueSlot,
-          contextStyle: labelStyle,
-          baseColor: baseColor,
-          primary: primary,
-          reveal: reveal,
-          ghosts: ghosts,
-          out: children,
-          depth: 0,
+      if (m.amountEnd < text.length) {
+        children.add(
+          TextSpan(text: text.substring(m.amountEnd), style: style),
         );
       }
-      final bool featured = isDisplay || m.kind == MoneyLineKind.target;
-      children.add(
-        _moneyTotalSpan(
-          style: style,
-          // Targets take their sign-based status colour only when no
-          // accent token resolved — a token wins on every row kind, so
-          // `$! red:` never leaves one element off-colour.
-          accent: m.kind == MoneyLineKind.target && accentSpec == null
-              ? (balance < 0
-                    ? MarkdownConstants.moneyNegative(dark: _isDark)
-                    : MarkdownConstants.moneyPositive(dark: _isDark))
-              : featured
-              ? accent
-              : baseColor.withValues(alpha: 0.5),
-          balance: balance,
-          kind: m.kind,
-          atSlot: true,
-          filled: featured,
-        ),
-      );
-      if (m.valueSlot + 1 < text.length) {
-        _appendInline(
+    } else {
+      // The amount run covers op amounts and `$^ N` count digits alike —
+      // display rows without a count have an empty range.
+      if (m.amountStart < m.amountEnd) {
+        _emit(
           text: text,
-          start: m.valueSlot + 1,
-          end: text.length,
-          contextStyle: labelStyle,
+          start: m.amountStart,
+          end: m.amountEnd,
+          style: accentStyle,
           baseColor: baseColor,
-          primary: primary,
-          reveal: reveal,
           ghosts: ghosts,
           out: children,
-          depth: 0,
         );
       }
-    } else if (rest < text.length) {
-      _appendInline(
-        text: text,
-        start: rest,
-        end: text.length,
-        contextStyle: labelStyle,
-        baseColor: baseColor,
-        primary: primary,
-        reveal: reveal,
-        ghosts: ghosts,
-        out: children,
-        depth: 0,
-      );
+      emitLabelRegion(m.amountEnd, text.length);
     }
     return TextSpan(style: style, children: children);
   }

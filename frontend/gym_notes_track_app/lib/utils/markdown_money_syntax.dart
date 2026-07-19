@@ -43,6 +43,29 @@
 /// not resolve at render time simply renders literally with the
 /// semantic accent; the line still counts.
 ///
+/// Op rows (`$= $+ $- $* $/`) may also be written **label-first**, with
+/// the typed amount trailing behind a `:`:
+///
+/// ```text
+/// $= Net worth: 5000                 same as `$= 5000 Net worth`
+/// ## $- blue: Loss/Gain/Whatever: 5000
+/// $* VAT: 1.19
+/// ```
+///
+/// The colon is what makes this unambiguous, and it is required: without
+/// it `$- food 2024` would silently subtract 2024. The whole tail after
+/// the last `:` must be the amount and nothing else, so
+/// `$= Net worth: 5000 as of today` stays plain text rather than guessing
+/// which number was meant. Everything before that colon is label, colons
+/// included (`$= Assets: cash: 5000` labels "Assets: cash:"). Display
+/// rows (`$$ $? $! $^`) are unaffected — `$$`/`$?`/`$^` take no amount at
+/// all, and `$!`'s target reads naturally amount-first.
+///
+/// This is the **only** shape where [MoneyLineMatch.labelStart] is below
+/// [MoneyLineMatch.amountStart]; renderers compare the two to pick an
+/// order and must use [MoneyLineMatch.labelEnd] rather than assuming the
+/// label runs to the line end.
+///
 /// A lone `$` anywhere in the label is the **value slot**: the row's
 /// computed value renders there instead of at its default position, so
 /// label text can precede the number without the marker leaving the
@@ -142,6 +165,14 @@ class MoneyLineMatch {
   /// Offset of the first label character, or the line length.
   final int labelStart;
 
+  /// Offset just past the last label character. Equals the line length
+  /// on every row except a **label-first** op row (`$- Loss: 5000`),
+  /// where the label ends at its `:` and the amount trails behind it —
+  /// the one shape where [labelStart] is *below* [amountStart]. Compare
+  /// the two to know which order to render in; never assume the label
+  /// runs to the end of the line.
+  final int labelEnd;
+
   /// The amount in fixed-point 1/10000ths (`12.5` → `125000`). Zero
   /// for totals. Always non-negative — the op carries the sign.
   final int amountFixed;
@@ -169,6 +200,7 @@ class MoneyLineMatch {
     required this.amountStart,
     required this.amountEnd,
     required this.labelStart,
+    required this.labelEnd,
     required this.amountFixed,
     this.diffCount = 1,
     this.valueSlot = -1,
@@ -392,18 +424,82 @@ class MarkdownMoneySyntax {
         amountStart: amountStart,
         amountEnd: amountEnd,
         labelStart: i,
+        labelEnd: n,
         amountFixed: 0,
         diffCount: diffCount,
         valueSlot: _scanValueSlot(line, i, n),
       );
     }
 
-    final amountStart = i;
     final bool isFactor =
         kind == MoneyLineKind.multiply || kind == MoneyLineKind.divide;
     final maxInt = isFactor ? _maxFactorIntDigits : _maxAmountIntDigits;
     final maxDec = isFactor ? _maxFactorDecimals : _maxAmountDecimals;
 
+    final int amountStart;
+    final int amountEnd;
+    final int amountFixed;
+    final int labelStart;
+    final int labelEnd;
+
+    // Amount-first (`$+ 12.50 rent`): the classic shape, and the only
+    // one that allows a label with no separator rules at all.
+    final head = _parseAmount(line, i, n, maxInt, maxDec);
+    if (head != null && (head.end >= n || _isSpace(line.codeUnitAt(head.end)))) {
+      amountStart = i;
+      amountEnd = head.end;
+      amountFixed = head.fixed;
+      var j = head.end;
+      while (j < n && _isSpace(line.codeUnitAt(j))) {
+        j++;
+      }
+      labelStart = j;
+      labelEnd = n;
+    } else {
+      // Label-first (`$- Loss on trade: 5000`): the amount trails at the
+      // line end behind a `:`. Requiring the colon is what keeps this
+      // unambiguous — without it `$- food 2024` would silently subtract
+      // 2024 — and it costs nothing, since a label ending in `:` is how
+      // you would write the line anyway.
+      final tail = _scanTrailingAmount(line, i, n, maxInt, maxDec);
+      if (tail == null) return null;
+      amountStart = tail.amountStart;
+      amountEnd = tail.amountEnd;
+      amountFixed = tail.fixed;
+      labelStart = i;
+      labelEnd = tail.labelEnd;
+    }
+    if (kind == MoneyLineKind.divide && amountFixed == 0) return null;
+
+    return MoneyLineMatch(
+      kind: kind,
+      headerStart: headerStart,
+      headerLevel: headerLevel,
+      markerStart: markerStart,
+      markerEnd: markerEnd,
+      accentStart: accentStart,
+      accentEnd: accentEnd,
+      amountStart: amountStart,
+      amountEnd: amountEnd,
+      labelStart: labelStart,
+      labelEnd: labelEnd,
+      amountFixed: amountFixed,
+      valueSlot: _scanValueSlot(line, labelStart, labelEnd),
+    );
+  }
+
+  /// Parses an amount at [start]: up to [maxInt] integer digits and an
+  /// optional `.`/`,` fraction of up to [maxDec] digits. Returns the
+  /// offset just past it plus its fixed-point value, or `null` when the
+  /// run is not a well-formed amount. Callers decide what must follow.
+  static ({int end, int fixed})? _parseAmount(
+    String line,
+    int start,
+    int n,
+    int maxInt,
+    int maxDec,
+  ) {
+    var i = start;
     var intPart = 0;
     var intDigits = 0;
     while (i < n && _isDigit(line.codeUnitAt(i))) {
@@ -416,7 +512,8 @@ class MarkdownMoneySyntax {
 
     var decPart = 0;
     var decDigits = 0;
-    if (i < n && (line.codeUnitAt(i) == _kDot || line.codeUnitAt(i) == _kComma)) {
+    if (i < n &&
+        (line.codeUnitAt(i) == _kDot || line.codeUnitAt(i) == _kComma)) {
       var j = i + 1;
       while (j < n && _isDigit(line.codeUnitAt(j))) {
         decPart = decPart * 10 + (line.codeUnitAt(j) - 0x30);
@@ -427,33 +524,43 @@ class MarkdownMoneySyntax {
       if (decDigits == 0) return null;
       i = j;
     }
-    if (i < n && !_isSpace(line.codeUnitAt(i))) return null;
-    final amountEnd = i;
-
     var scale = amountScale;
     for (var d = 0; d < decDigits; d++) {
       scale ~/= 10;
     }
-    final amountFixed = intPart * amountScale + decPart * scale;
-    if (kind == MoneyLineKind.divide && amountFixed == 0) return null;
+    return (end: i, fixed: intPart * amountScale + decPart * scale);
+  }
 
-    while (i < n && _isSpace(line.codeUnitAt(i))) {
-      i++;
+  /// Scans a label-first op row's trailing amount: `label: 5000` ending
+  /// at the line end (trailing spaces allowed). Returns the label's end
+  /// (just past the `:`), the amount's bounds, and its value — or `null`
+  /// when the tail is not a lone well-formed amount behind a colon.
+  ///
+  /// The whole tail after the last `:` must be the amount and nothing
+  /// else, so `$= Net worth: 5000 as of today` stays plain text rather
+  /// than guessing which number was meant.
+  static ({int labelEnd, int amountStart, int amountEnd, int fixed})?
+  _scanTrailingAmount(String line, int from, int n, int maxInt, int maxDec) {
+    var end = n;
+    while (end > from && _isSpace(line.codeUnitAt(end - 1))) {
+      end--;
     }
-    return MoneyLineMatch(
-      kind: kind,
-      headerStart: headerStart,
-      headerLevel: headerLevel,
-      markerStart: markerStart,
-      markerEnd: markerEnd,
-      accentStart: accentStart,
-      accentEnd: accentEnd,
-      amountStart: amountStart,
-      amountEnd: amountEnd,
-      labelStart: i,
-      amountFixed: amountFixed,
-      valueSlot: _scanValueSlot(line, i, n),
-    );
+    if (end <= from) return null;
+    var s = end;
+    while (s > from) {
+      final c = line.codeUnitAt(s - 1);
+      if (!_isDigit(c) && c != _kDot && c != _kComma) break;
+      s--;
+    }
+    if (s >= end) return null;
+    final parsed = _parseAmount(line, s, end, maxInt, maxDec);
+    if (parsed == null || parsed.end != end) return null;
+    var c = s;
+    while (c > from && _isSpace(line.codeUnitAt(c - 1))) {
+      c--;
+    }
+    if (c <= from || line.codeUnitAt(c - 1) != _kColon) return null;
+    return (labelEnd: c, amountStart: s, amountEnd: end, fixed: parsed.fixed);
   }
 
   /// Scans the label region `[from, n)` for the value slot: a lone `$`

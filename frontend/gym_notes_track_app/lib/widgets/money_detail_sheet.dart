@@ -169,8 +169,10 @@ class MoneyDetailSheet extends StatelessWidget {
                               m.kind == MoneyLineKind.diff,
                         )
                       : e.line.substring(m.amountStart, m.amountEnd);
-                  final label = m.labelStart < e.line.length
-                      ? e.line.substring(m.labelStart)
+                  // `labelEnd` is not the line end on a label-first row
+                  // (`$- Loss: 5000`), where the amount trails the label.
+                  final label = m.labelStart < m.labelEnd
+                      ? e.line.substring(m.labelStart, m.labelEnd)
                       : '';
                   return ListTile(
                     dense: true,
