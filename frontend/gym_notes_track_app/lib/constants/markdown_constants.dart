@@ -105,6 +105,22 @@ class MarkdownConstants {
       (codeUnit >= 0x5B && codeUnit <= 0x60) ||
       (codeUnit >= 0x7B && codeUnit <= 0x7E);
 
+  /// Accent for money-ledger additions (`$+`), in a light/dark variant.
+  /// Shared by the preview renderer and the live editor so the two
+  /// surfaces always match; values mirror the tip-callout greens.
+  static Color moneyPositive({required bool dark}) =>
+      dark ? const Color(0xFF81C784) : const Color(0xFF2E7D32);
+
+  /// Accent for money-ledger subtractions (`$-`) and negative totals;
+  /// values mirror the caution-callout reds.
+  static Color moneyNegative({required bool dark}) =>
+      dark ? const Color(0xFFEF9A9A) : const Color(0xFFC62828);
+
+  /// Accent for money-ledger multiply/divide (`$*` / `$/`); values
+  /// mirror the warning-callout ambers.
+  static Color moneyNeutral({required bool dark}) =>
+      dark ? const Color(0xFFFFB74D) : const Color(0xFFE65100);
+
   /// The accent colour for a callout [type], in a light/dark variant.
   /// Shared by the preview renderer (bar, icon-label header, band tint)
   /// and the live editor (quote bar + `[!TYPE]` token tint) so the two

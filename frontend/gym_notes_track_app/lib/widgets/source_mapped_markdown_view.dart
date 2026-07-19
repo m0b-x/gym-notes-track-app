@@ -35,6 +35,25 @@ class SourceMappedMarkdownView extends StatefulWidget {
   /// Lines per chunk for preview performance (higher = better performance, lower = more precise scroll)
   final int linesPerChunk;
 
+  /// Money ledger display inputs. These participate in the render
+  /// service's rebuild key, so this widget MUST receive the same
+  /// values the bloc passes on prepare — a mismatch between the two
+  /// call sites would flip the shared cache key on every build.
+  final bool moneyEnabled;
+  final int moneyStartCents;
+  final String currencySymbol;
+  final bool currencySuffix;
+
+  /// Ghost / tag / money tap callbacks. Threaded through so this
+  /// widget's own `prepareWithStyle` call (in [_buildCache], which can
+  /// win the shared render service's rebuild-key race against the
+  /// bloc's async theme dispatch — the widget rebuilds synchronously on
+  /// a Theme change while the bloc event is still queued) never
+  /// rebuilds the builder with these recognizers missing.
+  final GhostTapCallback? onGhostTap;
+  final TagTapCallback? onTagTap;
+  final MoneyTapCallback? onMoneyTap;
+
   /// Optional externally-owned [MarkdownRenderService]. When supplied,
   /// the widget uses this service for all builder access and does
   /// **not** dispose it (the owner is responsible for disposal). When
@@ -59,6 +78,13 @@ class SourceMappedMarkdownView extends StatefulWidget {
     this.onScrollProgress,
     this.onDoubleTapLine,
     this.linesPerChunk = 10,
+    this.moneyEnabled = false,
+    this.moneyStartCents = 0,
+    this.currencySymbol = '',
+    this.currencySuffix = false,
+    this.onGhostTap,
+    this.onTagTap,
+    this.onMoneyTap,
     this.service,
   });
 
@@ -396,8 +422,15 @@ class SourceMappedMarkdownViewState extends State<SourceMappedMarkdownView> {
       debugEnabled: debugEnabled,
       searchHighlights: widget.searchHighlights,
       currentHighlightIndex: widget.currentHighlightIndex,
+      moneyEnabled: widget.moneyEnabled,
+      moneyStartCents: widget.moneyStartCents,
+      currencySymbol: widget.currencySymbol,
+      currencySuffix: widget.currencySuffix,
       onLinkTap: _handleLinkTap,
       onCheckboxTap: _handleCheckboxTap,
+      onGhostTap: widget.onGhostTap,
+      onTagTap: widget.onTagTap,
+      onMoneyTap: widget.onMoneyTap,
     );
   }
 

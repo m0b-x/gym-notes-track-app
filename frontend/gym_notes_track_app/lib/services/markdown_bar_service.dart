@@ -33,6 +33,9 @@ class MarkdownBarService extends ChangeNotifier {
   static const String _ghostSeedKey = 'ghost_shortcut_seeded';
   static const String _highlightSeedKey = 'highlight_shortcut_seeded';
   static const String _calloutSeedKey = 'callout_shortcut_seeded';
+  static const String _moneySeedKey = 'money_shortcut_seeded';
+  static const String _moneyOpsSeedKey = 'money_ops_shortcuts_seeded';
+  static const String _moneyTargetSeedKey = 'money_target_shortcut_seeded';
 
   /// In-memory cache of all profiles.
   List<MarkdownBarProfile> _profiles = [];
@@ -341,6 +344,63 @@ class MarkdownBarService extends ChangeNotifier {
     await _seedDefaultShortcutIfNeeded('default_ghost', _ghostSeedKey);
     await _seedDefaultShortcutIfNeeded('default_highlight', _highlightSeedKey);
     await _seedDefaultShortcutIfNeeded('default_callout', _calloutSeedKey);
+    await _seedDefaultShortcutIfNeeded('default_money', _moneySeedKey);
+    // The six money-op siblings ship together under one guard so the
+    // whole family appears exactly once as a unit (the single-shortcut
+    // helper can't be looped with a shared guard — it stamps the guard
+    // after the first id and would skip the rest).
+    await _seedDefaultShortcutBatchIfNeeded(const [
+      'default_money_subtract',
+      'default_money_multiply',
+      'default_money_divide',
+      'default_money_set',
+      'default_money_total',
+      'default_money_delta',
+    ], _moneyOpsSeedKey);
+    // Target shipped after the op batch, so it carries its own guard —
+    // devices that already consumed the batch guard still receive it.
+    await _seedDefaultShortcutIfNeeded(
+      'default_money_target',
+      _moneyTargetSeedKey,
+    );
+  }
+
+  /// Batch counterpart of [_seedDefaultShortcutIfNeeded]: appends every
+  /// listed default shortcut missing from each pre-existing profile,
+  /// persists once, then stamps [guardKey] so the whole family seeds
+  /// exactly once.
+  Future<void> _seedDefaultShortcutBatchIfNeeded(
+    List<String> shortcutIds,
+    String guardKey,
+  ) async {
+    final done = await _db.userSettingsDao.getValue(guardKey);
+    if (done == 'true') return;
+
+    final protos = <CustomMarkdownShortcut>[
+      for (final s in DefaultMarkdownShortcuts.shortcuts)
+        if (shortcutIds.contains(s.id)) s,
+    ];
+
+    if (protos.isNotEmpty) {
+      bool changed = false;
+      for (int i = 0; i < _profiles.length; i++) {
+        final profile = _profiles[i];
+        final missing = [
+          for (final proto in protos)
+            if (!profile.shortcuts.any((s) => s.id == proto.id)) proto,
+        ];
+        if (missing.isNotEmpty) {
+          _profiles[i] = profile.copyWith(
+            shortcuts: [...profile.shortcuts, ...missing],
+            updatedAt: DateTime.now(),
+          );
+          changed = true;
+        }
+      }
+      if (changed) await _persist();
+    }
+
+    await _db.userSettingsDao.setValue(guardKey, 'true');
   }
 
   Future<void> _persist() async {

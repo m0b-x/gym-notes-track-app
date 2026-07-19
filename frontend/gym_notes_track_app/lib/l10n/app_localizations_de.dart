@@ -2492,4 +2492,50 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get linkOpenAction => 'Öffnen';
+
+  @override
+  String get moneySection => 'Kassenbuch';
+
+  @override
+  String get moneyLedgerEnabledLabel => 'Kassenbuch aktivieren';
+
+  @override
+  String get moneyLedgerEnabledDesc =>
+      '\$-Geldzeilen in Notizen und im Kalender anzeigen';
+
+  @override
+  String get moneyStartBalance => 'Startguthaben';
+
+  @override
+  String get moneyStartBalanceDesc => 'Jede Notiz startet mit diesem Betrag';
+
+  @override
+  String get moneyCurrencySymbolLabel => 'Währungssymbol';
+
+  @override
+  String get moneyCurrencySymbolDesc =>
+      'Bei berechneten Beträgen angezeigt (z. B. lei, €, \$)';
+
+  @override
+  String get moneyCurrencySuffixLabel => 'Symbol nach dem Betrag';
+
+  @override
+  String get moneyCurrencySuffixDesc => '12.50 lei statt lei12.50';
+
+  @override
+  String get moneyPerNoteCurrency => 'Währung pro Notiz';
+
+  @override
+  String get useGlobalCurrency => 'Globale Währung verwenden';
+
+  @override
+  String get moneyCustomSymbol => 'Eigenes…';
+
+  @override
+  String get moneyDetailTitle => 'Kassenbuch';
+
+  @override
+  String moneyDaySummaryTitle(String amount) {
+    return 'Geld: $amount';
+  }
 }

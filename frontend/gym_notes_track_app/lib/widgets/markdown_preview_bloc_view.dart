@@ -51,6 +51,11 @@ class MarkdownPreviewBlocView extends StatefulWidget {
   /// token (including `#`) so the page can search for it across notes.
   final void Function(String tag)? onTagTap;
 
+  /// Invoked when a `$$` total or `$?` net-change row is tapped in the
+  /// preview. Carries the tapped line index so the page can present
+  /// the ledger entries feeding its value.
+  final void Function(int lineIndex)? onMoneyTap;
+
   /// Forwarded **after** the bloc has been notified so callers that
   /// rely on the legacy callback (e.g. `PreviewScrollController`)
   /// keep working without going through the bloc state.
@@ -74,6 +79,7 @@ class MarkdownPreviewBlocView extends StatefulWidget {
     this.onDoubleTapLine,
     this.onGhostTap,
     this.onTagTap,
+    this.onMoneyTap,
     this.onScrollProgress,
     this.viewKey,
   });
@@ -149,7 +155,8 @@ class _MarkdownPreviewBlocViewState extends State<MarkdownPreviewBlocView> {
     if (oldWidget.onTapLink != widget.onTapLink ||
         oldWidget.onCheckboxToggle != widget.onCheckboxToggle ||
         oldWidget.onGhostTap != widget.onGhostTap ||
-        oldWidget.onTagTap != widget.onTagTap) {
+        oldWidget.onTagTap != widget.onTagTap ||
+        oldWidget.onMoneyTap != widget.onMoneyTap) {
       _bindCallbacks();
     }
   }
@@ -177,6 +184,7 @@ class _MarkdownPreviewBlocViewState extends State<MarkdownPreviewBlocView> {
             },
       onGhostTap: widget.onGhostTap,
       onTagTap: widget.onTagTap,
+      onMoneyTap: widget.onMoneyTap,
     );
   }
 
@@ -235,6 +243,13 @@ class _MarkdownPreviewBlocViewState extends State<MarkdownPreviewBlocView> {
           linesPerChunk: state.linesPerChunk,
           searchHighlights: state.searchHighlights,
           currentHighlightIndex: state.currentHighlightIndex,
+          moneyEnabled: state.moneyEnabled,
+          moneyStartCents: state.moneyStartCents,
+          currencySymbol: state.moneyCurrencySymbol,
+          currencySuffix: state.moneyCurrencySuffix,
+          onGhostTap: widget.onGhostTap,
+          onTagTap: widget.onTagTap,
+          onMoneyTap: widget.onMoneyTap,
           padding: widget.padding,
           onCheckboxToggle: widget.onCheckboxToggle,
           onTapLink: widget.onTapLink,

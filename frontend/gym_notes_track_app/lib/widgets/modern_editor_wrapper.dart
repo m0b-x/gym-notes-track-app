@@ -13,6 +13,7 @@ import '../utils/markdown_editor_span_builder.dart';
 import '../utils/markdown_link_patterns.dart';
 import '../utils/markdown_list_syntax.dart';
 import '../utils/markdown_list_utils.dart';
+import '../utils/markdown_money_syntax.dart';
 import '../utils/re_editor_search_controller.dart';
 import 'editor_chunk_overlay.dart';
 import 'scroll_progress_indicator.dart';
@@ -38,6 +39,10 @@ class ModernEditorWrapper extends StatefulWidget {
   /// Opens the url of a tapped `[text](url)` link (live markdown
   /// rendering). Null disables link tap-to-open.
   final ValueChanged<String>? onOpenLink;
+
+  /// Opens the ledger detail for a tapped `$$` / `$?` money chip (live
+  /// markdown rendering). Null disables money tap-to-detail.
+  final void Function(int lineIndex)? onMoneyTap;
 
   /// Whether a line sits inside (or delimits) a ``` code fence — fence
   /// text renders raw, so taps there always fall through to editing.
@@ -68,6 +73,7 @@ class ModernEditorWrapper extends StatefulWidget {
     this.showCursorLine = false,
     this.checkboxTapToggle = false,
     this.onOpenLink,
+    this.onMoneyTap,
     this.isFenceLine,
     this.lineNumbersKey,
     this.scrollIndicatorKey,
@@ -328,6 +334,24 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
         return () {
           HapticFeedback.selectionClick();
           onOpenLink(url);
+        };
+      }
+    }
+    final onMoneyTap = widget.onMoneyTap;
+    if (onMoneyTap != null && MarkdownMoneySyntax.leadsWithMarker(text)) {
+      final money = MarkdownMoneySyntax.parse(text);
+      // Only the painted `$$` / `$?` chip is a zone: from the marker up
+      // to the label (the chip is wider than its two source chars, so
+      // the space before the label rides along); label text and op
+      // lines stay editable.
+      if (money != null &&
+          (money.kind == MoneyLineKind.total ||
+              money.kind == MoneyLineKind.delta) &&
+          offset >= money.markerStart &&
+          offset < money.labelStart) {
+        return () {
+          HapticFeedback.selectionClick();
+          onMoneyTap(lineIndex);
         };
       }
     }
@@ -667,7 +691,9 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
         readOnly: false,
         autofocus: false,
         tapInterceptor:
-            (widget.checkboxTapToggle || widget.onOpenLink != null)
+            (widget.checkboxTapToggle ||
+                widget.onOpenLink != null ||
+                widget.onMoneyTap != null)
             ? _tapInterceptor
             : null,
         chunkAnalyzer: const NonCodeChunkAnalyzer(),

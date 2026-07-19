@@ -13,6 +13,7 @@ import '../repositories/note_repository.dart';
 import '../services/app_navigator.dart';
 import '../services/day_bars_resolver.dart';
 import '../services/day_summary_resolver.dart';
+import '../services/note_money_ledger_service.dart';
 import '../services/public_holiday_service.dart';
 import '../services/settings_service.dart';
 import '../utils/custom_snackbar.dart';
@@ -305,6 +306,36 @@ class _CalendarTable extends StatelessWidget {
     );
   }
 
+  /// Net money change for the focused [month]: the exact sum of what the
+  /// visible day cells display. Mirrors the day bar/summary providers on
+  /// both axes the two surfaces could diverge on: hidden categories are
+  /// excluded (cells only ever see category-filtered events), and dedupe
+  /// is per (start day, note) — a note linked from events on two
+  /// different days shows on both cells, so it counts twice here too,
+  /// while a recurring event still never multiplies its note.
+  int _monthNet(NoteMoneyLedgerService ledger, DateTime month) {
+    var sum = 0;
+    Set<String>? seen;
+    for (final event in state.allEvents) {
+      final noteId = event.noteId;
+      if (noteId == null) continue;
+      if (state.hiddenCategoryIds.contains(event.categoryId)) continue;
+      final startUtc = DateTime.fromMillisecondsSinceEpoch(
+        event.startDate.millisecondsSinceEpoch,
+        isUtc: true,
+      );
+      if (startUtc.year != month.year || startUtc.month != month.month) {
+        continue;
+      }
+      seen ??= <String>{};
+      if (!seen.add('${startUtc.day}:$noteId')) continue;
+      final entry = ledger.ledgerFor(noteId);
+      if (entry == null) continue;
+      sum += entry.net;
+    }
+    return sum;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -376,6 +407,8 @@ class _CalendarTable extends StatelessWidget {
             _buildDayCell(context, day, isOutside: true),
         headerTitleBuilder: (context, day) {
           final title = DateFormat.yMMMM(l10n.localeName).format(day);
+          final ledger = NoteMoneyLedgerService.instanceOrNull;
+          final monthNet = ledger == null ? 0 : _monthNet(ledger, day);
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -407,6 +440,18 @@ class _CalendarTable extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (ledger != null && monthNet != 0) ...[
+                const SizedBox(width: 8),
+                Text(
+                  'Δ ${ledger.formatNetSigned(monthNet)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: monthNet > 0
+                        ? const Color(0xFF2E7D32)
+                        : const Color(0xFFC62828),
+                  ),
+                ),
+              ],
             ],
           );
         },

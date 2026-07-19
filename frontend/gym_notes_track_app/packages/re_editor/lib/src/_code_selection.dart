@@ -309,6 +309,13 @@ class _CodeSelectionGestureDetectorState
       _onDoubleTap(position);
       widget.selectionOverlayController.showHandle(context);
       widget.selectionOverlayController.showToolbar(context, position);
+      // Clear the pairing state so the NEXT tap starts a fresh
+      // sequence. Without this, the first tap of a following double-tap
+      // pairs against this now-stale timestamp, consuming its slot, so
+      // the second double-tap lands on a bare caret (only every other
+      // double-tap would then select a word).
+      _pointerTapTimestamp = null;
+      _pointerTapPosition = null;
     } else {
       _pointerTapTimestamp = now;
       _pointerTapPosition = position;
@@ -347,6 +354,11 @@ class _CodeSelectionGestureDetectorState
         _pointerTapPosition != null &&
         _pointerTapPosition!.isSamePosition(position)) {
       _onDoubleTap(position);
+      // Reset the pairing state so the next click starts fresh (see the
+      // mobile handler): otherwise every other double-click would fail
+      // to select a word.
+      _pointerTapTimestamp = null;
+      _pointerTapPosition = null;
     } else {
       if (widget.controller.selection.baseOffset != -1) {
         if (_isShiftPressed) {

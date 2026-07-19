@@ -48,6 +48,8 @@ import '../utils/text_position_utils.dart';
 import '../utils/markdown_list_utils.dart';
 import '../utils/markdown_editor_span_builder.dart';
 import '../utils/ghost_text.dart';
+import '../utils/markdown_money_syntax.dart';
+import '../widgets/money_detail_sheet.dart';
 import '../utils/list_aware_paste.dart';
 import '../utils/paste_line_breaker.dart';
 import '../controllers/preview_scroll_controller.dart';
@@ -83,6 +85,10 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
   final MarkdownEditorSpanBuilder _markdownSpanBuilder =
       MarkdownEditorSpanBuilder();
   bool _liveMarkdownRendering = SettingsKeys.defaultLiveMarkdownRendering;
+  bool _moneyLedgerEnabled = SettingsKeys.defaultMoneyLedgerEnabled;
+  int _moneyStartCents = SettingsKeys.defaultMoneyStartCents;
+  String _moneyCurrencySymbol = SettingsKeys.defaultMoneyCurrencySymbol;
+  bool _moneyCurrencySuffix = SettingsKeys.defaultMoneyCurrencySuffix;
   late FocusNode _contentFocusNode;
   late CodeScrollController _editorScrollController;
   late TextHistoryObserver _historyObserver;
@@ -476,7 +482,59 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         _utilityConfigs = utilityConfigs;
       });
       _previewBloc.add(PreviewLinesPerChunkChanged(previewLinesPerChunk));
+      await _refreshMoneyConfig(settings);
     }
+  }
+
+  /// Resolves the effective money config (enabled flag, global start
+  /// balance, this note's currency) and applies it to both render
+  /// surfaces. Called on note open and again when returning from
+  /// settings.
+  ///
+  /// The editor surface is refreshed non-destructively:
+  /// [MarkdownEditorSpanBuilder.configureMoney] clears the builder's
+  /// span memos, and — only when the config actually changed —
+  /// `forceRepaint()` makes re_editor drop and rebuild its display
+  /// paragraphs (re-running the span builder) without remounting,
+  /// mutating text, or moving the caret. On the first open the render
+  /// isn't attached yet, so `forceRepaint` is a null-safe no-op and the
+  /// first layout paints fresh. (An earlier attempt folded the config
+  /// into the editor's ValueKey to force a remount; that remounted the
+  /// CodeEditor mid-initialization and crashed re_editor's controller-
+  /// delegate handoff — never remount the editor for a settings change.)
+  Future<void> _refreshMoneyConfig(SettingsService settings) async {
+    final config = await settings.getMoneyConfig(
+      noteId: _effectiveNoteId ?? widget.noteId,
+    );
+    if (!mounted) return;
+    final changed =
+        config.enabled != _moneyLedgerEnabled ||
+        config.startCents != _moneyStartCents ||
+        config.symbol != _moneyCurrencySymbol ||
+        config.suffix != _moneyCurrencySuffix;
+    _markdownSpanBuilder.configureMoney(
+      enabled: config.enabled,
+      startCents: config.startCents,
+      currencySymbol: config.symbol,
+      currencySuffix: config.suffix,
+    );
+    if (changed) {
+      setState(() {
+        _moneyLedgerEnabled = config.enabled;
+        _moneyStartCents = config.startCents;
+        _moneyCurrencySymbol = config.symbol;
+        _moneyCurrencySuffix = config.suffix;
+      });
+      _contentController.forceRepaint();
+    }
+    _previewBloc.add(
+      PreviewMoneyConfigChanged(
+        enabled: config.enabled,
+        startCents: config.startCents,
+        currencySymbol: config.symbol,
+        currencySuffix: config.suffix,
+      ),
+    );
   }
 
   Future<void> _initDevOptions() async {
@@ -1137,6 +1195,37 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     AppNavigator.toSearch(context, query: tag);
   }
 
+  /// Opens the ledger detail sheet for a tapped `$$` / `$?` row —
+  /// reached from both the preview pill and the editor's painted chip.
+  /// Entries are collected on demand from the current editor content
+  /// (grammar-shared, fence-aware), so preview and editor taps always
+  /// agree with what is rendered.
+  void _handleMoneyTap(int lineIndex) {
+    final codeLines = _contentController.codeLines;
+    if (lineIndex < 0 || lineIndex >= codeLines.length) return;
+    final tapped = MarkdownMoneySyntax.parse(codeLines[lineIndex].text);
+    if (tapped == null) return;
+    final collected = MarkdownMoneySyntax.collectEntries(
+      lineCount: codeLines.length,
+      lineAt: (i) => codeLines[i].text,
+      isInert: _markdownSpanBuilder.lineInFence,
+      toLine: lineIndex,
+      startCents: _moneyStartCents,
+    );
+    MoneyDetailSheet.show(
+      context,
+      entries: tapped.kind == MoneyLineKind.delta
+          ? [
+              for (final e in collected.entries)
+                if (e.lineIndex > collected.anchorLine) e,
+            ]
+          : collected.entries,
+      tappedKind: tapped.kind,
+      currencySymbol: _moneyCurrencySymbol,
+      currencySuffix: _moneyCurrencySuffix,
+    );
+  }
+
   void _scrollToOffsetInPreview(int charOffset) {
     // Use the PreviewScrollController which delegates to the
     // SourceMappedMarkdownView's native scroll method.
@@ -1705,6 +1794,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       onDoubleTapLine: _handleDoubleTapLine,
       onGhostTap: _handleGhostTap,
       onTagTap: _handleTagTap,
+      onMoneyTap: _handleMoneyTap,
       // Forward scroll progress to the preview controller so the
       // interactive scrollbar (which listens on the same controller)
       // keeps tracking position. The bloc already mirrors progress
@@ -1772,6 +1862,13 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       child: ModernEditorWrapper(
         // Toggling live markdown rendering remounts the editor so all
         // cached line paragraphs are rebuilt with the new span builder.
+        // Money config is NOT folded into this key: it changes while the
+        // editor is mid-initialization (note open resolves the config
+        // asynchronously), and a remount there tears the CodeEditor down
+        // during its own mount, crashing re_editor's controller-delegate
+        // handoff. Money config is applied non-destructively via
+        // _markdownSpanBuilder.configureMoney (cache clear) + a repaint
+        // nudge in _refreshMoneyConfig instead.
         key: ValueKey(markdownRendering ? 'editor-md' : 'editor'),
         controller: _contentController,
         focusNode: _contentFocusNode,
@@ -1787,6 +1884,9 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         // opener runs (scheme validation + localized errors); fence
         // lines render raw so taps there stay plain editing.
         onOpenLink: markdownRendering ? _handleEditorLinkTap : null,
+        onMoneyTap: markdownRendering && _moneyLedgerEnabled
+            ? _handleMoneyTap
+            : null,
         isFenceLine: markdownRendering ? _markdownSpanBuilder.lineInFence : null,
         lineNumbersKey: _lineNumbersKey,
         scrollIndicatorKey: _scrollIndicatorKey,
@@ -2124,6 +2224,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
         _toolbarSplitEnabled = splitEnabled;
         _utilityConfigs = utilityConfigs;
       });
+      await _refreshMoneyConfig(settings);
     }
   }
 }

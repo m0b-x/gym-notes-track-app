@@ -2,6 +2,7 @@ import 'package:re_editor/re_editor.dart';
 
 import 'markdown_chunker.dart';
 import 'markdown_list_syntax.dart';
+import 'markdown_money_syntax.dart';
 
 /// Positional role of a line relative to ``` code fences. Delimiter and
 /// interior lines style differently in the editor, and both bypass its
@@ -31,7 +32,11 @@ enum MarkdownFenceRole { none, delimiter, interior }
 ///     stored open-frame stack snapshot and truncating the append-
 ///     ordered result list to the entries recorded above it, then scans
 ///     to the end (a subtree's indeterminate state can depend on any
-///     line below, so there is no cheap suffix proof).
+///     line below, so there is no cheap suffix proof);
+///   * money pass — resumes at the first changed segment by reviving
+///     the stored entry balance and truncating the append-ordered
+///     result lists, then scans to the end (downstream balances depend
+///     on every op above, mirroring the task pass shape).
 ///
 /// Structural edits (Enter, paste, line deletes) change per-segment
 /// lengths and fall back to a full rebuild, which the allocation-free
@@ -60,6 +65,32 @@ class MarkdownEditorLineIndex {
   List<List<_TaskSnapshot>> _segTaskEntry = const [];
   Set<int>? _indeterminate;
 
+  /// Money pass results: sorted line indices of money lines and the
+  /// display value (cents) for each — the running balance after the
+  /// line, except `$?` delta lines which store the net change since the
+  /// last `$=` anchor. Per-segment entry state (balance + anchor) lets
+  /// a rescan resume mid-document exactly like the task pass.
+  final List<int> _moneyLines = <int>[];
+  final List<int> _moneyValues = <int>[];
+  List<int> _segMoneyCount = const [];
+  List<int> _segMoneyEntry = const [];
+  List<int> _segMoneyAnchor = const [];
+  bool _moneyEnabled = false;
+  int _moneyStartCents = 0;
+
+  /// Applies the money feature's enabled flag and global start balance.
+  /// When disabled the money pass is skipped entirely (the results are
+  /// empty and [moneyValueAt] always returns null), so the index does
+  /// exactly the work it did before the feature existed. A change
+  /// invalidates the whole index (cheap, rare — a settings change), so
+  /// the next access rebuilds all passes.
+  void configureMoney({required bool enabled, required int startCents}) {
+    if (enabled == _moneyEnabled && startCents == _moneyStartCents) return;
+    _moneyEnabled = enabled;
+    _moneyStartCents = startCents;
+    _lines = null;
+  }
+
   MarkdownFenceRole fenceRoleAt(CodeLines lines, int index) {
     _ensure(lines);
     final fence = _fence;
@@ -72,6 +103,29 @@ class MarkdownEditorLineIndex {
   bool taskIndeterminate(CodeLines lines, int index) {
     _ensure(lines);
     return _indeterminate?.contains(index) ?? false;
+  }
+
+  /// The display value (cents) for the money line at [index], or `null`
+  /// when the line is not a money line: the running balance after the
+  /// line, or for `$?` delta lines the net change since the last `$=`.
+  /// Grammar and arithmetic come from [MarkdownMoneySyntax], shared
+  /// with the preview.
+  int? moneyValueAt(CodeLines lines, int index) {
+    _ensure(lines);
+    var low = 0;
+    var high = _moneyLines.length - 1;
+    while (low <= high) {
+      final mid = (low + high) >> 1;
+      final line = _moneyLines[mid];
+      if (line < index) {
+        low = mid + 1;
+      } else if (line > index) {
+        high = mid - 1;
+      } else {
+        return _moneyValues[mid];
+      }
+    }
+    return null;
   }
 
   void _ensure(CodeLines lines) {
@@ -102,6 +156,7 @@ class MarkdownEditorLineIndex {
     } else if (first >= 0) {
       _scanFence(segs, first, last);
       _scanTasks(segs, first);
+      if (_moneyEnabled) _scanMoney(segs, first);
       _indeterminate = _resultOrder.isEmpty ? null : Set.of(_resultOrder);
       _adoptSegLists(segs);
     } else {
@@ -135,9 +190,15 @@ class MarkdownEditorLineIndex {
     _resultOrder.clear();
     _segResultCount = List<int>.filled(n, 0);
     _segTaskEntry = List<List<_TaskSnapshot>>.filled(n, const []);
+    _moneyLines.clear();
+    _moneyValues.clear();
+    _segMoneyCount = List<int>.filled(n, 0);
+    _segMoneyEntry = List<int>.filled(n, _moneyStartCents);
+    _segMoneyAnchor = List<int>.filled(n, _moneyStartCents);
     if (n > 0) {
       _scanFence(segs, 0, n - 1);
       _scanTasks(segs, 0);
+      if (_moneyEnabled) _scanMoney(segs, 0);
     }
     _indeterminate = _resultOrder.isEmpty ? null : Set.of(_resultOrder);
     _adoptSegLists(segs);
@@ -223,6 +284,48 @@ class MarkdownEditorLineIndex {
       }
     }
     _closeFrames(frames, 0);
+  }
+
+  /// Money pass: folds every money line's op into a running balance
+  /// (grammar + arithmetic from [MarkdownMoneySyntax]). Balance state
+  /// flows strictly downward, so like the task pass a rescan resumes at
+  /// the first changed segment — reviving the stored entry balance and
+  /// truncating the append-ordered result lists — then scans to the
+  /// end. Fence lines are inert, mirroring the preview's ledger pass.
+  void _scanMoney(List<CodeLineSegment> segs, int first) {
+    final int n = segs.length;
+    final int keep = _segMoneyCount[first];
+    if (_moneyLines.length > keep) {
+      _moneyLines.length = keep;
+      _moneyValues.length = keep;
+    }
+    var balance = _segMoneyEntry[first];
+    var anchor = _segMoneyAnchor[first];
+    final List<MarkdownFenceRole>? fence = _fence;
+    for (int s = first; s < n; s++) {
+      _segMoneyCount[s] = _moneyLines.length;
+      _segMoneyEntry[s] = balance;
+      _segMoneyAnchor[s] = anchor;
+      final List<CodeLine> lines = segs[s].codeLines;
+      int g = _segStarts[s];
+      for (int j = 0; j < lines.length; j++, g++) {
+        final String text = lines[j].text;
+        if (text.isEmpty ||
+            text.length > maxScannedLineLength ||
+            (fence != null && fence[g] != MarkdownFenceRole.none) ||
+            !MarkdownMoneySyntax.leadsWithMarker(text)) {
+          continue;
+        }
+        final MoneyLineMatch? m = MarkdownMoneySyntax.parse(text);
+        if (m == null) continue;
+        balance = MarkdownMoneySyntax.apply(balance, m);
+        if (m.kind == MoneyLineKind.set) {
+          anchor = balance;
+        }
+        _moneyLines.add(g);
+        _moneyValues.add(MarkdownMoneySyntax.displayValue(m, balance, anchor));
+      }
+    }
   }
 
   void _closeFrames(List<_TaskFrame> frames, int level) {

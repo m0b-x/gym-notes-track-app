@@ -60,6 +60,7 @@ class MarkdownPreviewBloc
   CheckboxTapCallback? _onCheckboxTap;
   GhostTapCallback? _onGhostTap;
   TagTapCallback? _onTagTap;
+  MoneyTapCallback? _onMoneyTap;
 
   /// Optional pull-style content source. When set, callers can
   /// dispatch [PreviewContentRefreshRequested] (and bump the dirty
@@ -84,6 +85,7 @@ class MarkdownPreviewBloc
     on<PreviewFontSizeChanged>(_onFontSizeChanged);
     on<PreviewSearchUpdated>(_onSearchUpdated);
     on<PreviewLinesPerChunkChanged>(_onLinesPerChunkChanged);
+    on<PreviewMoneyConfigChanged>(_onMoneyConfigChanged);
     on<PreviewModeToggled>(_onModeToggled);
     on<PreviewThemeChanged>(_onThemeChanged);
   }
@@ -151,11 +153,13 @@ class MarkdownPreviewBloc
     CheckboxTapCallback? onCheckboxTap,
     GhostTapCallback? onGhostTap,
     TagTapCallback? onTagTap,
+    MoneyTapCallback? onMoneyTap,
   }) {
     _onLinkTap = onLinkTap;
     _onCheckboxTap = onCheckboxTap;
     _onGhostTap = onGhostTap;
     _onTagTap = onTagTap;
+    _onMoneyTap = onMoneyTap;
   }
 
   /// Binds a pull-style content source. Subsequent
@@ -254,6 +258,27 @@ class MarkdownPreviewBloc
     _emitPrepared(state.copyWith(linesPerChunk: event.linesPerChunk), emit);
   }
 
+  void _onMoneyConfigChanged(
+    PreviewMoneyConfigChanged event,
+    Emitter<MarkdownPreviewState> emit,
+  ) {
+    if (event.enabled == state.moneyEnabled &&
+        event.startCents == state.moneyStartCents &&
+        event.currencySymbol == state.moneyCurrencySymbol &&
+        event.currencySuffix == state.moneyCurrencySuffix) {
+      return;
+    }
+    _emitPrepared(
+      state.copyWith(
+        moneyEnabled: event.enabled,
+        moneyStartCents: event.startCents,
+        moneyCurrencySymbol: event.currencySymbol,
+        moneyCurrencySuffix: event.currencySuffix,
+      ),
+      emit,
+    );
+  }
+
   void _onModeToggled(
     PreviewModeToggled event,
     Emitter<MarkdownPreviewState> emit,
@@ -319,10 +344,15 @@ class MarkdownPreviewBloc
       debugEnabled: _debugEnabled,
       searchHighlights: next.searchHighlights,
       currentHighlightIndex: next.currentHighlightIndex,
+      moneyEnabled: next.moneyEnabled,
+      moneyStartCents: next.moneyStartCents,
+      currencySymbol: next.moneyCurrencySymbol,
+      currencySuffix: next.moneyCurrencySuffix,
       onLinkTap: _onLinkTap,
       onCheckboxTap: _onCheckboxTap,
       onGhostTap: _onGhostTap,
       onTagTap: _onTagTap,
+      onMoneyTap: _onMoneyTap,
     );
 
     if (rebuilt) {

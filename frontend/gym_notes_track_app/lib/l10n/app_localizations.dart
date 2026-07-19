@@ -4539,6 +4539,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open'**
   String get linkOpenAction;
+
+  /// Settings section header for the money ledger feature
+  ///
+  /// In en, this message translates to:
+  /// **'Money ledger'**
+  String get moneySection;
+
+  /// Master switch for rendering $-prefixed money lines
+  ///
+  /// In en, this message translates to:
+  /// **'Enable money ledger'**
+  String get moneyLedgerEnabledLabel;
+
+  /// Subtitle for the money ledger master switch
+  ///
+  /// In en, this message translates to:
+  /// **'Render \$ money lines in notes and on the calendar'**
+  String get moneyLedgerEnabledDesc;
+
+  /// Setting label: the balance every note's ledger starts from
+  ///
+  /// In en, this message translates to:
+  /// **'Start balance'**
+  String get moneyStartBalance;
+
+  /// Subtitle for the start balance setting
+  ///
+  /// In en, this message translates to:
+  /// **'Every note\'s ledger starts from this amount'**
+  String get moneyStartBalanceDesc;
+
+  /// Setting label for the currency symbol shown on computed money values
+  ///
+  /// In en, this message translates to:
+  /// **'Currency symbol'**
+  String get moneyCurrencySymbolLabel;
+
+  /// Subtitle for the currency symbol setting
+  ///
+  /// In en, this message translates to:
+  /// **'Shown on computed amounts (e.g. lei, €, \$)'**
+  String get moneyCurrencySymbolDesc;
+
+  /// Setting label: place the currency symbol after the number
+  ///
+  /// In en, this message translates to:
+  /// **'Symbol after amount'**
+  String get moneyCurrencySuffixLabel;
+
+  /// Subtitle for the currency placement setting
+  ///
+  /// In en, this message translates to:
+  /// **'12.50 lei instead of lei12.50'**
+  String get moneyCurrencySuffixDesc;
+
+  /// Label and page title for per-note currency overrides
+  ///
+  /// In en, this message translates to:
+  /// **'Per-note currency'**
+  String get moneyPerNoteCurrency;
+
+  /// Menu option clearing a note's currency override
+  ///
+  /// In en, this message translates to:
+  /// **'Use global currency'**
+  String get useGlobalCurrency;
+
+  /// Menu option to enter a custom currency symbol
+  ///
+  /// In en, this message translates to:
+  /// **'Custom…'**
+  String get moneyCustomSymbol;
+
+  /// Title of the bottom sheet listing money ledger entries
+  ///
+  /// In en, this message translates to:
+  /// **'Ledger'**
+  String get moneyDetailTitle;
+
+  /// Calendar day summary entry showing the net money change of linked notes
+  ///
+  /// In en, this message translates to:
+  /// **'Money: {amount}'**
+  String moneyDaySummaryTitle(String amount);
 }
 
 class _AppLocalizationsDelegate

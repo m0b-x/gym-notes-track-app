@@ -1813,5 +1813,19 @@
   "linkOpenFailed": "Link konnte nicht geöffnet werden",
   "linkSchemeNotAllowed": "Linktyp nicht unterstützt",
   "linkOpenPrompt": "{target} öffnen?",
-  "linkOpenAction": "Öffnen"
+  "linkOpenAction": "Öffnen",
+  "moneySection": "Kassenbuch",
+  "moneyLedgerEnabledLabel": "Kassenbuch aktivieren",
+  "moneyLedgerEnabledDesc": "$-Geldzeilen in Notizen und im Kalender anzeigen",
+  "moneyStartBalance": "Startguthaben",
+  "moneyStartBalanceDesc": "Jede Notiz startet mit diesem Betrag",
+  "moneyCurrencySymbolLabel": "Währungssymbol",
+  "moneyCurrencySymbolDesc": "Bei berechneten Beträgen angezeigt (z. B. lei, €, $)",
+  "moneyCurrencySuffixLabel": "Symbol nach dem Betrag",
+  "moneyCurrencySuffixDesc": "12.50 lei statt lei12.50",
+  "moneyPerNoteCurrency": "Währung pro Notiz",
+  "useGlobalCurrency": "Globale Währung verwenden",
+  "moneyCustomSymbol": "Eigenes…",
+  "moneyDetailTitle": "Kassenbuch",
+  "moneyDaySummaryTitle": "Geld: {amount}"
 }

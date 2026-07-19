@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../models/calendar_event.dart';
 import '../../services/calendar_event_service.dart';
+import '../../services/note_money_ledger_service.dart';
 import 'calendar_event.dart';
 import 'calendar_state.dart';
 
@@ -74,6 +75,13 @@ class CalendarBloc extends Bloc<CalendarPageEvent, CalendarPageState> {
       debugPrint('[CalendarBloc] Load error: $e');
     }
     _invalidateDayCache();
+    try {
+      await (await NoteMoneyLedgerService.getInstance()).refresh(
+        _service.events,
+      );
+    } catch (e) {
+      debugPrint('[CalendarBloc] Money ledger refresh error: $e');
+    }
     emit(
       CalendarPageLoaded(
         allEvents: List.unmodifiable(_service.events),
@@ -145,6 +153,13 @@ class CalendarBloc extends Bloc<CalendarPageEvent, CalendarPageState> {
       return;
     }
     _invalidateDayCache();
+    try {
+      await (await NoteMoneyLedgerService.getInstance()).refresh(
+        _service.events,
+      );
+    } catch (e) {
+      debugPrint('[CalendarBloc] Money ledger refresh error: $e');
+    }
     emit(
       current.copyWith(
         allEvents: List.unmodifiable(_service.events),
@@ -170,6 +185,13 @@ class CalendarBloc extends Bloc<CalendarPageEvent, CalendarPageState> {
       return;
     }
     _invalidateDayCache();
+    try {
+      await (await NoteMoneyLedgerService.getInstance()).refresh(
+        _service.events,
+      );
+    } catch (e) {
+      debugPrint('[CalendarBloc] Money ledger refresh error: $e');
+    }
     emit(current.copyWith(allEvents: List.unmodifiable(_service.events)));
   }
 

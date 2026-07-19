@@ -17,6 +17,7 @@ import '../pages/database_settings_page.dart';
 import '../pages/developer_options_page.dart';
 import '../pages/markdown_settings_page.dart';
 import '../pages/note_bar_assignment_page.dart';
+import '../pages/note_money_currency_page.dart';
 import '../pages/optimized_folder_content_page.dart';
 import '../pages/optimized_note_editor_page.dart';
 import '../pages/search_page.dart';
@@ -207,6 +208,10 @@ abstract final class AppNavigator {
 
   static Future<void> toNoteBarAssignment(BuildContext context) {
     return push(context, const NoteBarAssignmentPage());
+  }
+
+  static Future<void> toNoteMoneyCurrency(BuildContext context) {
+    return push(context, const NoteMoneyCurrencyPage());
   }
 
   // --- Last-location persistence & restore ---

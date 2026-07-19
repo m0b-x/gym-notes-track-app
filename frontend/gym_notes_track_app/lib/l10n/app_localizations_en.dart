@@ -2470,4 +2470,51 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get linkOpenAction => 'Open';
+
+  @override
+  String get moneySection => 'Money ledger';
+
+  @override
+  String get moneyLedgerEnabledLabel => 'Enable money ledger';
+
+  @override
+  String get moneyLedgerEnabledDesc =>
+      'Render \$ money lines in notes and on the calendar';
+
+  @override
+  String get moneyStartBalance => 'Start balance';
+
+  @override
+  String get moneyStartBalanceDesc =>
+      'Every note\'s ledger starts from this amount';
+
+  @override
+  String get moneyCurrencySymbolLabel => 'Currency symbol';
+
+  @override
+  String get moneyCurrencySymbolDesc =>
+      'Shown on computed amounts (e.g. lei, €, \$)';
+
+  @override
+  String get moneyCurrencySuffixLabel => 'Symbol after amount';
+
+  @override
+  String get moneyCurrencySuffixDesc => '12.50 lei instead of lei12.50';
+
+  @override
+  String get moneyPerNoteCurrency => 'Per-note currency';
+
+  @override
+  String get useGlobalCurrency => 'Use global currency';
+
+  @override
+  String get moneyCustomSymbol => 'Custom…';
+
+  @override
+  String get moneyDetailTitle => 'Ledger';
+
+  @override
+  String moneyDaySummaryTitle(String amount) {
+    return 'Money: $amount';
+  }
 }

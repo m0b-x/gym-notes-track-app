@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import '../database/database.dart';
 import '../database/database_lifecycle.dart';
 import '../constants/json_keys.dart';
+import '../constants/settings_keys.dart';
 import 'calendar_event_service.dart';
 import 'category_service.dart';
 import 'counter_service.dart';
@@ -76,6 +77,7 @@ class BackupService {
     );
     final activeBar = await _db.userSettingsDao.getValue('active_markdown_bar');
     final noteBarAssignments = await _exportNoteBarAssignments();
+    final noteMoneyCurrencies = await _exportNoteMoneyCurrencies();
 
     final counterData = await GetIt.I<CounterService>().exportData();
     final calendarCategories = await GetIt.I<CategoryService>().exportData();
@@ -83,7 +85,7 @@ class BackupService {
     final publicHolidays = await GetIt.I<PublicHolidayService>().exportData();
 
     return {
-      'version': 5,
+      'version': 6,
       'exportedAt': DateTime.now().toIso8601String(),
       'folders': foldersData,
       'notes': notesWithContent,
@@ -92,6 +94,7 @@ class BackupService {
       'barProfiles': barProfiles,
       'activeBar': activeBar,
       'noteBarAssignments': noteBarAssignments,
+      'noteMoneyCurrencies': noteMoneyCurrencies,
       'counterData': counterData,
       'calendarCategories': calendarCategories,
       'calendarEvents': calendarEvents,
@@ -106,6 +109,22 @@ class BackupService {
     for (final entry in all.entries) {
       if (entry.key.startsWith('note_bar_')) {
         final noteId = entry.key.substring('note_bar_'.length);
+        result[noteId] = entry.value;
+      }
+    }
+    return result;
+  }
+
+  /// Returns a map of noteId → raw currency override (`symbol|suffix`)
+  /// for every per-note money currency override.
+  Future<Map<String, String>> _exportNoteMoneyCurrencies() async {
+    final all = await _db.userSettingsDao.getAllSettings();
+    final result = <String, String>{};
+    for (final entry in all.entries) {
+      if (entry.key.startsWith(SettingsKeys.moneyNoteCurrencyPrefix)) {
+        final noteId = entry.key.substring(
+          SettingsKeys.moneyNoteCurrencyPrefix.length,
+        );
         result[noteId] = entry.value;
       }
     }
@@ -138,6 +157,10 @@ class BackupService {
       'toolbar_split_enabled',
       'toolbar_utility_config',
       'preview_lines_per_chunk',
+      'money_ledger_enabled',
+      'money_start_cents',
+      'money_currency_symbol',
+      'money_currency_suffix',
     ];
 
     final settings = <String, dynamic>{};
@@ -270,6 +293,19 @@ class BackupService {
         for (final entry in noteBarAssignments.entries) {
           await _db.userSettingsDao.setValue(
             'note_bar_${entry.key}',
+            entry.value.toString(),
+          );
+        }
+      }
+
+      // Per-note money currency overrides (v6+ backups; missing key
+      // leaves existing overrides in place).
+      final noteMoneyCurrencies =
+          data['noteMoneyCurrencies'] as Map<String, dynamic>?;
+      if (noteMoneyCurrencies != null) {
+        for (final entry in noteMoneyCurrencies.entries) {
+          await _db.userSettingsDao.setValue(
+            '${SettingsKeys.moneyNoteCurrencyPrefix}${entry.key}',
             entry.value.toString(),
           );
         }

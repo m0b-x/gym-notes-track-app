@@ -7,6 +7,7 @@ import '../l10n/app_localizations.dart';
 import '../models/calendar_event.dart';
 import '../models/day_summary_entry.dart';
 import '../models/recurrence_rule.dart';
+import 'note_money_ledger_service.dart';
 import 'recurrence_formatter.dart';
 import 'event_time_formatter.dart';
 
@@ -122,6 +123,63 @@ class EventSummaryProvider implements DaySummaryProvider {
   }
 }
 
+/// Emits a single money entry when calendar-linked notes attribute a
+/// non-zero net ledger change to the day.
+///
+/// Uses the same attribution rule as `MoneyDayBarProvider`: an event
+/// contributes its linked note's `net` only on the UTC date of its
+/// `startDate` (deduplicated by note), so recurring occurrences can never
+/// double-count. The subtitle lists the titles of the notes that
+/// contributed.
+class MoneyDaySummaryProvider implements DaySummaryProvider {
+  final AppLocalizations l10n;
+
+  const MoneyDaySummaryProvider(this.l10n);
+
+  @override
+  Iterable<DaySummaryEntry> summaryFor(
+    DateTime day,
+    List<CalendarEvent> events,
+  ) {
+    if (events.isEmpty) return const [];
+    final service = NoteMoneyLedgerService.instanceOrNull;
+    if (service == null) return const [];
+    final key = DateTime.utc(day.year, day.month, day.day);
+    var sum = 0;
+    final seen = <String>{};
+    final titles = <String>[];
+    for (final event in events) {
+      final noteId = event.noteId;
+      if (noteId == null) continue;
+      // Re-derive the start date's UTC day via epoch milliseconds so the
+      // key matches `CalendarEventService._dateOnlyUtc` in every timezone.
+      final startUtc = DateTime.fromMillisecondsSinceEpoch(
+        event.startDate.millisecondsSinceEpoch,
+        isUtc: true,
+      );
+      if (DateTime.utc(startUtc.year, startUtc.month, startUtc.day) != key) {
+        continue;
+      }
+      if (!seen.add(noteId)) continue;
+      final ledger = service.ledgerFor(noteId);
+      if (ledger == null) continue;
+      sum += ledger.net;
+      titles.add(ledger.title);
+    }
+    if (sum == 0) return const [];
+    return [
+      DaySummaryEntry(
+        key: 'money',
+        icon: Icons.payments_outlined,
+        color: sum > 0 ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
+        title: l10n.moneyDaySummaryTitle(service.formatNetSigned(sum)),
+        subtitle: titles.isEmpty ? null : titles.join(', '),
+        priority: 90,
+      ),
+    ];
+  }
+}
+
 /// Chains a list of [DaySummaryProvider]s and returns a sorted,
 /// deduplicated list of entries for a given day.
 ///
@@ -139,6 +197,7 @@ class DaySummaryResolver {
         EventSummaryProvider(l10n),
         PublicHolidaySummaryProvider(l10n),
         WeekendSummaryProvider(l10n),
+        MoneyDaySummaryProvider(l10n),
       ],
     );
   }

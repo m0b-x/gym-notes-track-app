@@ -38,6 +38,14 @@ final class MarkdownPreviewState extends Equatable {
   /// if content/font are present.
   final bool hasTheme;
 
+  /// Money ledger display config resolved by the page on note load:
+  /// whether the feature is enabled at all, the global start balance
+  /// (cents), and the note's effective currency.
+  final bool moneyEnabled;
+  final int moneyStartCents;
+  final String moneyCurrencySymbol;
+  final bool moneyCurrencySuffix;
+
   const MarkdownPreviewState({
     this.content = '',
     this.fontSize = 14.0,
@@ -47,6 +55,10 @@ final class MarkdownPreviewState extends Equatable {
     this.currentHighlightIndex,
     this.renderHandle = 0,
     this.hasTheme = false,
+    this.moneyEnabled = false,
+    this.moneyStartCents = 0,
+    this.moneyCurrencySymbol = '',
+    this.moneyCurrencySuffix = false,
   });
 
   MarkdownPreviewState copyWith({
@@ -60,6 +72,10 @@ final class MarkdownPreviewState extends Equatable {
     bool clearCurrentHighlightIndex = false,
     int? renderHandle,
     bool? hasTheme,
+    bool? moneyEnabled,
+    int? moneyStartCents,
+    String? moneyCurrencySymbol,
+    bool? moneyCurrencySuffix,
   }) {
     return MarkdownPreviewState(
       content: content ?? this.content,
@@ -74,6 +90,10 @@ final class MarkdownPreviewState extends Equatable {
           : (currentHighlightIndex ?? this.currentHighlightIndex),
       renderHandle: renderHandle ?? this.renderHandle,
       hasTheme: hasTheme ?? this.hasTheme,
+      moneyEnabled: moneyEnabled ?? this.moneyEnabled,
+      moneyStartCents: moneyStartCents ?? this.moneyStartCents,
+      moneyCurrencySymbol: moneyCurrencySymbol ?? this.moneyCurrencySymbol,
+      moneyCurrencySuffix: moneyCurrencySuffix ?? this.moneyCurrencySuffix,
     );
   }
 
@@ -87,5 +107,9 @@ final class MarkdownPreviewState extends Equatable {
     currentHighlightIndex,
     renderHandle,
     hasTheme,
+    moneyEnabled,
+    moneyStartCents,
+    moneyCurrencySymbol,
+    moneyCurrencySuffix,
   ];
 }

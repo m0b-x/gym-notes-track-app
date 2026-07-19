@@ -8,6 +8,7 @@ import 'markdown_chunker.dart';
 import 'markdown_line_height_calculator.dart';
 import 'markdown_link_patterns.dart';
 import 'markdown_list_syntax.dart';
+import 'markdown_money_syntax.dart';
 import 'markdown_tag_syntax.dart';
 
 typedef LinkTapCallback = void Function(String url);
@@ -22,6 +23,11 @@ typedef GhostTapCallback = void Function(int start, int end);
 /// matched token including the leading `#`, so the caller can search for
 /// it verbatim across notes.
 typedef TagTapCallback = void Function(String tag);
+
+/// Invoked when a `$$` total or `$?` net-change row is tapped in the
+/// preview. [lineIndex] identifies the tapped money line so the caller
+/// can collect and present the ledger entries feeding its value.
+typedef MoneyTapCallback = void Function(int lineIndex);
 
 /// Style configuration for line-based markdown rendering.
 class LineMarkdownStyle {
@@ -93,8 +99,22 @@ class LineBasedMarkdownBuilder {
   final CheckboxTapCallback? onCheckboxTap;
   final GhostTapCallback? onGhostTap;
   final TagTapCallback? onTagTap;
+  final MoneyTapCallback? onMoneyTap;
   final List<TextRange>? searchHighlights;
   final int? currentHighlightIndex;
+
+  /// Master switch for the money ledger. Off by default — when
+  /// `false`, `$` lines never enter the money dispatch branch and
+  /// render as plain paragraphs (the ledger fold in [prepare] is
+  /// skipped entirely).
+  final bool moneyEnabled;
+
+  /// Global start balance (cents) seeding every ledger fold, and the
+  /// note's effective currency for computed money values. Display-only
+  /// inputs: parsing and arithmetic stay currency-agnostic.
+  final int moneyStartCents;
+  final String currencySymbol;
+  final bool currencySuffix;
 
   /// Number of lines per chunk - configurable for balance between precision and performance
   final int linesPerChunk;
@@ -139,14 +159,27 @@ class LineBasedMarkdownBuilder {
   /// whole; splittable blocks like code fences may still be divided).
   List<int> _chunkStartLines = const [];
 
+  /// Display value (cents) for each money line, keyed by line index:
+  /// the running balance after the line, or for `$?` delta lines the
+  /// net change since the last `$=` anchor. `null` when the note has no
+  /// money lines. Computed once per [prepare] by folding
+  /// [MarkdownMoneySyntax] ops top to bottom, so chunk rebuilds always
+  /// read a consistent whole-document ledger.
+  Map<int, int>? _moneyValues;
+
   LineBasedMarkdownBuilder({
     required this.style,
     this.onLinkTap,
     this.onCheckboxTap,
     this.onGhostTap,
     this.onTagTap,
+    this.onMoneyTap,
     this.searchHighlights,
     this.currentHighlightIndex,
+    this.moneyEnabled = false,
+    this.moneyStartCents = 0,
+    this.currencySymbol = '',
+    this.currencySuffix = false,
     this.linesPerChunk = 10,
   });
 
@@ -187,7 +220,52 @@ class LineBasedMarkdownBuilder {
     // editor's debug overlay can reproduce identical boundaries.
     _buildChunkLayout();
 
+    // Fold the money ledger after block classification so fence-inert
+    // lines are known. One pass over the source; only `$`-led lines
+    // outside multi-line blocks pay for a parse.
+    _computeMoneyLedger();
+
     return _lines ?? [];
+  }
+
+  /// Folds every money line's op into a running balance, top to bottom
+  /// (grammar + arithmetic from [MarkdownMoneySyntax], shared with the
+  /// editor's line index). The lead-character probe reads [_source]
+  /// directly so non-money lines allocate nothing even on large
+  /// documents.
+  void _computeMoneyLedger() {
+    _moneyValues = null;
+    if (!moneyEnabled) return;
+    Map<int, int>? values;
+    var balance = moneyStartCents;
+    var anchor = moneyStartCents;
+    final source = _source;
+    for (var i = 0; i < _lineCount; i++) {
+      final start = _lineOffsets[i];
+      final end = i + 1 < _lineOffsets.length
+          ? _lineOffsets[i + 1] - 1
+          : source.length;
+      var j = start;
+      while (j < end) {
+        final c = source.codeUnitAt(j);
+        if (c != 0x20 && c != 0x09) break;
+        j++;
+      }
+      if (j >= end || source.codeUnitAt(j) != 0x24) continue;
+      if (_blockForLine(i) != null) continue;
+      final m = MarkdownMoneySyntax.parse(_getLine(i));
+      if (m == null) continue;
+      balance = MarkdownMoneySyntax.apply(balance, m);
+      if (m.kind == MoneyLineKind.set) {
+        anchor = balance;
+      }
+      (values ??= <int, int>{})[i] = MarkdownMoneySyntax.displayValue(
+        m,
+        balance,
+        anchor,
+      );
+    }
+    _moneyValues = values;
   }
 
   /// Delegates to [MarkdownChunker] to classify multi-line blocks and
@@ -535,6 +613,23 @@ class LineBasedMarkdownBuilder {
           fontSize: style.baseFontSize * MarkdownConstants.emptyLineScale,
         ),
       );
+    }
+
+    // Money ledger lines (`$+ 12.50 label`, `$$` total). Grammar comes
+    // from the shared [MarkdownMoneySyntax]; the running balance was
+    // folded once in [prepare]. Cheap probe: only `$`-led lines parse.
+    if (moneyEnabled && trimmed.codeUnitAt(0) == 0x24) {
+      final money = MarkdownMoneySyntax.parse(line);
+      if (money != null) {
+        return _buildMoneyLine(
+          line,
+          money,
+          lineIndex,
+          lineStart,
+          lineEnd,
+          baseStyle,
+        );
+      }
     }
 
     // Image detection (before links since they have similar syntax)
@@ -976,6 +1071,138 @@ class LineBasedMarkdownBuilder {
       );
     }
 
+    return TextSpan(children: children);
+  }
+
+  /// Builds a money-ledger row. The `$x` marker is consumed as
+  /// decorative chrome (like a callout's `[!TYPE]` token) and replaced
+  /// by a sign glyph in the op's accent; the amount stays an
+  /// offset-mapped source run so search highlighting lands on it; the
+  /// optional label renders inline-formatted at its true offset. Op
+  /// rows carry a dimmed computed running balance; `$$` total rows show
+  /// the balance itself, pill-tinted like a tag, red when negative.
+  /// Computed values are not source text, so they carry no offsets and
+  /// are invisible to search — by design.
+  TextSpan _buildMoneyLine(
+    String line,
+    MoneyLineMatch m,
+    int lineIndex,
+    int lineStart,
+    int lineEnd,
+    TextStyle baseStyle,
+  ) {
+    final dark = style.isDark;
+    final value = _moneyValues?[lineIndex] ?? 0;
+    final Color accent;
+    final String chrome;
+    switch (m.kind) {
+      case MoneyLineKind.add:
+        accent = MarkdownConstants.moneyPositive(dark: dark);
+        chrome = '+';
+      case MoneyLineKind.subtract:
+        accent = MarkdownConstants.moneyNegative(dark: dark);
+        chrome = '−';
+      case MoneyLineKind.multiply:
+        accent = MarkdownConstants.moneyNeutral(dark: dark);
+        chrome = '×';
+      case MoneyLineKind.divide:
+        accent = MarkdownConstants.moneyNeutral(dark: dark);
+        chrome = '÷';
+      case MoneyLineKind.set:
+        accent = style.primaryColor;
+        chrome = '=';
+      case MoneyLineKind.total:
+        accent = value < 0
+            ? MarkdownConstants.moneyNegative(dark: dark)
+            : style.primaryColor;
+        chrome = 'Σ';
+      case MoneyLineKind.delta:
+        accent = value > 0
+            ? MarkdownConstants.moneyPositive(dark: dark)
+            : value < 0
+            ? MarkdownConstants.moneyNegative(dark: dark)
+            : style.primaryColor;
+        chrome = 'Δ';
+      case MoneyLineKind.target:
+        accent = style.primaryColor;
+        chrome = '◎';
+    }
+    final accentStyle = baseStyle.copyWith(
+      color: accent,
+      fontWeight: FontWeight.w600,
+    );
+
+    final children = <InlineSpan>[
+      TextSpan(text: '$chrome ', style: accentStyle),
+    ];
+    if (m.kind == MoneyLineKind.total || m.kind == MoneyLineKind.delta) {
+      InlineSpan pill = TextSpan(
+        text: m.kind == MoneyLineKind.delta
+            ? ' ${MarkdownMoneySyntax.formatCentsSignedWithSymbol(value, symbol: currencySymbol, suffix: currencySuffix)} '
+            : ' ${MarkdownMoneySyntax.formatCentsWithSymbol(value, symbol: currencySymbol, suffix: currencySuffix)} ',
+        style: accentStyle.copyWith(
+          fontWeight: FontWeight.bold,
+          backgroundColor: accent.withValues(alpha: 0.12),
+        ),
+      );
+      if (onMoneyTap != null) {
+        final recognizer = _linkRecognizers['money:$lineIndex'] ??=
+            TapGestureRecognizer()..onTap = () => onMoneyTap!(lineIndex);
+        pill = _attachRecognizer(pill as TextSpan, recognizer);
+      }
+      children.add(pill);
+    } else {
+      children.add(
+        _applyHighlighting(
+          line.substring(m.amountStart, m.amountEnd),
+          accentStyle,
+          lineStart + m.amountStart,
+        ),
+      );
+    }
+    if (m.labelStart < line.length) {
+      children.add(TextSpan(text: ' ', style: baseStyle));
+      _appendFlattened(
+        children,
+        _buildInlineFormatted(
+          line.substring(m.labelStart),
+          baseStyle,
+          lineStart + m.labelStart,
+          lineEnd,
+        ),
+      );
+    }
+    if (m.kind == MoneyLineKind.target) {
+      // The featured value of a target row is the remaining budget —
+      // pill-tinted like totals, green while under, red when over.
+      final remainColor = value < 0
+          ? MarkdownConstants.moneyNegative(dark: dark)
+          : MarkdownConstants.moneyPositive(dark: dark);
+      children.add(TextSpan(text: '  ', style: baseStyle));
+      children.add(
+        TextSpan(
+          text:
+              ' ${MarkdownMoneySyntax.formatCentsWithSymbol(value, symbol: currencySymbol, suffix: currencySuffix)} ',
+          style: baseStyle.copyWith(
+            color: remainColor,
+            fontWeight: FontWeight.bold,
+            backgroundColor: remainColor.withValues(alpha: 0.12),
+          ),
+        ),
+      );
+    } else if (m.kind != MoneyLineKind.set &&
+        m.kind != MoneyLineKind.total &&
+        m.kind != MoneyLineKind.delta) {
+      children.add(
+        TextSpan(
+          text:
+              '  =  ${MarkdownMoneySyntax.formatCentsWithSymbol(value, symbol: currencySymbol, suffix: currencySuffix)}',
+          style: baseStyle.copyWith(
+            color: style.textColor.withValues(alpha: 0.5),
+          ),
+        ),
+      );
+    }
     return TextSpan(children: children);
   }
 

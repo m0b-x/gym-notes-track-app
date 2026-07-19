@@ -694,5 +694,19 @@
   "linkOpenFailed": "Linkul nu a putut fi deschis",
   "linkSchemeNotAllowed": "Tip de link nesuportat",
   "linkOpenPrompt": "Deschizi {target}?",
-  "linkOpenAction": "Deschide"
+  "linkOpenAction": "Deschide",
+  "moneySection": "Registru de bani",
+  "moneyLedgerEnabledLabel": "Activează registrul de bani",
+  "moneyLedgerEnabledDesc": "Afișează liniile $ de bani în notițe și în calendar",
+  "moneyStartBalance": "Sold inițial",
+  "moneyStartBalanceDesc": "Registrul fiecărei notițe pornește de la această sumă",
+  "moneyCurrencySymbolLabel": "Simbol monedă",
+  "moneyCurrencySymbolDesc": "Afișat la sumele calculate (ex. lei, €, $)",
+  "moneyCurrencySuffixLabel": "Simbol după sumă",
+  "moneyCurrencySuffixDesc": "12.50 lei în loc de lei12.50",
+  "moneyPerNoteCurrency": "Monedă per notiță",
+  "useGlobalCurrency": "Folosește moneda globală",
+  "moneyCustomSymbol": "Personalizat…",
+  "moneyDetailTitle": "Registru",
+  "moneyDaySummaryTitle": "Bani: {amount}"
 }

@@ -63,6 +63,31 @@ final class PreviewLinesPerChunkChanged extends MarkdownPreviewEvent {
   List<Object?> get props => [linesPerChunk];
 }
 
+/// Money ledger display config (global start balance + the note's
+/// effective currency), resolved from settings by the page on note
+/// load or after a settings change.
+final class PreviewMoneyConfigChanged extends MarkdownPreviewEvent {
+  final bool enabled;
+  final int startCents;
+  final String currencySymbol;
+  final bool currencySuffix;
+
+  const PreviewMoneyConfigChanged({
+    required this.enabled,
+    required this.startCents,
+    required this.currencySymbol,
+    required this.currencySuffix,
+  });
+
+  @override
+  List<Object?> get props => [
+    enabled,
+    startCents,
+    currencySymbol,
+    currencySuffix,
+  ];
+}
+
 /// Requests the bloc to pull the latest source text from its bound
 /// content provider (see [MarkdownPreviewBloc.bindContentProvider]).
 ///

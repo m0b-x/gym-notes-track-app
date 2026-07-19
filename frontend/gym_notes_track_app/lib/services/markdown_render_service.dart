@@ -28,6 +28,10 @@ class MarkdownRenderService {
   Brightness? _lastBrightness;
   int? _lastLinesPerChunk;
   bool? _lastDebugEnabled;
+  bool? _lastMoneyEnabled;
+  int? _lastMoneyStartCents;
+  String? _lastCurrencySymbol;
+  bool? _lastCurrencySuffix;
 
   /// The active builder, or `null` if [prepare] has not been called yet.
   LineBasedMarkdownBuilder? get builder => _builder;
@@ -64,10 +68,15 @@ class MarkdownRenderService {
     required bool debugEnabled,
     List<TextRange>? searchHighlights,
     int? currentHighlightIndex,
+    bool moneyEnabled = false,
+    int moneyStartCents = 0,
+    String currencySymbol = '',
+    bool currencySuffix = false,
     LinkTapCallback? onLinkTap,
     CheckboxTapCallback? onCheckboxTap,
     GhostTapCallback? onGhostTap,
     TagTapCallback? onTagTap,
+    MoneyTapCallback? onMoneyTap,
   }) {
     final needsRebuild =
         _builder == null ||
@@ -77,7 +86,11 @@ class MarkdownRenderService {
         _lastHighlightIndex != currentHighlightIndex ||
         _lastBrightness != brightness ||
         _lastLinesPerChunk != linesPerChunk ||
-        _lastDebugEnabled != debugEnabled;
+        _lastDebugEnabled != debugEnabled ||
+        _lastMoneyEnabled != moneyEnabled ||
+        _lastMoneyStartCents != moneyStartCents ||
+        _lastCurrencySymbol != currencySymbol ||
+        _lastCurrencySuffix != currencySuffix;
 
     if (!needsRebuild) {
       return false;
@@ -90,6 +103,10 @@ class MarkdownRenderService {
     _lastBrightness = brightness;
     _lastLinesPerChunk = linesPerChunk;
     _lastDebugEnabled = debugEnabled;
+    _lastMoneyEnabled = moneyEnabled;
+    _lastMoneyStartCents = moneyStartCents;
+    _lastCurrencySymbol = currencySymbol;
+    _lastCurrencySuffix = currencySuffix;
 
     final adaptiveChunkSize = MarkdownChunker.adaptiveChunkSize(
       _estimateLineCount(data),
@@ -103,8 +120,13 @@ class MarkdownRenderService {
       onCheckboxTap: onCheckboxTap,
       onGhostTap: onGhostTap,
       onTagTap: onTagTap,
+      onMoneyTap: onMoneyTap,
       searchHighlights: searchHighlights,
       currentHighlightIndex: currentHighlightIndex,
+      moneyEnabled: moneyEnabled,
+      moneyStartCents: moneyStartCents,
+      currencySymbol: currencySymbol,
+      currencySuffix: currencySuffix,
       linesPerChunk: adaptiveChunkSize,
     );
     _builder!.prepare(data);
@@ -131,6 +153,10 @@ class MarkdownRenderService {
     _lastBrightness = null;
     _lastLinesPerChunk = null;
     _lastDebugEnabled = null;
+    _lastMoneyEnabled = null;
+    _lastMoneyStartCents = null;
+    _lastCurrencySymbol = null;
+    _lastCurrencySuffix = null;
   }
 
   void _disposeBuilder() {

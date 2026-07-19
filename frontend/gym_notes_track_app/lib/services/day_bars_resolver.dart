@@ -6,6 +6,7 @@ import '../constants/public_holidays.dart';
 import '../l10n/app_localizations.dart';
 import '../models/calendar_event.dart';
 import '../models/day_bar.dart';
+import 'note_money_ledger_service.dart';
 
 /// Contract for anything that contributes bars to a calendar day cell.
 ///
@@ -89,6 +90,56 @@ class EventDayBarProvider implements DayBarProvider {
   }
 }
 
+/// Emits a single money bar when calendar-linked notes attribute a
+/// non-zero net ledger change to the day.
+///
+/// Attribution rule: an event contributes its linked note's `net` only on
+/// the UTC date of its `startDate`, so recurring occurrences can never
+/// double-count a note; notes are additionally deduplicated per day. Reads
+/// the [NoteMoneyLedgerService] cache synchronously — no data means no bar.
+class MoneyDayBarProvider implements DayBarProvider {
+  final AppLocalizations l10n;
+
+  const MoneyDayBarProvider(this.l10n);
+
+  @override
+  Iterable<DayBar> barsFor(DateTime day, List<CalendarEvent> events) {
+    if (events.isEmpty) return const [];
+    final service = NoteMoneyLedgerService.instanceOrNull;
+    if (service == null) return const [];
+    final key = DateTime.utc(day.year, day.month, day.day);
+    var sum = 0;
+    Set<String>? seen;
+    for (final event in events) {
+      final noteId = event.noteId;
+      if (noteId == null) continue;
+      // Re-derive the start date's UTC day via epoch milliseconds so the
+      // key matches `CalendarEventService._dateOnlyUtc` in every timezone.
+      final startUtc = DateTime.fromMillisecondsSinceEpoch(
+        event.startDate.millisecondsSinceEpoch,
+        isUtc: true,
+      );
+      if (DateTime.utc(startUtc.year, startUtc.month, startUtc.day) != key) {
+        continue;
+      }
+      seen ??= <String>{};
+      if (!seen.add(noteId)) continue;
+      final ledger = service.ledgerFor(noteId);
+      if (ledger == null) continue;
+      sum += ledger.net;
+    }
+    if (sum == 0) return const [];
+    return [
+      DayBar(
+        key: 'money',
+        color: sum > 0 ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
+        priority: 90,
+        semanticLabel: l10n.moneyDaySummaryTitle(service.formatNetSigned(sum)),
+      ),
+    ];
+  }
+}
+
 /// Chains a list of [DayBarProvider]s and returns a sorted, deduplicated
 /// list of bars for a given day.
 ///
@@ -111,6 +162,7 @@ class DayBarsResolver {
         const EventDayBarProvider(),
         PublicHolidayDayBarProvider(l10n),
         WeekendDayBarProvider(l10n),
+        MoneyDayBarProvider(l10n),
       ],
     );
   }

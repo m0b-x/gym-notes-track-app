@@ -39,6 +39,21 @@ class SettingsKeys {
       'preview_when_keyboard_hidden';
   static const String scrollCursorOnKeyboard = 'scroll_cursor_on_keyboard';
 
+  // Money ledger settings
+  /// Master switch for the `$`-prefixed money ledger syntax. Off by
+  /// default — the toolbar shortcuts still insert their text, but `$`
+  /// lines render as plain text on both surfaces and the calendar
+  /// summary stays empty until this is enabled.
+  static const String moneyLedgerEnabled = 'money_ledger_enabled';
+  static const String moneyStartCents = 'money_start_cents';
+  static const String moneyCurrencySymbol = 'money_currency_symbol';
+  static const String moneyCurrencySuffix = 'money_currency_suffix';
+
+  /// Prefix for per-note currency overrides: `money_note_currency_<noteId>`
+  /// stores `symbol` or `symbol|suffix`; absent = inherit the global
+  /// currency (mirrors the `note_bar_<noteId>` override precedent).
+  static const String moneyNoteCurrencyPrefix = 'money_note_currency_';
+
   // Preview settings
   static const String showPreviewScrollbar = 'show_preview_scrollbar';
 
@@ -96,6 +111,14 @@ class SettingsKeys {
   static const bool defaultAutoBreakLongLines = true;
   static const bool defaultPreviewWhenKeyboardHidden = false;
   static const bool defaultScrollCursorOnKeyboard = false;
+
+  // Default values for money ledger settings
+  /// Ledger folds start from this balance (cents); 0 keeps the original
+  /// "every note starts at zero" behavior.
+  static const bool defaultMoneyLedgerEnabled = false;
+  static const int defaultMoneyStartCents = 0;
+  static const String defaultMoneyCurrencySymbol = '';
+  static const bool defaultMoneyCurrencySuffix = false;
 
   // Default values for preview settings
   static const bool defaultShowPreviewScrollbar = false;

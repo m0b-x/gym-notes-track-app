@@ -2501,4 +2501,51 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get linkOpenAction => 'Deschide';
+
+  @override
+  String get moneySection => 'Registru de bani';
+
+  @override
+  String get moneyLedgerEnabledLabel => 'Activează registrul de bani';
+
+  @override
+  String get moneyLedgerEnabledDesc =>
+      'Afișează liniile \$ de bani în notițe și în calendar';
+
+  @override
+  String get moneyStartBalance => 'Sold inițial';
+
+  @override
+  String get moneyStartBalanceDesc =>
+      'Registrul fiecărei notițe pornește de la această sumă';
+
+  @override
+  String get moneyCurrencySymbolLabel => 'Simbol monedă';
+
+  @override
+  String get moneyCurrencySymbolDesc =>
+      'Afișat la sumele calculate (ex. lei, €, \$)';
+
+  @override
+  String get moneyCurrencySuffixLabel => 'Simbol după sumă';
+
+  @override
+  String get moneyCurrencySuffixDesc => '12.50 lei în loc de lei12.50';
+
+  @override
+  String get moneyPerNoteCurrency => 'Monedă per notiță';
+
+  @override
+  String get useGlobalCurrency => 'Folosește moneda globală';
+
+  @override
+  String get moneyCustomSymbol => 'Personalizat…';
+
+  @override
+  String get moneyDetailTitle => 'Registru';
+
+  @override
+  String moneyDaySummaryTitle(String amount) {
+    return 'Bani: $amount';
+  }
 }

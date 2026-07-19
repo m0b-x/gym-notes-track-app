@@ -3208,5 +3208,66 @@
   "linkOpenAction": "Open",
   "@linkOpenAction": {
     "description": "Snackbar action label that opens the tapped link"
+  },
+  "moneySection": "Money ledger",
+  "@moneySection": {
+    "description": "Settings section header for the money ledger feature"
+  },
+  "moneyLedgerEnabledLabel": "Enable money ledger",
+  "@moneyLedgerEnabledLabel": {
+    "description": "Master switch for rendering $-prefixed money lines"
+  },
+  "moneyLedgerEnabledDesc": "Render $ money lines in notes and on the calendar",
+  "@moneyLedgerEnabledDesc": {
+    "description": "Subtitle for the money ledger master switch"
+  },
+  "moneyStartBalance": "Start balance",
+  "@moneyStartBalance": {
+    "description": "Setting label: the balance every note's ledger starts from"
+  },
+  "moneyStartBalanceDesc": "Every note's ledger starts from this amount",
+  "@moneyStartBalanceDesc": {
+    "description": "Subtitle for the start balance setting"
+  },
+  "moneyCurrencySymbolLabel": "Currency symbol",
+  "@moneyCurrencySymbolLabel": {
+    "description": "Setting label for the currency symbol shown on computed money values"
+  },
+  "moneyCurrencySymbolDesc": "Shown on computed amounts (e.g. lei, €, $)",
+  "@moneyCurrencySymbolDesc": {
+    "description": "Subtitle for the currency symbol setting"
+  },
+  "moneyCurrencySuffixLabel": "Symbol after amount",
+  "@moneyCurrencySuffixLabel": {
+    "description": "Setting label: place the currency symbol after the number"
+  },
+  "moneyCurrencySuffixDesc": "12.50 lei instead of lei12.50",
+  "@moneyCurrencySuffixDesc": {
+    "description": "Subtitle for the currency placement setting"
+  },
+  "moneyPerNoteCurrency": "Per-note currency",
+  "@moneyPerNoteCurrency": {
+    "description": "Label and page title for per-note currency overrides"
+  },
+  "useGlobalCurrency": "Use global currency",
+  "@useGlobalCurrency": {
+    "description": "Menu option clearing a note's currency override"
+  },
+  "moneyCustomSymbol": "Custom…",
+  "@moneyCustomSymbol": {
+    "description": "Menu option to enter a custom currency symbol"
+  },
+  "moneyDetailTitle": "Ledger",
+  "@moneyDetailTitle": {
+    "description": "Title of the bottom sheet listing money ledger entries"
+  },
+  "moneyDaySummaryTitle": "Money: {amount}",
+  "@moneyDaySummaryTitle": {
+    "description": "Calendar day summary entry showing the net money change of linked notes",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
   }
 }

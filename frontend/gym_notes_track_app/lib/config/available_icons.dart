@@ -193,6 +193,18 @@ class AvailableIcons {
     Icons.square,
     Icons.change_history,
     Icons.hexagon,
+
+    // Money ledger (default money shortcut icons — must stay resolvable
+    // through IconUtils so toolbar buttons never fall back to the tag
+    // glyph; trending_up is already listed above)
+    Icons.savings,
+    Icons.remove_circle_outline,
+    Icons.call_split,
+    Icons.flag_outlined,
+    Icons.functions,
+    Icons.track_changes,
+    Icons.attach_money,
+    Icons.payments_outlined,
   ];
 
   AvailableIcons._();

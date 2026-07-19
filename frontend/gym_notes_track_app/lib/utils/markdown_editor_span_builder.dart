@@ -8,6 +8,7 @@ import 'markdown_callout_syntax.dart';
 import 'markdown_editor_line_index.dart';
 import 'markdown_link_patterns.dart';
 import 'markdown_list_syntax.dart';
+import 'markdown_money_syntax.dart';
 import 'markdown_tag_syntax.dart';
 
 /// Live markdown rendering for the re_editor text mode (the "live
@@ -116,8 +117,38 @@ class MarkdownEditorSpanBuilder {
   /// box; refreshed with the other theme-generation fields.
   Color _cacheOnAccent = Colors.white;
 
+  bool _moneyEnabled = false;
+  String _currencySymbol = '';
+  bool _currencySuffix = false;
+
   void bind(CodeLineEditingController controller) {
     _controller = controller;
+  }
+
+  /// Applies the resolved money display configuration: whether the
+  /// feature is enabled at all, the global start balance, and the
+  /// effective currency for this note. Called by the page on note load
+  /// and when the settings change; any change invalidates the span
+  /// memos and the line index's ledger, same lifecycle as a theme
+  /// change. When [enabled] is `false`, `$` lines render as plain text
+  /// — see the guard in [_buildLine] and the positional branch in
+  /// [build].
+  void configureMoney({
+    required bool enabled,
+    required int startCents,
+    required String currencySymbol,
+    required bool currencySuffix,
+  }) {
+    if (enabled != _moneyEnabled ||
+        currencySymbol != _currencySymbol ||
+        currencySuffix != _currencySuffix) {
+      _moneyEnabled = enabled;
+      _currencySymbol = currencySymbol;
+      _currencySuffix = currencySuffix;
+      _spanCache.clear();
+      _positionalSpanCache.clear();
+    }
+    _lineIndex.configureMoney(enabled: enabled, startCents: startCents);
   }
 
   /// Returns the restyled span for [codeLine], or `null` when this line
@@ -175,6 +206,38 @@ class MarkdownEditorSpanBuilder {
 
     final reveal = selectionCoversLine(controller.selection, index);
 
+    // `$$` money totals and `$?` net-change lines display a value
+    // computed from every op line above — positional state from the
+    // shared index — so they style through the positional memo with the
+    // value folded into the key, mirroring fences. Reveal lines show
+    // raw `$$` / `$?` and skip the paint. Op lines (`$+ …`) are purely
+    // textual and stay on the text-keyed path below.
+    if (!reveal && _moneyEnabled && MarkdownMoneySyntax.leadsWithMarker(text)) {
+      final money = MarkdownMoneySyntax.parse(text);
+      if (money != null &&
+          (money.kind == MoneyLineKind.total ||
+              money.kind == MoneyLineKind.delta)) {
+        final balance =
+            _lineIndex.moneyValueAt(controller.codeLines, index) ?? 0;
+        final moneyKey = 'm:$balance:$text';
+        final cached = _positionalSpanCache.get(moneyKey);
+        if (cached != null) return cached;
+        final span = _buildLine(
+          text: text,
+          style: style,
+          baseColor: baseColor,
+          primary: primary,
+          reveal: false,
+          money: money,
+          moneyBalance: balance,
+        );
+        if (span != null) {
+          _positionalSpanCache.put(moneyKey, span);
+        }
+        return span;
+      }
+    }
+
     // Task-parent aggregate state is positional too (it depends on the
     // child lines), so indeterminate parents style through the
     // positional memo, mirroring fences. Reveal lines show raw markers
@@ -223,10 +286,32 @@ class MarkdownEditorSpanBuilder {
     required Color primary,
     required bool reveal,
     bool taskIndeterminate = false,
+    MoneyLineMatch? money,
+    int moneyBalance = 0,
   }) {
     final ghosts = GhostText.mightContain(text)
         ? GhostText.findGhosts(text)
         : const <GhostMatch>[];
+
+    // Money lines (`$+ 12.50 label`, `$$` total) — grammar shared with
+    // the preview via [MarkdownMoneySyntax]. Non-reveal totals arrive
+    // pre-parsed from the positional path with their balance; op lines
+    // and reveal-mode totals parse here (purely textual either way).
+    if (_moneyEnabled && MarkdownMoneySyntax.leadsWithMarker(text)) {
+      final m = money ?? MarkdownMoneySyntax.parse(text);
+      if (m != null) {
+        return _buildMoneyLine(
+          text: text,
+          m: m,
+          style: style,
+          baseColor: baseColor,
+          primary: primary,
+          reveal: reveal,
+          ghosts: ghosts,
+          balance: moneyBalance,
+        );
+      }
+    }
 
     if (text.codeUnitAt(0) == 0x23) {
       final match = _headerRe.firstMatch(text);
@@ -307,6 +392,189 @@ class MarkdownEditorSpanBuilder {
     }
     if (!styled && ghosts.isEmpty) return null;
     return TextSpan(style: style, children: children);
+  }
+
+  /// Money-ledger line. Op rows conceal the `$` and render the op char
+  /// in its accent (`-`/`*`//` substituted 1:1 with `−`/`×`/`÷`), the
+  /// amount tinted, and the label with full inline styling — purely
+  /// textual, so they live in the text-keyed memo. `$$` total rows
+  /// conceal the first `$` and substitute the second 1:1 with a painted
+  /// chip showing the running [balance] (positional — cached upstream
+  /// with the balance in the key). On reveal both show raw dimmed
+  /// markers, and the total paints nothing so the user edits real text;
+  /// only marker conceal/substitution differs between reveal states,
+  /// never line height.
+  TextSpan _buildMoneyLine({
+    required String text,
+    required MoneyLineMatch m,
+    required TextStyle style,
+    required Color baseColor,
+    required Color primary,
+    required bool reveal,
+    required List<GhostMatch> ghosts,
+    required int balance,
+  }) {
+    final children = <InlineSpan>[];
+    if (m.markerStart > 0) {
+      children.add(
+        TextSpan(text: text.substring(0, m.markerStart), style: style),
+      );
+    }
+
+    final Color accent;
+    final String opGlyph;
+    switch (m.kind) {
+      case MoneyLineKind.add:
+        accent = MarkdownConstants.moneyPositive(dark: _isDark);
+        opGlyph = '+';
+      case MoneyLineKind.subtract:
+        accent = MarkdownConstants.moneyNegative(dark: _isDark);
+        opGlyph = '−';
+      case MoneyLineKind.multiply:
+        accent = MarkdownConstants.moneyNeutral(dark: _isDark);
+        opGlyph = '×';
+      case MoneyLineKind.divide:
+        accent = MarkdownConstants.moneyNeutral(dark: _isDark);
+        opGlyph = '÷';
+      case MoneyLineKind.set:
+        accent = primary;
+        opGlyph = '=';
+      case MoneyLineKind.total:
+        accent = balance < 0
+            ? MarkdownConstants.moneyNegative(dark: _isDark)
+            : primary;
+        opGlyph = '';
+      case MoneyLineKind.delta:
+        accent = balance > 0
+            ? MarkdownConstants.moneyPositive(dark: _isDark)
+            : balance < 0
+            ? MarkdownConstants.moneyNegative(dark: _isDark)
+            : primary;
+        opGlyph = '';
+      case MoneyLineKind.target:
+        // Targets render source-faithfully like op rows (`!` → `◎`);
+        // the remaining budget shows in the preview and detail sheet.
+        accent = primary;
+        opGlyph = '◎';
+    }
+    final accentStyle = style.copyWith(
+      color: accent,
+      fontWeight: FontWeight.w600,
+    );
+
+    final isDisplay =
+        m.kind == MoneyLineKind.total || m.kind == MoneyLineKind.delta;
+    if (isDisplay) {
+      if (reveal) {
+        children.add(
+          TextSpan(
+            text: text.substring(m.markerStart, m.markerEnd),
+            style: _dimStyle(style, baseColor),
+          ),
+        );
+      } else {
+        children.add(TextSpan(text: r'$', style: _concealStyle(style)));
+        children.add(
+          _moneyTotalSpan(
+            style: style,
+            accent: accent,
+            balance: balance,
+            delta: m.kind == MoneyLineKind.delta,
+          ),
+        );
+      }
+    } else {
+      children.add(
+        TextSpan(
+          text: r'$',
+          style: reveal ? _dimStyle(style, baseColor) : _concealStyle(style),
+        ),
+      );
+      children.add(
+        TextSpan(
+          text: reveal
+              ? text.substring(m.markerStart + 1, m.markerEnd)
+              : opGlyph,
+          style: reveal ? _dimStyle(style, baseColor) : accentStyle,
+        ),
+      );
+      if (m.markerEnd < m.amountStart) {
+        children.add(
+          TextSpan(
+            text: text.substring(m.markerEnd, m.amountStart),
+            style: style,
+          ),
+        );
+      }
+      _emit(
+        text: text,
+        start: m.amountStart,
+        end: m.amountEnd,
+        style: accentStyle,
+        baseColor: baseColor,
+        ghosts: ghosts,
+        out: children,
+      );
+    }
+
+    final rest = isDisplay ? m.markerEnd : m.amountEnd;
+    if (rest < text.length) {
+      _appendInline(
+        text: text,
+        start: rest,
+        end: text.length,
+        contextStyle: style,
+        baseColor: baseColor,
+        primary: primary,
+        reveal: reveal,
+        ghosts: ghosts,
+        out: children,
+        depth: 0,
+      );
+    }
+    return TextSpan(style: style, children: children);
+  }
+
+  /// Builds the painted chip for a `$$` total (`Σ` + balance) or a `$?`
+  /// net change (`Δ` + signed change), laid out once here (memoized
+  /// upstream via the positional span cache) and painted into the
+  /// placeholder box. The box height stays under the line's strut
+  /// height so the line never grows.
+  _EditorMoneyTotalSpan _moneyTotalSpan({
+    required TextStyle style,
+    required Color accent,
+    required int balance,
+    required bool delta,
+  }) {
+    final label = delta
+        ? 'Δ ${MarkdownMoneySyntax.formatCentsSignedWithSymbol(balance, symbol: _currencySymbol, suffix: _currencySuffix)}'
+        : 'Σ ${MarkdownMoneySyntax.formatCentsWithSymbol(balance, symbol: _currencySymbol, suffix: _currencySuffix)}';
+    final fontSize = style.fontSize ?? 16.0;
+    final lineBox = fontSize * (style.height ?? MarkdownConstants.lineHeight);
+    final painter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: style.copyWith(
+          color: accent,
+          fontWeight: FontWeight.bold,
+          height: 1.0,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final hPad = fontSize * 0.3;
+    var chipHeight = painter.height + fontSize * 0.12;
+    final maxHeight = lineBox * 0.9;
+    if (chipHeight > maxHeight) chipHeight = maxHeight;
+    return _EditorMoneyTotalSpan(
+      width: painter.width + hPad * 2,
+      height: chipHeight,
+      painter: painter,
+      label: label,
+      accent: accent,
+      chip: accent.withValues(alpha: _tagBackgroundAlpha),
+      radius: fontSize * 0.35,
+    );
   }
 
   TextSpan _buildHeader({
@@ -1282,6 +1550,65 @@ class _InlineRun {
   final int innerEnd;
 
   const _InlineRun(this.marker, this.innerStart, this.innerEnd);
+}
+
+/// The live editor's `$$` money total: a rounded chip with the running
+/// balance custom-painted into a placeholder run (fork's
+/// [CodeInlinePaintSpan]), substituting 1:1 for the second `$` code
+/// unit (the first stays concealed beside it). The [TextPainter] is
+/// laid out once at construction and reused every frame; equality is
+/// value-based (label + colours + geometry) so re_editor's paragraph
+/// cache stays on its fast path when the balance is unchanged.
+class _EditorMoneyTotalSpan extends CodeInlinePaintSpan {
+  final TextPainter painter;
+  final String label;
+  final Color accent;
+  final Color chip;
+  final double radius;
+
+  const _EditorMoneyTotalSpan({
+    required super.width,
+    required super.height,
+    required this.painter,
+    required this.label,
+    required this.accent,
+    required this.chip,
+    required this.radius,
+  });
+
+  static final Paint _chipPaint = Paint()..style = PaintingStyle.fill;
+
+  @override
+  void paint(Canvas canvas, Rect rect) {
+    _chipPaint.color = chip;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+      _chipPaint,
+    );
+    painter.paint(
+      canvas,
+      Offset(
+        rect.left + (rect.width - painter.width) / 2,
+        rect.top + (rect.height - painter.height) / 2,
+      ),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _EditorMoneyTotalSpan &&
+          other.label == label &&
+          other.accent == accent &&
+          other.chip == chip &&
+          other.radius == radius &&
+          other.width == width &&
+          other.height == height &&
+          other.style == style;
+
+  @override
+  int get hashCode =>
+      Object.hash(label, accent, chip, radius, width, height, style);
 }
 
 /// Which glyph the editor checkbox paints. `indeterminate` is a purely

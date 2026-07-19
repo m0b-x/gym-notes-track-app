@@ -37,6 +37,11 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
   bool _utilityExpanded = true;
   bool _shortcutsExpanded = true;
   bool _toolbarExpanded = true;
+  bool _moneyExpanded = true;
+  bool _moneyEnabled = false;
+  int _moneyStartCents = 0;
+  String _moneySymbol = '';
+  bool _moneySuffix = false;
   SettingsService? _settingsService;
 
   List<MarkdownBarProfile> _profiles = [];
@@ -146,11 +151,16 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     final ratio = await settings.getToolbarShortcutRatio();
     final splitEnabled = await settings.getToolbarSplitEnabled();
     final utilityConfigs = await settings.getToolbarUtilityConfig();
+    final moneyConfig = await settings.getMoneyConfig();
     if (mounted) {
       setState(() {
         _toolbarRatio = ratio;
         _toolbarSplitEnabled = splitEnabled;
         _utilityConfigs = utilityConfigs;
+        _moneyEnabled = moneyConfig.enabled;
+        _moneyStartCents = moneyConfig.startCents;
+        _moneySymbol = moneyConfig.symbol;
+        _moneySuffix = moneyConfig.suffix;
       });
     }
   }
@@ -168,6 +178,80 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
   Future<void> _saveUtilityConfigs() async {
     final settings = await _getSettingsService();
     await settings.setToolbarUtilityConfig(_utilityConfigs);
+  }
+
+  /// Formats a cent amount as a plain decimal string (e.g. `10.00`).
+  String _formatMoneyCents(int cents) {
+    final sign = cents < 0 ? '-' : '';
+    final abs = cents.abs();
+    return '$sign${abs ~/ 100}.${(abs % 100).toString().padLeft(2, '0')}';
+  }
+
+  /// Parses a decimal amount ("1000", "1000.5", "-40", "1000,50") into
+  /// cents without floating point. Accepts a leading `-` so a negative
+  /// start balance (debt) round-trips through the dialog exactly as
+  /// [_formatMoneyCents] displays it. Returns `null` for invalid input.
+  int? _parseMoneyCents(String input) {
+    final text = input.trim().replaceAll(',', '.');
+    final match = RegExp(r'^(-?)(\d+)(?:\.(\d{1,2}))?$').firstMatch(text);
+    if (match == null) return null;
+    final intPart = int.tryParse(match.group(2)!);
+    if (intPart == null) return null;
+    var cents = intPart * 100;
+    final decimals = match.group(3);
+    if (decimals != null) {
+      var d = int.parse(decimals);
+      if (decimals.length == 1) d *= 10;
+      cents += d;
+    }
+    return match.group(1)!.isEmpty ? cents : -cents;
+  }
+
+  Future<void> _editMoneyStartBalance() async {
+    final result = await AppDialogs.textInput(
+      context,
+      title: AppLocalizations.of(context)!.moneyStartBalance,
+      initialValue: _formatMoneyCents(_moneyStartCents),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+    );
+    if (result == null) return;
+    final cents = _parseMoneyCents(result);
+    if (cents == null) return;
+    final settings = await _getSettingsService();
+    await settings.setMoneyStartCents(cents);
+    if (mounted) {
+      setState(() {
+        _moneyStartCents = cents;
+      });
+    }
+  }
+
+  Future<void> _editMoneyCurrencySymbol() async {
+    final result = await AppDialogs.textInput(
+      context,
+      title: AppLocalizations.of(context)!.moneyCurrencySymbolLabel,
+      initialValue: _moneySymbol,
+      maxLength: 8,
+    );
+    if (result == null) return;
+    final symbol = result.trim();
+    final settings = await _getSettingsService();
+    await settings.setMoneyCurrencySymbol(symbol);
+    if (mounted) {
+      setState(() {
+        _moneySymbol = symbol;
+      });
+    }
+  }
+
+  Future<void> _saveMoneySuffix(bool value) async {
+    final settings = await _getSettingsService();
+    await settings.setMoneyCurrencySuffix(value);
+  }
+
+  Future<void> _saveMoneyEnabled(bool value) async {
+    final settings = await _getSettingsService();
+    await settings.setMoneyLedgerEnabled(value);
   }
 
   void _toggleUtilityVisibility(int index) {
@@ -773,6 +857,185 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
     );
   }
 
+  Widget _buildMoneySection(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _moneyExpanded = !_moneyExpanded),
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.savings_outlined,
+                  size: 26,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.moneySection,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 17,
+                  ),
+                ),
+                const Spacer(),
+                AnimatedRotation(
+                  turns: _moneyExpanded ? 0.0 : 0.5,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(Icons.expand_more),
+                ),
+              ],
+            ),
+          ),
+          TweenAnimationBuilder<double>(
+            tween: Tween(end: _moneyExpanded ? 1.0 : 0.0),
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            builder: (context, value, child) => ClipRect(
+              child: Align(
+                alignment: Alignment.topCenter,
+                heightFactor: value,
+                child: child,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                // Master switch — the whole feature is opt-in.
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.moneyLedgerEnabledLabel,
+                            style: theme.textTheme.bodyLarge,
+                          ),
+                          Text(
+                            l10n.moneyLedgerEnabledDesc,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Transform.scale(
+                      scale: 0.8,
+                      child: Switch(
+                        value: _moneyEnabled,
+                        onChanged: (value) {
+                          setState(() {
+                            _moneyEnabled = value;
+                          });
+                          _saveMoneyEnabled(value);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                // Dependent rows dim and go inert while the feature is
+                // off — the values persist and apply once re-enabled.
+                IgnorePointer(
+                  ignoring: !_moneyEnabled,
+                  child: Opacity(
+                    opacity: _moneyEnabled ? 1.0 : 0.45,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Start balance row
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(l10n.moneyStartBalance),
+                          subtitle: Text(
+                            l10n.moneyStartBalanceDesc,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                          trailing: Text(
+                            _formatMoneyCents(_moneyStartCents),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          onTap: _editMoneyStartBalance,
+                        ),
+                        // Currency symbol row
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(l10n.moneyCurrencySymbolLabel),
+                          subtitle: Text(
+                            l10n.moneyCurrencySymbolDesc,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                          trailing: Text(
+                            _moneySymbol.isEmpty ? '—' : _moneySymbol,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          onTap: _editMoneyCurrencySymbol,
+                        ),
+                        // Symbol-after-amount toggle row
+                        Row(
+                          children: [
+                            Text(
+                              l10n.moneyCurrencySuffixLabel,
+                              style: theme.textTheme.bodyLarge,
+                            ),
+                            const Spacer(),
+                            Transform.scale(
+                              scale: 0.8,
+                              child: Switch(
+                                value: _moneySuffix,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _moneySuffix = value;
+                                  });
+                                  _saveMoneySuffix(value);
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Per-note currency row
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(l10n.moneyPerNoteCurrency),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => AppNavigator.toNoteMoneyCurrency(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+              ],
+            ),
+          ),
+          Divider(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildUtilityButtonsSection(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
@@ -1180,6 +1443,7 @@ class _MarkdownSettingsPageState extends State<MarkdownSettingsPage> {
             children: [
               _buildProfileSelector(context),
               _buildToolbarRatioAdjuster(context),
+              _buildMoneySection(context),
               _buildUtilityButtonsSection(context),
               _buildShortcutsSection(context),
             ],

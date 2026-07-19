@@ -561,6 +561,10 @@ class _CodeFieldRender extends RenderBox implements MouseTrackerAnnotation {
       ..isMultiline = true
       ..isReadOnly = _readOnly
       ..isFocused = _hasFocus
+      // A non-empty semantics value asserts without a direction; the
+      // render is LTR-only (padding/offsets resolve TextDirection.ltr
+      // throughout), so announce the same.
+      ..textDirection = TextDirection.ltr
       ..value = _codes.asString(TextLineBreak.lf, false);
   }
 
