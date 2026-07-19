@@ -1178,11 +1178,83 @@ class LineBasedMarkdownBuilder {
       color: accent,
       fontWeight: FontWeight.w600,
     );
+    // A *resolved* accent token tints the whole row, label included — it
+    // reads as "this row is blue", not "this row's number is blue".
+    // Only the colour is taken: the base weight stays, so the value
+    // still leads. Semantic accents never reach the label (green/red
+    // labels on every op row would be noise), and an unresolved token
+    // leaves it plain, so a palette edit can only ever add colour.
+    final labelStyle = accentSpec != null
+        ? baseStyle.copyWith(color: accent)
+        : baseStyle;
 
     final children = <InlineSpan>[
       TextSpan(text: '$chrome ', style: accentStyle),
     ];
     final unresolvedAccent = m.accentStart >= 0 && accentSpec == null;
+    final hasSlot = m.valueSlot >= 0;
+
+    // The row's computed value, styled by how load-bearing it is:
+    // display rows and targets feature it as a tinted pill, op rows
+    // carry it as a dimmed echo beside the amount that was typed. Built
+    // in one place so the slot and default positions can never drift
+    // apart. [atSlot] only drops the `=` lead-in that reads as an
+    // annotation at the end of a row but as noise mid-sentence.
+    InlineSpan buildValue({required bool atSlot}) {
+      if (m.kind == MoneyLineKind.target) {
+        // Sign-based status colour — green while under, red when over —
+        // unless an explicit accent token overrides it, exactly like
+        // `$$`'s negative-red and `$?`'s direction colour. Targets used
+        // to be the one carve-out, which made a `$! red:` row ambiguous
+        // (is red the token or the over-budget warning?). Over-budget
+        // stays readable without the colour: the remaining value is
+        // negative, so it renders with a leading `-`.
+        final remainColor = accentSpec != null
+            ? accent
+            : value < 0
+            ? MarkdownConstants.moneyNegative(dark: dark)
+            : MarkdownConstants.moneyPositive(dark: dark);
+        return TextSpan(
+          text:
+              ' ${MarkdownMoneySyntax.formatCentsWithSymbol(value, symbol: currencySymbol, suffix: currencySuffix)} ',
+          style: baseStyle.copyWith(
+            color: remainColor,
+            fontWeight: FontWeight.bold,
+            backgroundColor: remainColor.withValues(alpha: 0.12),
+          ),
+        );
+      }
+      if (!isDisplay) {
+        final text = MarkdownMoneySyntax.formatCentsWithSymbol(
+          value,
+          symbol: currencySymbol,
+          suffix: currencySuffix,
+        );
+        return TextSpan(
+          text: atSlot ? text : '  =  $text',
+          style: baseStyle.copyWith(
+            color: style.textColor.withValues(alpha: 0.5),
+          ),
+        );
+      }
+      final signed = m.kind != MoneyLineKind.total;
+      InlineSpan pill = TextSpan(
+        text: signed
+            ? ' ${MarkdownMoneySyntax.formatCentsSignedWithSymbol(value, symbol: currencySymbol, suffix: currencySuffix)} '
+            : ' ${MarkdownMoneySyntax.formatCentsWithSymbol(value, symbol: currencySymbol, suffix: currencySuffix)} ',
+        style: accentStyle.copyWith(
+          fontWeight: FontWeight.bold,
+          backgroundColor: accent.withValues(alpha: 0.12),
+        ),
+      );
+      if (onMoneyTap != null) {
+        final recognizer = _linkRecognizers['money:$lineIndex'] ??=
+            TapGestureRecognizer()..onTap = () => onMoneyTap!(lineIndex);
+        pill = _attachRecognizer(pill as TextSpan, recognizer);
+      }
+      return pill;
+    }
+
     if (!isDisplay && unresolvedAccent) {
       children.add(
         _applyHighlighting(
@@ -1208,22 +1280,7 @@ class LineBasedMarkdownBuilder {
         );
         children.add(TextSpan(text: ' ', style: baseStyle));
       }
-      final signed = m.kind != MoneyLineKind.total;
-      InlineSpan pill = TextSpan(
-        text: signed
-            ? ' ${MarkdownMoneySyntax.formatCentsSignedWithSymbol(value, symbol: currencySymbol, suffix: currencySuffix)} '
-            : ' ${MarkdownMoneySyntax.formatCentsWithSymbol(value, symbol: currencySymbol, suffix: currencySuffix)} ',
-        style: accentStyle.copyWith(
-          fontWeight: FontWeight.bold,
-          backgroundColor: accent.withValues(alpha: 0.12),
-        ),
-      );
-      if (onMoneyTap != null) {
-        final recognizer = _linkRecognizers['money:$lineIndex'] ??=
-            TapGestureRecognizer()..onTap = () => onMoneyTap!(lineIndex);
-        pill = _attachRecognizer(pill as TextSpan, recognizer);
-      }
-      children.add(pill);
+      if (!hasSlot) children.add(buildValue(atSlot: false));
     } else {
       children.add(
         _applyHighlighting(
@@ -1240,44 +1297,57 @@ class LineBasedMarkdownBuilder {
         : m.labelStart;
     if (labelFrom < line.length) {
       children.add(TextSpan(text: ' ', style: baseStyle));
-      _appendFlattened(
-        children,
-        _buildInlineFormatted(
-          line.substring(labelFrom),
-          baseStyle,
-          lineStart + labelFrom,
-          lineEnd,
-        ),
-      );
+      if (hasSlot) {
+        // The slot splits the label into two independently inline-parsed
+        // runs at their true source offsets, so search still lands on
+        // the label text either side of the value.
+        if (labelFrom < m.valueSlot) {
+          _appendFlattened(
+            children,
+            _buildInlineFormatted(
+              line.substring(labelFrom, m.valueSlot),
+              labelStyle,
+              lineStart + labelFrom,
+              lineEnd,
+            ),
+          );
+        }
+        children.add(buildValue(atSlot: true));
+        if (m.valueSlot + 1 < line.length) {
+          _appendFlattened(
+            children,
+            _buildInlineFormatted(
+              line.substring(m.valueSlot + 1),
+              labelStyle,
+              lineStart + m.valueSlot + 1,
+              lineEnd,
+            ),
+          );
+        }
+      } else {
+        _appendFlattened(
+          children,
+          _buildInlineFormatted(
+            line.substring(labelFrom),
+            labelStyle,
+            lineStart + labelFrom,
+            lineEnd,
+          ),
+        );
+      }
     }
-    if (m.kind == MoneyLineKind.target) {
-      // The featured value of a target row is the remaining budget —
-      // pill-tinted like totals, green while under, red when over.
-      final remainColor = value < 0
-          ? MarkdownConstants.moneyNegative(dark: dark)
-          : MarkdownConstants.moneyPositive(dark: dark);
-      children.add(TextSpan(text: '  ', style: baseStyle));
-      children.add(
-        TextSpan(
-          text:
-              ' ${MarkdownMoneySyntax.formatCentsWithSymbol(value, symbol: currencySymbol, suffix: currencySuffix)} ',
-          style: baseStyle.copyWith(
-            color: remainColor,
-            fontWeight: FontWeight.bold,
-            backgroundColor: remainColor.withValues(alpha: 0.12),
-          ),
-        ),
-      );
-    } else if (m.kind != MoneyLineKind.set && !isDisplay) {
-      children.add(
-        TextSpan(
-          text:
-              '  =  ${MarkdownMoneySyntax.formatCentsWithSymbol(value, symbol: currencySymbol, suffix: currencySuffix)}',
-          style: baseStyle.copyWith(
-            color: style.textColor.withValues(alpha: 0.5),
-          ),
-        ),
-      );
+    // Default trailing position, used only when the label placed no
+    // slot. `$=` is the one row with nothing to append — its typed
+    // amount already is the balance it sets — but an explicit slot
+    // still renders it, which is how a `$=` row gets a formatted,
+    // currency-suffixed value.
+    if (!hasSlot) {
+      if (m.kind == MoneyLineKind.target) {
+        children.add(TextSpan(text: '  ', style: baseStyle));
+        children.add(buildValue(atSlot: false));
+      } else if (m.kind != MoneyLineKind.set && !isDisplay) {
+        children.add(buildValue(atSlot: false));
+      }
     }
     return TextSpan(style: baseStyle, children: children);
   }

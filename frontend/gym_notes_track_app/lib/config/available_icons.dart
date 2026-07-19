@@ -206,6 +206,7 @@ class AvailableIcons {
     Icons.track_changes,
     Icons.attach_money,
     Icons.payments_outlined,
+    Icons.compare_arrows,
   ];
 
   AvailableIcons._();

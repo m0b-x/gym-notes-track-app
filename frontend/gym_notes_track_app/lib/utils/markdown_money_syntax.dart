@@ -43,6 +43,27 @@
 /// not resolve at render time simply renders literally with the
 /// semantic accent; the line still counts.
 ///
+/// A lone `$` anywhere in the label is the **value slot**: the row's
+/// computed value renders there instead of at its default position, so
+/// label text can precede the number without the marker leaving the
+/// line start:
+///
+/// ```text
+/// $$ Current sum: $          →  Current sum: 600.00 lei
+/// ## $$ blue: Net worth: $   →  header-sized, blue, value inline
+/// $+ 12.50 groceries, now $  →  + 12.50 groceries, now 462.50 lei
+/// $= 600 start of month: $   →  = 600 start of month: 600.00 lei
+/// ```
+///
+/// The slot is shape-matched too: a `$` delimited by spaces or the line
+/// end, so `$5`/`US$`/`$$` inside a label stay literal text. The first
+/// one wins; later ones render as typed. It composes with every op —
+/// including `$=`, whose value is otherwise not shown — and is purely a
+/// display concern: the balance fold never sees it. Crucially the slot
+/// scan runs only on lines already confirmed to be money lines, so
+/// [leadsWithMoney] — the prefix probe every document line pays — is
+/// untouched by the feature.
+///
 /// This is the single source of truth consumed by:
 ///   * the preview renderer (styled change rows + running balance),
 ///   * the editor span builder (tinted ops, painted `$$` total),
@@ -130,6 +151,13 @@ class MoneyLineMatch {
   /// line). Defaults to 1 — the single most recent entry.
   final int diffCount;
 
+  /// Offset of the label's lone `$` value slot — where this row's
+  /// computed value renders instead of its default position — or -1
+  /// when the label has none. One code unit wide, so the live editor
+  /// substitutes its painted chip 1:1 exactly like the second `$` of a
+  /// `$$` marker.
+  final int valueSlot;
+
   const MoneyLineMatch({
     required this.kind,
     this.headerStart = -1,
@@ -143,6 +171,7 @@ class MoneyLineMatch {
     required this.labelStart,
     required this.amountFixed,
     this.diffCount = 1,
+    this.valueSlot = -1,
   });
 }
 
@@ -365,6 +394,7 @@ class MarkdownMoneySyntax {
         labelStart: i,
         amountFixed: 0,
         diffCount: diffCount,
+        valueSlot: _scanValueSlot(line, i, n),
       );
     }
 
@@ -422,7 +452,27 @@ class MarkdownMoneySyntax {
       amountEnd: amountEnd,
       labelStart: i,
       amountFixed: amountFixed,
+      valueSlot: _scanValueSlot(line, i, n),
     );
+  }
+
+  /// Scans the label region `[from, n)` for the value slot: a lone `$`
+  /// preceded by the label start or a space and followed by a space or
+  /// the line end. Returns its index, or -1 when the label has none.
+  ///
+  /// The delimiter rule is what keeps ordinary label text intact —
+  /// `$5`, `US$`, and `$$` never match, so only a deliberate bare `$`
+  /// moves the value. Runs only on lines the full [parse] has already
+  /// accepted, never from [leadsWithMoney], so non-money lines pay
+  /// nothing for the feature.
+  static int _scanValueSlot(String line, int from, int n) {
+    for (var i = from; i < n; i++) {
+      if (line.codeUnitAt(i) != _kDollar) continue;
+      if (i > from && !_isSpace(line.codeUnitAt(i - 1))) continue;
+      if (i + 1 < n && !_isSpace(line.codeUnitAt(i + 1))) continue;
+      return i;
+    }
+    return -1;
   }
 
   /// Scans an accent colour-name token at [start]: a letter-led run of

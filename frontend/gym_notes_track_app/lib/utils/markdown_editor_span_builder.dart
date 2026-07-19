@@ -230,12 +230,15 @@ class MarkdownEditorSpanBuilder {
     // positional state from the shared index — so they style through
     // the positional memo with the value folded into the key, mirroring
     // fences. Reveal lines show raw `$$` / `$?` / `$^` and skip the
-    // paint. Op lines (`$+ …`) are purely textual and stay on the
+    // paint. A `$` value slot in the label makes any row display a
+    // computed value, so those join the positional path too; the rest
+    // of the op lines (`$+ …`) are purely textual and stay on the
     // text-keyed path below.
     if (!reveal && _moneyEnabled && MarkdownMoneySyntax.leadsWithMoney(text)) {
       final money = MarkdownMoneySyntax.parse(text);
       if (money != null &&
-          (money.kind == MoneyLineKind.total ||
+          (money.valueSlot >= 0 ||
+              money.kind == MoneyLineKind.total ||
               money.kind == MoneyLineKind.delta ||
               money.kind == MoneyLineKind.diff)) {
         final balance =
@@ -530,6 +533,13 @@ class MarkdownEditorSpanBuilder {
       color: accent,
       fontWeight: FontWeight.w600,
     );
+    // A resolved accent token tints the label too, matching the preview
+    // — colour only, so the base weight stays and the value still leads.
+    // Semantic accents never reach the label, and an unresolved token
+    // leaves it plain.
+    final labelStyle = accentSpec != null
+        ? style.copyWith(color: accent)
+        : style;
 
     // The accent token region: concealed when resolved (it is chrome,
     // like `{name:`), left as plain source text when it does not
@@ -557,12 +567,26 @@ class MarkdownEditorSpanBuilder {
         m.kind == MoneyLineKind.total ||
         m.kind == MoneyLineKind.delta ||
         m.kind == MoneyLineKind.diff;
+    final hasSlot = m.valueSlot >= 0;
     if (isDisplay) {
       if (reveal) {
         children.add(
           TextSpan(
             text: text.substring(m.markerStart, m.markerEnd),
             style: _dimStyle(style, baseColor),
+          ),
+        );
+      } else if (hasSlot) {
+        // The chip moved to the label's slot, so the marker renders like
+        // an op row: `$` concealed, second char substituted 1:1 with the
+        // kind's glyph. The substitution must stay one code unit wide or
+        // the caret drifts, so `Δ=` narrows to `Δ` here — the `$^` count
+        // digits and the signed value carry the distinction from `$?`.
+        children.add(TextSpan(text: r'$', style: _concealStyle(style)));
+        children.add(
+          TextSpan(
+            text: m.kind == MoneyLineKind.total ? 'Σ' : 'Δ',
+            style: accentStyle,
           ),
         );
       } else {
@@ -622,12 +646,67 @@ class MarkdownEditorSpanBuilder {
     }
 
     final rest = m.amountEnd;
-    if (rest < text.length) {
+    if (hasSlot && !reveal) {
+      // The label's lone `$` is substituted 1:1 with the painted value,
+      // exactly like the second `$` of a `$$` marker — featured as a
+      // tinted chip on display and target rows, dimmed and unfilled on
+      // op rows, mirroring the preview's pill/annotation split. On
+      // reveal the slot stays literal text so the user edits real
+      // source, which is why this whole branch is non-reveal only.
+      if (rest < m.valueSlot) {
+        _appendInline(
+          text: text,
+          start: rest,
+          end: m.valueSlot,
+          contextStyle: labelStyle,
+          baseColor: baseColor,
+          primary: primary,
+          reveal: reveal,
+          ghosts: ghosts,
+          out: children,
+          depth: 0,
+        );
+      }
+      final bool featured = isDisplay || m.kind == MoneyLineKind.target;
+      children.add(
+        _moneyTotalSpan(
+          style: style,
+          // Targets take their sign-based status colour only when no
+          // accent token resolved — a token wins on every row kind, so
+          // `$! red:` never leaves one element off-colour.
+          accent: m.kind == MoneyLineKind.target && accentSpec == null
+              ? (balance < 0
+                    ? MarkdownConstants.moneyNegative(dark: _isDark)
+                    : MarkdownConstants.moneyPositive(dark: _isDark))
+              : featured
+              ? accent
+              : baseColor.withValues(alpha: 0.5),
+          balance: balance,
+          kind: m.kind,
+          atSlot: true,
+          filled: featured,
+        ),
+      );
+      if (m.valueSlot + 1 < text.length) {
+        _appendInline(
+          text: text,
+          start: m.valueSlot + 1,
+          end: text.length,
+          contextStyle: labelStyle,
+          baseColor: baseColor,
+          primary: primary,
+          reveal: reveal,
+          ghosts: ghosts,
+          out: children,
+          depth: 0,
+        );
+      }
+    } else if (rest < text.length) {
       _appendInline(
         text: text,
         start: rest,
         end: text.length,
-        contextStyle: style,
+        contextStyle: labelStyle,
         baseColor: baseColor,
         primary: primary,
         reveal: reveal,
@@ -645,20 +724,40 @@ class MarkdownEditorSpanBuilder {
   /// the positional span cache) and painted into the placeholder box.
   /// The box height stays under the line's strut height so the line
   /// never grows.
+  ///
+  /// [atSlot] drops the leading glyph — a row whose value sits in a
+  /// label slot already renders that glyph at its marker, and the label
+  /// itself says what the number is. [filled] draws the rounded chip
+  /// behind it; op rows pass `false` for the dimmed bare-number look
+  /// their trailing `=` annotation has in the preview.
   _EditorMoneyTotalSpan _moneyTotalSpan({
     required TextStyle style,
     required Color accent,
     required int balance,
     required MoneyLineKind kind,
+    bool atSlot = false,
+    bool filled = true,
   }) {
-    final label = switch (kind) {
-      MoneyLineKind.delta =>
-        'Δ ${MarkdownMoneySyntax.formatCentsSignedWithSymbol(balance, symbol: _currencySymbol, suffix: _currencySuffix)}',
-      MoneyLineKind.diff =>
-        'Δ= ${MarkdownMoneySyntax.formatCentsSignedWithSymbol(balance, symbol: _currencySymbol, suffix: _currencySuffix)}',
-      _ =>
-        'Σ ${MarkdownMoneySyntax.formatCentsWithSymbol(balance, symbol: _currencySymbol, suffix: _currencySuffix)}',
-    };
+    final signed =
+        kind == MoneyLineKind.delta || kind == MoneyLineKind.diff;
+    final value = signed
+        ? MarkdownMoneySyntax.formatCentsSignedWithSymbol(
+            balance,
+            symbol: _currencySymbol,
+            suffix: _currencySuffix,
+          )
+        : MarkdownMoneySyntax.formatCentsWithSymbol(
+            balance,
+            symbol: _currencySymbol,
+            suffix: _currencySuffix,
+          );
+    final label = atSlot
+        ? value
+        : switch (kind) {
+            MoneyLineKind.delta => 'Δ $value',
+            MoneyLineKind.diff => 'Δ= $value',
+            _ => 'Σ $value',
+          };
     final fontSize = style.fontSize ?? 16.0;
     final lineBox = fontSize * (style.height ?? MarkdownConstants.lineHeight);
     final painter = TextPainter(
@@ -682,7 +781,9 @@ class MarkdownEditorSpanBuilder {
       painter: painter,
       label: label,
       accent: accent,
-      chip: accent.withValues(alpha: _tagBackgroundAlpha),
+      chip: filled
+          ? accent.withValues(alpha: _tagBackgroundAlpha)
+          : const Color(0x00000000),
       radius: fontSize * 0.35,
     );
   }
@@ -1804,11 +1905,15 @@ class _EditorMoneyTotalSpan extends CodeInlinePaintSpan {
 
   @override
   void paint(Canvas canvas, Rect rect) {
-    _chipPaint.color = chip;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, Radius.circular(radius)),
-      _chipPaint,
-    );
+    // Unfilled (op-row slot) values paint the number alone — the dimmed
+    // annotation look the preview gives their trailing `= balance`.
+    if (chip.a > 0) {
+      _chipPaint.color = chip;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+        _chipPaint,
+      );
+    }
     painter.paint(
       canvas,
       Offset(

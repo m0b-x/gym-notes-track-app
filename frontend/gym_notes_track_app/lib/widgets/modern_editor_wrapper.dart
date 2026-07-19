@@ -344,13 +344,17 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
       // marker up to the amount range (the chip is wider than its two
       // source chars, so the spaces and any concealed accent token ride
       // along); heading hashes, `$^ N` count digits, label text, and op
-      // lines stay editable.
+      // lines stay editable. When a value slot moved the chip into the
+      // label, its single `$` is a zone too — the marker keeps its own
+      // (it still renders the kind's glyph there), so both the glyph and
+      // the value open the sheet while the label around them stays
+      // editable. Exactly the slot offset, never the space beside it.
       if (money != null &&
           (money.kind == MoneyLineKind.total ||
               money.kind == MoneyLineKind.delta ||
               money.kind == MoneyLineKind.diff) &&
-          offset >= money.markerStart &&
-          offset < money.amountStart) {
+          ((offset >= money.markerStart && offset < money.amountStart) ||
+              (money.valueSlot >= 0 && offset == money.valueSlot))) {
         return () {
           HapticFeedback.selectionClick();
           onMoneyTap(lineIndex);
