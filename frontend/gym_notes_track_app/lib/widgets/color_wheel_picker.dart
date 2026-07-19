@@ -67,52 +67,55 @@ class _ColorWheelDialogState extends State<ColorWheelDialog> {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
 
+    // AlertDialog sizes itself by wrapping its content in IntrinsicWidth,
+    // which cannot traverse a LayoutBuilder (Flutter throws "LayoutBuilder
+    // does not support returning intrinsic dimensions" — by design, not a
+    // bug we can suppress). So the wheel's width has to come from a value
+    // read at build time, not a layout-time constraint query. Mirrors
+    // Material's default AlertDialog sizing: ~40px insetPadding + ~24px
+    // content padding per side.
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final available = screenWidth - (40 + 24) * 2;
+    final size = math.min(_maxWheelSize, available > 0 ? available : _maxWheelSize);
+
     return AlertDialog(
       title: Text(l10n.eventColorCustomTitle),
       content: SingleChildScrollView(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final available = constraints.maxWidth.isFinite
-                ? constraints.maxWidth
-                : _maxWheelSize;
-            final size = math.min(_maxWheelSize, available);
-            return Column(
-              mainAxisSize: MainAxisSize.min,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onPanStart: (d) => _updateFromLocal(d.localPosition, size),
+              onPanUpdate: (d) => _updateFromLocal(d.localPosition, size),
+              onTapDown: (d) => _updateFromLocal(d.localPosition, size),
+              child: CustomPaint(
+                size: Size.square(size),
+                painter: _WheelPainter(
+                  hue: _hue,
+                  saturation: _saturation,
+                  value: _value,
+                  thumbBorder: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
               children: [
-                GestureDetector(
-                  onPanStart: (d) => _updateFromLocal(d.localPosition, size),
-                  onPanUpdate: (d) => _updateFromLocal(d.localPosition, size),
-                  onTapDown: (d) => _updateFromLocal(d.localPosition, size),
-                  child: CustomPaint(
-                    size: Size.square(size),
-                    painter: _WheelPainter(
-                      hue: _hue,
-                      saturation: _saturation,
-                      value: _value,
-                      thumbBorder: theme.colorScheme.onSurface,
-                    ),
+                Icon(
+                  Icons.brightness_6_rounded,
+                  size: 20,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                Expanded(
+                  child: Slider(
+                    value: _value,
+                    onChanged: (v) => setState(() => _value = v),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.brightness_6_rounded,
-                      size: 20,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    Expanded(
-                      child: Slider(
-                        value: _value,
-                        onChanged: (v) => setState(() => _value = v),
-                      ),
-                    ),
-                    _PreviewSwatch(color: _color),
-                  ],
-                ),
+                _PreviewSwatch(color: _color),
               ],
-            );
-          },
+            ),
+          ],
         ),
       ),
       actions: [
