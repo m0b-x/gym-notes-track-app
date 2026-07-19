@@ -12,7 +12,9 @@ import '../widgets/markdown_bar.dart';
 import '../widgets/overlay_snackbar.dart';
 import '../widgets/simple_markdown_preview.dart';
 import '../constants/settings_keys.dart';
+import '../services/settings_service.dart';
 import '../utils/icon_utils.dart';
+import '../utils/markdown_color_syntax.dart';
 import '../widgets/app_dialogs.dart';
 import '../widgets/unified_app_bars.dart';
 import '../services/app_navigator.dart';
@@ -48,6 +50,16 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
 
   // Preview expand state
   bool _isPreviewExpanded = false;
+
+  // Money ledger + palette config for the live preview. Resolved async
+  // on init; until it lands the preview renders `$` lines as plain text,
+  // so a shortcut that inserts money markdown would otherwise never look
+  // like the real thing.
+  bool _moneyEnabled = false;
+  int _moneyStartCents = 0;
+  String _currencySymbol = '';
+  bool _currencySuffix = false;
+  MarkdownColorPalette _colorPalette = MarkdownColorPalette.presets;
 
   // Advanced mode toggle
   late bool _isAdvancedMode;
@@ -165,6 +177,25 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
 
     _loadShortcuts();
     _loadCounters();
+    _loadPreviewConfig();
+  }
+
+  /// Resolves the money ledger + colour config the preview needs so a
+  /// shortcut inserting `$` markdown renders the way it will in a real
+  /// note. Without this the preview builder falls back to
+  /// `moneyEnabled: false` and every money line shows as plain text.
+  Future<void> _loadPreviewConfig() async {
+    final settings = await SettingsService.getInstance();
+    final money = await settings.getMoneyConfig();
+    final palette = await settings.getColorPalette();
+    if (!mounted) return;
+    setState(() {
+      _moneyEnabled = money.enabled;
+      _moneyStartCents = money.startCents;
+      _currencySymbol = money.symbol;
+      _currencySuffix = money.suffix;
+      _colorPalette = palette;
+    });
   }
 
   void _onFocusChange() {
@@ -1939,6 +1970,11 @@ class _ShortcutEditorPageState extends State<ShortcutEditorPage> {
                     child: SimpleMarkdownPreview(
                       data: _generatePreviewText(),
                       fontSize: 14,
+                      moneyEnabled: _moneyEnabled,
+                      moneyStartCents: _moneyStartCents,
+                      currencySymbol: _currencySymbol,
+                      currencySuffix: _currencySuffix,
+                      colorPalette: _colorPalette,
                     ),
                   ),
                 ],

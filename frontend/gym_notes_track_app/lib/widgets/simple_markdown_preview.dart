@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/markdown_constants.dart';
 import '../utils/line_based_markdown_builder.dart';
+import '../utils/markdown_color_syntax.dart';
 
 class SimpleMarkdownPreview extends StatefulWidget {
   final String data;
@@ -9,12 +10,30 @@ class SimpleMarkdownPreview extends StatefulWidget {
   final EdgeInsets? padding;
   final LinkTapCallback? onTapLink;
 
+  /// Money ledger display config, mirroring [LineBasedMarkdownBuilder].
+  /// Defaults leave the ledger off — a caller that does not resolve
+  /// `SettingsService.getMoneyConfig()` renders `$` lines as plain text,
+  /// which is why this has to be threaded through rather than assumed.
+  final bool moneyEnabled;
+  final int moneyStartCents;
+  final String currencySymbol;
+  final bool currencySuffix;
+
+  /// Resolved colour palette, so `{name:text}` runs and money accent
+  /// tokens show the user's custom colours and not just the presets.
+  final MarkdownColorPalette colorPalette;
+
   const SimpleMarkdownPreview({
     super.key,
     required this.data,
     this.fontSize = 14.0,
     this.padding,
     this.onTapLink,
+    this.moneyEnabled = false,
+    this.moneyStartCents = 0,
+    this.currencySymbol = '',
+    this.currencySuffix = false,
+    this.colorPalette = MarkdownColorPalette.presets,
   });
 
   @override
@@ -26,6 +45,11 @@ class _SimpleMarkdownPreviewState extends State<SimpleMarkdownPreview> {
   String? _lastData;
   double? _lastFontSize;
   ThemeData? _lastTheme;
+  bool? _lastMoneyEnabled;
+  int? _lastMoneyStartCents;
+  String? _lastCurrencySymbol;
+  bool? _lastCurrencySuffix;
+  MarkdownColorPalette? _lastColorPalette;
 
   @override
   void dispose() {
@@ -33,11 +57,19 @@ class _SimpleMarkdownPreviewState extends State<SimpleMarkdownPreview> {
     super.dispose();
   }
 
+  /// The money config and palette arrive asynchronously, so they must be
+  /// part of the rebuild check — otherwise the first (config-less) build
+  /// sticks and `$` lines stay plain text forever.
   bool _shouldRebuild(ThemeData theme) {
     return _builder == null ||
         _lastData != widget.data ||
         _lastFontSize != widget.fontSize ||
-        _lastTheme?.brightness != theme.brightness;
+        _lastTheme?.brightness != theme.brightness ||
+        _lastMoneyEnabled != widget.moneyEnabled ||
+        _lastMoneyStartCents != widget.moneyStartCents ||
+        _lastCurrencySymbol != widget.currencySymbol ||
+        _lastCurrencySuffix != widget.currencySuffix ||
+        _lastColorPalette != widget.colorPalette;
   }
 
   void _buildCache(BuildContext context) {
@@ -52,12 +84,22 @@ class _SimpleMarkdownPreviewState extends State<SimpleMarkdownPreview> {
     _lastData = widget.data;
     _lastFontSize = widget.fontSize;
     _lastTheme = theme;
+    _lastMoneyEnabled = widget.moneyEnabled;
+    _lastMoneyStartCents = widget.moneyStartCents;
+    _lastCurrencySymbol = widget.currencySymbol;
+    _lastCurrencySuffix = widget.currencySuffix;
+    _lastColorPalette = widget.colorPalette;
 
     final mdStyle = LineMarkdownStyle.fromTheme(theme, widget.fontSize);
 
     _builder = LineBasedMarkdownBuilder(
       style: mdStyle,
       onLinkTap: widget.onTapLink,
+      moneyEnabled: widget.moneyEnabled,
+      moneyStartCents: widget.moneyStartCents,
+      currencySymbol: widget.currencySymbol,
+      currencySuffix: widget.currencySuffix,
+      colorPalette: widget.colorPalette,
       linesPerChunk: 100,
     );
 
