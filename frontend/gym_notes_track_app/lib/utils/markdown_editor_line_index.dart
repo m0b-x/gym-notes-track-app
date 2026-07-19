@@ -67,14 +67,20 @@ class MarkdownEditorLineIndex {
 
   /// Money pass results: sorted line indices of money lines and the
   /// display value (cents) for each — the running balance after the
-  /// line, except `$?` delta lines which store the net change since the
-  /// last `$=` anchor. Per-segment entry state (balance + anchor) lets
-  /// a rescan resume mid-document exactly like the task pass.
+  /// line, except `$?` delta lines (net change since the last `$=`) and
+  /// `$^ N` diff lines (move across the last N balance-changing
+  /// entries). The entry-balance history is an append-only result list
+  /// (seeded with the start balance, one value per `$=`/`$+`/`$-`/`$*`/
+  /// `$/`), so per-segment resume state is just its length plus the
+  /// current period-start index — truncate and re-append, exactly like
+  /// the task pass.
   final List<int> _moneyLines = <int>[];
   final List<int> _moneyValues = <int>[];
+  final List<int> _entryBalances = <int>[];
   List<int> _segMoneyCount = const [];
   List<int> _segMoneyEntry = const [];
-  List<int> _segMoneyAnchor = const [];
+  List<int> _segEntryCount = const [];
+  List<int> _segPeriodStart = const [];
   bool _moneyEnabled = false;
   int _moneyStartCents = 0;
 
@@ -107,7 +113,8 @@ class MarkdownEditorLineIndex {
 
   /// The display value (cents) for the money line at [index], or `null`
   /// when the line is not a money line: the running balance after the
-  /// line, or for `$?` delta lines the net change since the last `$=`.
+  /// line, for `$?` delta lines the net change since the last `$=`, for
+  /// `$^ N` diff lines the move across the row's checkpoint window.
   /// Grammar and arithmetic come from [MarkdownMoneySyntax], shared
   /// with the preview.
   int? moneyValueAt(CodeLines lines, int index) {
@@ -192,9 +199,13 @@ class MarkdownEditorLineIndex {
     _segTaskEntry = List<List<_TaskSnapshot>>.filled(n, const []);
     _moneyLines.clear();
     _moneyValues.clear();
+    _entryBalances
+      ..clear()
+      ..add(_moneyStartCents);
     _segMoneyCount = List<int>.filled(n, 0);
     _segMoneyEntry = List<int>.filled(n, _moneyStartCents);
-    _segMoneyAnchor = List<int>.filled(n, _moneyStartCents);
+    _segEntryCount = List<int>.filled(n, 1);
+    _segPeriodStart = List<int>.filled(n, 0);
     if (n > 0) {
       _scanFence(segs, 0, n - 1);
       _scanTasks(segs, 0);
@@ -300,12 +311,17 @@ class MarkdownEditorLineIndex {
       _moneyValues.length = keep;
     }
     var balance = _segMoneyEntry[first];
-    var anchor = _segMoneyAnchor[first];
+    var periodStart = _segPeriodStart[first];
+    final int keepEntries = _segEntryCount[first];
+    if (_entryBalances.length > keepEntries) {
+      _entryBalances.length = keepEntries;
+    }
     final List<MarkdownFenceRole>? fence = _fence;
     for (int s = first; s < n; s++) {
       _segMoneyCount[s] = _moneyLines.length;
       _segMoneyEntry[s] = balance;
-      _segMoneyAnchor[s] = anchor;
+      _segEntryCount[s] = _entryBalances.length;
+      _segPeriodStart[s] = periodStart;
       final List<CodeLine> lines = segs[s].codeLines;
       int g = _segStarts[s];
       for (int j = 0; j < lines.length; j++, g++) {
@@ -313,17 +329,27 @@ class MarkdownEditorLineIndex {
         if (text.isEmpty ||
             text.length > maxScannedLineLength ||
             (fence != null && fence[g] != MarkdownFenceRole.none) ||
-            !MarkdownMoneySyntax.leadsWithMarker(text)) {
+            !MarkdownMoneySyntax.leadsWithMoney(text)) {
           continue;
         }
         final MoneyLineMatch? m = MarkdownMoneySyntax.parse(text);
         if (m == null) continue;
         balance = MarkdownMoneySyntax.apply(balance, m);
-        if (m.kind == MoneyLineKind.set) {
-          anchor = balance;
+        if (MarkdownMoneySyntax.isEntryKind(m.kind)) {
+          _entryBalances.add(balance);
+          if (m.kind == MoneyLineKind.set) {
+            periodStart = _entryBalances.length - 1;
+          }
         }
         _moneyLines.add(g);
-        _moneyValues.add(MarkdownMoneySyntax.displayValue(m, balance, anchor));
+        _moneyValues.add(
+          MarkdownMoneySyntax.displayValue(
+            m,
+            balance,
+            _entryBalances,
+            periodStart,
+          ),
+        );
       }
     }
   }

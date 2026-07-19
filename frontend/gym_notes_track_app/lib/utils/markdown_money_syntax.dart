@@ -10,11 +10,38 @@
 /// $$ label        show the running total at this point
 /// $? label        show the net change since the last `$=` checkpoint
 /// $! 500 label    spending target: shows the remaining budget
+/// $^ label        show the change caused by the most recent entry
+/// $^ 3 label      show the change across the last 3 entries
 /// ```
 ///
 /// `$=` doubles as a period boundary: place one under a month/year
 /// heading and a later `$?` reports that period's total +/- change,
-/// while `$$` always reports the absolute balance.
+/// while `$$` always reports the absolute balance. `$^` compares the
+/// current balance to its value N *entries* back — an entry is any
+/// `$=`/`$+`/`$-`/`$*`/`$/` line; the display-only rows (`$$` `$?` `$!`
+/// `$^`) never count. N defaults to 1 (the single most recent entry)
+/// and clamps to the note's start balance when the history is shorter.
+/// The count is 1–3 digits ending at a space or the line end; anything
+/// else (`2024`, `3x`) stays label text, so year-labels never turn into
+/// counts. Unlike `$?` (always "since the last `$=`", however many
+/// entries that spans), `$^ N` is a fixed transaction count regardless
+/// of any `$=` crossed — so `$^ 3` is "the last 3 lines that touched
+/// the balance," not "the last 3 checkpoints."
+///
+/// Two optional prefixes compose with every money line:
+///
+/// ```text
+/// ## $$ Net worth     1–6 `#` + space: the row renders header-sized
+/// $+ blue: 250 rent   colour name + `:` after the op: the value's
+///                     accent takes that colour instead of the
+///                     semantic green/red/neutral
+/// ```
+///
+/// Both are matched **by shape only** — the ledger never depends on the
+/// colour palette (or any other setting), so what counts as money and
+/// every balance is a pure function of note content. A name that does
+/// not resolve at render time simply renders literally with the
+/// semantic accent; the line still counts.
 ///
 /// This is the single source of truth consumed by:
 ///   * the preview renderer (styled change rows + running balance),
@@ -34,11 +61,12 @@
 /// leading backslash or any non-matching shape renders as plain text.
 library;
 
-/// Kinds of money line. [total], [delta], and [target] perform no
-/// arithmetic — [total] displays the running balance where it appears,
-/// [delta] the net change since the last [set] (or the note start),
-/// and [target] declares a spending goal whose displayed value is the
-/// remaining budget (target − spent since the last [set]).
+/// Kinds of money line. [total], [delta], [target], and [diff] perform
+/// no arithmetic — [total] displays the running balance where it
+/// appears, [delta] the net change since the last [set] (or the note
+/// start), [target] declares a spending goal whose displayed value is
+/// the remaining budget (target − spent since the last [set]), and
+/// [diff] the change between the two most recent [set] checkpoints.
 enum MoneyLineKind {
   set,
   add,
@@ -48,6 +76,7 @@ enum MoneyLineKind {
   total,
   delta,
   target,
+  diff,
 }
 
 /// A parsed money line. All offsets are relative to the scanned line.
@@ -59,13 +88,31 @@ enum MoneyLineKind {
 class MoneyLineMatch {
   final MoneyLineKind kind;
 
+  /// Offset of the first `#` of an optional heading prefix, or -1. The
+  /// hashes span `[headerStart, headerStart + headerLevel)`; the row
+  /// renders at that heading's scale while the ledger is unaffected.
+  final int headerStart;
+
+  /// Heading level 1..6, or 0 when the line has no heading prefix.
+  final int headerLevel;
+
   /// Offset of the leading `$`.
   final int markerStart;
 
   /// Offset just past the op character (`=`, `+`, `-`, `*`, `/`, `$`).
   final int markerEnd;
 
-  /// Offset of the first amount digit; equals [amountEnd] for totals.
+  /// `[accentStart, accentEnd)` covers an optional colour-name token
+  /// after the op (`$+ blue: 250` → `blue`; the `:` sits at
+  /// [accentEnd]), or -1/-1. Matched by shape only — renderers resolve
+  /// the name against their palette, and an unresolved name renders
+  /// literally with the semantic accent (the line still counts).
+  final int accentStart;
+  final int accentEnd;
+
+  /// Offset of the first amount digit. For display rows this covers the
+  /// optional `$^` count digits and is empty (equal to [amountEnd]) for
+  /// every other valueless row.
   final int amountStart;
 
   /// Offset just past the last amount code unit.
@@ -78,14 +125,24 @@ class MoneyLineMatch {
   /// for totals. Always non-negative — the op carries the sign.
   final int amountFixed;
 
+  /// How many ledger entries back a [MoneyLineKind.diff] row compares
+  /// against (`$^ 3` → 3; an entry is any `$=`/`$+`/`$-`/`$*`/`$/`
+  /// line). Defaults to 1 — the single most recent entry.
+  final int diffCount;
+
   const MoneyLineMatch({
     required this.kind,
+    this.headerStart = -1,
+    this.headerLevel = 0,
     required this.markerStart,
     required this.markerEnd,
+    this.accentStart = -1,
+    this.accentEnd = -1,
     required this.amountStart,
     required this.amountEnd,
     required this.labelStart,
     required this.amountFixed,
+    this.diffCount = 1,
   });
 }
 
@@ -100,7 +157,8 @@ class MoneyLedgerEntry {
   final MoneyLineMatch match;
 
   /// Balance after this line; the net change since the last `$=` for
-  /// [MoneyLineKind.delta] lines.
+  /// [MoneyLineKind.delta] lines, the move between the last two `$=`
+  /// for [MoneyLineKind.diff] lines.
   final int valueAfter;
 
   const MoneyLedgerEntry({
@@ -137,6 +195,15 @@ class MarkdownMoneySyntax {
   static const int _kComma = 0x2C; // ,
   static const int _kQuestion = 0x3F; // ?
   static const int _kBang = 0x21; // !
+  static const int _kCaret = 0x5E; // ^
+  static const int _kHash = 0x23; // #
+  static const int _kColon = 0x3A; // :
+
+  /// Longest accepted colour-name token, mirroring
+  /// `MarkdownColorPalette.maxNameLength` (kept local so this library
+  /// stays import-free; the accent grammar is a strict subset of the
+  /// colour-name grammar, letter-led to never shadow a numeric amount).
+  static const int _maxAccentNameLength = 24;
 
   /// Set/add/subtract amounts: up to 8 integer digits, 2 decimals.
   /// Capped below [balanceLimitCents] so a single amount can never be
@@ -149,30 +216,66 @@ class MarkdownMoneySyntax {
   static const int _maxFactorIntDigits = 4;
   static const int _maxFactorDecimals = 4;
 
-  /// Whether [line]'s first non-whitespace character is the `$` marker
-  /// (cheap pre-check so hot per-line paths can skip the full parse).
-  static bool leadsWithMarker(String line) {
-    final n = line.length;
-    var i = 0;
-    while (i < n && _isSpace(line.codeUnitAt(i))) {
+  /// Whether [line] can possibly be a money line: its first
+  /// non-whitespace run is the `$` marker, optionally preceded by a
+  /// 1–6 `#` heading prefix + space (cheap pre-check so hot per-line
+  /// paths can skip the full parse).
+  static bool leadsWithMoney(String line) =>
+      leadsWithMoneyInRange(line, 0, line.length);
+
+  /// Range form of [leadsWithMoney] over [source] `[start, end)`, so
+  /// whole-document folds can probe without allocating line substrings.
+  static bool leadsWithMoneyInRange(String source, int start, int end) {
+    var i = start;
+    while (i < end && _isSpace(source.codeUnitAt(i))) {
       i++;
     }
-    return i < n && line.codeUnitAt(i) == _kDollar;
+    if (i >= end) return false;
+    final c = source.codeUnitAt(i);
+    if (c == _kDollar) return true;
+    if (c != _kHash) return false;
+    final h = i;
+    while (i < end && source.codeUnitAt(i) == _kHash) {
+      i++;
+    }
+    if (i - h > 6 || i >= end || !_isSpace(source.codeUnitAt(i))) return false;
+    while (i < end && _isSpace(source.codeUnitAt(i))) {
+      i++;
+    }
+    return i < end && source.codeUnitAt(i) == _kDollar;
   }
 
   /// Parses [line] as a money line, or `null` when it is not one.
   ///
-  /// Shape: optional leading spaces/tabs, `$` + op char, then for ops
-  /// an amount (`digits` with optional `.`/`,` decimals) that must end
-  /// at a space or the line end, then an optional label. `$$` (total)
-  /// takes no amount. A malformed amount rejects the whole line so it
-  /// renders as plain text — visible feedback that it did not count.
+  /// Shape: optional leading spaces/tabs, an optional 1–6 `#` heading
+  /// prefix followed by at least one space, `$` + op char, an optional
+  /// letter-led colour-name token ending in `:` (followed by a space or
+  /// the line end), then for ops an amount (`digits` with optional
+  /// `.`/`,` decimals) that must end at a space or the line end, then
+  /// an optional label. `$$` / `$?` / `$^` take no amount. A malformed
+  /// amount rejects the whole line so it renders as plain text —
+  /// visible feedback that it did not count.
   static MoneyLineMatch? parse(String line) {
     final n = line.length;
     if (n < 2 || n > maxLineLength) return null;
     var i = 0;
     while (i < n && _isSpace(line.codeUnitAt(i))) {
       i++;
+    }
+    var headerStart = -1;
+    var headerLevel = 0;
+    if (i < n && line.codeUnitAt(i) == _kHash) {
+      final h = i;
+      while (i < n && line.codeUnitAt(i) == _kHash) {
+        i++;
+      }
+      final level = i - h;
+      if (level > 6 || i >= n || !_isSpace(line.codeUnitAt(i))) return null;
+      while (i < n && _isSpace(line.codeUnitAt(i))) {
+        i++;
+      }
+      headerStart = h;
+      headerLevel = level;
     }
     if (i >= n || line.codeUnitAt(i) != _kDollar) return null;
     final markerStart = i;
@@ -197,31 +300,74 @@ class MarkdownMoneySyntax {
         kind = MoneyLineKind.delta;
       case _kBang:
         kind = MoneyLineKind.target;
+      case _kCaret:
+        kind = MoneyLineKind.diff;
       default:
         return null;
     }
     i++;
     final markerEnd = i;
 
-    if (kind == MoneyLineKind.total || kind == MoneyLineKind.delta) {
-      if (i < n && !_isSpace(line.codeUnitAt(i))) return null;
-      while (i < n && _isSpace(line.codeUnitAt(i))) {
-        i++;
-      }
-      return MoneyLineMatch(
-        kind: kind,
-        markerStart: markerStart,
-        markerEnd: markerEnd,
-        amountStart: markerEnd,
-        amountEnd: markerEnd,
-        labelStart: i,
-        amountFixed: 0,
-      );
-    }
+    final isDisplay =
+        kind == MoneyLineKind.total ||
+        kind == MoneyLineKind.delta ||
+        kind == MoneyLineKind.diff;
+    if (isDisplay && i < n && !_isSpace(line.codeUnitAt(i))) return null;
 
     while (i < n && _isSpace(line.codeUnitAt(i))) {
       i++;
     }
+    var accentStart = -1;
+    var accentEnd = -1;
+    final colon = _scanAccentEnd(line, i, n);
+    if (colon > 0) {
+      accentStart = i;
+      accentEnd = colon;
+      i = colon + 1;
+      while (i < n && _isSpace(line.codeUnitAt(i))) {
+        i++;
+      }
+    }
+
+    if (isDisplay) {
+      // `$^` takes an optional checkpoint count: 1–3 digits ending at a
+      // space or the line end. Anything else (`2024`, `3x`) is label
+      // text, so numeric-looking labels never change a row's window.
+      final amountStart = i;
+      var amountEnd = i;
+      var diffCount = 1;
+      if (kind == MoneyLineKind.diff && i < n && _isDigit(line.codeUnitAt(i))) {
+        var j = i;
+        var v = 0;
+        while (j < n && j - i < 4 && _isDigit(line.codeUnitAt(j))) {
+          v = v * 10 + (line.codeUnitAt(j) - 0x30);
+          j++;
+        }
+        if (j - i <= 3 && (j >= n || _isSpace(line.codeUnitAt(j)))) {
+          amountEnd = j;
+          diffCount = v;
+          i = j;
+          while (i < n && _isSpace(line.codeUnitAt(i))) {
+            i++;
+          }
+        }
+      }
+      return MoneyLineMatch(
+        kind: kind,
+        headerStart: headerStart,
+        headerLevel: headerLevel,
+        markerStart: markerStart,
+        markerEnd: markerEnd,
+        accentStart: accentStart,
+        accentEnd: accentEnd,
+        amountStart: amountStart,
+        amountEnd: amountEnd,
+        labelStart: i,
+        amountFixed: 0,
+        diffCount: diffCount,
+      );
+    }
+
     final amountStart = i;
     final bool isFactor =
         kind == MoneyLineKind.multiply || kind == MoneyLineKind.divide;
@@ -266,14 +412,46 @@ class MarkdownMoneySyntax {
     }
     return MoneyLineMatch(
       kind: kind,
+      headerStart: headerStart,
+      headerLevel: headerLevel,
       markerStart: markerStart,
       markerEnd: markerEnd,
+      accentStart: accentStart,
+      accentEnd: accentEnd,
       amountStart: amountStart,
       amountEnd: amountEnd,
       labelStart: i,
       amountFixed: amountFixed,
     );
   }
+
+  /// Scans an accent colour-name token at [start]: a letter-led run of
+  /// `[a-z0-9_-]` (≤ [_maxAccentNameLength]) ending in `:`, with a
+  /// space or the line end after the `:`. Returns the `:` index, or -1.
+  /// The letter-led rule keeps amounts unambiguous (`$+ 250: x` can
+  /// never read as an accent) and the trailing-space rule keeps label
+  /// text like `http://…` intact on display rows.
+  static int _scanAccentEnd(String line, int start, int n) {
+    if (start >= n) return -1;
+    final c0 = line.codeUnitAt(start);
+    if (c0 < 0x61 || c0 > 0x7A) return -1;
+    var i = start;
+    final max = start + _maxAccentNameLength;
+    final stop = n < max ? n : max;
+    while (i < stop && _isAccentNameChar(line.codeUnitAt(i))) {
+      i++;
+    }
+    if (i >= n || line.codeUnitAt(i) != _kColon) return -1;
+    final after = i + 1;
+    if (after < n && !_isSpace(line.codeUnitAt(after))) return -1;
+    return i;
+  }
+
+  static bool _isAccentNameChar(int c) =>
+      (c >= 0x61 && c <= 0x7A) || // a-z
+      (c >= 0x30 && c <= 0x39) || // 0-9
+      c == 0x5F || // _
+      c == 0x2D; // -
 
   /// Applies [m] to a running [balanceCents] and returns the new
   /// balance in cents, clamped to ±[balanceLimitCents]. Totals return
@@ -294,21 +472,63 @@ class MarkdownMoneySyntax {
       case MoneyLineKind.total:
       case MoneyLineKind.delta:
       case MoneyLineKind.target:
+      case MoneyLineKind.diff:
         return balanceCents;
     }
   }
 
+  /// Whether [kind] is a balance-changing ledger entry (`$= $+ $- $* $/`)
+  /// as opposed to a display-only row (`$$ $? $! $^`). The entry kinds
+  /// are exactly the ones that append to the [history] passed to
+  /// [displayValue], so the `$^ N` window counts transactions, not
+  /// display rows.
+  static bool isEntryKind(MoneyLineKind kind) {
+    switch (kind) {
+      case MoneyLineKind.set:
+      case MoneyLineKind.add:
+      case MoneyLineKind.subtract:
+      case MoneyLineKind.multiply:
+      case MoneyLineKind.divide:
+        return true;
+      case MoneyLineKind.total:
+      case MoneyLineKind.delta:
+      case MoneyLineKind.target:
+      case MoneyLineKind.diff:
+        return false;
+    }
+  }
+
   /// The display value a money line's stored entry carries: the running
-  /// balance, except `$?` (net change since [anchor]) and `$!` (the
-  /// remaining budget: target − spent since [anchor]). Single source of
-  /// truth for the editor index pass, the preview ledger fold, and
-  /// [collectEntries], so the three can never disagree.
-  static int displayValue(MoneyLineMatch m, int balance, int anchor) {
+  /// balance, except `$?` (net change since the last `$=`), `$!` (the
+  /// remaining budget: target − spent since it), and `$^ N` (the change
+  /// over the last N balance-changing entries).
+  ///
+  /// [history] is the append-only entry-balance history: index 0 is the
+  /// note's start balance, and every balance-changing entry (`$=`,
+  /// `$+`, `$-`, `$*`, `$/`) appends its resulting balance — display
+  /// rows never append. [periodStart] is the index in [history] of the
+  /// current period's start (the last `$=`, or 0 before any `$=`). A
+  /// `$=` marks a hard reset, so a window can never reach across it:
+  /// `$^ N` clamps its reference to [periodStart], and once N spans the
+  /// whole period `$^` equals `$?`.
+  ///
+  /// Single source of truth for the editor index pass, the preview
+  /// ledger fold, and [collectEntries], so the three can never disagree.
+  static int displayValue(
+    MoneyLineMatch m,
+    int balance,
+    List<int> history,
+    int periodStart,
+  ) {
     switch (m.kind) {
       case MoneyLineKind.delta:
-        return balance - anchor;
+        return balance - history[periodStart];
       case MoneyLineKind.target:
-        return m.amountFixed ~/ 100 + balance - anchor;
+        return m.amountFixed ~/ 100 + balance - history[periodStart];
+      case MoneyLineKind.diff:
+        final back = history.length - 1 - m.diffCount;
+        final ref = back < periodStart ? periodStart : back;
+        return balance - history[ref];
       default:
         return balance;
     }
@@ -363,15 +583,24 @@ class MarkdownMoneySyntax {
 
   /// Collects every money line from line 0 through [toLine] (inclusive;
   /// -1 = whole document), folding the ledger exactly like the render
-  /// passes: [startCents] seeds both the balance and the `$?` anchor,
+  /// passes: [startCents] seeds the balance and the entry history,
   /// [isInert] excludes fence/block lines (each surface passes its own
   /// predicate so the collector always agrees with what is rendered).
   /// `valueAfter` is the running balance after the line (the net change
-  /// since the last `$=` for delta lines); `anchorLine` is the line
-  /// index of the last `$=` at [toLine], or -1 when none. Runs on tap
-  /// (rare, user-initiated), so the O(document) scan is fine — this is
-  /// deliberately not part of the incremental passes.
-  static ({List<MoneyLedgerEntry> entries, int anchorLine}) collectEntries({
+  /// since the last `$=` for delta lines, the move across the row's
+  /// window for diff lines). `entryLines` lists the line index of every
+  /// balance-changing entry in document order (parallel to the
+  /// append-only history from index 1), so a caller can resolve any
+  /// `$^ N` window to its source lines; `anchorLines` lists just the
+  /// `$=` line indices. Runs on tap (rare, user-initiated), so the
+  /// O(document) scan is fine — this is deliberately not part of the
+  /// incremental passes.
+  static ({
+    List<MoneyLedgerEntry> entries,
+    List<int> entryLines,
+    List<int> anchorLines,
+  })
+  collectEntries({
     required int lineCount,
     required String Function(int) lineAt,
     required bool Function(int) isInert,
@@ -380,29 +609,39 @@ class MarkdownMoneySyntax {
   }) {
     final last = toLine < 0 ? lineCount - 1 : toLine;
     final entries = <MoneyLedgerEntry>[];
+    final history = <int>[startCents];
+    final entryLines = <int>[];
+    final anchorLines = <int>[];
+    var periodStart = 0;
     var balance = startCents;
-    var anchor = startCents;
-    var anchorLine = -1;
     for (var i = 0; i <= last && i < lineCount; i++) {
       final line = lineAt(i);
-      if (line.isEmpty || !leadsWithMarker(line) || isInert(i)) continue;
+      if (line.isEmpty || !leadsWithMoney(line) || isInert(i)) continue;
       final m = parse(line);
       if (m == null) continue;
       balance = apply(balance, m);
-      if (m.kind == MoneyLineKind.set) {
-        anchor = balance;
-        anchorLine = i;
+      if (isEntryKind(m.kind)) {
+        history.add(balance);
+        entryLines.add(i);
+        if (m.kind == MoneyLineKind.set) {
+          periodStart = history.length - 1;
+          anchorLines.add(i);
+        }
       }
       entries.add(
         MoneyLedgerEntry(
           lineIndex: i,
           line: line,
           match: m,
-          valueAfter: displayValue(m, balance, anchor),
+          valueAfter: displayValue(m, balance, history, periodStart),
         ),
       );
     }
-    return (entries: entries, anchorLine: anchorLine);
+    return (
+      entries: entries,
+      entryLines: entryLines,
+      anchorLines: anchorLines,
+    );
   }
 
   static int _clamp(int cents) => cents < -balanceLimitCents

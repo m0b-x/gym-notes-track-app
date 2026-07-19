@@ -278,5 +278,14 @@ class DefaultMarkdownShortcuts {
       afterText: '',
       isDefault: true,
     ),
+    CustomMarkdownShortcut(
+      id: 'default_money_diff',
+      label: 'Money Diff',
+      iconCodePoint: Icons.compare_arrows.codePoint,
+      iconFontFamily: 'MaterialIcons',
+      beforeText: '\$^ ',
+      afterText: '',
+      isDefault: true,
+    ),
   ];
 }

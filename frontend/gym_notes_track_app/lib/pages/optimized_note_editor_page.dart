@@ -1219,11 +1219,14 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     AppNavigator.toSearch(context, query: tag);
   }
 
-  /// Opens the ledger detail sheet for a tapped `$$` / `$?` row —
-  /// reached from both the preview pill and the editor's painted chip.
-  /// Entries are collected on demand from the current editor content
-  /// (grammar-shared, fence-aware), so preview and editor taps always
-  /// agree with what is rendered.
+  /// Opens the ledger detail sheet for a tapped `$$` / `$?` / `$^` row
+  /// — reached from both the preview pill and the editor's painted
+  /// chip. Entries are collected on demand from the current editor
+  /// content (grammar-shared, fence-aware), so preview and editor taps
+  /// always agree with what is rendered. `$?` sheets list entries since
+  /// the last `$=`; `$^ N` sheets list the window it measures — the
+  /// last N balance-changing entries (clamped to the current period)
+  /// from their baseline through the tapped row.
   void _handleMoneyTap(int lineIndex) {
     final codeLines = _contentController.codeLines;
     if (lineIndex < 0 || lineIndex >= codeLines.length) return;
@@ -1236,18 +1239,68 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
       toLine: lineIndex,
       startCents: _moneyStartCents,
     );
+    final anchorLines = collected.anchorLines;
+    final lastAnchorLine = anchorLines.isEmpty ? -1 : anchorLines.last;
+    final entries = switch (tapped.kind) {
+      MoneyLineKind.delta => [
+        for (final e in collected.entries)
+          if (e.lineIndex > lastAnchorLine) e,
+      ],
+      MoneyLineKind.diff => _diffWindowEntries(collected, tapped, lineIndex),
+      _ => collected.entries,
+    };
     MoneyDetailSheet.show(
       context,
-      entries: tapped.kind == MoneyLineKind.delta
-          ? [
-              for (final e in collected.entries)
-                if (e.lineIndex > collected.anchorLine) e,
-            ]
-          : collected.entries,
+      entries: entries,
       tappedKind: tapped.kind,
       currencySymbol: _moneyCurrencySymbol,
       currencySuffix: _moneyCurrencySuffix,
     );
+  }
+
+  /// The ledger rows a tapped `$^ N` measures across: the last N
+  /// balance-changing entries, clamped to the current period's start
+  /// `$=`. Resolves the window the same way `displayValue` does — N
+  /// entries back in the append-only history, floored at the period
+  /// start — then lists every money row from the baseline entry through
+  /// the tapped row so the sheet's running column reconstructs the
+  /// change end to end.
+  List<MoneyLedgerEntry> _diffWindowEntries(
+    ({
+      List<MoneyLedgerEntry> entries,
+      List<int> entryLines,
+      List<int> anchorLines,
+    })
+    collected,
+    MoneyLineMatch tapped,
+    int lineIndex,
+  ) {
+    final entryLines = collected.entryLines;
+    final e = entryLines.length;
+    if (e == 0) {
+      return [
+        for (final row in collected.entries)
+          if (row.lineIndex == lineIndex) row,
+      ];
+    }
+    // History index of the current period's start: one past the last
+    // `$=` entry (index 0 — the note start — before any `$=`).
+    final lastAnchorLine = collected.anchorLines.isEmpty
+        ? -1
+        : collected.anchorLines.last;
+    final periodStartHist = lastAnchorLine < 0
+        ? 0
+        : entryLines.lastIndexOf(lastAnchorLine) + 1;
+    var refHist = e - tapped.diffCount;
+    if (refHist < periodStartHist) refHist = periodStartHist;
+    // history[refHist] is the balance after entryLines[refHist - 1], so
+    // that entry is the window's visible baseline (the note start when
+    // refHist is 0).
+    final baselineLine = refHist >= 1 ? entryLines[refHist - 1] : 0;
+    return [
+      for (final row in collected.entries)
+        if (row.lineIndex >= baselineLine && row.lineIndex <= lineIndex) row,
+    ];
   }
 
   void _scrollToOffsetInPreview(int charOffset) {

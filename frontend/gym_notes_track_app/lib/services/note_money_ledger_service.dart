@@ -135,7 +135,7 @@ class NoteMoneyLedgerService {
       if (inFence || line.length > MarkdownMoneySyntax.maxLineLength) {
         continue;
       }
-      if (line.isEmpty || !MarkdownMoneySyntax.leadsWithMarker(line)) {
+      if (line.isEmpty || !MarkdownMoneySyntax.leadsWithMoney(line)) {
         continue;
       }
       final match = MarkdownMoneySyntax.parse(line);
@@ -152,6 +152,7 @@ class NoteMoneyLedgerService {
         case MoneyLineKind.total:
         case MoneyLineKind.delta:
         case MoneyLineKind.target:
+        case MoneyLineKind.diff:
           break;
       }
     }

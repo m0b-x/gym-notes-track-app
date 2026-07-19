@@ -225,17 +225,19 @@ class MarkdownEditorSpanBuilder {
 
     final reveal = selectionCoversLine(controller.selection, index);
 
-    // `$$` money totals and `$?` net-change lines display a value
-    // computed from every op line above — positional state from the
-    // shared index — so they style through the positional memo with the
-    // value folded into the key, mirroring fences. Reveal lines show
-    // raw `$$` / `$?` and skip the paint. Op lines (`$+ …`) are purely
-    // textual and stay on the text-keyed path below.
-    if (!reveal && _moneyEnabled && MarkdownMoneySyntax.leadsWithMarker(text)) {
+    // `$$` money totals, `$?` net-change, and `$^` checkpoint-diff
+    // lines display a value computed from every op line above —
+    // positional state from the shared index — so they style through
+    // the positional memo with the value folded into the key, mirroring
+    // fences. Reveal lines show raw `$$` / `$?` / `$^` and skip the
+    // paint. Op lines (`$+ …`) are purely textual and stay on the
+    // text-keyed path below.
+    if (!reveal && _moneyEnabled && MarkdownMoneySyntax.leadsWithMoney(text)) {
       final money = MarkdownMoneySyntax.parse(text);
       if (money != null &&
           (money.kind == MoneyLineKind.total ||
-              money.kind == MoneyLineKind.delta)) {
+              money.kind == MoneyLineKind.delta ||
+              money.kind == MoneyLineKind.diff)) {
         final balance =
             _lineIndex.moneyValueAt(controller.codeLines, index) ?? 0;
         final moneyKey = 'm:$balance:$text';
@@ -312,11 +314,13 @@ class MarkdownEditorSpanBuilder {
         ? GhostText.findGhosts(text)
         : const <GhostMatch>[];
 
-    // Money lines (`$+ 12.50 label`, `$$` total) — grammar shared with
-    // the preview via [MarkdownMoneySyntax]. Non-reveal totals arrive
-    // pre-parsed from the positional path with their balance; op lines
-    // and reveal-mode totals parse here (purely textual either way).
-    if (_moneyEnabled && MarkdownMoneySyntax.leadsWithMarker(text)) {
+    // Money lines (`$+ 12.50 label`, `$$` total, optionally
+    // header-prefixed) — grammar shared with the preview via
+    // [MarkdownMoneySyntax]. Non-reveal totals arrive pre-parsed from
+    // the positional path with their balance; op lines and reveal-mode
+    // totals parse here (purely textual either way). A `#`-led line
+    // that fails the money parse falls through to the header branch.
+    if (_moneyEnabled && MarkdownMoneySyntax.leadsWithMoney(text)) {
       final m = money ?? MarkdownMoneySyntax.parse(text);
       if (m != null) {
         return _buildMoneyLine(
@@ -416,13 +420,19 @@ class MarkdownEditorSpanBuilder {
   /// Money-ledger line. Op rows conceal the `$` and render the op char
   /// in its accent (`-`/`*`//` substituted 1:1 with `−`/`×`/`÷`), the
   /// amount tinted, and the label with full inline styling — purely
-  /// textual, so they live in the text-keyed memo. `$$` total rows
-  /// conceal the first `$` and substitute the second 1:1 with a painted
-  /// chip showing the running [balance] (positional — cached upstream
-  /// with the balance in the key). On reveal both show raw dimmed
-  /// markers, and the total paints nothing so the user edits real text;
-  /// only marker conceal/substitution differs between reveal states,
-  /// never line height.
+  /// textual, so they live in the text-keyed memo. `$$` / `$?` / `$^`
+  /// rows conceal the first `$` and substitute the second char 1:1 with
+  /// a painted chip showing the computed [balance] (positional — cached
+  /// upstream with the value in the key). On reveal both show raw
+  /// dimmed markers, and the display rows paint nothing so the user
+  /// edits real text; only marker conceal/substitution differs between
+  /// reveal states, never line height.
+  ///
+  /// A heading prefix conceals its hashes and scales the row via the
+  /// root span's fontSize (the fork gives such a line its own height,
+  /// same as [_buildHeader] — identical in both reveal states). A
+  /// resolved accent token is concealed and overrides the semantic
+  /// accent; an unresolved one stays visible as plain source text.
   TextSpan _buildMoneyLine({
     required String text,
     required MoneyLineMatch m,
@@ -433,14 +443,50 @@ class MarkdownEditorSpanBuilder {
     required List<GhostMatch> ghosts,
     required int balance,
   }) {
+    if (m.headerLevel > 0) {
+      style = style.copyWith(
+        fontSize: (style.fontSize ?? 16.0) * _headerScale(m.headerLevel),
+        fontWeight: FontWeight.bold,
+      );
+    }
     final children = <InlineSpan>[];
-    if (m.markerStart > 0) {
+    if (m.headerStart >= 0) {
+      if (m.headerStart > 0) {
+        children.add(
+          TextSpan(text: text.substring(0, m.headerStart), style: style),
+        );
+      }
+      children.add(
+        TextSpan(
+          text: text.substring(m.headerStart, m.headerStart + m.headerLevel),
+          style: reveal ? _dimStyle(style, baseColor) : _concealStyle(style),
+        ),
+      );
+      if (m.headerStart + m.headerLevel < m.markerStart) {
+        children.add(
+          TextSpan(
+            text: text.substring(
+              m.headerStart + m.headerLevel,
+              m.markerStart,
+            ),
+            style: style,
+          ),
+        );
+      }
+    } else if (m.markerStart > 0) {
       children.add(
         TextSpan(text: text.substring(0, m.markerStart), style: style),
       );
     }
 
-    final Color accent;
+    MarkdownColorSpec? accentSpec;
+    if (m.accentStart >= 0) {
+      accentSpec = _colorPalette.lookup(
+        text.substring(m.accentStart, m.accentEnd),
+      );
+    }
+
+    Color accent;
     final String opGlyph;
     switch (m.kind) {
       case MoneyLineKind.add:
@@ -464,6 +510,7 @@ class MarkdownEditorSpanBuilder {
             : primary;
         opGlyph = '';
       case MoneyLineKind.delta:
+      case MoneyLineKind.diff:
         accent = balance > 0
             ? MarkdownConstants.moneyPositive(dark: _isDark)
             : balance < 0
@@ -476,13 +523,40 @@ class MarkdownEditorSpanBuilder {
         accent = primary;
         opGlyph = '◎';
     }
+    if (accentSpec != null) {
+      accent = accentSpec.text(dark: _isDark);
+    }
     final accentStyle = style.copyWith(
       color: accent,
       fontWeight: FontWeight.w600,
     );
 
+    // The accent token region: concealed when resolved (it is chrome,
+    // like `{name:`), left as plain source text when it does not
+    // resolve — nothing is ever silently eaten.
+    void emitAccentToken(int from, int to) {
+      if (from < m.accentStart) {
+        children.add(
+          TextSpan(text: text.substring(from, m.accentStart), style: style),
+        );
+      }
+      children.add(
+        TextSpan(
+          text: text.substring(m.accentStart, m.accentEnd + 1),
+          style: reveal ? _dimStyle(style, baseColor) : _concealStyle(style),
+        ),
+      );
+      if (m.accentEnd + 1 < to) {
+        children.add(
+          TextSpan(text: text.substring(m.accentEnd + 1, to), style: style),
+        );
+      }
+    }
+
     final isDisplay =
-        m.kind == MoneyLineKind.total || m.kind == MoneyLineKind.delta;
+        m.kind == MoneyLineKind.total ||
+        m.kind == MoneyLineKind.delta ||
+        m.kind == MoneyLineKind.diff;
     if (isDisplay) {
       if (reveal) {
         children.add(
@@ -498,7 +572,7 @@ class MarkdownEditorSpanBuilder {
             style: style,
             accent: accent,
             balance: balance,
-            delta: m.kind == MoneyLineKind.delta,
+            kind: m.kind,
           ),
         );
       }
@@ -517,7 +591,16 @@ class MarkdownEditorSpanBuilder {
           style: reveal ? _dimStyle(style, baseColor) : accentStyle,
         ),
       );
-      if (m.markerEnd < m.amountStart) {
+    }
+
+    // Between the marker and the amount sit only spaces and the
+    // optional accent token (parse-guaranteed, so no ghost can start
+    // here). The amount run covers op amounts and `$^ N` count digits
+    // alike — display rows without a count have an empty range.
+    if (m.markerEnd < m.amountStart) {
+      if (accentSpec != null) {
+        emitAccentToken(m.markerEnd, m.amountStart);
+      } else {
         children.add(
           TextSpan(
             text: text.substring(m.markerEnd, m.amountStart),
@@ -525,6 +608,8 @@ class MarkdownEditorSpanBuilder {
           ),
         );
       }
+    }
+    if (m.amountStart < m.amountEnd) {
       _emit(
         text: text,
         start: m.amountStart,
@@ -536,7 +621,7 @@ class MarkdownEditorSpanBuilder {
       );
     }
 
-    final rest = isDisplay ? m.markerEnd : m.amountEnd;
+    final rest = m.amountEnd;
     if (rest < text.length) {
       _appendInline(
         text: text,
@@ -554,20 +639,26 @@ class MarkdownEditorSpanBuilder {
     return TextSpan(style: style, children: children);
   }
 
-  /// Builds the painted chip for a `$$` total (`Σ` + balance) or a `$?`
-  /// net change (`Δ` + signed change), laid out once here (memoized
-  /// upstream via the positional span cache) and painted into the
-  /// placeholder box. The box height stays under the line's strut
-  /// height so the line never grows.
+  /// Builds the painted chip for a `$$` total (`Σ` + balance), a `$?`
+  /// net change (`Δ` + signed change), or a `$^` checkpoint diff
+  /// (`Δ=` + signed move), laid out once here (memoized upstream via
+  /// the positional span cache) and painted into the placeholder box.
+  /// The box height stays under the line's strut height so the line
+  /// never grows.
   _EditorMoneyTotalSpan _moneyTotalSpan({
     required TextStyle style,
     required Color accent,
     required int balance,
-    required bool delta,
+    required MoneyLineKind kind,
   }) {
-    final label = delta
-        ? 'Δ ${MarkdownMoneySyntax.formatCentsSignedWithSymbol(balance, symbol: _currencySymbol, suffix: _currencySuffix)}'
-        : 'Σ ${MarkdownMoneySyntax.formatCentsWithSymbol(balance, symbol: _currencySymbol, suffix: _currencySuffix)}';
+    final label = switch (kind) {
+      MoneyLineKind.delta =>
+        'Δ ${MarkdownMoneySyntax.formatCentsSignedWithSymbol(balance, symbol: _currencySymbol, suffix: _currencySuffix)}',
+      MoneyLineKind.diff =>
+        'Δ= ${MarkdownMoneySyntax.formatCentsSignedWithSymbol(balance, symbol: _currencySymbol, suffix: _currencySuffix)}',
+      _ =>
+        'Σ ${MarkdownMoneySyntax.formatCentsWithSymbol(balance, symbol: _currencySymbol, suffix: _currencySuffix)}',
+    };
     final fontSize = style.fontSize ?? 16.0;
     final lineBox = fontSize * (style.height ?? MarkdownConstants.lineHeight);
     final painter = TextPainter(

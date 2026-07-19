@@ -244,31 +244,30 @@ class LineBasedMarkdownBuilder {
     if (!moneyEnabled) return;
     Map<int, int>? values;
     var balance = moneyStartCents;
-    var anchor = moneyStartCents;
+    final history = <int>[moneyStartCents];
+    var periodStart = 0;
     final source = _source;
     for (var i = 0; i < _lineCount; i++) {
       final start = _lineOffsets[i];
       final end = i + 1 < _lineOffsets.length
           ? _lineOffsets[i + 1] - 1
           : source.length;
-      var j = start;
-      while (j < end) {
-        final c = source.codeUnitAt(j);
-        if (c != 0x20 && c != 0x09) break;
-        j++;
+      if (!MarkdownMoneySyntax.leadsWithMoneyInRange(source, start, end)) {
+        continue;
       }
-      if (j >= end || source.codeUnitAt(j) != 0x24) continue;
       if (_blockForLine(i) != null) continue;
       final m = MarkdownMoneySyntax.parse(_getLine(i));
       if (m == null) continue;
       balance = MarkdownMoneySyntax.apply(balance, m);
-      if (m.kind == MoneyLineKind.set) {
-        anchor = balance;
+      if (MarkdownMoneySyntax.isEntryKind(m.kind)) {
+        history.add(balance);
+        if (m.kind == MoneyLineKind.set) periodStart = history.length - 1;
       }
       (values ??= <int, int>{})[i] = MarkdownMoneySyntax.displayValue(
         m,
         balance,
-        anchor,
+        history,
+        periodStart,
       );
     }
     _moneyValues = values;
@@ -621,10 +620,13 @@ class LineBasedMarkdownBuilder {
       );
     }
 
-    // Money ledger lines (`$+ 12.50 label`, `$$` total). Grammar comes
-    // from the shared [MarkdownMoneySyntax]; the running balance was
-    // folded once in [prepare]. Cheap probe: only `$`-led lines parse.
-    if (moneyEnabled && trimmed.codeUnitAt(0) == 0x24) {
+    // Money ledger lines (`$+ 12.50 label`, `$$` total), optionally
+    // header-prefixed (`## $$ label`). Grammar comes from the shared
+    // [MarkdownMoneySyntax]; the running balance was folded once in
+    // [prepare]. Cheap probe: only `$`-led (or `#…$`-led) lines parse;
+    // a `#`-led line that fails the parse falls through to the normal
+    // heading branch below.
+    if (moneyEnabled && MarkdownMoneySyntax.leadsWithMoney(line)) {
       final money = MarkdownMoneySyntax.parse(line);
       if (money != null) {
         return _buildMoneyLine(
@@ -1089,6 +1091,11 @@ class LineBasedMarkdownBuilder {
   /// the balance itself, pill-tinted like a tag, red when negative.
   /// Computed values are not source text, so they carry no offsets and
   /// are invisible to search — by design.
+  ///
+  /// A heading prefix scales the whole row like [_buildHeading] (the
+  /// hashes are chrome). A resolved accent token overrides the semantic
+  /// accent for the value; an unresolved one renders literally at its
+  /// source offset so nothing is silently eaten.
   TextSpan _buildMoneyLine(
     String line,
     MoneyLineMatch m,
@@ -1099,7 +1106,31 @@ class LineBasedMarkdownBuilder {
   ) {
     final dark = style.isDark;
     final value = _moneyValues?[lineIndex] ?? 0;
-    final Color accent;
+    if (m.headerLevel > 0) {
+      final scale = switch (m.headerLevel) {
+        1 => MarkdownConstants.h1Scale,
+        2 => MarkdownConstants.h2Scale,
+        3 => MarkdownConstants.h3Scale,
+        4 => MarkdownConstants.h4Scale,
+        5 => MarkdownConstants.h5Scale,
+        _ => MarkdownConstants.h6Scale,
+      };
+      baseStyle = baseStyle.copyWith(
+        fontSize: style.baseFontSize * scale,
+        fontWeight: FontWeight.bold,
+      );
+    }
+    MarkdownColorSpec? accentSpec;
+    if (m.accentStart >= 0) {
+      accentSpec = colorPalette.lookup(
+        line.substring(m.accentStart, m.accentEnd),
+      );
+    }
+    final isDisplay =
+        m.kind == MoneyLineKind.total ||
+        m.kind == MoneyLineKind.delta ||
+        m.kind == MoneyLineKind.diff;
+    Color accent;
     final String chrome;
     switch (m.kind) {
       case MoneyLineKind.add:
@@ -1129,9 +1160,19 @@ class LineBasedMarkdownBuilder {
             ? MarkdownConstants.moneyNegative(dark: dark)
             : style.primaryColor;
         chrome = 'Δ';
+      case MoneyLineKind.diff:
+        accent = value > 0
+            ? MarkdownConstants.moneyPositive(dark: dark)
+            : value < 0
+            ? MarkdownConstants.moneyNegative(dark: dark)
+            : style.primaryColor;
+        chrome = 'Δ=';
       case MoneyLineKind.target:
         accent = style.primaryColor;
         chrome = '◎';
+    }
+    if (accentSpec != null) {
+      accent = accentSpec.text(dark: dark);
     }
     final accentStyle = baseStyle.copyWith(
       color: accent,
@@ -1141,9 +1182,35 @@ class LineBasedMarkdownBuilder {
     final children = <InlineSpan>[
       TextSpan(text: '$chrome ', style: accentStyle),
     ];
-    if (m.kind == MoneyLineKind.total || m.kind == MoneyLineKind.delta) {
+    final unresolvedAccent = m.accentStart >= 0 && accentSpec == null;
+    if (!isDisplay && unresolvedAccent) {
+      children.add(
+        _applyHighlighting(
+          line.substring(m.accentStart, m.accentEnd + 1),
+          baseStyle,
+          lineStart + m.accentStart,
+        ),
+      );
+      children.add(TextSpan(text: ' ', style: baseStyle));
+    }
+    if (isDisplay) {
+      // `$^ N` keeps its count digits as an offset-mapped source run
+      // (like op amounts), so search lands on them and the window is
+      // visible at a glance. With an unresolved accent token the digits
+      // ride along in the literal label run below instead.
+      if (m.amountEnd > m.amountStart && !unresolvedAccent) {
+        children.add(
+          _applyHighlighting(
+            line.substring(m.amountStart, m.amountEnd),
+            accentStyle,
+            lineStart + m.amountStart,
+          ),
+        );
+        children.add(TextSpan(text: ' ', style: baseStyle));
+      }
+      final signed = m.kind != MoneyLineKind.total;
       InlineSpan pill = TextSpan(
-        text: m.kind == MoneyLineKind.delta
+        text: signed
             ? ' ${MarkdownMoneySyntax.formatCentsSignedWithSymbol(value, symbol: currencySymbol, suffix: currencySuffix)} '
             : ' ${MarkdownMoneySyntax.formatCentsWithSymbol(value, symbol: currencySymbol, suffix: currencySuffix)} ',
         style: accentStyle.copyWith(
@@ -1166,14 +1233,19 @@ class LineBasedMarkdownBuilder {
         ),
       );
     }
-    if (m.labelStart < line.length) {
+    // An unresolved token on display rows folds back into the label so
+    // the typed text stays visible at its exact offsets.
+    final labelFrom = isDisplay && unresolvedAccent
+        ? m.accentStart
+        : m.labelStart;
+    if (labelFrom < line.length) {
       children.add(TextSpan(text: ' ', style: baseStyle));
       _appendFlattened(
         children,
         _buildInlineFormatted(
-          line.substring(m.labelStart),
+          line.substring(labelFrom),
           baseStyle,
-          lineStart + m.labelStart,
+          lineStart + labelFrom,
           lineEnd,
         ),
       );
@@ -1196,9 +1268,7 @@ class LineBasedMarkdownBuilder {
           ),
         ),
       );
-    } else if (m.kind != MoneyLineKind.set &&
-        m.kind != MoneyLineKind.total &&
-        m.kind != MoneyLineKind.delta) {
+    } else if (m.kind != MoneyLineKind.set && !isDisplay) {
       children.add(
         TextSpan(
           text:
@@ -1209,7 +1279,7 @@ class LineBasedMarkdownBuilder {
         ),
       );
     }
-    return TextSpan(children: children);
+    return TextSpan(style: baseStyle, children: children);
   }
 
   /// Appends [span] to [children], flattening one wrapper level. Every

@@ -36,6 +36,7 @@ class MarkdownBarService extends ChangeNotifier {
   static const String _moneySeedKey = 'money_shortcut_seeded';
   static const String _moneyOpsSeedKey = 'money_ops_shortcuts_seeded';
   static const String _moneyTargetSeedKey = 'money_target_shortcut_seeded';
+  static const String _moneyDiffSeedKey = 'money_diff_shortcut_seeded';
   static const String _colorSeedKey = 'color_shortcuts_seeded';
 
   /// In-memory cache of all profiles.
@@ -363,6 +364,11 @@ class MarkdownBarService extends ChangeNotifier {
     await _seedDefaultShortcutIfNeeded(
       'default_money_target',
       _moneyTargetSeedKey,
+    );
+    // Checkpoint diff (`$^`) shipped after target, same pattern.
+    await _seedDefaultShortcutIfNeeded(
+      'default_money_diff',
+      _moneyDiffSeedKey,
     );
     // The two colour shortcuts ship together as one family.
     await _seedDefaultShortcutBatchIfNeeded(const [

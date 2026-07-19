@@ -338,17 +338,19 @@ class _ModernEditorWrapperState extends State<ModernEditorWrapper> {
       }
     }
     final onMoneyTap = widget.onMoneyTap;
-    if (onMoneyTap != null && MarkdownMoneySyntax.leadsWithMarker(text)) {
+    if (onMoneyTap != null && MarkdownMoneySyntax.leadsWithMoney(text)) {
       final money = MarkdownMoneySyntax.parse(text);
-      // Only the painted `$$` / `$?` chip is a zone: from the marker up
-      // to the label (the chip is wider than its two source chars, so
-      // the space before the label rides along); label text and op
+      // Only the painted `$$` / `$?` / `$^` chip is a zone: from the
+      // marker up to the amount range (the chip is wider than its two
+      // source chars, so the spaces and any concealed accent token ride
+      // along); heading hashes, `$^ N` count digits, label text, and op
       // lines stay editable.
       if (money != null &&
           (money.kind == MoneyLineKind.total ||
-              money.kind == MoneyLineKind.delta) &&
+              money.kind == MoneyLineKind.delta ||
+              money.kind == MoneyLineKind.diff) &&
           offset >= money.markerStart &&
-          offset < money.labelStart) {
+          offset < money.amountStart) {
         return () {
           HapticFeedback.selectionClick();
           onMoneyTap(lineIndex);

@@ -66,7 +66,9 @@ class MoneyDetailSheet extends StatelessWidget {
     final primary = theme.colorScheme.primary;
     final tapped = entries.isNotEmpty ? entries.last : null;
     final headerValue = tapped?.valueAfter ?? 0;
-    final headerColor = tappedKind == MoneyLineKind.delta
+    final signedHeader =
+        tappedKind == MoneyLineKind.delta || tappedKind == MoneyLineKind.diff;
+    final headerColor = signedHeader
         ? (headerValue > 0
               ? MarkdownConstants.moneyPositive(dark: dark)
               : headerValue < 0
@@ -89,7 +91,11 @@ class MoneyDetailSheet extends StatelessWidget {
               child: Row(
                 children: [
                   Text(
-                    tappedKind == MoneyLineKind.delta ? 'Δ' : 'Σ',
+                    switch (tappedKind) {
+                      MoneyLineKind.delta => 'Δ',
+                      MoneyLineKind.diff => 'Δ=',
+                      _ => 'Σ',
+                    },
                     style: theme.textTheme.titleLarge?.copyWith(
                       color: headerColor,
                       fontWeight: FontWeight.bold,
@@ -106,10 +112,7 @@ class MoneyDetailSheet extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    _format(
-                      headerValue,
-                      signed: tappedKind == MoneyLineKind.delta,
-                    ),
+                    _format(headerValue, signed: signedHeader),
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: headerColor,
                       fontWeight: FontWeight.bold,
@@ -128,7 +131,8 @@ class MoneyDetailSheet extends StatelessWidget {
                   final m = e.match;
                   final isDisplay =
                       m.kind == MoneyLineKind.total ||
-                      m.kind == MoneyLineKind.delta;
+                      m.kind == MoneyLineKind.delta ||
+                      m.kind == MoneyLineKind.diff;
                   final (glyph, accent) = switch (m.kind) {
                     MoneyLineKind.add => (
                       '+',
@@ -149,6 +153,7 @@ class MoneyDetailSheet extends StatelessWidget {
                     MoneyLineKind.set => ('=', primary),
                     MoneyLineKind.total => ('Σ', primary),
                     MoneyLineKind.delta => ('Δ', primary),
+                    MoneyLineKind.diff => ('Δ=', primary),
                     MoneyLineKind.target => (
                       '◎',
                       e.valueAfter < 0
@@ -159,7 +164,9 @@ class MoneyDetailSheet extends StatelessWidget {
                   final amount = isDisplay
                       ? _format(
                           e.valueAfter,
-                          signed: m.kind == MoneyLineKind.delta,
+                          signed:
+                              m.kind == MoneyLineKind.delta ||
+                              m.kind == MoneyLineKind.diff,
                         )
                       : e.line.substring(m.amountStart, m.amountEnd);
                   final label = m.labelStart < e.line.length
