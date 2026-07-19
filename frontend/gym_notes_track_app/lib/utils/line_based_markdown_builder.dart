@@ -1186,8 +1186,14 @@ class LineBasedMarkdownBuilder {
     // half-styled.
     final labelStyle = baseStyle.copyWith(color: accent);
 
+    // Label-first rows (`$= Net worth: 5000`) read as an equation: the
+    // op glyph renders where the `:` is rather than leading the row, so
+    // the row shows `Net worth = 5000`. The `:` becomes chrome, exactly
+    // like the `$=` marker it replaces. Amount-first rows keep the
+    // glyph in front — the spelling picks the layout.
+    final amountTrails = !isDisplay && m.labelStart < m.amountStart;
     final children = <InlineSpan>[
-      TextSpan(text: '$chrome ', style: accentStyle),
+      if (!amountTrails) TextSpan(text: '$chrome ', style: accentStyle),
     ];
     final unresolvedAccent = m.accentStart >= 0 && accentSpec == null;
     final hasSlot = m.valueSlot >= 0;
@@ -1282,7 +1288,9 @@ class LineBasedMarkdownBuilder {
       // An unresolved token on display rows folds back into the label so
       // the typed text stays visible at its exact offsets.
       final from = isDisplay && unresolvedAccent ? m.accentStart : m.labelStart;
-      final to = m.labelEnd;
+      // On a label-first row the trailing `:` is chrome — the op glyph
+      // renders in its place — so it is not part of the label text.
+      final to = amountTrails ? m.labelEnd - 1 : m.labelEnd;
       if (from >= to) return;
       if (separator) children.add(TextSpan(text: ' ', style: baseStyle));
       if (hasSlot) {
@@ -1336,12 +1344,13 @@ class LineBasedMarkdownBuilder {
       }
       if (!hasSlot) children.add(buildValue(atSlot: false));
       emitLabel();
-    } else if (m.labelStart < m.amountStart) {
+    } else if (amountTrails) {
       // Label-first (`$- Loss on trade: 5000`): the typed amount trails
-      // its label instead of leading it. Source order is what renders —
-      // both runs keep their true offsets either way.
+      // its label instead of leading it, with the op glyph between them
+      // in place of the `:`. Source order is what renders — both runs
+      // keep their true offsets either way.
       emitLabel(separator: false);
-      children.add(TextSpan(text: ' ', style: baseStyle));
+      children.add(TextSpan(text: ' $chrome ', style: accentStyle));
       emitAmount();
     } else {
       emitAmount();

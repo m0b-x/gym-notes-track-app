@@ -47,10 +47,15 @@
 /// the typed amount trailing behind a `:`:
 ///
 /// ```text
-/// $= Net worth: 5000                 same as `$= 5000 Net worth`
+/// $= Net worth: 5000                 renders  Net worth = 5000
 /// ## $- blue: Loss/Gain/Whatever: 5000
-/// $* VAT: 1.19
+/// $* VAT: 1.19                       renders  VAT × 1.19
 /// ```
+///
+/// The spelling picks the layout: amount-first puts the op glyph in
+/// front (`+ 12.50 rent`), label-first renders it **where the `:` is**
+/// so the row reads as an equation (`rent + 12.50`). On a label-first
+/// row the `:` is chrome, exactly like the `$=` marker it replaces.
 ///
 /// The colon is what makes this unambiguous, and it is required: without
 /// it `$- food 2024` would silently subtract 2024. The whole tail after

@@ -459,23 +459,16 @@ class MarkdownEditorSpanBuilder {
           TextSpan(text: text.substring(0, m.headerStart), style: style),
         );
       }
+      // Hashes *and* the space after them, in one concealed run — the
+      // whole prefix is chrome. `_buildHeader` does the same (it hides
+      // `level + 1` chars); concealing only the hashes left the row
+      // indented by the leftover space.
       children.add(
         TextSpan(
-          text: text.substring(m.headerStart, m.headerStart + m.headerLevel),
+          text: text.substring(m.headerStart, m.markerStart),
           style: reveal ? _dimStyle(style, baseColor) : _concealStyle(style),
         ),
       );
-      if (m.headerStart + m.headerLevel < m.markerStart) {
-        children.add(
-          TextSpan(
-            text: text.substring(
-              m.headerStart + m.headerLevel,
-              m.markerStart,
-            ),
-            style: style,
-          ),
-        );
-      }
     } else if (m.markerStart > 0) {
       children.add(
         TextSpan(text: text.substring(0, m.markerStart), style: style),
@@ -542,10 +535,14 @@ class MarkdownEditorSpanBuilder {
     // The accent token region: concealed when resolved (it is chrome,
     // like `{name:`), left as plain source text when it does not
     // resolve — nothing is ever silently eaten.
-    void emitAccentToken(int from, int to) {
+    // [concealGaps] hides the spaces around the token as well, for rows
+    // whose whole marker run is chrome (label-first, where the op glyph
+    // renders at the `:` instead) — otherwise they indent the row.
+    void emitAccentToken(int from, int to, {bool concealGaps = false}) {
+      final gapStyle = concealGaps ? _concealStyle(style) : style;
       if (from < m.accentStart) {
         children.add(
-          TextSpan(text: text.substring(from, m.accentStart), style: style),
+          TextSpan(text: text.substring(from, m.accentStart), style: gapStyle),
         );
       }
       children.add(
@@ -556,7 +553,7 @@ class MarkdownEditorSpanBuilder {
       );
       if (m.accentEnd + 1 < to) {
         children.add(
-          TextSpan(text: text.substring(m.accentEnd + 1, to), style: style),
+          TextSpan(text: text.substring(m.accentEnd + 1, to), style: gapStyle),
         );
       }
     }
@@ -566,6 +563,10 @@ class MarkdownEditorSpanBuilder {
         m.kind == MoneyLineKind.delta ||
         m.kind == MoneyLineKind.diff;
     final hasSlot = m.valueSlot >= 0;
+    // Label-first rows (`$= Net worth: 5000`) read as an equation: the
+    // op glyph renders at the `:` instead of leading the row. Needed
+    // this early because it changes how the marker itself is emitted.
+    final bool amountTrails = m.labelStart < m.amountStart;
     if (isDisplay) {
       if (reveal) {
         children.add(
@@ -605,12 +606,20 @@ class MarkdownEditorSpanBuilder {
           style: reveal ? _dimStyle(style, baseColor) : _concealStyle(style),
         ),
       );
+      // On a label-first row the glyph renders at the `:` further along,
+      // so the op char is concealed here instead of substituted. It must
+      // still be emitted as its own source char — concealed, not
+      // dropped — or every offset after it shifts by one.
       children.add(
         TextSpan(
-          text: reveal
+          text: (reveal || amountTrails)
               ? text.substring(m.markerStart + 1, m.markerEnd)
               : opGlyph,
-          style: reveal ? _dimStyle(style, baseColor) : accentStyle,
+          style: reveal
+              ? _dimStyle(style, baseColor)
+              : amountTrails
+              ? _concealStyle(style)
+              : accentStyle,
         ),
       );
     }
@@ -694,19 +703,42 @@ class MarkdownEditorSpanBuilder {
     // label instead of the amount — every span below stays a contiguous
     // source range in document order, which is what keeps editor offsets
     // 1:1 regardless of which order the row was written in.
-    final bool amountTrails = m.labelStart < m.amountStart;
     final int gapEnd = amountTrails ? m.labelStart : m.amountStart;
+    // On a label-first row the glyph has moved to the `:`, so this whole
+    // run is chrome and must not take up width. The exception is an
+    // unresolved accent token, which stays visible as literal source
+    // (nothing is ever silently eaten) and brings its spacing with it.
+    final bool chromeGap = amountTrails && !reveal;
     if (m.markerEnd < gapEnd) {
       if (accentSpec != null) {
-        emitAccentToken(m.markerEnd, gapEnd);
+        emitAccentToken(m.markerEnd, gapEnd, concealGaps: chromeGap);
       } else {
         children.add(
-          TextSpan(text: text.substring(m.markerEnd, gapEnd), style: style),
+          TextSpan(
+            text: text.substring(m.markerEnd, gapEnd),
+            style: chromeGap && m.accentStart < 0
+                ? _concealStyle(style)
+                : style,
+          ),
         );
       }
     }
     if (amountTrails) {
-      emitLabelRegion(m.labelStart, m.labelEnd);
+      if (reveal) {
+        // Raw source while editing: the `:` stays a plain character and
+        // the marker above shows its dimmed `$=`.
+        emitLabelRegion(m.labelStart, m.labelEnd);
+      } else {
+        emitLabelRegion(m.labelStart, m.labelEnd - 1);
+        // The `:` is chrome here, replaced by the op glyph so the row
+        // reads `Net worth = 5000`. It goes through the placeholder
+        // mechanism rather than a 1:1 text swap because the source has
+        // no character before the `:` to render as a space — a plain
+        // substitution would read `Net worth= 5000`.
+        children.add(
+          _glyphSpan(style: style, accent: accent, glyph: opGlyph),
+        );
+      }
       if (m.labelEnd < m.amountStart) {
         children.add(
           TextSpan(
@@ -746,6 +778,44 @@ class MarkdownEditorSpanBuilder {
       emitLabelRegion(m.amountEnd, text.length);
     }
     return TextSpan(style: style, children: children);
+  }
+
+  /// A single op glyph painted into a label-first row's `:` placeholder,
+  /// carrying the horizontal padding a 1:1 text substitution cannot: the
+  /// source has no character before the `:` to render as a space, so a
+  /// plain swap would read `Net worth= 5000`. Same fork
+  /// [CodeInlinePaintSpan] mechanism as the money chip, unfilled — and
+  /// like op rows generally it depends only on the line text, so it
+  /// rides the text-keyed span memo and lays out once per unique line.
+  _EditorMoneyTotalSpan _glyphSpan({
+    required TextStyle style,
+    required Color accent,
+    required String glyph,
+  }) {
+    final fontSize = style.fontSize ?? 16.0;
+    final painter = TextPainter(
+      text: TextSpan(
+        text: glyph,
+        style: style.copyWith(
+          color: accent,
+          fontWeight: FontWeight.w600,
+          height: 1.0,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final lineBox = fontSize * (style.height ?? MarkdownConstants.lineHeight);
+    final maxHeight = lineBox * 0.9;
+    final height = painter.height > maxHeight ? maxHeight : painter.height;
+    return _EditorMoneyTotalSpan(
+      width: painter.width + fontSize * 0.6,
+      height: height,
+      painter: painter,
+      label: glyph,
+      accent: accent,
+      chip: const Color(0x00000000),
+      radius: 0,
+    );
   }
 
   /// Builds the painted chip for a `$$` total (`Σ` + balance), a `$?`

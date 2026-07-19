@@ -170,9 +170,14 @@ class MoneyDetailSheet extends StatelessWidget {
                         )
                       : e.line.substring(m.amountStart, m.amountEnd);
                   // `labelEnd` is not the line end on a label-first row
-                  // (`$- Loss: 5000`), where the amount trails the label.
-                  final label = m.labelStart < m.labelEnd
-                      ? e.line.substring(m.labelStart, m.labelEnd)
+                  // (`$- Loss: 5000`), where the amount trails the label
+                  // and the trailing `:` is chrome (the op glyph renders
+                  // in its place), so it is trimmed off here too.
+                  final labelTo = m.labelStart < m.amountStart
+                      ? m.labelEnd - 1
+                      : m.labelEnd;
+                  final label = m.labelStart < labelTo
+                      ? e.line.substring(m.labelStart, labelTo)
                       : '';
                   return ListTile(
                     dense: true,
