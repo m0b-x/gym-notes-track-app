@@ -287,5 +287,14 @@ class DefaultMarkdownShortcuts {
       afterText: '',
       isDefault: true,
     ),
+    CustomMarkdownShortcut(
+      id: 'default_money_span',
+      label: 'Money Span',
+      iconCodePoint: Icons.timeline.codePoint,
+      iconFontFamily: 'MaterialIcons',
+      beforeText: '\$~ ',
+      afterText: '',
+      isDefault: true,
+    ),
   ];
 }

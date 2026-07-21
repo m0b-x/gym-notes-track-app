@@ -67,20 +67,24 @@ class MarkdownEditorLineIndex {
 
   /// Money pass results: sorted line indices of money lines and the
   /// display value (cents) for each — the running balance after the
-  /// line, except `$?` delta lines (net change since the last `$=`) and
-  /// `$^ N` diff lines (move across the last N balance-changing
-  /// entries). The entry-balance history is an append-only result list
-  /// (seeded with the start balance, one value per `$=`/`$+`/`$-`/`$*`/
-  /// `$/`), so per-segment resume state is just its length plus the
-  /// current period-start index — truncate and re-append, exactly like
-  /// the task pass.
+  /// line, except `$?` delta lines (net change since the last `$=`),
+  /// `$^ N` diff lines (move across the last N balance-changing entries),
+  /// and `$~ N` span lines (move across the last N `$=` checkpoints).
+  /// The entry-balance history is an append-only result list (seeded
+  /// with the start balance, one value per `$=`/`$+`/`$-`/`$*`/`$/`) and
+  /// the checkpoint-balance history a parallel one (seeded the same, one
+  /// value per `$=`), so per-segment resume state is just their lengths
+  /// plus the current period-start index — truncate and re-append,
+  /// exactly like the task pass.
   final List<int> _moneyLines = <int>[];
   final List<int> _moneyValues = <int>[];
   final List<int> _entryBalances = <int>[];
+  final List<int> _anchorBalances = <int>[];
   List<int> _segMoneyCount = const [];
   List<int> _segMoneyEntry = const [];
   List<int> _segEntryCount = const [];
   List<int> _segPeriodStart = const [];
+  List<int> _segAnchorCount = const [];
   bool _moneyEnabled = false;
   int _moneyStartCents = 0;
 
@@ -114,9 +118,9 @@ class MarkdownEditorLineIndex {
   /// The display value (cents) for the money line at [index], or `null`
   /// when the line is not a money line: the running balance after the
   /// line, for `$?` delta lines the net change since the last `$=`, for
-  /// `$^ N` diff lines the move across the row's checkpoint window.
-  /// Grammar and arithmetic come from [MarkdownMoneySyntax], shared
-  /// with the preview.
+  /// `$^ N` diff lines the move across the last N entries, for `$~ N`
+  /// span lines the move across the last N `$=` checkpoints. Grammar and
+  /// arithmetic come from [MarkdownMoneySyntax], shared with the preview.
   int? moneyValueAt(CodeLines lines, int index) {
     _ensure(lines);
     var low = 0;
@@ -202,10 +206,14 @@ class MarkdownEditorLineIndex {
     _entryBalances
       ..clear()
       ..add(_moneyStartCents);
+    _anchorBalances
+      ..clear()
+      ..add(_moneyStartCents);
     _segMoneyCount = List<int>.filled(n, 0);
     _segMoneyEntry = List<int>.filled(n, _moneyStartCents);
     _segEntryCount = List<int>.filled(n, 1);
     _segPeriodStart = List<int>.filled(n, 0);
+    _segAnchorCount = List<int>.filled(n, 1);
     if (n > 0) {
       _scanFence(segs, 0, n - 1);
       _scanTasks(segs, 0);
@@ -316,12 +324,17 @@ class MarkdownEditorLineIndex {
     if (_entryBalances.length > keepEntries) {
       _entryBalances.length = keepEntries;
     }
+    final int keepAnchors = _segAnchorCount[first];
+    if (_anchorBalances.length > keepAnchors) {
+      _anchorBalances.length = keepAnchors;
+    }
     final List<MarkdownFenceRole>? fence = _fence;
     for (int s = first; s < n; s++) {
       _segMoneyCount[s] = _moneyLines.length;
       _segMoneyEntry[s] = balance;
       _segEntryCount[s] = _entryBalances.length;
       _segPeriodStart[s] = periodStart;
+      _segAnchorCount[s] = _anchorBalances.length;
       final List<CodeLine> lines = segs[s].codeLines;
       int g = _segStarts[s];
       for (int j = 0; j < lines.length; j++, g++) {
@@ -339,6 +352,7 @@ class MarkdownEditorLineIndex {
           _entryBalances.add(balance);
           if (m.kind == MoneyLineKind.set) {
             periodStart = _entryBalances.length - 1;
+            _anchorBalances.add(balance);
           }
         }
         _moneyLines.add(g);
@@ -348,6 +362,7 @@ class MarkdownEditorLineIndex {
             balance,
             _entryBalances,
             periodStart,
+            _anchorBalances,
           ),
         );
       }

@@ -12,6 +12,8 @@
 /// $! 500 label    spending target: shows the remaining budget
 /// $^ label        show the change caused by the most recent entry
 /// $^ 3 label      show the change across the last 3 entries
+/// $~ label        show the change since the last `$=` checkpoint
+/// $~ 3 label      show the change across the last 3 `$=` checkpoints
 /// ```
 ///
 /// `$=` doubles as a period boundary: place one under a month/year
@@ -19,14 +21,24 @@
 /// while `$$` always reports the absolute balance. `$^` compares the
 /// current balance to its value N *entries* back — an entry is any
 /// `$=`/`$+`/`$-`/`$*`/`$/` line; the display-only rows (`$$` `$?` `$!`
-/// `$^`) never count. N defaults to 1 (the single most recent entry)
-/// and clamps to the note's start balance when the history is shorter.
-/// The count is 1–3 digits ending at a space or the line end; anything
-/// else (`2024`, `3x`) stays label text, so year-labels never turn into
-/// counts. Unlike `$?` (always "since the last `$=`", however many
-/// entries that spans), `$^ N` is a fixed transaction count regardless
-/// of any `$=` crossed — so `$^ 3` is "the last 3 lines that touched
-/// the balance," not "the last 3 checkpoints."
+/// `$^` `$~`) never count. N defaults to 1 (the single most recent
+/// entry) and clamps to the note's start balance when the history is
+/// shorter. The count is 1–3 digits ending at a space or the line end;
+/// anything else (`2024`, `3x`, a zero count) stays label text, so
+/// year-labels never turn into counts. Unlike `$?` (always "since the last `$=`", however
+/// many entries that spans), `$^ N` is a fixed transaction count
+/// regardless of any `$=` crossed — so `$^ 3` is "the last 3 lines that
+/// touched the balance," not "the last 3 checkpoints."
+///
+/// `$~ N` is the checkpoint counterpart of `$^ N`: it compares the
+/// current balance to its value N `$=` checkpoints back — so `$~ 3` is
+/// "the change since the 3rd-most-recent `$=`," spanning however many
+/// `$+`/`$-`/`$*`/`$/` lines fall between. N defaults to 1, making `$~`
+/// with no count identical to `$?` (since the single last `$=`), and
+/// clamps to the note's start balance when fewer than N checkpoints
+/// precede it. Where `$?` never reaches past the last checkpoint and
+/// `$^` never reaches past it *by counting entries*, `$~ N` deliberately
+/// reaches across N of them.
 ///
 /// Two optional prefixes compose with every money line:
 ///
@@ -82,12 +94,13 @@
 /// leading backslash or any non-matching shape renders as plain text.
 library;
 
-/// Kinds of money line. [total], [delta], [target], and [diff] perform
-/// no arithmetic — [total] displays the running balance where it
+/// Kinds of money line. [total], [delta], [target], [diff], and [span]
+/// perform no arithmetic — [total] displays the running balance where it
 /// appears, [delta] the net change since the last [set] (or the note
 /// start), [target] declares a spending goal whose displayed value is
-/// the remaining budget (target − spent since the last [set]), and
-/// [diff] the change between the two most recent [set] checkpoints.
+/// the remaining budget (target − spent since the last [set]), [diff]
+/// the change across the last N balance-changing *entries*, and [span]
+/// the change across the last N `$=` *checkpoints*.
 enum MoneyLineKind {
   set,
   add,
@@ -98,6 +111,7 @@ enum MoneyLineKind {
   delta,
   target,
   diff,
+  span,
 }
 
 /// A parsed money line. All offsets are relative to the scanned line.
@@ -132,8 +146,8 @@ class MoneyLineMatch {
   final int accentEnd;
 
   /// Offset of the first amount digit. For display rows this covers the
-  /// optional `$^` count digits and is empty (equal to [amountEnd]) for
-  /// every other valueless row.
+  /// optional `$^`/`$~` count digits and is empty (equal to [amountEnd])
+  /// for every other valueless row.
   final int amountStart;
 
   /// Offset just past the last amount code unit.
@@ -146,10 +160,12 @@ class MoneyLineMatch {
   /// for totals. Always non-negative — the op carries the sign.
   final int amountFixed;
 
-  /// How many ledger entries back a [MoneyLineKind.diff] row compares
-  /// against (`$^ 3` → 3; an entry is any `$=`/`$+`/`$-`/`$*`/`$/`
-  /// line). Defaults to 1 — the single most recent entry.
-  final int diffCount;
+  /// How far back a windowed display row compares against: for
+  /// [MoneyLineKind.diff] a count of balance-changing *entries* (`$^ 3`
+  /// → 3; an entry is any `$=`/`$+`/`$-`/`$*`/`$/` line), for
+  /// [MoneyLineKind.span] a count of `$=` *checkpoints* (`$~ 3` → 3).
+  /// Defaults to 1 — the single most recent entry / checkpoint.
+  final int windowCount;
 
   /// Offset of the label's lone `$` value slot — where this row's
   /// computed value renders instead of its default position — or -1
@@ -170,7 +186,7 @@ class MoneyLineMatch {
     required this.amountEnd,
     required this.labelStart,
     required this.amountFixed,
-    this.diffCount = 1,
+    this.windowCount = 1,
     this.valueSlot = -1,
   });
 }
@@ -186,8 +202,9 @@ class MoneyLedgerEntry {
   final MoneyLineMatch match;
 
   /// Balance after this line; the net change since the last `$=` for
-  /// [MoneyLineKind.delta] lines, the move between the last two `$=`
-  /// for [MoneyLineKind.diff] lines.
+  /// [MoneyLineKind.delta] lines, the move across the row's window for
+  /// [MoneyLineKind.diff] (N entries) and [MoneyLineKind.span] (N `$=`
+  /// checkpoints) lines.
   final int valueAfter;
 
   const MoneyLedgerEntry({
@@ -225,6 +242,7 @@ class MarkdownMoneySyntax {
   static const int _kQuestion = 0x3F; // ?
   static const int _kBang = 0x21; // !
   static const int _kCaret = 0x5E; // ^
+  static const int _kTilde = 0x7E; // ~
   static const int _kHash = 0x23; // #
   static const int _kColon = 0x3A; // :
 
@@ -331,6 +349,8 @@ class MarkdownMoneySyntax {
         kind = MoneyLineKind.target;
       case _kCaret:
         kind = MoneyLineKind.diff;
+      case _kTilde:
+        kind = MoneyLineKind.span;
       default:
         return null;
     }
@@ -340,7 +360,8 @@ class MarkdownMoneySyntax {
     final isDisplay =
         kind == MoneyLineKind.total ||
         kind == MoneyLineKind.delta ||
-        kind == MoneyLineKind.diff;
+        kind == MoneyLineKind.diff ||
+        kind == MoneyLineKind.span;
     if (isDisplay && i < n && !_isSpace(line.codeUnitAt(i))) return null;
 
     while (i < n && _isSpace(line.codeUnitAt(i))) {
@@ -359,22 +380,27 @@ class MarkdownMoneySyntax {
     }
 
     if (isDisplay) {
-      // `$^` takes an optional checkpoint count: 1–3 digits ending at a
-      // space or the line end. Anything else (`2024`, `3x`) is label
-      // text, so numeric-looking labels never change a row's window.
+      // `$^`/`$~` take an optional window count: 1–3 digits ending at a
+      // space or the line end (`$^` counts entries, `$~` counts `$=`
+      // checkpoints). Anything else (`2024`, `3x`, and a zero count —
+      // a window of 0 measures nothing) is label text, so
+      // numeric-looking labels never change a row's window and
+      // [MoneyLineMatch.windowCount] is always ≥ 1.
       final amountStart = i;
       var amountEnd = i;
-      var diffCount = 1;
-      if (kind == MoneyLineKind.diff && i < n && _isDigit(line.codeUnitAt(i))) {
+      var windowCount = 1;
+      final bool takesCount =
+          kind == MoneyLineKind.diff || kind == MoneyLineKind.span;
+      if (takesCount && i < n && _isDigit(line.codeUnitAt(i))) {
         var j = i;
         var v = 0;
         while (j < n && j - i < 4 && _isDigit(line.codeUnitAt(j))) {
           v = v * 10 + (line.codeUnitAt(j) - 0x30);
           j++;
         }
-        if (j - i <= 3 && (j >= n || _isSpace(line.codeUnitAt(j)))) {
+        if (v > 0 && j - i <= 3 && (j >= n || _isSpace(line.codeUnitAt(j)))) {
           amountEnd = j;
-          diffCount = v;
+          windowCount = v;
           i = j;
           while (i < n && _isSpace(line.codeUnitAt(i))) {
             i++;
@@ -393,7 +419,7 @@ class MarkdownMoneySyntax {
         amountEnd: amountEnd,
         labelStart: i,
         amountFixed: 0,
-        diffCount: diffCount,
+        windowCount: windowCount,
         valueSlot: _scanValueSlot(line, i, n),
       );
     }
@@ -523,12 +549,13 @@ class MarkdownMoneySyntax {
       case MoneyLineKind.delta:
       case MoneyLineKind.target:
       case MoneyLineKind.diff:
+      case MoneyLineKind.span:
         return balanceCents;
     }
   }
 
   /// Whether [kind] is a balance-changing ledger entry (`$= $+ $- $* $/`)
-  /// as opposed to a display-only row (`$$ $? $! $^`). The entry kinds
+  /// as opposed to a display-only row (`$$ $? $! $^ $~`). The entry kinds
   /// are exactly the ones that append to the [history] passed to
   /// [displayValue], so the `$^ N` window counts transactions, not
   /// display rows.
@@ -544,23 +571,31 @@ class MarkdownMoneySyntax {
       case MoneyLineKind.delta:
       case MoneyLineKind.target:
       case MoneyLineKind.diff:
+      case MoneyLineKind.span:
         return false;
     }
   }
 
   /// The display value a money line's stored entry carries: the running
   /// balance, except `$?` (net change since the last `$=`), `$!` (the
-  /// remaining budget: target − spent since it), and `$^ N` (the change
-  /// over the last N balance-changing entries).
+  /// remaining budget: target − spent since it), `$^ N` (the change over
+  /// the last N balance-changing entries), and `$~ N` (the change over
+  /// the last N `$=` checkpoints).
   ///
   /// [history] is the append-only entry-balance history: index 0 is the
   /// note's start balance, and every balance-changing entry (`$=`,
   /// `$+`, `$-`, `$*`, `$/`) appends its resulting balance — display
   /// rows never append. [periodStart] is the index in [history] of the
   /// current period's start (the last `$=`, or 0 before any `$=`). A
-  /// `$=` marks a hard reset, so a window can never reach across it:
-  /// `$^ N` clamps its reference to [periodStart], and once N spans the
-  /// whole period `$^` equals `$?`.
+  /// `$=` marks a hard reset for `$?`/`$^`, so their window can never
+  /// reach across it: `$^ N` clamps its reference to [periodStart], and
+  /// once N spans the whole period `$^` equals `$?`.
+  ///
+  /// [anchors] is the parallel append-only *checkpoint*-balance history:
+  /// index 0 is the note's start balance and every `$=` appends its
+  /// resulting balance. `$~ N` counts back N entries in it — deliberately
+  /// reaching across checkpoints, floored at the note start — so `$~ 1`
+  /// equals `$?` while `$~ 3` spans the last three `$=` periods.
   ///
   /// Single source of truth for the editor index pass, the preview
   /// ledger fold, and [collectEntries], so the three can never disagree.
@@ -569,6 +604,7 @@ class MarkdownMoneySyntax {
     int balance,
     List<int> history,
     int periodStart,
+    List<int> anchors,
   ) {
     switch (m.kind) {
       case MoneyLineKind.delta:
@@ -576,9 +612,13 @@ class MarkdownMoneySyntax {
       case MoneyLineKind.target:
         return m.amountFixed ~/ 100 + balance - history[periodStart];
       case MoneyLineKind.diff:
-        final back = history.length - 1 - m.diffCount;
+        final back = history.length - 1 - m.windowCount;
         final ref = back < periodStart ? periodStart : back;
         return balance - history[ref];
+      case MoneyLineKind.span:
+        final back = anchors.length - m.windowCount;
+        final ref = back < 0 ? 0 : back;
+        return balance - anchors[ref];
       default:
         return balance;
     }
@@ -638,13 +678,13 @@ class MarkdownMoneySyntax {
   /// predicate so the collector always agrees with what is rendered).
   /// `valueAfter` is the running balance after the line (the net change
   /// since the last `$=` for delta lines, the move across the row's
-  /// window for diff lines). `entryLines` lists the line index of every
-  /// balance-changing entry in document order (parallel to the
+  /// window for diff and span lines). `entryLines` lists the line index
+  /// of every balance-changing entry in document order (parallel to the
   /// append-only history from index 1), so a caller can resolve any
   /// `$^ N` window to its source lines; `anchorLines` lists just the
-  /// `$=` line indices. Runs on tap (rare, user-initiated), so the
-  /// O(document) scan is fine — this is deliberately not part of the
-  /// incremental passes.
+  /// `$=` line indices, which resolve a `$~ N` window the same way.
+  /// Runs on tap (rare, user-initiated), so the O(document) scan is fine
+  /// — this is deliberately not part of the incremental passes.
   static ({
     List<MoneyLedgerEntry> entries,
     List<int> entryLines,
@@ -660,6 +700,7 @@ class MarkdownMoneySyntax {
     final last = toLine < 0 ? lineCount - 1 : toLine;
     final entries = <MoneyLedgerEntry>[];
     final history = <int>[startCents];
+    final anchors = <int>[startCents];
     final entryLines = <int>[];
     final anchorLines = <int>[];
     var periodStart = 0;
@@ -675,6 +716,7 @@ class MarkdownMoneySyntax {
         entryLines.add(i);
         if (m.kind == MoneyLineKind.set) {
           periodStart = history.length - 1;
+          anchors.add(balance);
           anchorLines.add(i);
         }
       }
@@ -683,7 +725,7 @@ class MarkdownMoneySyntax {
           lineIndex: i,
           line: line,
           match: m,
-          valueAfter: displayValue(m, balance, history, periodStart),
+          valueAfter: displayValue(m, balance, history, periodStart, anchors),
         ),
       );
     }

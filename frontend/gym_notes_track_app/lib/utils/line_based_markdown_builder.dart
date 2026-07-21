@@ -245,6 +245,7 @@ class LineBasedMarkdownBuilder {
     Map<int, int>? values;
     var balance = moneyStartCents;
     final history = <int>[moneyStartCents];
+    final anchors = <int>[moneyStartCents];
     var periodStart = 0;
     final source = _source;
     for (var i = 0; i < _lineCount; i++) {
@@ -261,13 +262,17 @@ class LineBasedMarkdownBuilder {
       balance = MarkdownMoneySyntax.apply(balance, m);
       if (MarkdownMoneySyntax.isEntryKind(m.kind)) {
         history.add(balance);
-        if (m.kind == MoneyLineKind.set) periodStart = history.length - 1;
+        if (m.kind == MoneyLineKind.set) {
+          periodStart = history.length - 1;
+          anchors.add(balance);
+        }
       }
       (values ??= <int, int>{})[i] = MarkdownMoneySyntax.displayValue(
         m,
         balance,
         history,
         periodStart,
+        anchors,
       );
     }
     _moneyValues = values;
@@ -1129,7 +1134,8 @@ class LineBasedMarkdownBuilder {
     final isDisplay =
         m.kind == MoneyLineKind.total ||
         m.kind == MoneyLineKind.delta ||
-        m.kind == MoneyLineKind.diff;
+        m.kind == MoneyLineKind.diff ||
+        m.kind == MoneyLineKind.span;
     Color accent;
     final String chrome;
     switch (m.kind) {
@@ -1167,6 +1173,13 @@ class LineBasedMarkdownBuilder {
             ? MarkdownConstants.moneyNegative(dark: dark)
             : style.primaryColor;
         chrome = 'Δ=';
+      case MoneyLineKind.span:
+        accent = value > 0
+            ? MarkdownConstants.moneyPositive(dark: dark)
+            : value < 0
+            ? MarkdownConstants.moneyNegative(dark: dark)
+            : style.primaryColor;
+        chrome = 'Δ~';
       case MoneyLineKind.target:
         accent = style.primaryColor;
         chrome = '◎';

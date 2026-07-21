@@ -207,6 +207,7 @@ class AvailableIcons {
     Icons.attach_money,
     Icons.payments_outlined,
     Icons.compare_arrows,
+    Icons.timeline,
   ];
 
   AvailableIcons._();

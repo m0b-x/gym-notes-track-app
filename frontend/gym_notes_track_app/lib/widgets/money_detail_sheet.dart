@@ -5,8 +5,9 @@ import '../l10n/app_localizations.dart';
 import '../utils/markdown_money_syntax.dart';
 
 /// Bottom sheet listing the ledger entries that feed a tapped `$$`
-/// total or `$?` net-change row — reached from both the preview pill
-/// and the live editor's painted chip. Read-only: rows mirror the
+/// total, `$?` net-change, `$^` entry-diff, or `$~` checkpoint-span row
+/// — reached from both the preview pill and the live editor's painted
+/// chip. Read-only: rows mirror the
 /// inline rendering (same glyphs and accent palette) so the sheet and
 /// the note always read as one system.
 class MoneyDetailSheet extends StatelessWidget {
@@ -67,7 +68,9 @@ class MoneyDetailSheet extends StatelessWidget {
     final tapped = entries.isNotEmpty ? entries.last : null;
     final headerValue = tapped?.valueAfter ?? 0;
     final signedHeader =
-        tappedKind == MoneyLineKind.delta || tappedKind == MoneyLineKind.diff;
+        tappedKind == MoneyLineKind.delta ||
+        tappedKind == MoneyLineKind.diff ||
+        tappedKind == MoneyLineKind.span;
     final headerColor = signedHeader
         ? (headerValue > 0
               ? MarkdownConstants.moneyPositive(dark: dark)
@@ -94,6 +97,7 @@ class MoneyDetailSheet extends StatelessWidget {
                     switch (tappedKind) {
                       MoneyLineKind.delta => 'Δ',
                       MoneyLineKind.diff => 'Δ=',
+                      MoneyLineKind.span => 'Δ~',
                       _ => 'Σ',
                     },
                     style: theme.textTheme.titleLarge?.copyWith(
@@ -132,7 +136,8 @@ class MoneyDetailSheet extends StatelessWidget {
                   final isDisplay =
                       m.kind == MoneyLineKind.total ||
                       m.kind == MoneyLineKind.delta ||
-                      m.kind == MoneyLineKind.diff;
+                      m.kind == MoneyLineKind.diff ||
+                      m.kind == MoneyLineKind.span;
                   final (glyph, accent) = switch (m.kind) {
                     MoneyLineKind.add => (
                       '+',
@@ -154,6 +159,7 @@ class MoneyDetailSheet extends StatelessWidget {
                     MoneyLineKind.total => ('Σ', primary),
                     MoneyLineKind.delta => ('Δ', primary),
                     MoneyLineKind.diff => ('Δ=', primary),
+                    MoneyLineKind.span => ('Δ~', primary),
                     MoneyLineKind.target => (
                       '◎',
                       e.valueAfter < 0
@@ -166,7 +172,8 @@ class MoneyDetailSheet extends StatelessWidget {
                           e.valueAfter,
                           signed:
                               m.kind == MoneyLineKind.delta ||
-                              m.kind == MoneyLineKind.diff,
+                              m.kind == MoneyLineKind.diff ||
+                              m.kind == MoneyLineKind.span,
                         )
                       : e.line.substring(m.amountStart, m.amountEnd);
                   final label = m.labelStart < e.line.length
