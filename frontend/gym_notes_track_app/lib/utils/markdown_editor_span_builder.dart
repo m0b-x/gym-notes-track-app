@@ -225,22 +225,23 @@ class MarkdownEditorSpanBuilder {
 
     final reveal = selectionCoversLine(controller.selection, index);
 
-    // `$$` money totals, `$?` net-change, and `$^` checkpoint-diff
-    // lines display a value computed from every op line above —
-    // positional state from the shared index — so they style through
-    // the positional memo with the value folded into the key, mirroring
-    // fences. Reveal lines show raw `$$` / `$?` / `$^` and skip the
-    // paint. A `$` value slot in the label makes any row display a
-    // computed value, so those join the positional path too; the rest
-    // of the op lines (`$+ …`) are purely textual and stay on the
-    // text-keyed path below.
+    // `$$` money totals, `$?` net-change, `$^` entry-diff, and `$~`
+    // checkpoint-span lines display a value computed from every op line
+    // above — positional state from the shared index — so they style
+    // through the positional memo with the value folded into the key,
+    // mirroring fences. Reveal lines show raw `$$` / `$?` / `$^` / `$~`
+    // and skip the paint. A `$` value slot in the label makes any row
+    // display a computed value, so those join the positional path too;
+    // the rest of the op lines (`$+ …`) are purely textual and stay on
+    // the text-keyed path below.
     if (!reveal && _moneyEnabled && MarkdownMoneySyntax.leadsWithMoney(text)) {
       final money = MarkdownMoneySyntax.parse(text);
       if (money != null &&
           (money.valueSlot >= 0 ||
               money.kind == MoneyLineKind.total ||
               money.kind == MoneyLineKind.delta ||
-              money.kind == MoneyLineKind.diff)) {
+              money.kind == MoneyLineKind.diff ||
+              money.kind == MoneyLineKind.span)) {
         final balance =
             _lineIndex.moneyValueAt(controller.codeLines, index) ?? 0;
         final moneyKey = 'm:$balance:$text';
@@ -507,6 +508,7 @@ class MarkdownEditorSpanBuilder {
         opGlyph = '';
       case MoneyLineKind.delta:
       case MoneyLineKind.diff:
+      case MoneyLineKind.span:
         accent = balance > 0
             ? MarkdownConstants.moneyPositive(dark: _isDark)
             : balance < 0
@@ -561,7 +563,8 @@ class MarkdownEditorSpanBuilder {
     final isDisplay =
         m.kind == MoneyLineKind.total ||
         m.kind == MoneyLineKind.delta ||
-        m.kind == MoneyLineKind.diff;
+        m.kind == MoneyLineKind.diff ||
+        m.kind == MoneyLineKind.span;
     final hasSlot = m.valueSlot >= 0;
     // Label-first rows (`$= Net worth: 5000`) read as an equation: the
     // op glyph renders at the `:` instead of leading the row. Needed
@@ -819,9 +822,10 @@ class MarkdownEditorSpanBuilder {
   }
 
   /// Builds the painted chip for a `$$` total (`Σ` + balance), a `$?`
-  /// net change (`Δ` + signed change), or a `$^` checkpoint diff
-  /// (`Δ=` + signed move), laid out once here (memoized upstream via
-  /// the positional span cache) and painted into the placeholder box.
+  /// net change (`Δ` + signed change), a `$^` entry diff (`Δ=` + signed
+  /// move), or a `$~` checkpoint span (`Δ~` + signed move), laid out
+  /// once here (memoized upstream via the positional span cache) and
+  /// painted into the placeholder box.
   /// The box height stays under the line's strut height so the line
   /// never grows.
   ///
@@ -839,7 +843,9 @@ class MarkdownEditorSpanBuilder {
     bool filled = true,
   }) {
     final signed =
-        kind == MoneyLineKind.delta || kind == MoneyLineKind.diff;
+        kind == MoneyLineKind.delta ||
+        kind == MoneyLineKind.diff ||
+        kind == MoneyLineKind.span;
     final value = signed
         ? MarkdownMoneySyntax.formatCentsSignedWithSymbol(
             balance,
@@ -856,6 +862,7 @@ class MarkdownEditorSpanBuilder {
         : switch (kind) {
             MoneyLineKind.delta => 'Δ $value',
             MoneyLineKind.diff => 'Δ= $value',
+            MoneyLineKind.span => 'Δ~ $value',
             _ => 'Σ $value',
           };
     final fontSize = style.fontSize ?? 16.0;

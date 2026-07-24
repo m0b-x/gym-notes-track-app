@@ -153,6 +153,7 @@ class NoteMoneyLedgerService {
         case MoneyLineKind.delta:
         case MoneyLineKind.target:
         case MoneyLineKind.diff:
+        case MoneyLineKind.span:
           break;
       }
     }

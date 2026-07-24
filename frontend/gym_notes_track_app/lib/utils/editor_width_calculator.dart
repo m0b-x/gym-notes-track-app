@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../constants/markdown_constants.dart';
+import 'markdown_line_shape.dart';
 import 'markdown_link_patterns.dart';
 
 /// Configuration for editor width calculation
@@ -136,6 +137,16 @@ class EditorWidthCalculator {
 
       // Check if line needs breaking
       if (line.isEmpty || !lineExceedsWidth(line, maxWidth)) {
+        result.add(line);
+        continue;
+      }
+
+      // Line-led constructs (money rows, headings, quotes/callouts,
+      // table rows) are never width-broken: the split tail would lose
+      // the lead marker and the construct's meaning with it. Checked
+      // only for lines that would actually break, so fitting lines
+      // never pay the shape probe.
+      if (MarkdownLineShape.isLineLedConstruct(trimmed)) {
         result.add(line);
         continue;
       }

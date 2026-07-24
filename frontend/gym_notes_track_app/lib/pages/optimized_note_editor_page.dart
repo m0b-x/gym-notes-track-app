@@ -1219,14 +1219,15 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     AppNavigator.toSearch(context, query: tag);
   }
 
-  /// Opens the ledger detail sheet for a tapped `$$` / `$?` / `$^` row
-  /// — reached from both the preview pill and the editor's painted
-  /// chip. Entries are collected on demand from the current editor
-  /// content (grammar-shared, fence-aware), so preview and editor taps
-  /// always agree with what is rendered. `$?` sheets list entries since
-  /// the last `$=`; `$^ N` sheets list the window it measures — the
-  /// last N balance-changing entries (clamped to the current period)
-  /// from their baseline through the tapped row.
+  /// Opens the ledger detail sheet for a tapped `$$` / `$?` / `$^` /
+  /// `$~` row — reached from both the preview pill and the editor's
+  /// painted chip. Entries are collected on demand from the current
+  /// editor content (grammar-shared, fence-aware), so preview and editor
+  /// taps always agree with what is rendered. `$?` sheets list entries
+  /// since the last `$=`; `$^ N` sheets list the window it measures —
+  /// the last N balance-changing entries (clamped to the current period)
+  /// from their baseline through the tapped row; `$~ N` sheets span the
+  /// last N `$=` checkpoints, reaching across period boundaries.
   void _handleMoneyTap(int lineIndex) {
     final codeLines = _contentController.codeLines;
     if (lineIndex < 0 || lineIndex >= codeLines.length) return;
@@ -1247,6 +1248,7 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
           if (e.lineIndex > lastAnchorLine) e,
       ],
       MoneyLineKind.diff => _diffWindowEntries(collected, tapped, lineIndex),
+      MoneyLineKind.span => _spanWindowEntries(collected, tapped, lineIndex),
       _ => collected.entries,
     };
     MoneyDetailSheet.show(
@@ -1291,12 +1293,46 @@ class _OptimizedNoteEditorPageState extends State<OptimizedNoteEditorPage>
     final periodStartHist = lastAnchorLine < 0
         ? 0
         : entryLines.lastIndexOf(lastAnchorLine) + 1;
-    var refHist = e - tapped.diffCount;
+    var refHist = e - tapped.windowCount;
     if (refHist < periodStartHist) refHist = periodStartHist;
     // history[refHist] is the balance after entryLines[refHist - 1], so
     // that entry is the window's visible baseline (the note start when
     // refHist is 0).
     final baselineLine = refHist >= 1 ? entryLines[refHist - 1] : 0;
+    return [
+      for (final row in collected.entries)
+        if (row.lineIndex >= baselineLine && row.lineIndex <= lineIndex) row,
+    ];
+  }
+
+  /// The ledger rows a tapped `$~ N` measures across: every money row
+  /// from the Nth-most-recent `$=` checkpoint (floored at the note
+  /// start) through the tapped row. Resolves the window the same way
+  /// `displayValue` does — N entries back in the append-only
+  /// checkpoint-balance history (index 0 = note start, one per `$=`) —
+  /// so the sheet's running column reconstructs the change end to end.
+  /// Unlike [_diffWindowEntries], the window deliberately spans whole
+  /// `$=` periods, so it can reach across checkpoints the diff window
+  /// stops at.
+  List<MoneyLedgerEntry> _spanWindowEntries(
+    ({
+      List<MoneyLedgerEntry> entries,
+      List<int> entryLines,
+      List<int> anchorLines,
+    })
+    collected,
+    MoneyLineMatch tapped,
+    int lineIndex,
+  ) {
+    final anchorLines = collected.anchorLines;
+    // Reference index in the checkpoint-balance history: N checkpoints
+    // back, floored at index 0 (the note start). The history is one
+    // longer than [anchorLines] because index 0 is that start.
+    var ref = anchorLines.length + 1 - tapped.windowCount;
+    if (ref < 0) ref = 0;
+    // Its source line: the note start (line 0) when ref floors there,
+    // else the `$=` that set the reference balance.
+    final baselineLine = ref >= 1 ? anchorLines[ref - 1] : 0;
     return [
       for (final row in collected.entries)
         if (row.lineIndex >= baselineLine && row.lineIndex <= lineIndex) row,

@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:re_editor/re_editor.dart';
 
+import 'markdown_line_shape.dart';
 import 'markdown_list_syntax.dart';
 
 /// Multi-line paste that continues the caret line's list.
@@ -14,8 +15,10 @@ import 'markdown_list_syntax.dart';
 ///   * the selection isn't collapsed, or the caret is inside the
 ///     marker (left of the item's content);
 ///   * the paste is single-line;
-///   * any pasted line is already a list item (the text brought its
-///     own markers);
+///   * any pasted line is already a list item, or any other line-led
+///     construct — a money row, heading, quote/callout, fence, or
+///     table row ([MarkdownLineShape]) — since the text brought its
+///     own structure and a list marker in front would break it;
 ///   * from the first blank pasted line on, the remainder pastes raw
 ///     (a blank line ends a markdown list).
 ///
@@ -68,7 +71,10 @@ class ListAwarePaste {
     for (var i = 1; i < lines.length; i++) {
       final line = lines[i];
       if (line.trim().isEmpty) break;
-      if (MarkdownListSyntax.isListLine(line)) return normalized;
+      if (MarkdownListSyntax.isListLine(line) ||
+          MarkdownLineShape.isLineLedConstruct(line)) {
+        return normalized;
+      }
       hasContinuation = true;
     }
     if (!hasContinuation) return normalized;
